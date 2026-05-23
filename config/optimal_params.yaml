@@ -1,0 +1,160 @@
+version: 1
+
+defaults:
+  optimizer: lbfgsb
+  lookahead_days: 60
+  drop_threshold: 0.10
+  ma_window: 5
+  max_peaks: 10
+  signal_model: multi_factor_v1
+  initial_position: 0.0
+  positive_consensus_threshold: 0.25
+  negative_consensus_threshold: 0.20
+  rebound_days: 15
+  trend_fast_ma: 20
+  trend_slow_ma: 120
+  trend_slope_window: 10
+  atr_period: 14
+  atr_ma_window: 60
+  vol_breakout_mult: 1.05
+  buy_volatility_cap: 1.05
+  drawdown_confirm_threshold: 0.05
+  buy_vote_threshold: 3
+  sell_vote_threshold: 3
+  buy_confirm_days: 2
+  sell_confirm_days: 2
+  cooldown_days: 15
+  require_trend_recovery_for_buy: true
+
+window_sets:
+  narrow_40_120: [40, 50, 60, 70, 80, 90, 100, 110, 120]
+  default_40_150: [40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150]
+  wide_30_180: [30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150, 160, 170, 180]
+
+symbols:
+  "000001.SH":
+    step: 120
+    window_set: narrow_40_120
+    r2_threshold: 0.50
+    consensus_threshold: 0.20
+    danger_days: 20
+    positive_consensus_threshold: 0.25
+    negative_consensus_threshold: 0.20
+    sell_vote_threshold: 3
+    buy_vote_threshold: 3
+    sell_confirm_days: 2
+    buy_confirm_days: 2
+    cooldown_days: 20
+    optimizer: lbfgsb
+  "399001.SZ":
+    step: 120
+    window_set: wide_30_180
+    r2_threshold: 0.50
+    consensus_threshold: 0.30
+    danger_days: 20
+    positive_consensus_threshold: 0.25
+    negative_consensus_threshold: 0.20
+    sell_vote_threshold: 2
+    buy_vote_threshold: 3
+    sell_confirm_days: 2
+    buy_confirm_days: 2
+    cooldown_days: 15
+    vol_breakout_mult: 1.03
+    optimizer: lbfgsb
+  "399006.SZ":
+    step: 60
+    window_set: wide_30_180
+    r2_threshold: 0.50
+    consensus_threshold: 0.30
+    danger_days: 20
+    positive_consensus_threshold: 0.20
+    negative_consensus_threshold: 0.20
+    sell_vote_threshold: 2
+    buy_vote_threshold: 3
+    sell_confirm_days: 1
+    buy_confirm_days: 2
+    cooldown_days: 10
+    vol_breakout_mult: 1.02
+    drawdown_confirm_threshold: 0.08
+    optimizer: lbfgsb
+  "000016.SH":
+    step: 60
+    window_set: wide_30_180
+    r2_threshold: 0.50
+    consensus_threshold: 0.20
+    danger_days: 20
+    positive_consensus_threshold: 0.25
+    negative_consensus_threshold: 0.20
+    sell_vote_threshold: 2
+    buy_vote_threshold: 3
+    sell_confirm_days: 2
+    buy_confirm_days: 2
+    cooldown_days: 15
+    vol_breakout_mult: 1.00
+    buy_volatility_cap: 1.00
+    drawdown_confirm_threshold: 0.08
+    optimizer: lbfgsb
+  "000300.SH":
+    step: 120
+    window_set: narrow_40_120
+    r2_threshold: 0.50
+    consensus_threshold: 0.25
+    danger_days: 20
+    positive_consensus_threshold: 0.30
+    negative_consensus_threshold: 0.20
+    sell_vote_threshold: 2
+    buy_vote_threshold: 3
+    sell_confirm_days: 2
+    buy_confirm_days: 2
+    cooldown_days: 10
+    vol_breakout_mult: 1.00
+    buy_volatility_cap: 1.00
+    drawdown_confirm_threshold: 0.08
+    optimizer: lbfgsb
+  "000905.SH":
+    step: 120
+    window_set: narrow_40_120
+    r2_threshold: 0.50
+    consensus_threshold: 0.20
+    danger_days: 20
+    positive_consensus_threshold: 0.20
+    negative_consensus_threshold: 0.20
+    sell_vote_threshold: 2
+    buy_vote_threshold: 3
+    sell_confirm_days: 2
+    buy_confirm_days: 2
+    cooldown_days: 15
+    vol_breakout_mult: 1.03
+    optimizer: lbfgsb
+  "000852.SH":
+    step: 120
+    window_set: narrow_40_120
+    r2_threshold: 0.50
+    consensus_threshold: 0.20
+    danger_days: 20
+    positive_consensus_threshold: 0.20
+    negative_consensus_threshold: 0.20
+    sell_vote_threshold: 2
+    buy_vote_threshold: 3
+    sell_confirm_days: 1
+    buy_confirm_days: 2
+    cooldown_days: 10
+    vol_breakout_mult: 1.02
+    drawdown_confirm_threshold: 0.08
+    optimizer: lbfgsb
+  "932000.SH":
+    step: 20
+    window_set: narrow_40_120
+    r2_threshold: 0.50
+    consensus_threshold: 0.25
+    danger_days: 20
+    positive_consensus_threshold: 0.20
+    negative_consensus_threshold: 0.20
+    sell_vote_threshold: 2
+    buy_vote_threshold: 3
+    sell_confirm_days: 1
+    buy_confirm_days: 2
+    cooldown_days: 10
+    vol_breakout_mult: 1.02
+    drawdown_confirm_threshold: 0.08
+    optimizer: lbfgsb

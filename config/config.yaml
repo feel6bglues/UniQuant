@@ -1,0 +1,430 @@
+# Alpha-Tactician 主配置文件
+# 集中管理所有配置项，按功能模块划分
+
+# 基础配置
+base:
+  data_lake:
+    path: "data/lake"
+    compression: "snappy"
+    engine: "duckdb"
+  
+  logging:
+    level: "INFO"
+    format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  
+  # 通达信配置 (Linux/Mac/Windows 通用路径)
+  tdx:
+    path: "/home/james/.local/share/tdxcfv/drive_c/tc"  # Linux通达信路径
+
+# 缓存配置
+cache:
+  # 全局缓存设置
+  global:
+    enabled: true
+    path: "data/cache"
+    max_age: 7  # 缓存最大保存天数
+    batch_size: 5  # 批量处理大小
+  
+  # 缓存生存时间(TTL)配置
+  ttl:
+    stock_data: 3600      # 股票数据缓存时间(秒) - 1小时
+    index_data: 3600      # 指数数据缓存时间(秒) - 1小时
+    realtime_data: 60     # 实时数据缓存时间(秒) - 1分钟
+    market_cap: 300       # 市值数据缓存时间(秒) - 5分钟
+    stock_info: 86400     # 股票信息缓存时间(秒) - 1天
+    industry_data: 3600   # 行业数据缓存时间(秒) - 1小时
+    concept_data: 3600    # 概念数据缓存时间(秒) - 1小时
+    lppl_result: 1800     # LPPL计算结果缓存时间(秒) - 30分钟
+  
+  # 缓存大小限制
+  limits:
+    max_entries: 1000     # 最大缓存条目数
+    max_memory_mb: 100    # 最大内存使用(MB)
+  
+  # 性能配置
+  performance:
+    lazy_load: true       # 是否懒加载
+    preload_stocks: []    # 预加载的股票列表
+  
+  # 清理策略
+  cleanup:
+    enabled: true         # 是否启用自动清理
+    interval: 300         # 清理间隔(秒)
+    expired_only: true    # 只清理过期条目
+
+# 网络配置
+network:
+  # HTTP超时配置(秒)
+  timeout:
+    default: 30           # 默认超时时间
+    connect: 10           # 连接超时
+    read: 30              # 读取超时
+    realtime: 10          # 实时数据超时
+    historical: 60        # 历史数据超时
+  
+  # 重试配置
+  retry:
+    max_retries: 3        # 最大重试次数
+    retry_delay: 1.0      # 重试延迟(秒)
+    backoff_factor: 2.0   # 指数退避因子
+    max_delay: 60.0       # 最大延迟(秒)
+  
+  # 速率限制
+  rate_limit:
+    requests_per_second: 5    # 每秒最大请求数
+    burst_size: 10            # 突发请求数
+    min_interval: 0.2         # 最小请求间隔(秒)
+  
+  # HTTP请求头 (与 constants.py DEFAULT_HEADERS 保持一致)
+  headers:
+    User-Agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+    Accept: "*/*"
+    Connection: "keep-alive"
+    Cache-Control: "no-cache"
+    Pragma: "no-cache"
+  
+  # 数据源特定配置
+  sources:
+    eastmoney:
+      base_url: "https://push2.eastmoney.com"
+      timeout: 30
+      retry: 3
+      rate_limit: 5
+      
+    sina:
+      base_url: "https://hq.sinajs.cn"
+      timeout: 10
+      retry: 3
+      rate_limit: 10
+      
+    tencent:
+      base_url: "https://qt.gtimg.cn"
+      timeout: 10
+      retry: 3
+      rate_limit: 10
+  
+  # 连接池配置
+  connection_pool:
+    max_connections: 100      # 最大连接数
+    max_connections_per_host: 20  # 每个主机最大连接数
+    keep_alive: true          # 是否保持连接
+    keep_alive_timeout: 30    # 保持连接超时(秒)
+  
+  # SSL配置
+  ssl:
+    verify: true              # 验证SSL证书
+    ca_bundle: null           # CA证书路径
+    client_cert: null         # 客户端证书路径
+    client_key: null          # 客户端密钥路径
+
+# 数据源配置
+data_sources:
+  # 数据源配置
+  sources:
+    # 新合并数据源 - 优先使用
+    StockDataSource:
+      class: data.sources.stock_sources.StockDataSource
+      priority: 1
+      timeout: 10
+      enabled: true
+      config:
+        retry_times: 3
+        retry_delay: 1.0
+    
+    IndexDataSource:
+      class: data.sources.index_sources.IndexDataSource
+      priority: 2
+      timeout: 10
+      enabled: true
+      config:
+        retry_times: 3
+        retry_delay: 1.0
+    
+    EtfDataSource:
+      class: data.sources.etf_sources.EtfDataSource
+      priority: 3
+      timeout: 10
+      enabled: true
+      config:
+        retry_times: 3
+        retry_delay: 1.0
+    
+    # 传统数据源 - 已禁用
+    BaoStockSource:
+      class: data.sources.baostock.BaostockSource
+      priority: 10
+      timeout: 10
+      enabled: false
+      config:
+        retry_times: 3
+        retry_delay: 1.0
+    
+    SinaSource:
+      class: data.sources.sina.SinaSource
+      priority: 11
+      timeout: 5
+      enabled: false
+      config:
+        retry_times: 3
+        retry_delay: 0.5
+    
+    TencentSource:
+      class: data.sources.tencent.TencentSource
+      priority: 12
+      timeout: 5
+      enabled: false
+      config:
+        retry_times: 3
+        retry_delay: 0.5
+    
+    EastmoneySource:
+      class: data.sources.eastmoney.EastmoneySource
+      priority: 13
+      timeout: 10
+      enabled: false
+      config:
+        retry_times: 3
+        retry_delay: 1.0
+    
+    EfinanceSource:
+      class: data.sources.efinance.EfinanceSource
+      priority: 14
+      timeout: 10
+      enabled: false
+      config:
+        retry_times: 3
+        retry_delay: 1.0
+    
+    ThsSource:
+      class: data.sources.ths.ThsSource
+      priority: 15
+      timeout: 8
+      enabled: false
+      config:
+        retry_times: 2
+        retry_delay: 1.0
+  
+  # 数据类型配置
+  data_types:
+    stock:
+      daily:
+        supported_sources:
+          - StockDataSource
+        default_source: StockDataSource
+        cache_ttl: 3600  # 缓存时间（秒）
+      
+      realtime:
+        supported_sources:
+          - StockDataSource
+        default_source: StockDataSource
+        cache_ttl: 60
+      
+      market_cap:
+        supported_sources:
+          - StockDataSource
+        default_source: StockDataSource
+        cache_ttl: 3600
+    
+    index:
+      daily:
+        supported_sources:
+          - IndexDataSource
+        default_source: IndexDataSource
+        cache_ttl: 3600
+    
+    sector:
+      daily:
+        supported_sources:
+          - StockDataSource
+        default_source: StockDataSource
+        cache_ttl: 86400  # 行业数据更新频率较低
+    
+    etf:
+      daily:
+        supported_sources:
+          - EtfDataSource
+        default_source: EtfDataSource
+        cache_ttl: 3600
+  
+  # 行业概念数据配置
+  industry_concept:
+    industry:
+      supported_sources:
+        - StockDataSource
+      default_source: StockDataSource
+      cache_ttl: 86400
+    
+    concept:
+      supported_sources:
+        - StockDataSource
+      default_source: StockDataSource
+      cache_ttl: 86400
+
+# 技术指标配置
+indicators:
+  ma:
+    windows: [20, 60, 120]
+  atr:
+    period: 14
+    multiplier: 2.0
+  macd:
+    fast: 12
+    slow: 26
+    signal: 9
+  rsi:
+    period: 14
+
+# 缠论配置
+czsc:
+  # 笔破坏/分型阈值等
+  bi_params:
+    min_bi_len: 5  # 指K线根数
+    include_handling: true
+    fractal_strict: true
+  
+  buy_points:
+    3rd_buy:
+      pivot_break: true
+      pullback_limit: 0.1  # 回踩幅度限制
+
+# LPPL模型配置
+lppl:
+  # Sornette's empirical range for m parameter (缩放指数)
+  # 约束条件: 0.1 < m < 0.9
+  m_min: 0.1
+  m_max: 0.9
+  
+  # 角频率范围
+  # 约束条件: 6 < w < 13
+  w_min: 6.0
+  w_max: 13.0
+  
+  # 差分进化优化器设置
+  optimizer:
+    max_iter: 500          # 最大迭代次数
+    popsize: 10            # 粒子群规模
+    tolerance: 0.01        # 收敛容差
+    mutation_min: 0.5      # 变异因子最小值
+    mutation_max: 1.0      # 变异因子最大值
+    recombination: 0.7     # 重组概率
+    seed: 42               # 随机种子
+    workers: 1             # 并行工作线程数 (必须为1，避免嵌套多进程死锁)
+  
+  # 数据要求
+  data:
+    min_data_points: 60    # 最小数据点数
+    tc_search_range: 50    # 临界点搜索范围(天)
+    tc_future_range: 100   # 未来临界点搜索范围(天)
+  
+  # 参数边界
+  bounds:
+    tc_backward: 50        # tc向后搜索范围
+    tc_forward: 100        # tc向前搜索范围
+    a_multiplier: 1.1      # 参数a的上限乘数
+    b_min: -20             # 参数b最小值
+    b_max: 20              # 参数b最大值
+    c_min: -20             # 参数c最小值
+    c_max: 20              # 参数c最大值
+    phi_max: 6.283185307   # 2*PI
+  
+  # Sornette约束条件
+  constraints:
+    m_range: [0.1, 0.9]    # m参数有效范围
+    w_range: [6, 13]       # w参数有效范围
+    b_sign: "negative"     # b必须为负数
+    c_min_abs: 0.01        # |c|最小值
+    c_abs_for_bubble: 0.1  # 判断泡沫时的|c|阈值
+  
+  # 置信度计算
+  confidence:
+    tc_weight: 0.4         # 基于tc天数的权重
+    cost_weight: 0.4       # 基于成本函数的权重
+    data_weight: 0.2       # 基于数据长度的权重
+    data_reference: 200    # 数据长度参考值
+    cost_scale: 0.1        # 成本函数缩放因子
+  
+  # 风险等级阈值
+  risk_levels:
+    danger_days: 10        # <10天为Danger
+    warning_days: 20       # <20天为Warning
+    safe_days: 30          # >=30天为Safe
+  
+  # 泡沫判断阈值
+  bubble:
+    confidence_threshold: 0.6  # 置信度阈值
+    b_sign: "negative"         # b必须为负
+  
+  # 性能配置
+  performance:
+    cache_enabled: true    # 是否启用缓存
+    cache_precision: 4     # 缓存精度(小数位数)
+
+# 市场配置
+markets:
+  etfs:
+    critical:
+      "510300.SH": "CSI300 ETF"
+      "510050.SH": "SSE50 ETF"
+      "510500.SH": "CSI500 ETF"
+      "512100.SH": "CSI1000 ETF"
+      "563300.SH": "CSI2000 ETF"
+    default_list:
+      - "510300"
+      - "510050"
+      - "510500"
+      - "159915"
+      - "512880"
+      - "512480"
+      - "512010"
+      - "512660"
+      - "512690"
+      - "518880"
+  
+  benchmarks:
+    rules:
+      large_cap: "000300.SH"
+      mid_cap: "000905.SH"
+      small_cap: "000852.SH"
+    names:
+      "000300.SH": "沪深300"
+      "000905.SH": "中证500"
+      "000852.SH": "中证1000"
+      "000016.SH": "上证50"
+  
+  indices:
+    - id: "000001.SH"
+      name: "上证指数"
+    - id: "000300.SH"
+      name: "沪深300"
+    - id: "000905.SH"
+      name: "中证500"
+    - id: "000852.SH"
+      name: "中证1000"
+    - id: "399006.SZ"
+      name: "创业板指"
+
+# 风险配置
+risk:
+  default_risk_pct: 0.1
+  circuit_break_pct: 0.15
+
+# 核心逻辑配置
+brain:
+  alpha_decoupler:
+    benchmark_thresholds:
+      large_cap: 50000000000  # 50B
+      mid_cap: 10000000000    # 10B
+    window: 20
+  
+  ntf:
+    volume_ratio_threshold: 2.0
+    window: 5
+    
+  regime:
+    entropy_threshold: 0.2
+    turnover_z_limit: 3.0
+    min_data_points: 30
+  
+  fsm:
+    ma_short: 20
+    ma_long: 60

@@ -1,0 +1,15 @@
+factors:
+  momentum_20d:
+    enabled: true
+    weight: 1.2
+    category: technical
+
+  turnover_momentum_20d:
+    enabled: true
+    weight: 0.85
+    category: technical
+
+  pe_ttm:
+    enabled: true
+    weight: 0.7
+    category: fundamental
