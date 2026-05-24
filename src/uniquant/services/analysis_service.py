@@ -81,7 +81,7 @@ class AnalysisService:
 
         if engine_factory is None:
             from .analysis.engine_factory import AnalysisEngineFactory
-            engine_factory = AnalysisEngineFactory(data_service=data_service)
+            engine_factory = AnalysisEngineFactory(orchestrator=self)
         self._factory = engine_factory
 
         self._initialize_cache()
@@ -121,6 +121,10 @@ class AnalysisService:
     @property
     def brain(self):
         return self._factory.brain
+
+    @property
+    def wyckoff_engine(self):
+        return self._factory.wyckoff
 
     def _initialize_dependencies(self):
         """Deprecated — engines are lazily initialized via AnalysisEngineFactory."""
@@ -772,6 +776,7 @@ class AnalysisService:
             self._run_lppl_detection(data_pack)
             self._run_ntf_detection(ticker, data_pack)
             self._run_czsc_detection(ticker, data_pack)
+            self._run_wyckoff_detection(ticker, data_pack)
             self._run_alpha_analysis(data_pack)
             self._calculate_ma_status(data_pack)
             self._calculate_returns(data_pack)
@@ -803,7 +808,7 @@ class AnalysisService:
                         data_pack["turnover_z"] = self._market_regime_details.get("turnover_z", 0.0)
                     return
             
-            from ..brain.regime_detector import RegimeDetector
+            from ..brain.regime.regime_detector import RegimeDetector
 
             regime_detector = RegimeDetector()
             # Migrate from deprecated detect_from_data to get_summary
@@ -831,15 +836,15 @@ class AnalysisService:
             data_pack["regime"] = "NORMAL"
 
     def _run_lppl_detection(self, data_pack: Dict[str, Any]) -> None:
-        """运行 LPPLEngine 分析"""
+        """Run LPPLEngine analysis (via service layer engine)"""
         try:
-            from ..brain.lppl.engine import LPPLEngine
-            lppl_engine = LPPLEngine()
-            lppl_result = lppl_engine.detect_bubble(data_pack["stock"])
-            data_pack["risk"] = lppl_result.get("risk", "Safe")
+            symbol = data_pack.get("symbol", "unknown")
+            lppl_result = self.lppl_engine.run_lppl_analysis(symbol=symbol, df=data_pack.get("stock"))
+            data_pack["risk"] = lppl_result.get("risk_level", "Safe")
             data_pack["bubble_confidence"] = lppl_result.get("confidence", 0.0)
         except RECOVERABLE_ERRORS as e:
             logger.warning(f"LPPLEngine 分析失败: {e}")
+            logger.exception("LPPLEngine 分析详情: ")
             data_pack["risk"] = "Safe"
             data_pack["bubble_confidence"] = 0.0
 
@@ -858,14 +863,14 @@ class AnalysisService:
                     data_pack["ntf_intensity"] = self._ntf_signals.get("intensity", 0.0)
                     data_pack["ntf_action"] = self._ntf_signals.get("action", "")
                     return
-            
-            from ..brain.ntf_engine import NTFEngine
+
+            from ..brain.ntf.ntf_engine import NTFEngine
             from ..data.data_fetcher import DataFetcher
-            
+
             fetcher = DataFetcher()
             end_date = pd.Timestamp.now().strftime("%Y-%m-%d")
             start_date = (pd.Timestamp.now() - pd.DateOffset(days=TimeConstants.DAYS_MONTH * 3)).strftime("%Y-%m-%d")
-            
+
             ntf_engine = NTFEngine()
             
             primary_etf = "510300.SH"
@@ -889,24 +894,32 @@ class AnalysisService:
             data_pack["ntf_intensity"] = 0.0
 
     def _run_czsc_detection(self, ticker: str, data_pack: Dict[str, Any]) -> None:
-        """运行 CZSCEngine 分析"""
+        """Run CZSCEngine analysis (via service layer engine)"""
         try:
-            from ..brain.czsc_engine import CZSCEngine
-            czsc_engine = CZSCEngine()
-            
-            stock_df = data_pack.get("stock")
-            if stock_df is not None and not stock_df.empty:
-                latest_row = stock_df.iloc[-1]
-                czsc_result = czsc_engine.update_and_get_signals(latest_row)
-            else:
-                czsc_result = {"is_3rd_buy": False, "bi_count": 0}
-            
+            czsc_result = self.czsc_engine.run_czsc_analysis(symbol=ticker, df=data_pack.get("stock"))
             data_pack["is_3rd_buy"] = czsc_result.get("is_3rd_buy", False)
             data_pack["bi_count"] = czsc_result.get("bi_count", 0)
         except RECOVERABLE_ERRORS as e:
             logger.warning(f"CZSCEngine 分析失败: {e}")
             data_pack["is_3rd_buy"] = False
             data_pack["bi_count"] = 0
+
+    def _run_wyckoff_detection(self, ticker: str, data_pack: Dict[str, Any]) -> None:
+        """Run Wyckoff analysis (via service layer engine)"""
+        try:
+            wyckoff_result = self.wyckoff_engine.run_wyckoff_analysis(
+                symbol=ticker, df=data_pack.get("stock")
+            )
+            data_pack["wyckoff_phase"] = wyckoff_result.get("phase", "unknown")
+            data_pack["wyckoff_confidence"] = wyckoff_result.get("confidence", 0.0)
+            data_pack["wyckoff_accumulation"] = wyckoff_result.get("accumulation_score", 0.0)
+            data_pack["wyckoff_distribution"] = wyckoff_result.get("distribution_score", 0.0)
+            data_pack["wyckoff_spring"] = wyckoff_result.get("spring_detected", False)
+            data_pack["wyckoff_utad"] = wyckoff_result.get("utad_detected", False)
+        except RECOVERABLE_ERRORS as e:
+            logger.warning(f"Wyckoff 分析失败: {e}")
+            data_pack["wyckoff_phase"] = "unknown"
+            data_pack["wyckoff_confidence"] = 0.0
 
     def _run_alpha_analysis(self, data_pack: Dict[str, Any]) -> None:
         """
@@ -1471,6 +1484,15 @@ class AnalysisService:
             logger.error(f"FSM analysis failed for {symbol}: {e}")
             analysis_results["fsm"] = {"error": "FSM分析失败", "status": "failed"}
 
+        # Run Wyckoff analysis
+        try:
+            analysis_results["wyckoff"] = self.wyckoff_engine.run_wyckoff_analysis(
+                symbol=symbol, df=df
+            )
+        except RECOVERABLE_ERRORS as e:
+            logger.error(f"Wyckoff analysis failed for {symbol}: {e}")
+            analysis_results["wyckoff"] = {"error": "Wyckoff分析失败", "status": "failed"}
+
         # Determine overall recommendation
         fsm_result = analysis_results.get("fsm", {})
         overall_recommendation = fsm_result.get("recommendation", "中性")
@@ -1482,6 +1504,7 @@ class AnalysisService:
             "lppl": analysis_results.get("lppl", {}),
             "czsc": analysis_results.get("czsc", {}),
             "fsm": analysis_results.get("fsm", {}),
+            "wyckoff": analysis_results.get("wyckoff", {}),
             "overall_recommendation": overall_recommendation,
             "summary": "综合分析完成",
         }

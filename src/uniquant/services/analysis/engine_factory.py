@@ -11,8 +11,8 @@ logger = get_logger(__name__)
 
 
 class AnalysisEngineFactory:
-    def __init__(self, data_service):
-        self._data_service = data_service
+    def __init__(self, orchestrator):
+        self._orchestrator = orchestrator
         self._engines: Dict[str, Any] = {}
 
     def _lazy_init(self, name: str, module_path: str, class_name: str, **kwargs) -> Any:
@@ -21,7 +21,7 @@ class AnalysisEngineFactory:
             try:
                 mod = importlib.import_module(module_path, package=__package__)
                 cls = getattr(mod, class_name)
-                self._engines[name] = cls(data_service=self._data_service, **kwargs)
+                self._engines[name] = cls(orchestrator=self._orchestrator, **kwargs)
                 logger.debug(f"Lazy-initialized {name}")
             except Exception as e:
                 logger.warning(f"Failed to init {name}: {e}")
@@ -59,3 +59,7 @@ class AnalysisEngineFactory:
     @property
     def brain(self):
         return self._lazy_init("brain", "...brain.fsm", "DecisionBrain")
+
+    @property
+    def wyckoff(self):
+        return self._lazy_init("wyckoff", "..analysis.wyckoff_analysis_engine", "WyckoffAnalysisEngine")

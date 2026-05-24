@@ -8,6 +8,38 @@ from enum import Enum
 from typing import Optional
 
 # ============================================================================
+# Numba JIT 优化开关
+# ============================================================================
+ENABLE_NUMBA_JIT = True
+REQUIRED_COLUMNS = ["open", "high", "low", "close", "volume"]
+M_BOUNDS = (0.1, 0.9)
+W_BOUNDS = (6.0, 13.0)
+RANDOM_SEED = 42
+TRUE_RANGE_COLUMN = "true_range"
+OUTPUT_DIR = "hands/reports"
+ENABLE_JOBLIB_PARALLEL = True
+
+
+class WindowConfig:
+    """LPPL窗口配置"""
+    all_windows = [100, 150, 200, 250, 300, 400, 500, 600, 750]
+
+    SHORT_MAX = 200
+    MEDIUM_MAX = 400
+
+    @classmethod
+    def get_category(cls, window: int) -> str:
+        if window <= cls.SHORT_MAX:
+            return "short"
+        elif window <= cls.MEDIUM_MAX:
+            return "medium"
+        return "long"
+
+
+WINDOW_CONFIG = WindowConfig()
+
+
+# ============================================================================
 # 日期相关常量
 # ============================================================================
 class DateConstants:
