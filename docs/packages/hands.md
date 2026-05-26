@@ -1,5 +1,7 @@
 # hands -- 回测与策略
 
+> **状态:** 🔴 待迁移 | **当前文件:** 1/19+ | **迁移阶段:** Phase 1E
+
 `uniquant.hands` 模块是 UniQuant 的策略执行与回测子系统，约 4.7K LOC。该模块提供完整的回测引擎、统一撮合引擎、组合回测引擎、策略框架及内置策略，并包含丰富的回测分析工具（Monte Carlo 模拟、过拟合检测、稳健性检查、敏感性分析）。
 
 模块通过 `__init__.py` 延迟导入 `Reporter`、`ResultsManager` 和 `strategies`，避免循环依赖。

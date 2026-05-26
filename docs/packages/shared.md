@@ -1,5 +1,7 @@
 # shared -- 公共基础设施
 
+> **状态:** ✅ 基本完整 | **当前文件:** 23/29 | **缺失:** parallel, market_rules, 4 个常量子模块
+
 `uniquant.shared` 是整个 UniQuant 系统的底层支撑包，约 5.2K LOC。所有上层模块（brain、data、risk、signal、services、ui）均依赖此包提供的常量定义、异常体系、错误处理、重试机制、缓存系统、配置管理、成本/滑点模型、涨跌停检查以及日志工厂等基础能力。
 
 主要导出（`__init__.py`）：
