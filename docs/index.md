@@ -27,6 +27,8 @@ UniQuant 是一套面向 A 股市场的量化交易系统，基于 Python 3.12+ 
 |------|------|------|
 | [系统架构总览](architecture.md) | ⚠️ | 整体架构设计（描述目标架构） |
 | [项目状态仪表盘](STATUS.md) | ✅ | 实时进度与模块可用性 |
+| [文档与代码差异评估](EVALUATION_REPORT.md) | ✅ | 全景差异分析：docs 承诺 vs 代码现实 |
+| [评估报告核实报告](VERIFICATION_REPORT.md) | ✅ | 4 Agent 独立核实，修正 7 项数据差异 |
 
 ### 包文档
 
@@ -35,7 +37,7 @@ UniQuant 是一套面向 A 股市场的量化交易系统，基于 Python 3.12+ 
 | [brain -- 信号生成引擎](packages/brain.md) | ⚠️ | 仅 czsc/fsm/lppl 可用，其余待迁移 |
 | [data -- 数据层](packages/data.md) | 🎯 | 目标状态，当前不存在 |
 | [hands -- 回测与策略](packages/hands.md) | 🎯 | 目标状态，当前仅空壳 |
-| [services -- 服务层](packages/services.md) | ⚠️ | 部分可用 (10/24 文件) |
+| [services -- 服务层](packages/services.md) | ⚠️ | 部分可用 (11/24 文件) |
 | [shared -- 公共基础设施](packages/shared.md) | ✅ | 基本完整 (23/29 文件) |
 | [signal -- 信号系统](packages/signal.md) | 🎯 | 目标状态，当前不存在 |
 | [risk -- 风险管理](packages/risk.md) | ⚠️ | 仅 drawdown_analyzer 可用 |

@@ -1,15 +1,16 @@
 # UniQuant 项目状态仪表盘
 
-> 最后更新: 2026-05-26 | 代码版本: 44 文件 | 重构进度: Phase 0 未执行
+> 最后更新: 2026-05-26 | 代码版本: 44 文件 | 重构进度: Phase 0 未执行 | 文档: 34 文件 (4 可信, 10 不可信)
 
 ---
 
 ## 总览
 
 ```
-完成度: ████░░░░░░░░░░░░░░░░ ~28% 源码就绪
-测试数: ██░░░░░░░░░░░░░░░░░░ 11/65+ 测试文件
+完成度: ██████░░░░░░░░░░░░░░ ~28% 源码就绪 (44/160 文件, ~12.6K LOC)
+测试数: █░░░░░░░░░░░░░░░░░░░ 10/65+ 测试文件 (仅 1 个可运行)
 重构:   ░░░░░░░░░░░░░░░░░░░░ Phase 0 未开始
+文档可信度: ████░░░░░░░░░░░░ 25% 可信 (4/23 文档完全可信)
 ```
 
 ---
@@ -26,7 +27,7 @@
 
 | 包 | 文件 | 缺失模块 |
 |----|------|---------|
-| `services/` | 10 | data_service, validation_service, cache_coordinator, stock_query_service, scan_service, portfolio_service, data_access_service, data_quality_service, health_service, analysis/fsm_analysis_engine, analysis/lppl_analysis_engine, analysis/macro_analysis_engine, analysis/signal_service, analysis/wyckoff_analysis_engine |
+| `services/` | 11 | data_service, validation_service, cache_coordinator, stock_query_service, scan_service, portfolio_service, data_access_service, data_quality_service, health_service, analysis/fsm_analysis_engine, analysis/lppl_analysis_engine, analysis/macro_analysis_engine, analysis/signal_service, analysis/wyckoff_analysis_engine |
 | `brain/` | 5 | indicators, alpha_decoupler, ntf/, regime/, factors/, screener/, wyckoff/, lppl/ (7 of 9 submodules) |
 | `ui/` | 2 | components, lppl_visualizer, manager_logic, manager_report_service, manager_portfolio_analytics_service |
 | `risk/` | 1 | evt_risk, historical_risk, portfolio_optimizer, sizer, structural |
@@ -89,11 +90,23 @@
 
 | 文档 | 状态 | 说明 |
 |------|------|------|
-| README.md | ✅ 新建 | 项目入口 |
+| README.md | ✅ 已更新 | 项目入口 |
 | STATUS.md | ✅ 本文件 | 状态仪表盘 |
+| EVALUATION_REPORT.md | ✅ 新建 | 全景差异分析 (docs vs 代码) |
+| VERIFICATION_REPORT.md | ✅ 新建 | 4 Agent 独立核实，修正 7 项数据差异 |
 | architecture.md | ⚠️ 需更新 | 描述目标架构，非当前状态 |
 | packages/*.md | ⚠️ 需标注 | 描述目标 API，非当前可用 |
-| guides/*.md | ⚠️ 需标注 | 引用不存在的模块 |
+| guides/*.md | ❌ 不可用 | 引用不存在的模块，代码示例无法运行 |
 | reference/*.md | ✅ 可用 | 基于 constants.py，准确 |
-| development/*.md | ⚠️ 需更新 | 测试数和文件清单不符 |
-| DOC_MANAGEMENT_PLAN.md | ✅ 新建 | 文档管理规范 |
+| development/*.md | ⚠️ 需更新 | 测试数和文件清单严重不符 |
+| DOC_MANAGEMENT_PLAN.md | ✅ 已更新 | 文档管理规范 |
+
+### 文档可信度分布
+
+```
+完全可信 (4):  reference/constants, exceptions, a_share_constraints, packages/shared
+部分可信 (9):  architecture, packages/brain/services/risk/ui, STATUS, RESTRUCTURE_PLAN, guides/configuration, index
+不可信 (10):   packages/data/hands/signal, guides/quickstart/backtest/factors/strategies/data_sources, development/testing/project_structure
+```
+
+详细差异分析请参阅 [EVALUATION_REPORT.md](EVALUATION_REPORT.md)。

@@ -32,19 +32,21 @@ shared/  →  data/  →  brain/ + risk/ + signal/  →  hands/  →  services/ 
 
 ## 项目状态
 
-> ⚠️ **重要提示**: 当前代码库处于重构中期。以下模块已就绪，其余模块需从 TDX 项目迁移。
+> ⚠️ **重要提示**: 当前代码库处于重构中期 (Phase 0 未开始)。文档描述的是 v2.0 目标架构 (~160 文件, 50K LOC)，当前为 v0.3 状态 (44 文件, ~12.6K LOC)。**完成度 ~28%，10/23 文档不可信。**
+>
+> 详细的文档 vs 代码差异分析请参阅 [docs/EVALUATION_REPORT.md](docs/EVALUATION_REPORT.md)。
 
-| 包 | 状态 | 文件数 | 说明 |
-|----|------|--------|------|
-| `shared/` | ✅ 基本完整 | 23 | 常量、异常、缓存、配置、成本模型 |
-| `services/` | ⚠️ 部分可用 | 10 | analysis_service、service_container + 6 个引擎适配器 |
-| `brain/` | ⚠️ 部分可用 | 5 | czsc、fsm、lppl (缺 7 个子模块) |
-| `ui/` | ⚠️ 部分可用 | 2 | dashboard、health_check |
-| `risk/` | ⚠️ 部分可用 | 1 | drawdown_analyzer |
-| `hands/` | 🔴 空壳 | 1 | 仅 __init__.py |
-| `data/` | 🔴 不存在 | 0 | 整个数据层待迁移 |
-| `signal/` | 🔴 不存在 | 0 | 整个信号层待迁移 |
-| **测试** | ⚠️ 部分可用 | 11 | brain 模块测试为主 |
+| 包 | 状态 | 文件数 | 完成度 | 说明 |
+|----|------|--------|--------|------|
+| `shared/` | ✅ 基本完整 | 23 | 79% | 常量、异常、缓存、配置、成本模型 |
+| `services/` | ⚠️ 部分可用 | 11 | 46% | analysis_service + service_container + 6 引擎适配器 (幽灵导入阻塞) |
+| `brain/` | ⚠️ 部分可用 | 5 | 17% | czsc、fsm、lppl (缺 7 子模块) |
+| `ui/` | ⚠️ 部分可用 | 2 | 25% | dashboard、health_check |
+| `risk/` | ⚠️ 部分可用 | 1 | 14% | drawdown_analyzer |
+| `hands/` | 🔴 空壳 | 1 | 5% | 仅 __init__.py，回测/策略均不存在 |
+| `data/` | 🔴 不存在 | 0 | 0% | 整个数据层 (含 mootdx) 待迁移 |
+| `signal/` | 🔴 不存在 | 0 | 0% | 整个信号层待新建 |
+| **测试** | 🔴 不可运行 | 10 | 10% | 仅 1/10 文件导入不崩溃 |
 
 详细的项目状态仪表盘请查看 [docs/STATUS.md](docs/STATUS.md)。
 
@@ -121,7 +123,9 @@ UniQuant/
 |------|------|
 | [项目状态](docs/STATUS.md) | 实时进度仪表盘 |
 | [系统架构](docs/architecture.md) | 整体架构设计 |
-| [重构计划](RESTRUCTURE_PLAN.md) | Phase 0-4 执行清单 |
+| [文档与代码差异评估](docs/EVALUATION_REPORT.md) | 全景差异分析报告 |
+| [评估报告核实报告](docs/VERIFICATION_REPORT.md) | 4 Agent 独立核实报告 |
+| [重构计划](docs/RESTRUCTURE_PLAN.md) | Phase 0-4 执行清单 |
 | [快速上手](docs/guides/quickstart.md) | 安装与运行 |
 | [包文档](docs/packages/) | 各模块 API 参考 |
 
@@ -144,7 +148,7 @@ Phase 3: 验证 + 修复
 Phase 4: 清理
 ```
 
-详细计划请查看 [RESTRUCTURE_PLAN.md](RESTRUCTURE_PLAN.md)。
+详细计划请查看 [docs/RESTRUCTURE_PLAN.md](docs/RESTRUCTURE_PLAN.md)。
 
 ---
 
