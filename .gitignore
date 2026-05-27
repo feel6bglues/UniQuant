@@ -6,3 +6,6 @@ data/state/
 data/cache/
 data/lake/
 output/
+*.egg-info/
+logs/
+*.log
