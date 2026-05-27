@@ -16,7 +16,10 @@ from ...shared.exceptions import AnalysisError
 from ...shared.interfaces import MarketSignalContext, PositionSizerProtocol, RiskAssessmentProtocol
 from ...shared.limit_checker import check_limit_status, validate_trade_action
 from ...shared.logger_factory import get_logger
-from ..indicators import Indicators
+try:
+    from ..indicators import Indicators
+except ImportError:
+    Indicators = None  # TODO: Phase 1A 迁移 brain/indicators.py 后移除
 
 logger = get_logger(__name__)
 
