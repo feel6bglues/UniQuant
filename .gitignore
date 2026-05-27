@@ -8,3 +8,4 @@ data/lake/
 output/
 *.egg-info/
 logs/
+*.log

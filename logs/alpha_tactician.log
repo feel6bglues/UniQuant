@@ -37,3 +37,6 @@
 2026-05-27 15:00:35 - uniquant.shared.cache.cache_factory - INFO - 2026-05-27 15:00:35 - uniquant.shared.cache.cache_factory - INFO - Creating MemoryCacheBackend with max_size=5000
 2026-05-27 15:00:35 - uniquant.shared.cache.backends - INFO - 2026-05-27 15:00:35 - uniquant.shared.cache.backends - INFO - MemoryCacheBackend initialized with max_size: 5000
 2026-05-27 15:00:35 - uniquant.data.utils.akshare_wrapper - ERROR - 2026-05-27 15:00:35 - uniquant.data.utils.akshare_wrapper - ERROR - Failed to initialize akshare: No module named 'akshare'
+2026-05-27 15:28:55 - uniquant.shared.cache.cache_factory - INFO - 2026-05-27 15:28:55 - uniquant.shared.cache.cache_factory - INFO - Creating MemoryCacheBackend with max_size=5000
+2026-05-27 15:28:55 - uniquant.shared.cache.backends - INFO - 2026-05-27 15:28:55 - uniquant.shared.cache.backends - INFO - MemoryCacheBackend initialized with max_size: 5000
+2026-05-27 15:28:55 - uniquant.data.utils.akshare_wrapper - ERROR - 2026-05-27 15:28:55 - uniquant.data.utils.akshare_wrapper - ERROR - Failed to initialize akshare: No module named 'akshare'

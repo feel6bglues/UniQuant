@@ -33,11 +33,15 @@ class StorageManager:
         self.quotes_dir = self.lake_dir / "quotes"
         
         self.daily_dir = self.quotes_dir / "daily"
+        self.weekly_dir = self.quotes_dir / "weekly"
+        self.monthly_dir = self.quotes_dir / "monthly"
         self.min1_dir = self.quotes_dir / "1mins"
         self.min5_dir = self.quotes_dir / "5mins"
         self.factor_dir = self.data_dir / "factors"
         
         self.daily_dir.mkdir(parents=True, exist_ok=True)
+        self.weekly_dir.mkdir(parents=True, exist_ok=True)
+        self.monthly_dir.mkdir(parents=True, exist_ok=True)
         self.min1_dir.mkdir(parents=True, exist_ok=True)
         self.min5_dir.mkdir(parents=True, exist_ok=True)
         self.factor_dir.mkdir(parents=True, exist_ok=True)
@@ -375,12 +379,128 @@ class StorageManager:
             factor_file.unlink()
             logger.info(f"清理因子数据: {factor_file}")
 
+    def synthesize_weekly(self, symbol: str) -> pd.DataFrame:
+        """从日线数据合成周线
+
+        规则:
+        - open: 同一周第一个交易日的 open
+        - high: 同一周最高价
+        - low: 同一周最低价
+        - close: 同一周最后一个交易日的 close
+        - volume: 同一周成交量合计
+        - amount: 同一周成交额合计
+
+        Args:
+            symbol: 股票代码
+
+        Returns:
+            合成后的周线 DataFrame
+        """
+        daily = self.read_data(symbol=symbol, data_type="daily")
+        if daily is None or daily.empty:
+            logger.warning(f"无日线数据可供合成周线: {symbol}")
+            return pd.DataFrame()
+
+        if "date" not in daily.columns:
+            logger.warning(f"日线数据缺少 date 列: {symbol}")
+            return pd.DataFrame()
+
+        daily = daily.copy()
+        daily["date"] = pd.to_datetime(daily["date"])
+        daily["_year"] = daily["date"].dt.isocalendar().year.astype(int)
+        daily["_week"] = daily["date"].dt.isocalendar().week.astype(int)
+
+        agg_dict = {}
+        for col in ["open", "high", "low", "close", "volume", "amount"]:
+            if col in daily.columns:
+                if col == "open":
+                    agg_dict[col] = "first"
+                elif col == "high":
+                    agg_dict[col] = "max"
+                elif col == "low":
+                    agg_dict[col] = "min"
+                elif col == "close":
+                    agg_dict[col] = "last"
+                else:
+                    agg_dict[col] = "sum"
+
+        if not agg_dict:
+            logger.warning(f"日线数据无可聚合列: {symbol}")
+            return pd.DataFrame()
+
+        weekly = daily.groupby(["_year", "_week"]).agg(agg_dict).reset_index()
+        weekly = weekly.rename(columns={"_year": "year", "_week": "week"})
+
+        self.write_data(symbol=symbol, df=weekly, data_type="weekly")
+        logger.info(f"合成周线完成: {symbol}, 共 {len(weekly)} 条")
+        return weekly
+
+    def synthesize_monthly(self, symbol: str) -> pd.DataFrame:
+        """从日线数据合成月线
+
+        规则:
+        - open: 同月第一个交易日的 open
+        - high: 同月最高价
+        - low: 同月最低价
+        - close: 同月最后一个交易日的 close
+        - volume: 同月成交量合计
+        - amount: 同月成交额合计
+
+        Args:
+            symbol: 股票代码
+
+        Returns:
+            合成后的月线 DataFrame
+        """
+        daily = self.read_data(symbol=symbol, data_type="daily")
+        if daily is None or daily.empty:
+            logger.warning(f"无日线数据可供合成月线: {symbol}")
+            return pd.DataFrame()
+
+        if "date" not in daily.columns:
+            logger.warning(f"日线数据缺少 date 列: {symbol}")
+            return pd.DataFrame()
+
+        daily = daily.copy()
+        daily["date"] = pd.to_datetime(daily["date"])
+        daily["_year"] = daily["date"].dt.year
+        daily["_month"] = daily["date"].dt.month
+
+        agg_dict = {}
+        for col in ["open", "high", "low", "close", "volume", "amount"]:
+            if col in daily.columns:
+                if col == "open":
+                    agg_dict[col] = "first"
+                elif col == "high":
+                    agg_dict[col] = "max"
+                elif col == "low":
+                    agg_dict[col] = "min"
+                elif col == "close":
+                    agg_dict[col] = "last"
+                else:
+                    agg_dict[col] = "sum"
+
+        if not agg_dict:
+            logger.warning(f"日线数据无可聚合列: {symbol}")
+            return pd.DataFrame()
+
+        monthly = daily.groupby(["_year", "_month"]).agg(agg_dict).reset_index()
+        monthly = monthly.rename(columns={"_year": "year", "_month": "month"})
+
+        self.write_data(symbol=symbol, df=monthly, data_type="monthly")
+        logger.info(f"合成月线完成: {symbol}, 共 {len(monthly)} 条")
+        return monthly
+
     # --- 兼容性方法 (Compat with legacy DataLake) ---
 
     def _get_file_path(self, symbol: str, data_type: str = "daily") -> Path:
         """获取文件路径的内部方法"""
         if data_type == "daily" or data_type == "stock":
             return self.daily_dir / f"{symbol}.parquet"
+        elif data_type == "weekly":
+            return self.weekly_dir / f"{symbol}.parquet"
+        elif data_type == "monthly":
+            return self.monthly_dir / f"{symbol}.parquet"
         elif data_type == "factor":
             return self.factor_dir / f"{symbol}.parquet"
         elif data_type == "index":
