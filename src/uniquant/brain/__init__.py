@@ -1,8 +1,8 @@
 """
 分析大脑模块
 
-包含: CZSC 缠论、FSM 状态机、LPPL 泡沫检测、Indicators、NTF、Regime、AlphaDecoupler
-待迁移: Wyckoff、Factors、Screener
+包含: CZSC 缠论、FSM 状态机、LPPL 泡沫检测、Indicators、NTF、Regime、AlphaDecoupler、Factors
+待迁移: Wyckoff、Screener
 """
 
 from .fsm.fsm import DecisionBrain, FSM, FSMState
@@ -32,6 +32,14 @@ try:
 except ImportError:
     StockScreener = None
 
+try:
+    from .factors import FactorRegistry, FactorAnalyzer, FactorComposer, FinancialFactorBridge
+except ImportError:
+    FactorRegistry = None
+    FactorAnalyzer = None
+    FactorComposer = None
+    FinancialFactorBridge = None
+
 __all__ = [
     "FSM",
     "FSMState",
@@ -41,4 +49,8 @@ __all__ = [
     "RegimeDetector",
     "AlphaDecoupler",
     "StockScreener",
+    "FactorRegistry",
+    "FactorAnalyzer",
+    "FactorComposer",
+    "FinancialFactorBridge",
 ]

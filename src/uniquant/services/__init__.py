@@ -1,56 +1,43 @@
 """
 服务层模块
 
-Phase 1C 迁移完成。使用 try/except 容错处理深层第三方依赖。
+使用 __getattr__ 懒加载，避免导入时触发深层依赖链。
 """
-
-try:
-    from .cache_coordinator import CacheCoordinator
-except ImportError:
-    CacheCoordinator = None
-
-try:
-    from .data_service import DataService
-except ImportError:
-    DataService = None
-
-try:
-    from .health_service import HealthService
-except ImportError:
-    HealthService = None
-
-try:
-    from .portfolio_service import PortfolioService
-except ImportError:
-    PortfolioService = None
-
-try:
-    from .scan_service import ScanPipeline
-except ImportError:
-    ScanPipeline = None
-
-try:
-    from .stock_query_service import StockQueryService
-except ImportError:
-    StockQueryService = None
-
-try:
-    from .validation_service import ValidationService
-except ImportError:
-    ValidationService = None
-
-try:
-    from .analysis_service import AnalysisService
-except ImportError:
-    AnalysisService = None
-
-try:
-    from .service_container import ServiceContainer
-except ImportError:
-    ServiceContainer = None
 
 __all__ = [
     "CacheCoordinator", "DataService", "HealthService",
     "PortfolioService", "ScanPipeline", "StockQueryService",
     "ValidationService", "AnalysisService", "ServiceContainer",
+    "DataAccessService", "DataQualityService",
+    "MarketRegimeService", "ReportService", "SignalGenerationService",
 ]
+
+
+def __getattr__(name: str):
+    """延迟导入，避免深层依赖链"""
+    _imports = {
+        "CacheCoordinator": ".cache_coordinator",
+        "DataService": ".data_service",
+        "HealthService": ".health_service",
+        "PortfolioService": ".portfolio_service",
+        "ScanPipeline": ".scan_service",
+        "StockQueryService": ".stock_query_service",
+        "ValidationService": ".validation_service",
+        "AnalysisService": ".analysis_service",
+        "ServiceContainer": ".service_container",
+        "DataAccessService": ".data_access_service",
+        "DataQualityService": ".data_quality_service",
+        "MarketRegimeService": ".market_regime_service",
+        "ReportService": ".report_service",
+        "SignalGenerationService": ".signal_generation_service",
+    }
+
+    if name in _imports:
+        try:
+            import importlib
+            mod = importlib.import_module(_imports[name], package=__name__)
+            return getattr(mod, name)
+        except ImportError:
+            raise AttributeError(f"module {__name__!r} has no attribute {name!r} (dependency not installed)")
+
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
