@@ -8,6 +8,10 @@ Strategy Execution Module Initialization
 __all__ = [  # pylint: disable=undefined-all-variable
     "Reporter",
     "ResultsManager",
+    "BacktestEngine",
+    "BacktestResult",
+    "TradeRecord",
+    "backtest",
     "strategies",
 ]
 
@@ -26,8 +30,24 @@ def __getattr__(name):
         from uniquant.hands.results_manager import ResultsManager
 
         return ResultsManager
+    elif name == "BacktestEngine":
+        from uniquant.hands.backtest.engine import BacktestEngine
+
+        return BacktestEngine
+    elif name == "BacktestResult":
+        from uniquant.hands.backtest.result import BacktestResult
+
+        return BacktestResult
+    elif name == "TradeRecord":
+        from uniquant.hands.backtest.result import TradeRecord
+
+        return TradeRecord
+    elif name == "backtest":
+        import uniquant.hands.backtest
+
+        return uniquant.hands.backtest
     elif name == "strategies":
         import uniquant.hands.strategies
 
         return uniquant.hands.strategies
-    raise AttributeError(f"module 'src.hands' has no attribute '{name}'")
+    raise AttributeError(f"module 'uniquant.hands' has no attribute '{name}'")

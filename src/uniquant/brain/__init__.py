@@ -27,6 +27,11 @@ try:
 except ImportError:
     AlphaDecoupler = None
 
+try:
+    from .screener import StockScreener
+except ImportError:
+    StockScreener = None
+
 __all__ = [
     "FSM",
     "FSMState",
@@ -35,4 +40,5 @@ __all__ = [
     "NTFEngine",
     "RegimeDetector",
     "AlphaDecoupler",
+    "StockScreener",
 ]

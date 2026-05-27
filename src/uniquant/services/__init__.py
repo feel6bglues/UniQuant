@@ -1,27 +1,56 @@
 """
 服务层模块
 
-Phase 0 修复: 删除所有幽灵导入。
-analysis_service.py 内部导入 data_service (不存在)，因此也不能导入。
-
-待 Phase 1B (data 层迁移) + Phase 1C (services 迁移) 完成后恢复。
+Phase 1C 迁移完成。使用 try/except 容错处理深层第三方依赖。
 """
 
-# 待迁移完成后恢复:
-# from .analysis_service import AnalysisService
-# from .service_container import ServiceContainer
+try:
+    from .cache_coordinator import CacheCoordinator
+except ImportError:
+    CacheCoordinator = None
+
+try:
+    from .data_service import DataService
+except ImportError:
+    DataService = None
+
+try:
+    from .health_service import HealthService
+except ImportError:
+    HealthService = None
+
+try:
+    from .portfolio_service import PortfolioService
+except ImportError:
+    PortfolioService = None
+
+try:
+    from .scan_service import ScanPipeline
+except ImportError:
+    ScanPipeline = None
+
+try:
+    from .stock_query_service import StockQueryService
+except ImportError:
+    StockQueryService = None
+
+try:
+    from .validation_service import ValidationService
+except ImportError:
+    ValidationService = None
+
+try:
+    from .analysis_service import AnalysisService
+except ImportError:
+    AnalysisService = None
+
+try:
+    from .service_container import ServiceContainer
+except ImportError:
+    ServiceContainer = None
 
 __all__ = [
-    # 待迁移: 以下模块尚未创建或有幽灵导入
-    # "AnalysisService",
-    # "ServiceContainer",
-    # "CacheCoordinator",
-    # "DataQualityService",
-    # "DataService",
-    # "HealthService",
-    # "PortfolioService",
-    # "ScanPipeline",
-    # "StockQueryService",
-    # "ValidationService",
-    # "DataAccessService",
+    "CacheCoordinator", "DataService", "HealthService",
+    "PortfolioService", "ScanPipeline", "StockQueryService",
+    "ValidationService", "AnalysisService", "ServiceContainer",
 ]
