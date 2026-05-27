@@ -989,8 +989,8 @@ class BacktestConstants:
 
     # 交易成本
     DEFAULT_COMMISSION_RATE = 0.0003  # 佣金率 0.03%
-    DEFAULT_STAMP_DUTY_RATE = 0.001  # 印花税率 0.1% (仅卖出)
-    DEFAULT_SLIPPAGE_RATE = 0.001  # 滑点率 0.1%
+    DEFAULT_STAMP_DUTY_RATE = 0.0005  # 印花税率 0.05% (万5, 仅卖出, 2024年起)
+    DEFAULT_SLIPPAGE_RATE = 0.0005  # 滑点率 0.05% (万5, 与 cost_model.py 一致)
     DEFAULT_MIN_COMMISSION = 5.0  # 最低佣金 5元
 
     # 回测窗口
