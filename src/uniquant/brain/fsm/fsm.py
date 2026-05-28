@@ -14,7 +14,7 @@ from ...shared.constants import IndicatorThresholds
 from ...shared.error_handling import handle_errors
 from ...shared.exceptions import AnalysisError
 from ...shared.interfaces import MarketSignalContext, PositionSizerProtocol, RiskAssessmentProtocol
-from ...shared.limit_checker import check_limit_status, validate_trade_action
+from ...shared.limit_checker import check_limit_status
 from ...shared.logger_factory import get_logger
 try:
     from ..indicators import Indicators

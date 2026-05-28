@@ -3,7 +3,7 @@
 AnalysisService 不再直接持有引擎引用
 """
 
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 from ...shared.logger_factory import get_logger
 

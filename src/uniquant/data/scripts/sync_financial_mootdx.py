@@ -9,10 +9,9 @@ mootdx 财务数据同步脚本
 import argparse
 import json
 import logging
-import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional
 
 import pandas as pd
 

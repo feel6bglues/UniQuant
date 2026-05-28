@@ -1,4 +1,3 @@
-from typing import Optional
 import pandas as pd
 from .pipeline.data_cleaner import DataCleaner
 from .pipeline.data_validator import DataValidator

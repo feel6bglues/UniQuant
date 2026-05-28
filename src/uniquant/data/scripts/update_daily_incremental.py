@@ -6,7 +6,6 @@ AKShare 日线数据增量更新脚本 v2.0
 
 import json
 import logging
-import os
 import random
 import shutil
 import time
@@ -214,7 +213,6 @@ class IncrementalUpdater:
         import akshare as ak
         import requests
 
-        original_timeout = requests.adapters.DEFAULT_RETRIES
         for retry in range(3):
             try:
                 df = ak.stock_zh_a_hist(

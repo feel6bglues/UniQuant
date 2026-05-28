@@ -5,7 +5,7 @@
 
 import logging
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Tuple, Any
+from typing import Dict, Optional, Tuple, Any
 
 import numpy as np
 import pandas as pd

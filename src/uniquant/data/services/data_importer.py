@@ -6,13 +6,11 @@
 支持通达信TDX数据文件导入
 """
 
-import os
-import sys
 import json
 import pandas as pd
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor
-from typing import List, Optional, Dict, Any
+from typing import Optional, Dict, Any
 
 from ...data.lake.storage_manager import StorageManager
 from ...data.pipeline.data_adjuster import DataAdjuster

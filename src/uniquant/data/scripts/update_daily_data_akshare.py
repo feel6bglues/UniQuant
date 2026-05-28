@@ -4,12 +4,9 @@ AKShare东方财富数据更新脚本 - 稳健版
 更新数据湖中的日线数据，包含原始/前复权/后复权价格
 """
 
-import os
-import sys
 import time
 import random
 import logging
-import traceback
 from datetime import datetime
 from pathlib import Path
 from typing import Optional, List, Tuple

@@ -15,16 +15,28 @@ def _reduced_cost_numba(
     nonlinear: np.ndarray, t: np.ndarray, log_prices: np.ndarray
 ) -> float:
     """Reduced LPPL cost function using Variable Projection inside Numba."""
-    tc = nonlinear[0]; m = nonlinear[1]; w = nonlinear[2]
+    tc = nonlinear[0]
+    m = nonlinear[1]
+    w = nonlinear[2]
     n = len(t)
 
     if tc <= t[n - 1] + 0.5:
         return 1e20
 
-    s11 = 0.0; s12 = 0.0; s13 = 0.0; s14 = 0.0
-    s22 = 0.0; s23 = 0.0; s24 = 0.0
-    s33 = 0.0; s34 = 0.0; s44 = 0.0
-    r1 = 0.0; r2 = 0.0; r3 = 0.0; r4 = 0.0
+    s11 = 0.0
+    s12 = 0.0
+    s13 = 0.0
+    s14 = 0.0
+    s22 = 0.0
+    s23 = 0.0
+    s24 = 0.0
+    s33 = 0.0
+    s34 = 0.0
+    s44 = 0.0
+    r1 = 0.0
+    r2 = 0.0
+    r3 = 0.0
+    r4 = 0.0
     yty = 0.0
 
     for i in range(n):
@@ -39,17 +51,39 @@ def _reduced_cost_numba(
         h = f * np.sin(w * log_tau)
         y = log_prices[i]
 
-        s11 += 1.0;    s12 += f;     s13 += g;     s14 += h
-        s22 += f * f;   s23 += f * g;  s24 += f * h
-        s33 += g * g;   s34 += g * h;  s44 += h * h
-        r1 += y;        r2 += f * y;   r3 += g * y;  r4 += h * y
+        s11 += 1.0
+        s12 += f
+        s13 += g
+        s14 += h
+        s22 += f * f
+        s23 += f * g
+        s24 += f * h
+        s33 += g * g
+        s34 += g * h
+        s44 += h * h
+        r1 += y
+        r2 += f * y
+        r3 += g * y
+        r4 += h * y
         yty += y * y
 
     A = np.empty((4, 4))
-    A[0, 0] = s11; A[0, 1] = s12; A[0, 2] = s13; A[0, 3] = s14
-    A[1, 0] = s12; A[1, 1] = s22; A[1, 2] = s23; A[1, 3] = s24
-    A[2, 0] = s13; A[2, 1] = s23; A[2, 2] = s33; A[2, 3] = s34
-    A[3, 0] = s14; A[3, 1] = s24; A[3, 2] = s34; A[3, 3] = s44
+    A[0, 0] = s11
+    A[0, 1] = s12
+    A[0, 2] = s13
+    A[0, 3] = s14
+    A[1, 0] = s12
+    A[1, 1] = s22
+    A[1, 2] = s23
+    A[1, 3] = s24
+    A[2, 0] = s13
+    A[2, 1] = s23
+    A[2, 2] = s33
+    A[2, 3] = s34
+    A[3, 0] = s14
+    A[3, 1] = s24
+    A[3, 2] = s34
+    A[3, 3] = s44
     rhs = np.array([r1, r2, r3, r4])
 
     try:
@@ -69,10 +103,20 @@ def _solve_linear_parameters_numba(
 ) -> Tuple[float, float, float, float]:
     """JIT-compiled OLS solver using normal equations to obtain linear LPPL parameters."""
     n = len(t)
-    s11 = 0.0; s12 = 0.0; s13 = 0.0; s14 = 0.0
-    s22 = 0.0; s23 = 0.0; s24 = 0.0
-    s33 = 0.0; s34 = 0.0; s44 = 0.0
-    r1 = 0.0; r2 = 0.0; r3 = 0.0; r4 = 0.0
+    s11 = 0.0
+    s12 = 0.0
+    s13 = 0.0
+    s14 = 0.0
+    s22 = 0.0
+    s23 = 0.0
+    s24 = 0.0
+    s33 = 0.0
+    s34 = 0.0
+    s44 = 0.0
+    r1 = 0.0
+    r2 = 0.0
+    r3 = 0.0
+    r4 = 0.0
 
     for i in range(n):
         tau = tc - t[i]
@@ -84,16 +128,38 @@ def _solve_linear_parameters_numba(
         h = f * np.sin(w * log_tau)
         y = log_prices[i]
 
-        s11 += 1.0;    s12 += f;     s13 += g;     s14 += h
-        s22 += f * f;   s23 += f * g;  s24 += f * h
-        s33 += g * g;   s34 += g * h;  s44 += h * h
-        r1 += y;        r2 += f * y;   r3 += g * y;  r4 += h * y
+        s11 += 1.0
+        s12 += f
+        s13 += g
+        s14 += h
+        s22 += f * f
+        s23 += f * g
+        s24 += f * h
+        s33 += g * g
+        s34 += g * h
+        s44 += h * h
+        r1 += y
+        r2 += f * y
+        r3 += g * y
+        r4 += h * y
 
     A = np.empty((4, 4))
-    A[0, 0] = s11; A[0, 1] = s12; A[0, 2] = s13; A[0, 3] = s14
-    A[1, 0] = s12; A[1, 1] = s22; A[1, 2] = s23; A[1, 3] = s24
-    A[2, 0] = s13; A[2, 1] = s23; A[2, 2] = s33; A[2, 3] = s34
-    A[3, 0] = s14; A[3, 1] = s24; A[3, 2] = s34; A[3, 3] = s44
+    A[0, 0] = s11
+    A[0, 1] = s12
+    A[0, 2] = s13
+    A[0, 3] = s14
+    A[1, 0] = s12
+    A[1, 1] = s22
+    A[1, 2] = s23
+    A[1, 3] = s24
+    A[2, 0] = s13
+    A[2, 1] = s23
+    A[2, 2] = s33
+    A[2, 3] = s34
+    A[3, 0] = s14
+    A[3, 1] = s24
+    A[3, 2] = s34
+    A[3, 3] = s44
     rhs = np.array([r1, r2, r3, r4])
 
     try:
@@ -146,7 +212,6 @@ def _de_solve_numba(
 
     # Iterate
     for it in range(maxiter):
-        improved = False
         F = mutation_min + np.random.rand() * (mutation_max - mutation_min)
 
         for i in range(pop_n):
@@ -188,7 +253,6 @@ def _de_solve_numba(
                 if trial_fit < best_fit:
                     best_fit = trial_fit
                     best_sol = trial.copy()
-                    improved = True
 
         # Convergence test
         fit_spread = np.max(fitness) - np.min(fitness)

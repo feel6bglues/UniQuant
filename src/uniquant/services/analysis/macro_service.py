@@ -348,14 +348,8 @@ class MacroAnalysisService:
                 return
             
             from ...brain.regime.regime_detector import RegimeDetector
-            
-            fetcher = DataFetcher()
-            end_date = pd.Timestamp.now().strftime("%Y-%m-%d")
-            start_date = (pd.Timestamp.now() - pd.DateOffset(days=TimeConstants.DAYS_1_YEAR)).strftime("%Y-%m-%d")
-            
+
             regime_detector = RegimeDetector()
-            # Migrate from deprecated detect_from_data to get_summary
-            # Load data via data service instead of fetcher
             from ...services.data_service import DataService
             data_svc = DataService()
             df = data_svc.lake.read_data(

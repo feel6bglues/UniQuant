@@ -1,6 +1,5 @@
 import logging
 import random
-import time
 import urllib.error
 from typing import Optional, Dict, Any
 
@@ -213,7 +212,7 @@ class TencentSource(DataSource):
         except (ValueError, TypeError, KeyError) as e:
             logger.error(f"数据解析错误: {e}")
             return pd.DataFrame()
-        except Exception as e:  # noqa: broad-except — 防御层，上方已有具体异常分支
+        except Exception as e:  # noqa: E722 — 防御层，上方已有具体异常分支
             logger.critical(f"获取实时数据时发生未预期错误: {e}", exc_info=True)
             return pd.DataFrame()
 
@@ -287,7 +286,7 @@ class TencentSource(DataSource):
 
         except (KeyError, IndexError, ValueError, TypeError) as e:
             logger.error(f"Failed to fetch market cap for {symbol}: {e}")
-        except Exception as e:  # noqa: broad-except — 防御层，上方已有具体异常分支
+        except Exception as e:  # noqa: E722 — 防御层，上方已有具体异常分支
             logger.critical(
                 f"Unexpected error fetching market cap for {symbol}: {e}", exc_info=True
             )

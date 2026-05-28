@@ -133,8 +133,6 @@ class CzscAnalysisEngine:
             latest_data = df.iloc[-1]
             latest_close = latest_data["close"]
             latest_open = latest_data["open"]
-            latest_high = latest_data["high"]
-            latest_low = latest_data["low"]
 
             # 计算近期高低点
             recent_highs = (

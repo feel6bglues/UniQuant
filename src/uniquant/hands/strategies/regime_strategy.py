@@ -14,7 +14,6 @@ Regime Strategy - 基于市场状态 (Regime) 驱动的交易策略
 from .base import HAS_BACKTRADER, BaseStrategy, bt
 
 if HAS_BACKTRADER:
-    import numpy as np
     import pandas as pd
 
     try:

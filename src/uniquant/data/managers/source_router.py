@@ -1,4 +1,4 @@
-from typing import List, Optional, Dict, Any, Sequence
+from typing import Dict, Any, Sequence
 import pandas as pd
 import concurrent.futures
 import time
@@ -61,7 +61,7 @@ class SourceRouter:
                     # 超时错误使用更长的延迟
                     time.sleep(min(2 * (retry + 1), 10))
                     continue
-                except Exception as e:  # noqa: broad-except — 故障转移，需捕获一切以尝试下一个数据源
+                except Exception as e:  # noqa: E722 — 故障转移，需捕获一切以尝试下一个数据源
                     logger.warning(f"第 {i+1} 个数据源失败: {e}")
                     if retry >= max_retries:
                         self.update_source_health(i, "unavailable")
@@ -135,7 +135,7 @@ class SourceRouter:
                 end_time = time.time()
                 if not df.empty:
                     return df, end_time - start_time
-            except Exception as e:  # noqa: broad-except — 竞速模式，需捕获一切
+            except Exception as e:  # noqa: E722 — 竞速模式，需捕获一切
                 logger.warning(f"竞速模式中数据源失败: {e}")
             return pd.DataFrame(), float("inf")
 
@@ -163,7 +163,7 @@ class SourceRouter:
             )
             return fastest_df
 
-        logger.error(f"竞速模式下所有数据源都失败")
+        logger.error("竞速模式下所有数据源都失败")
         return pd.DataFrame()
 
     def check_source_health(self, source_index: int) -> str:
@@ -212,7 +212,7 @@ class SourceRouter:
     def print_source_health_report(self):
         """打印数据源健康报告"""
         report = self.get_source_health_report()
-        logger.info(f"数据源健康报告:")
+        logger.info("数据源健康报告:")
         logger.info(f"总数据源数: {report['total_sources']}")
         logger.info(f"可用数据源数: {report['available_sources']}")
 

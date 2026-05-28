@@ -18,7 +18,7 @@ from .cache_interface import CacheInterface
 logger = get_logger(__name__)
 
 try:
-    from filelock import FileLock, Timeout
+    from filelock import FileLock
     FILELOCK_AVAILABLE = True
 except ImportError:
     FILELOCK_AVAILABLE = False

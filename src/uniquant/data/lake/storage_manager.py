@@ -8,7 +8,6 @@ from filelock import FileLock
 from ...shared.error_handling import handle_errors
 from ...shared.exceptions import DataStorageError
 from ...shared.logger_factory import get_logger
-from ...shared.constants import DataSourceConstants
 from ..utils.normalizer import normalize_column_names as _normalize_columns
 
 logger = get_logger("StorageManager")

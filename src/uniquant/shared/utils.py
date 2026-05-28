@@ -185,6 +185,6 @@ def retry_on_failure(
             if attempt < max_retries - 1:
                 time.sleep(delay)
             else:
-                logger.error(f"最大重试次数已用尽")
+                logger.error("最大重试次数已用尽")
 
     return default

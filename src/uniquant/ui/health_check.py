@@ -1,5 +1,5 @@
 import importlib
-from typing import Any, Dict
+from typing import Dict
 
 from uniquant.shared.logger_factory import get_logger
 
@@ -38,7 +38,7 @@ class ModuleHealthChecker:
         status = {}
         for name, path in modules.items():
             try:
-                module = importlib.import_module(path)
+                importlib.import_module(path)
                 logger.info(f"Module {name} ({path}) loaded successfully")
                 status[name] = True
             except ImportError as e:

@@ -12,6 +12,11 @@ import numpy as np
 import pandas as pd
 from scipy import stats
 
+from ...shared.error_handling import handle_errors
+from ...shared.logger_factory import get_logger
+
+logger = get_logger("FactorAnalyzer")
+
 
 class AnalysisMode(Enum):
     BACKTEST = auto()
@@ -29,11 +34,6 @@ class AnalysisMode(Enum):
 def _exponential_weights(n: int, half_life: int) -> np.ndarray:
     w = np.exp(-np.arange(n) * np.log(2) / half_life)
     return w[::-1] / w.sum()
-
-from ...shared.error_handling import handle_errors
-from ...shared.logger_factory import get_logger
-
-logger = get_logger("FactorAnalyzer")
 
 
 @dataclass

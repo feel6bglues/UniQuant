@@ -94,7 +94,7 @@ class DataAdjuster:
                 return False
 
             if df_gbbq.empty:
-                logger.warning(f"gbbq数据为空")
+                logger.warning("gbbq数据为空")
                 return False
 
             # 筛选该股的gbbq数据

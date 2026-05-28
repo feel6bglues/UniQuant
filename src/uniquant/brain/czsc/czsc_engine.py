@@ -11,13 +11,12 @@ try:
 except ImportError:
     HAS_CZSC_SIGNALS = False
 
+from ...shared.constants import DataValidationConstants
 from ...shared.error_handling import handle_errors
 from ...shared.exceptions import AnalysisError
 from ...shared.logger_factory import get_logger
 
 logger = get_logger(__name__)
-
-from ...shared.constants import DataValidationConstants
 
 
 CZSC_RECOVERABLE_ERRORS = (

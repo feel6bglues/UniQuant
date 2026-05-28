@@ -176,7 +176,7 @@ class NTFEngine:
 
         # 检查必要列
         if "close" not in df.columns or "volume" not in df.columns:
-            logger.error(f"数据缺少必要列: close 或 volume")
+            logger.error("数据缺少必要列: close 或 volume")
             return {"detected": False, "side": "NONE", "action": "数据缺少必要列"}
 
         # 检测干预

@@ -46,7 +46,6 @@ class LPPLVisualizer:
 
             # 准备数据
             df_plot = df.tail(window).copy()
-            t = np.arange(len(df_plot))
             price_real = df_plot["close"].values
 
             # 生成预测价格线，包含未来预测

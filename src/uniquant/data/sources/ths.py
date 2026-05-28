@@ -14,7 +14,7 @@ from ...shared.logger_factory import get_logger
 from ...shared.retry_decorator import retry
 
 from ..utils.akshare_wrapper import akshare_wrapper
-from ..utils.js_executor import generate_ths_v_param, get_ths_headers
+from ..utils.js_executor import get_ths_headers
 from ..utils.request_utils import with_request_control
 from .base import DataSource
 
@@ -323,7 +323,7 @@ class ThsSource(DataSource):
         except (ValueError, TypeError, KeyError) as e:
             logger.error(f"数据解析错误: {e}")
             return pd.DataFrame()
-        except Exception as e:  # noqa: broad-except — 防御层，上方已有具体异常分支
+        except Exception as e:  # noqa: E722 — 防御层，上方已有具体异常分支
             logger.critical(f"获取实时数据时发生未预期错误: {e}", exc_info=True)
             return pd.DataFrame()
 
@@ -531,7 +531,7 @@ class ThsSource(DataSource):
 
         except (KeyError, IndexError, ValueError, TypeError) as e:
             logger.error(f"Failed to fetch market cap for {symbol}: {e}")
-        except Exception as e:  # noqa: broad-except — 防御层，上方已有具体异常分支
+        except Exception as e:  # noqa: E722 — 防御层，上方已有具体异常分支
             logger.critical(
                 f"Unexpected error fetching market cap for {symbol}: {e}", exc_info=True
             )

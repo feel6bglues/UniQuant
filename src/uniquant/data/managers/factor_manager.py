@@ -1,7 +1,5 @@
-import json
 
 import pandas as pd
-import numpy as np
 from pathlib import Path
 from typing import Optional, Dict, List, Any
 
@@ -294,7 +292,6 @@ class FactorManager:
             成功计算的股票数量
         """
         success_count = 0
-        current_batch: List[str] = []
         
         logger.info(f"开始批量计算复权因子，共 {len(daily_files)} 个股票文件")
         

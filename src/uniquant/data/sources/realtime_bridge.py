@@ -11,13 +11,12 @@
 """
 
 import asyncio
-import json
 import threading
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Any, Callable, Dict, List, Optional, Protocol, Union
+from typing import Any, Callable, Dict, List, Optional
 
 from ...shared.logger_factory import get_logger
 

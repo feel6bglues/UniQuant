@@ -3,8 +3,7 @@
 统一处理所有数据源的输出，确保数据格式一致
 """
 
-import logging
-from typing import Optional, Dict, List
+from typing import List
 
 import pandas as pd
 

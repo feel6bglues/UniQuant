@@ -15,7 +15,6 @@ import struct
 import argparse
 from pathlib import Path
 from typing import Optional, List, Tuple, Union
-from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import threading
 

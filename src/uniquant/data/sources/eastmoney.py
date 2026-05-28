@@ -10,11 +10,10 @@ import requests.exceptions
 
 from ...shared.constants import DataSourceConstants, NetworkConstants
 from ...shared.error_handling import handle_errors
-from ...shared.exceptions import DataFetchError, DataValidationError
+from ...shared.exceptions import DataValidationError
 from ...shared.logger_factory import get_logger
 from ...shared.retry_decorator import retry
 
-from ..utils.request_utils import check_data_integrity
 from ..utils.request_utils import with_request_control
 from .base import DataSource
 
@@ -119,7 +118,7 @@ class EastmoneySource(DataSource):
             except (AttributeError, RuntimeError):
                 pass
             raise
-        except Exception as e:  # noqa: broad-except — _request 最终兜底，上层已有具体异常处理
+        except Exception as e:  # noqa: E722 — _request 最终兜底，上层已有具体异常处理
             logger.warning(f"请求失败: {e}")
             raise
 
@@ -303,7 +302,7 @@ class EastmoneySource(DataSource):
         ) as e:
             logger.warning(f"Error fetching data from eastmoney for {symbol}: {e}.")
             return pd.DataFrame()
-        except Exception as e:  # noqa: broad-except — 防御层，上方已有具体异常分支
+        except Exception as e:  # noqa: E722 — 防御层，上方已有具体异常分支
             logger.warning(
                 f"Unexpected error fetching data from eastmoney for {symbol}: {e}."
             )
@@ -438,9 +437,6 @@ class EastmoneySource(DataSource):
     @with_request_control(min_interval=2, max_retries=3)
     def fetch_market_cap(self, symbol: str) -> float:
         """获取市值数据"""
-        # 清理股票代码，移除后缀
-        clean_symbol = symbol.split(".")[0] if "." in symbol else symbol
-
         logger.info(f"开始获取 {symbol} 的市值数据...")
 
         try:
@@ -551,7 +547,7 @@ class EastmoneySource(DataSource):
                     logger.info(f"成功获取 {symbol} 基本信息 (使用 {url})")
                     return df
                     
-            except Exception as e:  # noqa: broad-except — 多域名故障转移，需捕获一切
+            except Exception as e:  # noqa: E722 — 多域名故障转移，需捕获一切
                 last_error = e
                 logger.warning(f"域名 {url} 请求失败: {e}")
                 continue
@@ -590,7 +586,7 @@ class EastmoneySource(DataSource):
         except (ValueError, KeyError, AttributeError) as e:
             logger.error(f"Failed to fetch industry list: {e}")
             return pd.DataFrame()
-        except Exception as e:  # noqa: broad-except — 防御层，上方已有具体异常分支
+        except Exception as e:  # noqa: E722 — 防御层，上方已有具体异常分支
             logger.critical(
                 f"Unexpected error fetching industry list: {e}", exc_info=True
             )
@@ -626,7 +622,7 @@ class EastmoneySource(DataSource):
         except (ValueError, KeyError, AttributeError) as e:
             logger.error(f"Failed to fetch concept list: {e}")
             return pd.DataFrame()
-        except Exception as e:  # noqa: broad-except — 防御层，上方已有具体异常分支
+        except Exception as e:  # noqa: E722 — 防御层，上方已有具体异常分支
             logger.critical(
                 f"Unexpected error fetching concept list: {e}", exc_info=True
             )
@@ -643,7 +639,7 @@ class EastmoneySource(DataSource):
         except (ValueError, KeyError, AttributeError) as e:
             logger.error(f"Failed to fetch concept relation for {symbol}: {e}")
             return pd.DataFrame()
-        except Exception as e:  # noqa: broad-except — 防御层，上方已有具体异常分支
+        except Exception as e:  # noqa: E722 — 防御层，上方已有具体异常分支
             logger.critical(
                 f"Unexpected error fetching concept relation for {symbol}: {e}",
                 exc_info=True,
@@ -711,7 +707,7 @@ class EastmoneySource(DataSource):
                 logger.info(f"成功获取大盘资金流向 (使用 {url})")
                 return df
 
-            except Exception as e:  # noqa: broad-except — 多域名故障转移
+            except Exception as e:  # noqa: E722 — 多域名故障转移
                 logger.warning(f"域名 {url} 请求失败: {e}")
                 continue
 
@@ -788,11 +784,11 @@ class EastmoneySource(DataSource):
                 logger.info(f"成功获取板块资金流 (使用 {url})")
                 return df
 
-            except Exception as e:  # noqa: broad-except — 多域名故障转移
+            except Exception as e:  # noqa: E722 — 多域名故障转移
                 logger.warning(f"域名 {url} 请求失败: {e}")
                 continue
 
-        logger.error(f"所有域名都无法获取板块资金流")
+        logger.error("所有域名都无法获取板块资金流")
         return pd.DataFrame()
 
     @retry(max_retries=3, delay=1.0, backoff=2.0, exceptions=(Exception,))
@@ -855,7 +851,7 @@ class EastmoneySource(DataSource):
                 logger.info(f"成功获取热门排行 (使用 {url})")
                 return df
 
-            except Exception as e:  # noqa: broad-except — 多域名故障转移
+            except Exception as e:  # noqa: E722 — 多域名故障转移
                 logger.warning(f"域名 {url} 请求失败: {e}")
                 continue
 

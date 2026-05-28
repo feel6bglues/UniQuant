@@ -22,17 +22,13 @@
 """
 import sys
 import json
-import struct
 import argparse
-import os
-import logging
 from pathlib import Path
 from typing import Optional, Tuple, Dict, List
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from collections import defaultdict
 import threading
-import time
 
 import pandas as pd
 from mootdx.financial.financial import FinancialReader
@@ -131,7 +127,7 @@ class TDXFinancialImporter:
         self._memory_store: Dict[str, List[pd.DataFrame]] = defaultdict(list)
         self._store_lock = threading.Lock()
         self.allowed_stock_codes = self._load_allowed_stock_codes()
-        logger.info(f"TDXFinancialImporter 初始化完成")
+        logger.info("TDXFinancialImporter 初始化完成")
         logger.info(f"  通达信财务目录: {self.cw_dir}")
         logger.info(f"  输出目录: {self.output_dir}")
         logger.info(f"  指纹文件: {FINGERPRINT_FILE}")
@@ -352,7 +348,7 @@ class TDXFinancialImporter:
             return 0, 0, 0
 
         logger.info(f"开始导入，共 {len(gpcw_files)} 个文件，线程数: {workers}")
-        logger.info(f"阶段1：多线程解析 + 内存聚合...")
+        logger.info("阶段1：多线程解析 + 内存聚合...")
 
         success_count = 0
         skip_count = 0
@@ -386,7 +382,7 @@ class TDXFinancialImporter:
                     logger.info(f"解析进度: {i+1}/{len(gpcw_files)}, 成功: {success_count}, 跳过: {skip_count}, 失败: {fail_count}")
 
         logger.info(f"阶段1完成：解析 {success_count} 个文件，内存中 {len(self._memory_store)} 只股票")
-        logger.info(f"阶段2：顺序写入文件...")
+        logger.info("阶段2：顺序写入文件...")
 
         write_success = 0
         write_fail = 0

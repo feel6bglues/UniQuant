@@ -9,12 +9,11 @@ from __future__ import annotations
 from collections import defaultdict
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Dict, List, Optional
 
 from .models import (
     AggregatedSignal,
     Signal,
-    SignalBatch,
     SignalConsensus,
     SignalSource,
     SignalStrength,

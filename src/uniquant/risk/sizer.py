@@ -1,7 +1,8 @@
 import math
+from dataclasses import dataclass, field
 from typing import Any, Dict, Optional
 
-from ..shared.constants import MarketConstants, PrecisionConstants
+from ..shared.constants import PrecisionConstants
 from ..shared.logger_factory import get_logger
 from ..shared.market_rules import get_board_rule
 
@@ -210,10 +211,6 @@ class PositionSizer:
         return self.calculate_shares(
             price, stop_loss, market, czsc_bottom, atr_stop, symbol
         )
-
-
-from dataclasses import dataclass, field
-from typing import Dict
 
 
 @dataclass

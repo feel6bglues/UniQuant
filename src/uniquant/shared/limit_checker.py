@@ -4,7 +4,7 @@ A股特有微观结构防御：检查涨停/跌停状态
 """
 
 from dataclasses import dataclass
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, Optional
 
 from .constants import MarketConstants
 from .logger_factory import get_logger

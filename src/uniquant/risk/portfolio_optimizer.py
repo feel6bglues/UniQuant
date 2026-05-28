@@ -245,13 +245,16 @@ class PortfolioOptimizer:
         x0 = np.ones(n_assets) / n_assets
         
         if target == "max_sharpe":
-            objective = lambda w: self._negative_sharpe(w, cov_matrix, expected_returns)
+            def objective(w):
+                return self._negative_sharpe(w, cov_matrix, expected_returns)
         elif target == "min_volatility":
-            objective = lambda w: self._portfolio_volatility_obj(w, cov_matrix)
+            def objective(w):
+                return self._portfolio_volatility_obj(w, cov_matrix)
         elif target == "target_return":
             if self.config.target_return is None:
                 raise ValueError("target_return must be set for target_return optimization")
-            objective = lambda w: self._target_return_penalty(w, cov_matrix, expected_returns)
+            def objective(w):
+                return self._target_return_penalty(w, cov_matrix, expected_returns)
         else:
             raise ValueError(f"Unknown target: {target}")
         

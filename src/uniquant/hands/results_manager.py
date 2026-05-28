@@ -8,7 +8,6 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-import pandas as pd
 
 from uniquant.shared.constants import ResultsConstants
 from uniquant.shared.logger_factory import get_logger

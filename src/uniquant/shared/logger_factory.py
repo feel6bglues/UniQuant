@@ -6,7 +6,6 @@ Logger工厂模块
 import logging
 import logging.handlers
 import sys
-import threading
 from pathlib import Path
 from typing import Dict, Optional
 

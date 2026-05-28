@@ -124,7 +124,7 @@ class ScanPipeline:
         self.daily_data = self.storage.batch_read_data(symbols, data_type="daily")
         
         if self.config.lightweight:
-            logger.info(f"Lightweight mode: skipping financial data loading")
+            logger.info("Lightweight mode: skipping financial data loading")
         else:
             financial_dir = self.storage.lake_dir / self.config.financial_subdir
             for symbol in symbols:
@@ -354,8 +354,8 @@ class ScanPipeline:
                 for sector in sector_top_df["sector"].unique() if "sector" in sector_top_df.columns else []:
                     sector_data = sector_top_df[sector_top_df["sector"] == sector]
                     f.write(f"## {sector}\n\n")
-                    f.write(f"| Rank | Code | Score |\n")
-                    f.write(f"|------|------|-------|\n")
+                    f.write("| Rank | Code | Score |\n")
+                    f.write("|------|------|-------|\n")
                     for _, row in sector_data.iterrows():
                         f.write(f"| {row.get('_sector_rank', '')} | {row.get('code', '')} | {row.get('composite_score', 0):.4f} |\n")
                     f.write("\n")
@@ -535,13 +535,13 @@ if __name__ == "__main__":
     result = pipeline.run(output_dir=args.output)
     
     if result["status"] == "success":
-        print(f"\nScan completed successfully!")
+        print("\nScan completed successfully!")
         print(f"Duration: {result['duration_seconds']:.2f} seconds")
         print(f"Stocks scanned: {result['stocks_scanned']}")
         print(f"Records processed: {result['records_processed']}")
-        print(f"\nReport files generated:")
+        print("\nReport files generated:")
         for name, path in result["report_files"].items():
             print(f"  - {name}: {path}")
     else:
-        print(f"\nScan failed!")
+        print("\nScan failed!")
         print(f"Error: {result.get('error', 'Unknown error')}")

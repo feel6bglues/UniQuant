@@ -10,15 +10,20 @@ LPPL 工业级引擎 - 统一核心模块
 """
 
 import logging
+import os
 import warnings
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
+from joblib import Parallel, delayed
 from scipy.optimize import differential_evolution, minimize
 
 from uniquant.shared.constants import RANDOM_SEED, W_BOUNDS, M_BOUNDS
+
+from ...shared.constants import LPPLConstants
+from ...shared.logger_factory import get_logger
 
 
 try:
@@ -108,6 +113,43 @@ def classify_top_phase(days_left: float, r2: float, config: LPPLConfig) -> str:
     if days_left < config.watch_days and r2 >= watch_r2_threshold(config):
         return "watch"
     return "none"
+
+
+# ============================================================================
+# 辅助函数 (原为外部导入, 现内联定义)
+# ============================================================================
+
+
+def lppl_func(t: np.ndarray, tc: float, m: float, w: float, a: float, b: float, c: float, phi: float) -> np.ndarray:
+    """LPPL model function: f(t) = a + b*(tc-t)^m + c*(tc-t)^m*cos(w*log(tc-t)+phi)"""
+    tau = tc - t
+    tau = np.maximum(tau, 1e-10)
+    f = tau ** m
+    return a + b * f + c * f * np.cos(w * np.log(tau) + phi)
+
+
+def cost_function(params: Tuple, t_data: np.ndarray, log_price: np.ndarray) -> float:
+    """LPPL cost function (RMSE)"""
+    tc, m, w, a, b, c, phi = params
+    fitted = lppl_func(t_data, tc, m, w, a, b, c, phi)
+    return float(np.sqrt(np.mean((fitted - log_price) ** 2)))
+
+
+def precheck_fit_input(close_prices: np.ndarray, window_size: int) -> Optional[str]:
+    """Validate input before fitting. Returns error message string or None."""
+    if close_prices is None or len(close_prices) < window_size:
+        return "insufficient_data"
+    if window_size < 10:
+        return "window_too_small"
+    recent = close_prices[-min(5, len(close_prices)):]
+    if np.std(recent) < 1e-8:
+        return "no_price_variation"
+    return None
+
+
+def track_fit_failure(reason: str, context: str = "") -> None:
+    """Log a fit failure with context."""
+    logger.debug(f"LPPL fit skipped: {reason} ({context})")
 
 
 # ============================================================================
@@ -894,14 +936,6 @@ def get_default_config() -> LPPLConfig:
     return _config
 
 
-import multiprocessing
-import os
-from typing import Any, Dict, List
-from joblib import Parallel, delayed
-
-from ...shared.constants import LPPLConstants
-from ...shared.logger_factory import get_logger
-
 logger = get_logger(__name__)
 
 LPPL_ENGINE_RECOVERABLE_ERRORS = (
@@ -915,7 +949,6 @@ class LPPLEngine:
         self.calculator = Calc()
 
     def scan_all_windows(self, df: pd.DataFrame) -> List[Dict[str, Any]]:
-        from ...brain.lppl.calculator import LPPLCalculator as Calc
         valid_windows = [w for w in LPPLConstants.WINDOWS_ALL if len(df) >= w]
         if not valid_windows:
             return []

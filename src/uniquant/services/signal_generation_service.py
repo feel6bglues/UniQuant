@@ -1,4 +1,4 @@
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 import pandas as pd
 from ..shared.logger_factory import get_logger
 

@@ -1,7 +1,6 @@
 """请求工具模块，实现指数退避重试和请求间隔控制"""
 
 import random
-import socket
 import time
 from functools import wraps
 from typing import Any, Callable, List, Optional, TypeVar

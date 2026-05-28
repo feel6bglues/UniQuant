@@ -7,11 +7,9 @@ MDD_t = max(0, (max_{τ≤t} P_τ - P_t) / max_{τ≤t} P_τ)
 Calmar = R_ann / |MDD|
 """
 
-from dataclasses import dataclass, field
-from typing import Dict, List, Optional
+from dataclasses import dataclass
 
 import numpy as np
-import pandas as pd
 
 
 @dataclass
@@ -160,7 +158,6 @@ class DrawdownAnalyzer:
         p05 = float(np.percentile(returns, 5))
         tail_ratio = p95 / abs(p05) if p05 != 0 else 1.0
 
-        n = len(returns)
         s = np.std(returns, ddof=0)
         m = np.mean(returns)
         skew = float(np.mean((returns - m) ** 3) / (s ** 3)) if s > 0 else 0.0
@@ -183,7 +180,6 @@ class DrawdownAnalyzer:
         }
         crash = scenarios.get(scenario_name, -0.10)
         stressed = equity * (1.0 + crash)
-        new_dd = (stressed[-1] - np.maximum.accumulate(stressed)[-1]) / max(np.maximum.accumulate(stressed)[-1], 1e-10)
         return StressTestResult(
             scenario=scenario_name,
             loss_pct=crash,

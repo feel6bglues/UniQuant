@@ -307,7 +307,7 @@ class SinaSource(DataSource):
         df = pd.DataFrame(data)
 
         if df.empty:
-            logger.warning(f"新浪 API 返回空 DataFrame")
+            logger.warning("新浪 API 返回空 DataFrame")
             raise ValueError("新浪 API 返回空数据")
 
         df = self._rename_sina_columns(df)
@@ -472,7 +472,7 @@ class SinaSource(DataSource):
         except KeyError as e:
             logger.error(f"数据解析错误: {e}")
             return pd.DataFrame()
-        except Exception as e:  # noqa: broad-except — 防御层，上方已有具体异常分支
+        except Exception as e:  # noqa: E722 — 防御层，上方已有具体异常分支
             logger.critical(f"获取实时数据时发生未预期错误: {e}", exc_info=True)
             return pd.DataFrame()
 
@@ -557,7 +557,7 @@ class SinaSource(DataSource):
             logger.error(f"Failed to fetch market cap for {symbol}: {e}")
         except (ValueError, TypeError) as e:
             logger.error(f"Data format error fetching market cap for {symbol}: {e}")
-        except Exception as e:  # noqa: broad-except — 防御层，上方已有具体异常分支
+        except Exception as e:  # noqa: E722 — 防御层，上方已有具体异常分支
             logger.critical(
                 f"Unexpected error fetching market cap for {symbol}: {e}", exc_info=True
             )

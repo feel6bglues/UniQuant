@@ -9,7 +9,7 @@ from ..services.analysis_service import AnalysisService
 # Import New Services
 from ..services.data_service import DataService
 from ..services.portfolio_service import PortfolioService
-from ..shared.constants import NetworkConstants, ResultsConstants, TimeConstants, TimeWindows
+from ..shared.constants import NetworkConstants, ResultsConstants, TimeWindows
 from ..shared.logger_factory import get_logger
 from .manager_portfolio_analytics_service import ManagerPortfolioAnalyticsService
 from .manager_report_service import ManagerReportService
@@ -293,7 +293,6 @@ class AssetManager:
         Returns:
             可能的下一个状态列表
         """
-        from ...brain.fsm import FSMState
 
         # 定义状态转换图
         transitions = {

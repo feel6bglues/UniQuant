@@ -2,7 +2,7 @@ import os
 import re
 import logging
 from pathlib import Path
-from typing import Optional, Dict, List
+from typing import Optional, Dict
 from concurrent.futures import ProcessPoolExecutor
 from functools import partial
 
@@ -210,7 +210,6 @@ class SmartFactorCalculatorV15:
 
 def _process_single_stock(file_path: Path, gbbq_dict: Dict, output_dir: Path, is_hfq: bool = True) -> bool:
     """处理单只股票的原子函数，适配多进程"""
-    import logging
     _log = logging.getLogger("SmartFactorV15.worker")
 
     try:

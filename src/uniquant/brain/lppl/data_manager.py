@@ -110,7 +110,7 @@ class LPPLDataManager:
                 # 首次完整下载
                 df = new_df
                 df.to_csv(file_path, index=False)
-                logger.info(f"  首次下载完成")
+                logger.info("  首次下载完成")
 
             return df
         except Exception as e:

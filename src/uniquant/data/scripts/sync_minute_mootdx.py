@@ -9,12 +9,10 @@ mootdx 分钟线数据同步脚本
 import argparse
 import json
 import logging
-import sys
 from datetime import datetime
 from pathlib import Path
 from typing import List, Optional
 
-import pandas as pd
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent.parent
 DATA_DIR = PROJECT_ROOT / "data"

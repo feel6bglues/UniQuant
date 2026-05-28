@@ -1,7 +1,5 @@
 import datetime
 import json
-import logging
-from pathlib import Path
 from typing import Dict, List, Any
 
 import pandas as pd
@@ -446,7 +444,7 @@ class HealthService:
             if format == "json":
                 return json.dumps(health_status, ensure_ascii=False, indent=2)
             elif format == "txt":
-                report = f"Alpha-Tactician Health Report\n"
+                report = "Alpha-Tactician Health Report\n"
                 report += f"Timestamp: {health_status.get('timestamp')}\n"
                 report += f"Overall Status: {health_status.get('overall_status')}\n\n"
 

@@ -1,4 +1,3 @@
-import importlib
 import logging
 import random
 import time
@@ -206,7 +205,7 @@ class AkShareWrapper:
             self._update_method_stats(method_name, True, duration)
             return result
 
-        except AttributeError as e:
+        except AttributeError:
             logger.error(f"AkShare method not found: {method_name}")
             self._update_method_stats(method_name, False)
             return None

@@ -90,8 +90,6 @@ if HAS_BACKTRADER:
                 return 100  # Default fallback
 
             current_price = self.dataclose[0]
-            # Use account value
-            capital = self.broker.getvalue()
 
             # Calculate
             res = self.sizer_engine.calculate_shares(

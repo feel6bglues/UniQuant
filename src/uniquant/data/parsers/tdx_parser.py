@@ -48,9 +48,6 @@ class TDXParser:
         if file_size % 32 != 0:
             logger.warning(f"警告: 文件 {file_path} 大小不是32的倍数，可能损坏或包含非标准数据。")
         
-        # 计算记录总数
-        record_count = file_size // 32
-        
         # 使用二进制模式打开文件
         with open(file_path, 'rb') as f:
             buffer = f.read()

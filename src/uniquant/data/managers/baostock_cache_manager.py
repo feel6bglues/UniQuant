@@ -80,7 +80,6 @@ def create_baostock_cache():
                 stock_codes = stock_list[required_columns]
                 logger.info(f"9. 处理后的数据样例:\n{stock_codes.head(3)}")
                 try:
-                    import pandas as pd
                     import os
                     import shutil
                     os.makedirs(os.path.dirname(output_path), exist_ok=True)

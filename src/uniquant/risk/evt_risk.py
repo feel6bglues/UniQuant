@@ -191,8 +191,6 @@ class HistoricalSimulationRisk:
                 else 0
             )
 
-            skewness = returns.skew()
-
             if volatility > RiskCalculationConstants.VOLATILITY_HIGH:
                 return "CRISIS"
             elif volatility > RiskCalculationConstants.VOLATILITY_MEDIUM:

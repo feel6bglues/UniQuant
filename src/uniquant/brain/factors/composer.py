@@ -11,7 +11,6 @@ from ...shared.logger_factory import get_logger
 from .registry import FactorRegistry
 from .analyzer import FactorAnalyzer, FactorICResult
 from .neutralizer import FactorNeutralizer
-from .industry_provider import get_industry_dummies, get_log_market_cap
 
 logger = get_logger("FactorComposer")
 

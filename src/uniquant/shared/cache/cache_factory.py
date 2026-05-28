@@ -3,7 +3,7 @@
 Cache Factory
 """
 
-from typing import Literal, Optional
+from typing import Literal
 
 from ..logger_factory import get_logger
 from .backends import DiskCacheBackend, MemoryCacheBackend

@@ -3,11 +3,8 @@
 创建全量股票代码和交易日历的本地缓存
 """
 
-from datetime import datetime
-
 from .baostock_cache_manager import create_baostock_cache
 from .trade_calendar_manager import create_trade_calendar
-from .stock_codes_cache_manager import create_stock_codes_cache
 from ...shared.logger_factory import get_logger
 
 logger = get_logger("CacheManager")
@@ -37,7 +34,6 @@ def create_all_caches():
     
     # 3. 验证缓存文件是否创建成功
     logger.info("\n3. 验证缓存文件...")
-    current_year = datetime.now().year
     cache_files = [
         "data/all_stock_codes.csv",
         "data/trade_calendar.csv"

@@ -78,8 +78,6 @@ def handle_errors(
         error_type: 错误类型
         context: 上下文信息
     """
-    resolved_log_level = _resolve_log_level(log_level)
-
     def decorator(func: Callable) -> Callable:
         @functools.wraps(func)
         def wrapper(*args, **kwargs) -> Any:

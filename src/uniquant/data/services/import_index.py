@@ -19,7 +19,7 @@ import struct
 import threading
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Union
+from typing import List, Optional, Tuple, Union
 
 import pandas as pd
 
@@ -28,7 +28,6 @@ from ...shared.constants import (
     LAKE_INDEX_DIR,
     MAJOR_INDEXES,
     PARQUET_COMPRESSION,
-    PROJECT_ROOT,
     TDX_DIR,
 )
 from ...shared.import_state import ImportStateManager, ThreadSafeImportCounter
@@ -70,7 +69,7 @@ class TDXIndexImporter:
         self.state_manager = ImportStateManager(DATA_DIR)
         self._file_lock = threading.Lock()
         
-        logger.info(f"TDXIndexImporter 初始化完成")
+        logger.info("TDXIndexImporter 初始化完成")
         logger.info(f"  TDX目录: {self.tdx_dir}")
         logger.info(f"  输出目录: {self.output_dir}")
     

@@ -1,4 +1,5 @@
 import logging
+import threading
 from datetime import datetime, timedelta
 
 import numpy as np
@@ -39,7 +40,6 @@ from uniquant.ui.components import (
     render_report_html_preview,
     render_report_comparison,
     render_report_comparison_selector,
-    render_report_library_actions,
     render_report_metadata,
     render_portfolio_risk_metrics,
     render_portfolio_optimizer_result,
@@ -260,8 +260,6 @@ def refresh_stock_map_async():
 
 
 # Start background refresh
-import threading
-
 if st.runtime.exists():
     t = threading.Thread(target=refresh_stock_map_async)
     t.daemon = True
@@ -881,7 +879,7 @@ with tabs[4]:
                     st.error(f"❌ 下载失败: {e}")
 
         if col3.button("📦 下载主流 ETF (Sector)"):
-            with st.spinner(f"正在同步主流板块 ETF 数据..."):
+            with st.spinner("正在同步主流板块 ETF 数据..."):
                 if asset_mgr.download_etf_sector_data():
                     st.success("主流 ETF 数据同步完成")
                     st.rerun()
