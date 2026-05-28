@@ -3,13 +3,13 @@ from typing import Any, Dict, Optional
 import pandas as pd
 
 try:
-    from ..data.data_fetcher import DataFetcher
+    from ...data.data_fetcher import DataFetcher
 except ImportError:
     DataFetcher = None
-from ..shared.config_loader import config
-from ..shared.constants import NTFConstants
+from ...shared.config_loader import config
+from ...shared.constants import NTFConstants
 
-from ..shared.logger_factory import get_logger
+from ...shared.logger_factory import get_logger
 
 logger = get_logger(__name__)
 

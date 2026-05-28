@@ -13,12 +13,12 @@ except ImportError:
     Indicators = None
 
 try:
-    from .ntf_engine import NTFEngine
+    from .ntf import NTFEngine
 except ImportError:
     NTFEngine = None
 
 try:
-    from .regime_detector import RegimeDetector
+    from .regime import RegimeDetector
 except ImportError:
     RegimeDetector = None
 
