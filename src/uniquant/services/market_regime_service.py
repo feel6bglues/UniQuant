@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import Any, Dict, Optional
 import pandas as pd
-from ...shared.logger_factory import get_logger
+from ..shared.logger_factory import get_logger
 
 logger = get_logger(__name__)
 

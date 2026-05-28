@@ -4,8 +4,8 @@ from typing import Any, Dict, List, Optional
 import numpy as np
 import pandas as pd
 
-from ...shared.constants import RiskCalculationConstants
-from ...shared.logger_factory import get_logger
+from ..shared.constants import RiskCalculationConstants
+from ..shared.logger_factory import get_logger
 
 logger = get_logger(__name__)
 
@@ -20,7 +20,7 @@ class ManagerPortfolioAnalyticsService:
         self, symbols: List[str], lookback_days: int = 252
     ) -> Dict[str, Any]:
         try:
-            from ...risk.evt_risk import EVTRisk
+            from ..risk.evt_risk import EVTRisk
 
             evt_risk = EVTRisk()
             portfolio_returns = self._collect_returns(
@@ -61,7 +61,7 @@ class ManagerPortfolioAnalyticsService:
         lookback_days: int = 252,
     ) -> Dict[str, Any]:
         try:
-            from ...risk.portfolio_optimizer import OptimizerConfig, PortfolioOptimizer
+            from ..risk.portfolio_optimizer import OptimizerConfig, PortfolioOptimizer
 
             returns_data = self._collect_returns(
                 symbols=symbols,
@@ -110,7 +110,7 @@ class ManagerPortfolioAnalyticsService:
         self, symbols: List[str], scenarios: Optional[List[str]] = None
     ) -> Dict[str, Any]:
         try:
-            from ...risk.evt_risk import EVTRisk
+            from ..risk.evt_risk import EVTRisk
 
             evt_risk = EVTRisk()
             portfolio_returns = self._collect_returns(

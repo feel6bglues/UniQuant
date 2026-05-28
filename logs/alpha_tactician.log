@@ -442,3 +442,409 @@ uniquant.brain.czsc.czsc_engine.CZSCAnalysisError: 分析失败: boom
 2026-05-28 09:02:35 - TechnicalAnalysisService - WARNING - 2026-05-28 09:02:35 - TechnicalAnalysisService - WARNING - CZSCEngine 分析失败: bad czsc dependency
 2026-05-28 09:02:35 - uniquant.services.analysis.signal_service - WARNING - 2026-05-28 09:02:35 - uniquant.services.analysis.signal_service - WARNING - FSM 分析失败: fsm failed
 2026-05-28 09:02:35 - uniquant.services.analysis.signal_service - WARNING - 2026-05-28 09:02:35 - uniquant.services.analysis.signal_service - WARNING - Alpha 分析失败: test_analyze_alpha_sets_default_score_on_value_error.<locals>.raise_value_error() takes from 2 to 3 positional arguments but 4 were given
+2026-05-28 09:09:15 - uniquant.shared.cache.cache_factory - INFO - 2026-05-28 09:09:15 - uniquant.shared.cache.cache_factory - INFO - Creating MemoryCacheBackend with max_size=5000
+2026-05-28 09:09:15 - uniquant.shared.cache.backends - INFO - 2026-05-28 09:09:15 - uniquant.shared.cache.backends - INFO - MemoryCacheBackend initialized with max_size: 5000
+2026-05-28 09:09:15 - uniquant.data.utils.akshare_wrapper - INFO - 2026-05-28 09:09:15 - uniquant.data.utils.akshare_wrapper - INFO - AkShare initialized successfully
+2026-05-28 09:09:16 - uniquant.data.utils.akshare_wrapper - INFO - 2026-05-28 09:09:16 - uniquant.data.utils.akshare_wrapper - INFO - AkShare initialized successfully
+2026-05-28 09:09:17 - FactorRegistry - INFO - 2026-05-28 09:09:17 - FactorRegistry - INFO - ✅ 因子注册成功: momentum_20d (technical) weight=1.0
+2026-05-28 09:09:17 - FactorRegistry - INFO - 2026-05-28 09:09:17 - FactorRegistry - INFO - ✅ 因子注册成功: momentum_60d (technical) weight=0.9
+2026-05-28 09:09:17 - FactorRegistry - INFO - 2026-05-28 09:09:17 - FactorRegistry - INFO - ✅ 因子注册成功: volatility_20d (technical) weight=0.8
+2026-05-28 09:09:17 - FactorRegistry - INFO - 2026-05-28 09:09:17 - FactorRegistry - INFO - ✅ 因子注册成功: volatility_60d (technical) weight=0.7
+2026-05-28 09:09:17 - FactorRegistry - INFO - 2026-05-28 09:09:17 - FactorRegistry - INFO - ✅ 因子注册成功: ma_ratio_5_20 (technical) weight=0.85
+2026-05-28 09:09:17 - FactorRegistry - INFO - 2026-05-28 09:09:17 - FactorRegistry - INFO - ✅ 因子注册成功: ma_ratio_10_60 (technical) weight=0.75
+2026-05-28 09:09:17 - FactorRegistry - INFO - 2026-05-28 09:09:17 - FactorRegistry - INFO - ✅ 因子注册成功: volume_ratio_5_20 (technical) weight=0.6
+2026-05-28 09:09:17 - FactorRegistry - INFO - 2026-05-28 09:09:17 - FactorRegistry - INFO - ✅ 因子注册成功: rsi_14 (technical) weight=0.8
+2026-05-28 09:09:17 - FactorRegistry - INFO - 2026-05-28 09:09:17 - FactorRegistry - INFO - ✅ 因子注册成功: price_position_20d (technical) weight=0.7
+2026-05-28 09:09:17 - FactorRegistry - INFO - 2026-05-28 09:09:17 - FactorRegistry - INFO - ✅ 因子注册成功: turnover_momentum_20d (technical) weight=0.85
+2026-05-28 09:09:17 - uniquant.data.utils.akshare_wrapper - INFO - 2026-05-28 09:09:17 - uniquant.data.utils.akshare_wrapper - INFO - AkShare initialized successfully
+2026-05-28 09:09:17 - uniquant.shared.cache.cache_factory - INFO - 2026-05-28 09:09:17 - uniquant.shared.cache.cache_factory - INFO - Creating MemoryCacheBackend with max_size=5000
+2026-05-28 09:09:17 - uniquant.shared.cache.backends - INFO - 2026-05-28 09:09:17 - uniquant.shared.cache.backends - INFO - MemoryCacheBackend initialized with max_size: 5000
+2026-05-28 09:09:17 - uniquant.shared.cache.cache_factory - INFO - 2026-05-28 09:09:17 - uniquant.shared.cache.cache_factory - INFO - Creating MemoryCacheBackend with max_size=5000
+2026-05-28 09:09:17 - uniquant.shared.cache.backends - INFO - 2026-05-28 09:09:17 - uniquant.shared.cache.backends - INFO - MemoryCacheBackend initialized with max_size: 5000
+2026-05-28 09:09:18 - uniquant.shared.cache.cache_factory - INFO - 2026-05-28 09:09:18 - uniquant.shared.cache.cache_factory - INFO - Creating MemoryCacheBackend with max_size=5000
+2026-05-28 09:09:18 - uniquant.shared.cache.backends - INFO - 2026-05-28 09:09:18 - uniquant.shared.cache.backends - INFO - MemoryCacheBackend initialized with max_size: 5000
+2026-05-28 09:09:18 - uniquant.data.utils.akshare_wrapper - INFO - 2026-05-28 09:09:18 - uniquant.data.utils.akshare_wrapper - INFO - AkShare initialized successfully
+2026-05-28 09:09:18 - uniquant.data.utils.akshare_wrapper - INFO - 2026-05-28 09:09:18 - uniquant.data.utils.akshare_wrapper - INFO - AkShare initialized successfully
+2026-05-28 09:09:18 - FactorRegistry - INFO - 2026-05-28 09:09:18 - FactorRegistry - INFO - ✅ 因子注册成功: momentum_20d (technical) weight=1.0
+2026-05-28 09:09:18 - FactorRegistry - INFO - 2026-05-28 09:09:18 - FactorRegistry - INFO - ✅ 因子注册成功: momentum_60d (technical) weight=0.9
+2026-05-28 09:09:18 - FactorRegistry - INFO - 2026-05-28 09:09:18 - FactorRegistry - INFO - ✅ 因子注册成功: volatility_20d (technical) weight=0.8
+2026-05-28 09:09:18 - FactorRegistry - INFO - 2026-05-28 09:09:18 - FactorRegistry - INFO - ✅ 因子注册成功: volatility_60d (technical) weight=0.7
+2026-05-28 09:09:18 - FactorRegistry - INFO - 2026-05-28 09:09:18 - FactorRegistry - INFO - ✅ 因子注册成功: ma_ratio_5_20 (technical) weight=0.85
+2026-05-28 09:09:18 - FactorRegistry - INFO - 2026-05-28 09:09:18 - FactorRegistry - INFO - ✅ 因子注册成功: ma_ratio_10_60 (technical) weight=0.75
+2026-05-28 09:09:18 - FactorRegistry - INFO - 2026-05-28 09:09:18 - FactorRegistry - INFO - ✅ 因子注册成功: volume_ratio_5_20 (technical) weight=0.6
+2026-05-28 09:09:18 - FactorRegistry - INFO - 2026-05-28 09:09:18 - FactorRegistry - INFO - ✅ 因子注册成功: rsi_14 (technical) weight=0.8
+2026-05-28 09:09:18 - FactorRegistry - INFO - 2026-05-28 09:09:18 - FactorRegistry - INFO - ✅ 因子注册成功: price_position_20d (technical) weight=0.7
+2026-05-28 09:09:18 - FactorRegistry - INFO - 2026-05-28 09:09:18 - FactorRegistry - INFO - ✅ 因子注册成功: turnover_momentum_20d (technical) weight=0.85
+2026-05-28 09:09:20 - FactorRegistry - INFO - 2026-05-28 09:09:20 - FactorRegistry - INFO - ✅ 因子注册成功: momentum_20d (technical) weight=1.0
+2026-05-28 09:09:20 - FactorRegistry - INFO - 2026-05-28 09:09:20 - FactorRegistry - INFO - ✅ 因子注册成功: momentum_60d (technical) weight=0.9
+2026-05-28 09:09:20 - FactorRegistry - INFO - 2026-05-28 09:09:20 - FactorRegistry - INFO - ✅ 因子注册成功: volatility_20d (technical) weight=0.8
+2026-05-28 09:09:20 - FactorRegistry - INFO - 2026-05-28 09:09:20 - FactorRegistry - INFO - ✅ 因子注册成功: volatility_60d (technical) weight=0.7
+2026-05-28 09:09:20 - FactorRegistry - INFO - 2026-05-28 09:09:20 - FactorRegistry - INFO - ✅ 因子注册成功: ma_ratio_5_20 (technical) weight=0.85
+2026-05-28 09:09:20 - FactorRegistry - INFO - 2026-05-28 09:09:20 - FactorRegistry - INFO - ✅ 因子注册成功: ma_ratio_10_60 (technical) weight=0.75
+2026-05-28 09:09:20 - FactorRegistry - INFO - 2026-05-28 09:09:20 - FactorRegistry - INFO - ✅ 因子注册成功: volume_ratio_5_20 (technical) weight=0.6
+2026-05-28 09:09:20 - FactorRegistry - INFO - 2026-05-28 09:09:20 - FactorRegistry - INFO - ✅ 因子注册成功: rsi_14 (technical) weight=0.8
+2026-05-28 09:09:20 - FactorRegistry - INFO - 2026-05-28 09:09:20 - FactorRegistry - INFO - ✅ 因子注册成功: price_position_20d (technical) weight=0.7
+2026-05-28 09:09:20 - FactorRegistry - INFO - 2026-05-28 09:09:20 - FactorRegistry - INFO - ✅ 因子注册成功: turnover_momentum_20d (technical) weight=0.85
+2026-05-28 09:09:20 - uniquant.shared.cache.cache_factory - INFO - 2026-05-28 09:09:20 - uniquant.shared.cache.cache_factory - INFO - Creating MemoryCacheBackend with max_size=5000
+2026-05-28 09:09:20 - uniquant.shared.cache.backends - INFO - 2026-05-28 09:09:20 - uniquant.shared.cache.backends - INFO - MemoryCacheBackend initialized with max_size: 5000
+2026-05-28 09:09:20 - uniquant.brain.ntf.ntf_engine - INFO - 2026-05-28 09:09:20 - uniquant.brain.ntf.ntf_engine - INFO - NTF SIGNAL: Volume pulsar detected (Ratio: 3.00, Side: SUPPORT, Confidence: 0.85)
+2026-05-28 09:09:20 - uniquant.brain.ntf.ntf_engine - INFO - 2026-05-28 09:09:20 - uniquant.brain.ntf.ntf_engine - INFO - NTF SIGNAL: Volume pulsar detected (Ratio: 3.00, Side: RESISTANCE, Confidence: 0.80)
+2026-05-28 09:09:20 - uniquant.brain.ntf.ntf_engine - INFO - 2026-05-28 09:09:20 - uniquant.brain.ntf.ntf_engine - INFO - NTF SIGNAL: Volume pulsar detected (Ratio: 3.00, Side: LIQUIDITY_PULSE, Confidence: 0.40)
+2026-05-28 09:09:20 - uniquant.brain.ntf.ntf_engine - WARNING - 2026-05-28 09:09:20 - uniquant.brain.ntf.ntf_engine - WARNING - 数据缺少成交量列 (volume/vol)
+2026-05-28 09:09:20 - uniquant.brain.ntf.ntf_engine - INFO - 2026-05-28 09:09:20 - uniquant.brain.ntf.ntf_engine - INFO - NTF SIGNAL: Volume pulsar detected (Ratio: 3.00, Side: SUPPORT, Confidence: 0.85)
+2026-05-28 09:09:20 - uniquant.brain.ntf.ntf_engine - ERROR - 2026-05-28 09:09:20 - uniquant.brain.ntf.ntf_engine - ERROR - 无法获取 510300.SH 的数据
+2026-05-28 09:09:20 - uniquant.brain.ntf.ntf_engine - ERROR - 2026-05-28 09:09:20 - uniquant.brain.ntf.ntf_engine - ERROR - 数据缺少必要列: close 或 volume
+2026-05-28 09:09:20 - uniquant.brain.regime.regime_detector - INFO - 2026-05-28 09:09:20 - uniquant.brain.regime.regime_detector - INFO - RegimeDetector初始化: entropy_threshold=0.1, turnover_z_limit=2.5, min_data_points=10
+2026-05-28 09:09:20 - uniquant.brain.regime.regime_detector - WARNING - 2026-05-28 09:09:20 - uniquant.brain.regime.regime_detector - WARNING - 输入数据为None
+2026-05-28 09:09:20 - uniquant.brain.regime.regime_detector - WARNING - 2026-05-28 09:09:20 - uniquant.brain.regime.regime_detector - WARNING - 输入数据类型错误: <class 'list'>
+2026-05-28 09:09:20 - uniquant.brain.regime.regime_detector - WARNING - 2026-05-28 09:09:20 - uniquant.brain.regime.regime_detector - WARNING - 输入数据为空
+2026-05-28 09:09:20 - uniquant.brain.regime.regime_detector - WARNING - 2026-05-28 09:09:20 - uniquant.brain.regime.regime_detector - WARNING - 数据点不足: 5 < 10
+2026-05-28 09:09:20 - uniquant.brain.regime.regime_detector - WARNING - 2026-05-28 09:09:20 - uniquant.brain.regime.regime_detector - WARNING - 缺少必需列: ['volume']
+2026-05-28 09:09:20 - uniquant.brain.regime.regime_detector - WARNING - 2026-05-28 09:09:20 - uniquant.brain.regime.regime_detector - WARNING - 收盘价列全为NaN
+2026-05-28 09:09:20 - uniquant.brain.regime.regime_detector - WARNING - 2026-05-28 09:09:20 - uniquant.brain.regime.regime_detector - WARNING - Empty entropy series detected, defaulting to NORMAL regime
+2026-05-28 09:09:20 - uniquant.brain.regime.regime_detector - INFO - 2026-05-28 09:09:20 - uniquant.brain.regime.regime_detector - INFO - RegimeDetector初始化: entropy_threshold=0.1, turnover_z_limit=2.5, min_data_points=10
+2026-05-28 09:09:20 - uniquant.brain.regime.regime_detector - WARNING - 2026-05-28 09:09:20 - uniquant.brain.regime.regime_detector - WARNING - FROZEN regime detected (Entropy percentile: 0.0000)
+2026-05-28 09:09:20 - uniquant.brain.regime.regime_detector - WARNING - 2026-05-28 09:09:20 - uniquant.brain.regime.regime_detector - WARNING - STRESSED regime detected (Turnover Z: 99.00)
+2026-05-28 09:09:20 - uniquant.brain.regime.regime_detector - WARNING - 2026-05-28 09:09:20 - uniquant.brain.regime.regime_detector - WARNING - Empty entropy series detected, defaulting to NORMAL regime
+2026-05-28 09:09:20 - uniquant.brain.regime.regime_detector - INFO - 2026-05-28 09:09:20 - uniquant.brain.regime.regime_detector - INFO - RegimeDetector初始化: entropy_threshold=0.1, turnover_z_limit=2.5, min_data_points=10
+2026-05-28 09:09:20 - uniquant.brain.regime.regime_detector - ERROR - 2026-05-28 09:09:20 - uniquant.brain.regime.regime_detector - ERROR - 无法获取 000001.SZ 的数据
+2026-05-28 09:09:21 - uniquant.data.utils.akshare_wrapper - INFO - 2026-05-28 09:09:21 - uniquant.data.utils.akshare_wrapper - INFO - AkShare initialized successfully
+2026-05-28 09:09:21 - uniquant.brain.czsc.czsc_engine - WARNING - 2026-05-28 09:09:21 - uniquant.brain.czsc.czsc_engine - WARNING - open值必须为正数: -10.0
+2026-05-28 09:09:21 - uniquant.brain.czsc.czsc_engine - WARNING - 2026-05-28 09:09:21 - uniquant.brain.czsc.czsc_engine - WARNING - K线数据验证失败，跳过本次分析
+2026-05-28 09:09:21 - uniquant.brain.czsc.czsc_engine - WARNING - 2026-05-28 09:09:21 - uniquant.brain.czsc.czsc_engine - WARNING - 缺少必需列: {'low', 'high', 'open'}
+2026-05-28 09:09:21 - uniquant.brain.czsc.czsc_engine - WARNING - 2026-05-28 09:09:21 - uniquant.brain.czsc.czsc_engine - WARNING - K线数据验证失败，跳过本次分析
+2026-05-28 09:09:21 - uniquant.brain.czsc.czsc_engine - WARNING - 2026-05-28 09:09:21 - uniquant.brain.czsc.czsc_engine - WARNING - high值为NaN
+2026-05-28 09:09:21 - uniquant.brain.czsc.czsc_engine - WARNING - 2026-05-28 09:09:21 - uniquant.brain.czsc.czsc_engine - WARNING - K线数据验证失败，跳过本次分析
+2026-05-28 09:09:21 - uniquant.brain.czsc.czsc_engine - WARNING - 2026-05-28 09:09:21 - uniquant.brain.czsc.czsc_engine - WARNING - 价格逻辑错误: low <= close <= high 不满足
+2026-05-28 09:09:21 - uniquant.brain.czsc.czsc_engine - WARNING - 2026-05-28 09:09:21 - uniquant.brain.czsc.czsc_engine - WARNING - 输入数据行为None
+2026-05-28 09:09:21 - uniquant.brain.czsc.czsc_engine - WARNING - 2026-05-28 09:09:21 - uniquant.brain.czsc.czsc_engine - WARNING - K线数据验证失败，跳过本次分析
+2026-05-28 09:09:21 - uniquant.brain.czsc.czsc_engine - WARNING - 2026-05-28 09:09:21 - uniquant.brain.czsc.czsc_engine - WARNING - 输入数据类型错误: <class 'str'>
+2026-05-28 09:09:21 - uniquant.brain.czsc.czsc_engine - WARNING - 2026-05-28 09:09:21 - uniquant.brain.czsc.czsc_engine - WARNING - K线数据验证失败，跳过本次分析
+2026-05-28 09:09:21 - uniquant.brain.czsc.czsc_engine - WARNING - 2026-05-28 09:09:21 - uniquant.brain.czsc.czsc_engine - WARNING - open值必须为正数: 0.0
+2026-05-28 09:09:21 - uniquant.brain.czsc.czsc_engine - WARNING - 2026-05-28 09:09:21 - uniquant.brain.czsc.czsc_engine - WARNING - K线数据验证失败，跳过本次分析
+2026-05-28 09:09:21 - uniquant.brain.czsc.czsc_engine - ERROR - 2026-05-28 09:09:21 - uniquant.brain.czsc.czsc_engine - ERROR - CZSC分析失败: boom
+2026-05-28 09:09:21 - uniquant.brain.czsc.czsc_engine - ERROR - 2026-05-28 09:09:21 - uniquant.brain.czsc.czsc_engine - ERROR - Error in get_czsc_signals: 分析失败: boom
+Traceback (most recent call last):
+  File "/home/james/Documents/Project/UniQuant/src/uniquant/brain/czsc/czsc_engine.py", line 498, in get_czsc_signals
+    analyzer = self._initialize_czsc_analyzer(bars)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/unittest/mock.py", line 1134, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/unittest/mock.py", line 1138, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/unittest/mock.py", line 1193, in _execute_mock_call
+    raise effect
+RuntimeError: boom
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/james/Documents/Project/UniQuant/src/uniquant/shared/error_handling.py", line 87, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/james/Documents/Project/UniQuant/src/uniquant/brain/czsc/czsc_engine.py", line 508, in get_czsc_signals
+    raise CZSCAnalysisError(f"分析失败: {e}") from e
+uniquant.brain.czsc.czsc_engine.CZSCAnalysisError: 分析失败: boom
+2026-05-28 09:09:21 - uniquant.brain.czsc.czsc_engine - WARNING - 2026-05-28 09:09:21 - uniquant.brain.czsc.czsc_engine - WARNING - 跳过异常K线 0: bad rawbar
+2026-05-28 09:09:22 - FactorRegistry - INFO - 2026-05-28 09:09:22 - FactorRegistry - INFO - ✅ 因子注册成功: momentum_20d (technical) weight=1.0
+2026-05-28 09:09:22 - FactorRegistry - INFO - 2026-05-28 09:09:22 - FactorRegistry - INFO - ✅ 因子注册成功: momentum_60d (technical) weight=0.9
+2026-05-28 09:09:22 - FactorRegistry - INFO - 2026-05-28 09:09:22 - FactorRegistry - INFO - ✅ 因子注册成功: volatility_20d (technical) weight=0.8
+2026-05-28 09:09:22 - FactorRegistry - INFO - 2026-05-28 09:09:22 - FactorRegistry - INFO - ✅ 因子注册成功: volatility_60d (technical) weight=0.7
+2026-05-28 09:09:22 - FactorRegistry - INFO - 2026-05-28 09:09:22 - FactorRegistry - INFO - ✅ 因子注册成功: ma_ratio_5_20 (technical) weight=0.85
+2026-05-28 09:09:22 - FactorRegistry - INFO - 2026-05-28 09:09:22 - FactorRegistry - INFO - ✅ 因子注册成功: ma_ratio_10_60 (technical) weight=0.75
+2026-05-28 09:09:22 - FactorRegistry - INFO - 2026-05-28 09:09:22 - FactorRegistry - INFO - ✅ 因子注册成功: volume_ratio_5_20 (technical) weight=0.6
+2026-05-28 09:09:22 - FactorRegistry - INFO - 2026-05-28 09:09:22 - FactorRegistry - INFO - ✅ 因子注册成功: rsi_14 (technical) weight=0.8
+2026-05-28 09:09:22 - FactorRegistry - INFO - 2026-05-28 09:09:22 - FactorRegistry - INFO - ✅ 因子注册成功: price_position_20d (technical) weight=0.7
+2026-05-28 09:09:22 - FactorRegistry - INFO - 2026-05-28 09:09:22 - FactorRegistry - INFO - ✅ 因子注册成功: turnover_momentum_20d (technical) weight=0.85
+2026-05-28 09:09:22 - MacroAnalysisService - ERROR - 2026-05-28 09:09:22 - MacroAnalysisService - ERROR - LPPL engine failed: lppl failed
+2026-05-28 09:09:22 - uniquant.brain.regime.regime_detector - INFO - 2026-05-28 09:09:22 - uniquant.brain.regime.regime_detector - INFO - RegimeDetector初始化: entropy_threshold=0.1, turnover_z_limit=2.5, min_data_points=30
+2026-05-28 09:09:22 - MacroAnalysisService - WARNING - 2026-05-28 09:09:22 - MacroAnalysisService - WARNING - RegimeDetector 分析失败: bad regime dependency
+2026-05-28 09:09:22 - MacroAnalysisService - WARNING - 2026-05-28 09:09:22 - MacroAnalysisService - WARNING - NTFEngine 分析失败: bad ntf dependency
+2026-05-28 09:09:22 - StorageManager - WARNING - 2026-05-28 09:09:22 - StorageManager - WARNING - 全量股票代码文件不存在: /tmp/pytest-of-james/pytest-3/test_scan_pipeline_load_data_s0/data/all_stock_codes.csv
+2026-05-28 09:09:22 - StorageManager - INFO - 2026-05-28 09:09:22 - StorageManager - INFO - 加载了 0 个股票代码
+2026-05-28 09:09:22 - StorageManager - INFO - 2026-05-28 09:09:22 - StorageManager - INFO - 初始化存储管理器，数据目录: /tmp/pytest-of-james/pytest-3/test_scan_pipeline_load_data_s0/data
+2026-05-28 09:09:22 - FinancialFactorBridge - INFO - 2026-05-28 09:09:22 - FinancialFactorBridge - INFO - FinancialFactorBridge initialized with 25 field mappings
+2026-05-28 09:09:22 - FactorAnalyzer - INFO - 2026-05-28 09:09:22 - FactorAnalyzer - INFO - FactorAnalyzer initialized
+2026-05-28 09:09:22 - FactorAnalyzer - INFO - 2026-05-28 09:09:22 - FactorAnalyzer - INFO - FactorAnalyzer initialized
+2026-05-28 09:09:22 - StockScreener - INFO - 2026-05-28 09:09:22 - StockScreener - INFO - StockScreener initialized with top_n=50
+2026-05-28 09:09:22 - ScanPipeline - INFO - 2026-05-28 09:09:22 - ScanPipeline - INFO - ScanPipeline initialized with top_n=50
+2026-05-28 09:09:22 - ScanPipeline - INFO - 2026-05-28 09:09:22 - ScanPipeline - INFO - Loading data for 1 symbols...
+2026-05-28 09:09:22 - ScanPipeline - WARNING - 2026-05-28 09:09:22 - ScanPipeline - WARNING - Failed to load financial data for 000001.SZ: cannot read /tmp/pytest-of-james/pytest-3/test_scan_pipeline_load_data_s0/data/lake/financial/000001.SZ.parquet
+2026-05-28 09:09:22 - ScanPipeline - INFO - 2026-05-28 09:09:22 - ScanPipeline - INFO - Loaded 1 daily and 0 financial datasets
+2026-05-28 09:09:22 - uniquant.brain.regime.regime_detector - INFO - 2026-05-28 09:09:22 - uniquant.brain.regime.regime_detector - INFO - RegimeDetector初始化: entropy_threshold=0.1, turnover_z_limit=2.5, min_data_points=30
+2026-05-28 09:09:22 - uniquant.services.analysis.regime_analysis_engine - WARNING - 2026-05-28 09:09:22 - uniquant.services.analysis.regime_analysis_engine - WARNING - RegimeDetector 分析失败: bad regime engine
+2026-05-28 09:09:22 - uniquant.services.analysis.lppl_analysis_engine - WARNING - 2026-05-28 09:09:22 - uniquant.services.analysis.lppl_analysis_engine - WARNING - LPPLEngine 分析失败: LPPLEngine.__init__() got an unexpected keyword argument 'config'
+2026-05-28 09:09:22 - uniquant.services.analysis.czsc_analysis_engine - ERROR - 2026-05-28 09:09:22 - uniquant.services.analysis.czsc_analysis_engine - ERROR - CZSC engine failed: czsc failed
+2026-05-28 09:09:22 - uniquant.brain.regime.regime_detector - INFO - 2026-05-28 09:09:22 - uniquant.brain.regime.regime_detector - INFO - RegimeDetector初始化: entropy_threshold=0.1, turnover_z_limit=2.5, min_data_points=30
+2026-05-28 09:09:22 - uniquant.brain.regime.regime_detector - INFO - 2026-05-28 09:09:22 - uniquant.brain.regime.regime_detector - INFO - RegimeDetector初始化: entropy_threshold=0.5, turnover_z_limit=2.0, min_data_points=50
+2026-05-28 09:09:22 - uniquant.services.analysis.ntf_analysis_engine - WARNING - 2026-05-28 09:09:22 - uniquant.services.analysis.ntf_analysis_engine - WARNING - NTFEngine 分析失败: bad ntf engine
+2026-05-28 09:09:22 - uniquant.services.analysis.report_generator_engine - ERROR - 2026-05-28 09:09:22 - uniquant.services.analysis.report_generator_engine - ERROR - 000001.SZ 报告生成失败: report failed
+2026-05-28 09:09:22 - uniquant.services.analysis.report_generator_engine - ERROR - 2026-05-28 09:09:22 - uniquant.services.analysis.report_generator_engine - ERROR - 批量生成报告失败: batch failed
+2026-05-28 09:09:22 - uniquant.services.analysis.report_generator_engine - ERROR - 2026-05-28 09:09:22 - uniquant.services.analysis.report_generator_engine - ERROR - 列出结果文件失败: list failed
+2026-05-28 09:09:22 - TechnicalAnalysisService - ERROR - 2026-05-28 09:09:22 - TechnicalAnalysisService - ERROR - CZSC engine failed: czsc failed
+2026-05-28 09:09:22 - TechnicalAnalysisService - WARNING - 2026-05-28 09:09:22 - TechnicalAnalysisService - WARNING - CZSCEngine 分析失败: bad czsc dependency
+2026-05-28 09:09:22 - uniquant.services.analysis.signal_service - WARNING - 2026-05-28 09:09:22 - uniquant.services.analysis.signal_service - WARNING - FSM 分析失败: fsm failed
+2026-05-28 09:09:22 - uniquant.services.analysis.signal_service - WARNING - 2026-05-28 09:09:22 - uniquant.services.analysis.signal_service - WARNING - Alpha 分析失败: test_analyze_alpha_sets_default_score_on_value_error.<locals>.raise_value_error() takes from 2 to 3 positional arguments but 4 were given
+2026-05-28 09:09:24 - uniquant.shared.cache.cache_factory - INFO - 2026-05-28 09:09:24 - uniquant.shared.cache.cache_factory - INFO - Creating MemoryCacheBackend with max_size=5000
+2026-05-28 09:09:24 - uniquant.shared.cache.backends - INFO - 2026-05-28 09:09:24 - uniquant.shared.cache.backends - INFO - MemoryCacheBackend initialized with max_size: 5000
+2026-05-28 09:09:25 - uniquant.data.utils.akshare_wrapper - INFO - 2026-05-28 09:09:25 - uniquant.data.utils.akshare_wrapper - INFO - AkShare initialized successfully
+2026-05-28 09:09:26 - FactorRegistry - INFO - 2026-05-28 09:09:26 - FactorRegistry - INFO - ✅ 因子注册成功: momentum_20d (technical) weight=1.0
+2026-05-28 09:09:26 - FactorRegistry - INFO - 2026-05-28 09:09:26 - FactorRegistry - INFO - ✅ 因子注册成功: momentum_60d (technical) weight=0.9
+2026-05-28 09:09:26 - FactorRegistry - INFO - 2026-05-28 09:09:26 - FactorRegistry - INFO - ✅ 因子注册成功: volatility_20d (technical) weight=0.8
+2026-05-28 09:09:26 - FactorRegistry - INFO - 2026-05-28 09:09:26 - FactorRegistry - INFO - ✅ 因子注册成功: volatility_60d (technical) weight=0.7
+2026-05-28 09:09:26 - FactorRegistry - INFO - 2026-05-28 09:09:26 - FactorRegistry - INFO - ✅ 因子注册成功: ma_ratio_5_20 (technical) weight=0.85
+2026-05-28 09:09:26 - FactorRegistry - INFO - 2026-05-28 09:09:26 - FactorRegistry - INFO - ✅ 因子注册成功: ma_ratio_10_60 (technical) weight=0.75
+2026-05-28 09:09:26 - FactorRegistry - INFO - 2026-05-28 09:09:26 - FactorRegistry - INFO - ✅ 因子注册成功: volume_ratio_5_20 (technical) weight=0.6
+2026-05-28 09:09:26 - FactorRegistry - INFO - 2026-05-28 09:09:26 - FactorRegistry - INFO - ✅ 因子注册成功: rsi_14 (technical) weight=0.8
+2026-05-28 09:09:26 - FactorRegistry - INFO - 2026-05-28 09:09:26 - FactorRegistry - INFO - ✅ 因子注册成功: price_position_20d (technical) weight=0.7
+2026-05-28 09:09:26 - FactorRegistry - INFO - 2026-05-28 09:09:26 - FactorRegistry - INFO - ✅ 因子注册成功: turnover_momentum_20d (technical) weight=0.85
+2026-05-28 09:09:27 - uniquant.shared.cache.cache_factory - INFO - 2026-05-28 09:09:27 - uniquant.shared.cache.cache_factory - INFO - Creating MemoryCacheBackend with max_size=5000
+2026-05-28 09:09:27 - uniquant.shared.cache.backends - INFO - 2026-05-28 09:09:27 - uniquant.shared.cache.backends - INFO - MemoryCacheBackend initialized with max_size: 5000
+2026-05-28 09:09:28 - uniquant.data.utils.akshare_wrapper - INFO - 2026-05-28 09:09:28 - uniquant.data.utils.akshare_wrapper - INFO - AkShare initialized successfully
+2026-05-28 09:09:29 - FactorRegistry - INFO - 2026-05-28 09:09:29 - FactorRegistry - INFO - ✅ 因子注册成功: momentum_20d (technical) weight=1.0
+2026-05-28 09:09:29 - FactorRegistry - INFO - 2026-05-28 09:09:29 - FactorRegistry - INFO - ✅ 因子注册成功: momentum_60d (technical) weight=0.9
+2026-05-28 09:09:29 - FactorRegistry - INFO - 2026-05-28 09:09:29 - FactorRegistry - INFO - ✅ 因子注册成功: volatility_20d (technical) weight=0.8
+2026-05-28 09:09:29 - FactorRegistry - INFO - 2026-05-28 09:09:29 - FactorRegistry - INFO - ✅ 因子注册成功: volatility_60d (technical) weight=0.7
+2026-05-28 09:09:29 - FactorRegistry - INFO - 2026-05-28 09:09:29 - FactorRegistry - INFO - ✅ 因子注册成功: ma_ratio_5_20 (technical) weight=0.85
+2026-05-28 09:09:29 - FactorRegistry - INFO - 2026-05-28 09:09:29 - FactorRegistry - INFO - ✅ 因子注册成功: ma_ratio_10_60 (technical) weight=0.75
+2026-05-28 09:09:29 - FactorRegistry - INFO - 2026-05-28 09:09:29 - FactorRegistry - INFO - ✅ 因子注册成功: volume_ratio_5_20 (technical) weight=0.6
+2026-05-28 09:09:29 - FactorRegistry - INFO - 2026-05-28 09:09:29 - FactorRegistry - INFO - ✅ 因子注册成功: rsi_14 (technical) weight=0.8
+2026-05-28 09:09:29 - FactorRegistry - INFO - 2026-05-28 09:09:29 - FactorRegistry - INFO - ✅ 因子注册成功: price_position_20d (technical) weight=0.7
+2026-05-28 09:09:29 - FactorRegistry - INFO - 2026-05-28 09:09:29 - FactorRegistry - INFO - ✅ 因子注册成功: turnover_momentum_20d (technical) weight=0.85
+2026-05-28 09:09:30 - uniquant.brain.ntf.ntf_engine - INFO - 2026-05-28 09:09:30 - uniquant.brain.ntf.ntf_engine - INFO - NTF SIGNAL: Volume pulsar detected (Ratio: 3.00, Side: SUPPORT, Confidence: 0.85)
+2026-05-28 09:09:30 - uniquant.brain.ntf.ntf_engine - INFO - 2026-05-28 09:09:30 - uniquant.brain.ntf.ntf_engine - INFO - NTF SIGNAL: Volume pulsar detected (Ratio: 3.00, Side: RESISTANCE, Confidence: 0.80)
+2026-05-28 09:09:30 - uniquant.brain.ntf.ntf_engine - INFO - 2026-05-28 09:09:30 - uniquant.brain.ntf.ntf_engine - INFO - NTF SIGNAL: Volume pulsar detected (Ratio: 3.00, Side: LIQUIDITY_PULSE, Confidence: 0.40)
+2026-05-28 09:09:30 - uniquant.brain.ntf.ntf_engine - WARNING - 2026-05-28 09:09:30 - uniquant.brain.ntf.ntf_engine - WARNING - 数据缺少成交量列 (volume/vol)
+2026-05-28 09:09:30 - uniquant.brain.ntf.ntf_engine - INFO - 2026-05-28 09:09:30 - uniquant.brain.ntf.ntf_engine - INFO - NTF SIGNAL: Volume pulsar detected (Ratio: 3.00, Side: SUPPORT, Confidence: 0.85)
+2026-05-28 09:09:30 - uniquant.brain.ntf.ntf_engine - ERROR - 2026-05-28 09:09:30 - uniquant.brain.ntf.ntf_engine - ERROR - 无法获取 510300.SH 的数据
+2026-05-28 09:09:30 - uniquant.brain.ntf.ntf_engine - ERROR - 2026-05-28 09:09:30 - uniquant.brain.ntf.ntf_engine - ERROR - 数据缺少必要列: close 或 volume
+2026-05-28 09:09:30 - uniquant.brain.regime.regime_detector - INFO - 2026-05-28 09:09:30 - uniquant.brain.regime.regime_detector - INFO - RegimeDetector初始化: entropy_threshold=0.1, turnover_z_limit=2.5, min_data_points=10
+2026-05-28 09:09:30 - uniquant.brain.regime.regime_detector - WARNING - 2026-05-28 09:09:30 - uniquant.brain.regime.regime_detector - WARNING - 输入数据为None
+2026-05-28 09:09:30 - uniquant.brain.regime.regime_detector - WARNING - 2026-05-28 09:09:30 - uniquant.brain.regime.regime_detector - WARNING - 输入数据类型错误: <class 'list'>
+2026-05-28 09:09:30 - uniquant.brain.regime.regime_detector - WARNING - 2026-05-28 09:09:30 - uniquant.brain.regime.regime_detector - WARNING - 输入数据为空
+2026-05-28 09:09:30 - uniquant.brain.regime.regime_detector - WARNING - 2026-05-28 09:09:30 - uniquant.brain.regime.regime_detector - WARNING - 数据点不足: 5 < 10
+2026-05-28 09:09:30 - uniquant.brain.regime.regime_detector - WARNING - 2026-05-28 09:09:30 - uniquant.brain.regime.regime_detector - WARNING - 缺少必需列: ['volume']
+2026-05-28 09:09:30 - uniquant.brain.regime.regime_detector - WARNING - 2026-05-28 09:09:30 - uniquant.brain.regime.regime_detector - WARNING - 收盘价列全为NaN
+2026-05-28 09:09:30 - uniquant.brain.regime.regime_detector - WARNING - 2026-05-28 09:09:30 - uniquant.brain.regime.regime_detector - WARNING - Empty entropy series detected, defaulting to NORMAL regime
+2026-05-28 09:09:30 - uniquant.brain.regime.regime_detector - INFO - 2026-05-28 09:09:30 - uniquant.brain.regime.regime_detector - INFO - RegimeDetector初始化: entropy_threshold=0.1, turnover_z_limit=2.5, min_data_points=10
+2026-05-28 09:09:30 - uniquant.brain.regime.regime_detector - WARNING - 2026-05-28 09:09:30 - uniquant.brain.regime.regime_detector - WARNING - FROZEN regime detected (Entropy percentile: 0.0000)
+2026-05-28 09:09:30 - uniquant.brain.regime.regime_detector - WARNING - 2026-05-28 09:09:30 - uniquant.brain.regime.regime_detector - WARNING - STRESSED regime detected (Turnover Z: 99.00)
+2026-05-28 09:09:30 - uniquant.brain.regime.regime_detector - WARNING - 2026-05-28 09:09:30 - uniquant.brain.regime.regime_detector - WARNING - Empty entropy series detected, defaulting to NORMAL regime
+2026-05-28 09:09:30 - uniquant.brain.regime.regime_detector - INFO - 2026-05-28 09:09:30 - uniquant.brain.regime.regime_detector - INFO - RegimeDetector初始化: entropy_threshold=0.1, turnover_z_limit=2.5, min_data_points=10
+2026-05-28 09:09:30 - uniquant.brain.regime.regime_detector - ERROR - 2026-05-28 09:09:30 - uniquant.brain.regime.regime_detector - ERROR - 无法获取 000001.SZ 的数据
+2026-05-28 09:09:31 - uniquant.brain.czsc.czsc_engine - WARNING - 2026-05-28 09:09:31 - uniquant.brain.czsc.czsc_engine - WARNING - open值必须为正数: -10.0
+2026-05-28 09:09:31 - uniquant.brain.czsc.czsc_engine - WARNING - 2026-05-28 09:09:31 - uniquant.brain.czsc.czsc_engine - WARNING - K线数据验证失败，跳过本次分析
+2026-05-28 09:09:31 - uniquant.brain.czsc.czsc_engine - WARNING - 2026-05-28 09:09:31 - uniquant.brain.czsc.czsc_engine - WARNING - 缺少必需列: {'open', 'high', 'low'}
+2026-05-28 09:09:31 - uniquant.brain.czsc.czsc_engine - WARNING - 2026-05-28 09:09:31 - uniquant.brain.czsc.czsc_engine - WARNING - K线数据验证失败，跳过本次分析
+2026-05-28 09:09:31 - uniquant.brain.czsc.czsc_engine - WARNING - 2026-05-28 09:09:31 - uniquant.brain.czsc.czsc_engine - WARNING - high值为NaN
+2026-05-28 09:09:31 - uniquant.brain.czsc.czsc_engine - WARNING - 2026-05-28 09:09:31 - uniquant.brain.czsc.czsc_engine - WARNING - K线数据验证失败，跳过本次分析
+2026-05-28 09:09:31 - uniquant.brain.czsc.czsc_engine - WARNING - 2026-05-28 09:09:31 - uniquant.brain.czsc.czsc_engine - WARNING - 价格逻辑错误: low <= close <= high 不满足
+2026-05-28 09:09:31 - uniquant.brain.czsc.czsc_engine - WARNING - 2026-05-28 09:09:31 - uniquant.brain.czsc.czsc_engine - WARNING - 输入数据行为None
+2026-05-28 09:09:31 - uniquant.brain.czsc.czsc_engine - WARNING - 2026-05-28 09:09:31 - uniquant.brain.czsc.czsc_engine - WARNING - K线数据验证失败，跳过本次分析
+2026-05-28 09:09:31 - uniquant.shared.cache.cache_factory - INFO - 2026-05-28 09:09:31 - uniquant.shared.cache.cache_factory - INFO - Creating MemoryCacheBackend with max_size=5000
+2026-05-28 09:09:31 - uniquant.shared.cache.backends - INFO - 2026-05-28 09:09:31 - uniquant.shared.cache.backends - INFO - MemoryCacheBackend initialized with max_size: 5000
+2026-05-28 09:09:32 - uniquant.data.utils.akshare_wrapper - INFO - 2026-05-28 09:09:32 - uniquant.data.utils.akshare_wrapper - INFO - AkShare initialized successfully
+2026-05-28 09:09:33 - uniquant.shared.cache.cache_factory - INFO - 2026-05-28 09:09:33 - uniquant.shared.cache.cache_factory - INFO - Creating MemoryCacheBackend with max_size=5000
+2026-05-28 09:09:33 - uniquant.shared.cache.backends - INFO - 2026-05-28 09:09:33 - uniquant.shared.cache.backends - INFO - MemoryCacheBackend initialized with max_size: 5000
+2026-05-28 09:09:33 - uniquant.data.utils.akshare_wrapper - INFO - 2026-05-28 09:09:33 - uniquant.data.utils.akshare_wrapper - INFO - AkShare initialized successfully
+2026-05-28 09:09:34 - FactorRegistry - INFO - 2026-05-28 09:09:34 - FactorRegistry - INFO - ✅ 因子注册成功: momentum_20d (technical) weight=1.0
+2026-05-28 09:09:34 - FactorRegistry - INFO - 2026-05-28 09:09:34 - FactorRegistry - INFO - ✅ 因子注册成功: momentum_60d (technical) weight=0.9
+2026-05-28 09:09:34 - FactorRegistry - INFO - 2026-05-28 09:09:34 - FactorRegistry - INFO - ✅ 因子注册成功: volatility_20d (technical) weight=0.8
+2026-05-28 09:09:34 - FactorRegistry - INFO - 2026-05-28 09:09:34 - FactorRegistry - INFO - ✅ 因子注册成功: volatility_60d (technical) weight=0.7
+2026-05-28 09:09:34 - FactorRegistry - INFO - 2026-05-28 09:09:34 - FactorRegistry - INFO - ✅ 因子注册成功: ma_ratio_5_20 (technical) weight=0.85
+2026-05-28 09:09:34 - FactorRegistry - INFO - 2026-05-28 09:09:34 - FactorRegistry - INFO - ✅ 因子注册成功: ma_ratio_10_60 (technical) weight=0.75
+2026-05-28 09:09:34 - FactorRegistry - INFO - 2026-05-28 09:09:34 - FactorRegistry - INFO - ✅ 因子注册成功: volume_ratio_5_20 (technical) weight=0.6
+2026-05-28 09:09:34 - FactorRegistry - INFO - 2026-05-28 09:09:34 - FactorRegistry - INFO - ✅ 因子注册成功: rsi_14 (technical) weight=0.8
+2026-05-28 09:09:34 - FactorRegistry - INFO - 2026-05-28 09:09:34 - FactorRegistry - INFO - ✅ 因子注册成功: price_position_20d (technical) weight=0.7
+2026-05-28 09:09:34 - FactorRegistry - INFO - 2026-05-28 09:09:34 - FactorRegistry - INFO - ✅ 因子注册成功: turnover_momentum_20d (technical) weight=0.85
+2026-05-28 09:09:46 - uniquant.shared.cache.cache_factory - INFO - 2026-05-28 09:09:46 - uniquant.shared.cache.cache_factory - INFO - Creating MemoryCacheBackend with max_size=5000
+2026-05-28 09:09:46 - uniquant.shared.cache.backends - INFO - 2026-05-28 09:09:46 - uniquant.shared.cache.backends - INFO - MemoryCacheBackend initialized with max_size: 5000
+2026-05-28 09:09:46 - uniquant.shared.cache.cache_factory - INFO - 2026-05-28 09:09:46 - uniquant.shared.cache.cache_factory - INFO - Creating MemoryCacheBackend with max_size=5000
+2026-05-28 09:09:46 - uniquant.shared.cache.backends - INFO - 2026-05-28 09:09:46 - uniquant.shared.cache.backends - INFO - MemoryCacheBackend initialized with max_size: 5000
+2026-05-28 09:09:46 - uniquant.data.utils.akshare_wrapper - INFO - 2026-05-28 09:09:46 - uniquant.data.utils.akshare_wrapper - INFO - AkShare initialized successfully
+2026-05-28 09:09:47 - uniquant.data.utils.akshare_wrapper - INFO - 2026-05-28 09:09:47 - uniquant.data.utils.akshare_wrapper - INFO - AkShare initialized successfully
+2026-05-28 09:09:48 - FactorRegistry - INFO - 2026-05-28 09:09:48 - FactorRegistry - INFO - ✅ 因子注册成功: momentum_20d (technical) weight=1.0
+2026-05-28 09:09:48 - FactorRegistry - INFO - 2026-05-28 09:09:48 - FactorRegistry - INFO - ✅ 因子注册成功: momentum_60d (technical) weight=0.9
+2026-05-28 09:09:48 - FactorRegistry - INFO - 2026-05-28 09:09:48 - FactorRegistry - INFO - ✅ 因子注册成功: volatility_20d (technical) weight=0.8
+2026-05-28 09:09:48 - FactorRegistry - INFO - 2026-05-28 09:09:48 - FactorRegistry - INFO - ✅ 因子注册成功: volatility_60d (technical) weight=0.7
+2026-05-28 09:09:48 - FactorRegistry - INFO - 2026-05-28 09:09:48 - FactorRegistry - INFO - ✅ 因子注册成功: ma_ratio_5_20 (technical) weight=0.85
+2026-05-28 09:09:48 - FactorRegistry - INFO - 2026-05-28 09:09:48 - FactorRegistry - INFO - ✅ 因子注册成功: ma_ratio_10_60 (technical) weight=0.75
+2026-05-28 09:09:48 - FactorRegistry - INFO - 2026-05-28 09:09:48 - FactorRegistry - INFO - ✅ 因子注册成功: volume_ratio_5_20 (technical) weight=0.6
+2026-05-28 09:09:48 - FactorRegistry - INFO - 2026-05-28 09:09:48 - FactorRegistry - INFO - ✅ 因子注册成功: rsi_14 (technical) weight=0.8
+2026-05-28 09:09:48 - FactorRegistry - INFO - 2026-05-28 09:09:48 - FactorRegistry - INFO - ✅ 因子注册成功: price_position_20d (technical) weight=0.7
+2026-05-28 09:09:48 - FactorRegistry - INFO - 2026-05-28 09:09:48 - FactorRegistry - INFO - ✅ 因子注册成功: turnover_momentum_20d (technical) weight=0.85
+2026-05-28 09:09:48 - FactorRegistry - INFO - 2026-05-28 09:09:48 - FactorRegistry - INFO - ✅ 因子注册成功: momentum_20d (technical) weight=1.0
+2026-05-28 09:09:48 - FactorRegistry - INFO - 2026-05-28 09:09:48 - FactorRegistry - INFO - ✅ 因子注册成功: momentum_60d (technical) weight=0.9
+2026-05-28 09:09:48 - FactorRegistry - INFO - 2026-05-28 09:09:48 - FactorRegistry - INFO - ✅ 因子注册成功: volatility_20d (technical) weight=0.8
+2026-05-28 09:09:48 - FactorRegistry - INFO - 2026-05-28 09:09:48 - FactorRegistry - INFO - ✅ 因子注册成功: volatility_60d (technical) weight=0.7
+2026-05-28 09:09:48 - FactorRegistry - INFO - 2026-05-28 09:09:48 - FactorRegistry - INFO - ✅ 因子注册成功: ma_ratio_5_20 (technical) weight=0.85
+2026-05-28 09:09:48 - FactorRegistry - INFO - 2026-05-28 09:09:48 - FactorRegistry - INFO - ✅ 因子注册成功: ma_ratio_10_60 (technical) weight=0.75
+2026-05-28 09:09:48 - FactorRegistry - INFO - 2026-05-28 09:09:48 - FactorRegistry - INFO - ✅ 因子注册成功: volume_ratio_5_20 (technical) weight=0.6
+2026-05-28 09:09:48 - FactorRegistry - INFO - 2026-05-28 09:09:48 - FactorRegistry - INFO - ✅ 因子注册成功: rsi_14 (technical) weight=0.8
+2026-05-28 09:09:48 - FactorRegistry - INFO - 2026-05-28 09:09:48 - FactorRegistry - INFO - ✅ 因子注册成功: price_position_20d (technical) weight=0.7
+2026-05-28 09:09:48 - FactorRegistry - INFO - 2026-05-28 09:09:48 - FactorRegistry - INFO - ✅ 因子注册成功: turnover_momentum_20d (technical) weight=0.85
+2026-05-28 09:10:03 - uniquant.shared.cache.cache_factory - INFO - 2026-05-28 09:10:03 - uniquant.shared.cache.cache_factory - INFO - Creating MemoryCacheBackend with max_size=5000
+2026-05-28 09:10:03 - uniquant.shared.cache.backends - INFO - 2026-05-28 09:10:03 - uniquant.shared.cache.backends - INFO - MemoryCacheBackend initialized with max_size: 5000
+2026-05-28 09:10:03 - uniquant.data.utils.akshare_wrapper - INFO - 2026-05-28 09:10:03 - uniquant.data.utils.akshare_wrapper - INFO - AkShare initialized successfully
+2026-05-28 09:10:22 - uniquant.data.utils.akshare_wrapper - INFO - 2026-05-28 09:10:22 - uniquant.data.utils.akshare_wrapper - INFO - AkShare initialized successfully
+2026-05-28 09:10:22 - uniquant.shared.cache.cache_factory - INFO - 2026-05-28 09:10:22 - uniquant.shared.cache.cache_factory - INFO - Creating MemoryCacheBackend with max_size=5000
+2026-05-28 09:10:22 - uniquant.shared.cache.backends - INFO - 2026-05-28 09:10:22 - uniquant.shared.cache.backends - INFO - MemoryCacheBackend initialized with max_size: 5000
+2026-05-28 09:10:23 - uniquant.shared.cache.cache_factory - INFO - 2026-05-28 09:10:23 - uniquant.shared.cache.cache_factory - INFO - Creating MemoryCacheBackend with max_size=5000
+2026-05-28 09:10:23 - uniquant.shared.cache.backends - INFO - 2026-05-28 09:10:23 - uniquant.shared.cache.backends - INFO - MemoryCacheBackend initialized with max_size: 5000
+2026-05-28 09:10:24 - uniquant.data.utils.akshare_wrapper - INFO - 2026-05-28 09:10:24 - uniquant.data.utils.akshare_wrapper - INFO - AkShare initialized successfully
+2026-05-28 09:10:25 - uniquant.shared.cache.cache_factory - INFO - 2026-05-28 09:10:25 - uniquant.shared.cache.cache_factory - INFO - Creating MemoryCacheBackend with max_size=5000
+2026-05-28 09:10:25 - uniquant.shared.cache.backends - INFO - 2026-05-28 09:10:25 - uniquant.shared.cache.backends - INFO - MemoryCacheBackend initialized with max_size: 5000
+2026-05-28 09:10:25 - uniquant.data.utils.akshare_wrapper - INFO - 2026-05-28 09:10:25 - uniquant.data.utils.akshare_wrapper - INFO - AkShare initialized successfully
+2026-05-28 09:10:26 - uniquant.shared.cache.cache_factory - INFO - 2026-05-28 09:10:26 - uniquant.shared.cache.cache_factory - INFO - Creating MemoryCacheBackend with max_size=5000
+2026-05-28 09:10:26 - uniquant.shared.cache.backends - INFO - 2026-05-28 09:10:26 - uniquant.shared.cache.backends - INFO - MemoryCacheBackend initialized with max_size: 5000
+2026-05-28 09:10:26 - uniquant.data.utils.akshare_wrapper - INFO - 2026-05-28 09:10:26 - uniquant.data.utils.akshare_wrapper - INFO - AkShare initialized successfully
+2026-05-28 09:10:26 - FactorRegistry - INFO - 2026-05-28 09:10:26 - FactorRegistry - INFO - ✅ 因子注册成功: momentum_20d (technical) weight=1.0
+2026-05-28 09:10:26 - FactorRegistry - INFO - 2026-05-28 09:10:26 - FactorRegistry - INFO - ✅ 因子注册成功: momentum_60d (technical) weight=0.9
+2026-05-28 09:10:26 - FactorRegistry - INFO - 2026-05-28 09:10:26 - FactorRegistry - INFO - ✅ 因子注册成功: volatility_20d (technical) weight=0.8
+2026-05-28 09:10:26 - FactorRegistry - INFO - 2026-05-28 09:10:26 - FactorRegistry - INFO - ✅ 因子注册成功: volatility_60d (technical) weight=0.7
+2026-05-28 09:10:26 - FactorRegistry - INFO - 2026-05-28 09:10:26 - FactorRegistry - INFO - ✅ 因子注册成功: ma_ratio_5_20 (technical) weight=0.85
+2026-05-28 09:10:26 - FactorRegistry - INFO - 2026-05-28 09:10:26 - FactorRegistry - INFO - ✅ 因子注册成功: ma_ratio_10_60 (technical) weight=0.75
+2026-05-28 09:10:26 - FactorRegistry - INFO - 2026-05-28 09:10:26 - FactorRegistry - INFO - ✅ 因子注册成功: volume_ratio_5_20 (technical) weight=0.6
+2026-05-28 09:10:26 - FactorRegistry - INFO - 2026-05-28 09:10:26 - FactorRegistry - INFO - ✅ 因子注册成功: rsi_14 (technical) weight=0.8
+2026-05-28 09:10:26 - FactorRegistry - INFO - 2026-05-28 09:10:26 - FactorRegistry - INFO - ✅ 因子注册成功: price_position_20d (technical) weight=0.7
+2026-05-28 09:10:26 - FactorRegistry - INFO - 2026-05-28 09:10:26 - FactorRegistry - INFO - ✅ 因子注册成功: turnover_momentum_20d (technical) weight=0.85
+2026-05-28 09:10:27 - FactorRegistry - INFO - 2026-05-28 09:10:27 - FactorRegistry - INFO - ✅ 因子注册成功: momentum_20d (technical) weight=1.0
+2026-05-28 09:10:27 - FactorRegistry - INFO - 2026-05-28 09:10:27 - FactorRegistry - INFO - ✅ 因子注册成功: momentum_60d (technical) weight=0.9
+2026-05-28 09:10:27 - FactorRegistry - INFO - 2026-05-28 09:10:27 - FactorRegistry - INFO - ✅ 因子注册成功: volatility_20d (technical) weight=0.8
+2026-05-28 09:10:27 - FactorRegistry - INFO - 2026-05-28 09:10:27 - FactorRegistry - INFO - ✅ 因子注册成功: volatility_60d (technical) weight=0.7
+2026-05-28 09:10:27 - FactorRegistry - INFO - 2026-05-28 09:10:27 - FactorRegistry - INFO - ✅ 因子注册成功: ma_ratio_5_20 (technical) weight=0.85
+2026-05-28 09:10:27 - FactorRegistry - INFO - 2026-05-28 09:10:27 - FactorRegistry - INFO - ✅ 因子注册成功: ma_ratio_10_60 (technical) weight=0.75
+2026-05-28 09:10:27 - FactorRegistry - INFO - 2026-05-28 09:10:27 - FactorRegistry - INFO - ✅ 因子注册成功: volume_ratio_5_20 (technical) weight=0.6
+2026-05-28 09:10:27 - FactorRegistry - INFO - 2026-05-28 09:10:27 - FactorRegistry - INFO - ✅ 因子注册成功: rsi_14 (technical) weight=0.8
+2026-05-28 09:10:27 - FactorRegistry - INFO - 2026-05-28 09:10:27 - FactorRegistry - INFO - ✅ 因子注册成功: price_position_20d (technical) weight=0.7
+2026-05-28 09:10:27 - FactorRegistry - INFO - 2026-05-28 09:10:27 - FactorRegistry - INFO - ✅ 因子注册成功: turnover_momentum_20d (technical) weight=0.85
+2026-05-28 09:14:44 - uniquant.shared.cache.cache_factory - INFO - 2026-05-28 09:14:44 - uniquant.shared.cache.cache_factory - INFO - Creating MemoryCacheBackend with max_size=5000
+2026-05-28 09:14:44 - uniquant.shared.cache.backends - INFO - 2026-05-28 09:14:44 - uniquant.shared.cache.backends - INFO - MemoryCacheBackend initialized with max_size: 5000
+2026-05-28 09:14:44 - uniquant.data.utils.akshare_wrapper - INFO - 2026-05-28 09:14:44 - uniquant.data.utils.akshare_wrapper - INFO - AkShare initialized successfully
+2026-05-28 09:14:45 - FactorRegistry - INFO - 2026-05-28 09:14:45 - FactorRegistry - INFO - ✅ 因子注册成功: momentum_20d (technical) weight=1.0
+2026-05-28 09:14:45 - FactorRegistry - INFO - 2026-05-28 09:14:45 - FactorRegistry - INFO - ✅ 因子注册成功: momentum_60d (technical) weight=0.9
+2026-05-28 09:14:45 - FactorRegistry - INFO - 2026-05-28 09:14:45 - FactorRegistry - INFO - ✅ 因子注册成功: volatility_20d (technical) weight=0.8
+2026-05-28 09:14:45 - FactorRegistry - INFO - 2026-05-28 09:14:45 - FactorRegistry - INFO - ✅ 因子注册成功: volatility_60d (technical) weight=0.7
+2026-05-28 09:14:45 - FactorRegistry - INFO - 2026-05-28 09:14:45 - FactorRegistry - INFO - ✅ 因子注册成功: ma_ratio_5_20 (technical) weight=0.85
+2026-05-28 09:14:45 - FactorRegistry - INFO - 2026-05-28 09:14:45 - FactorRegistry - INFO - ✅ 因子注册成功: ma_ratio_10_60 (technical) weight=0.75
+2026-05-28 09:14:45 - FactorRegistry - INFO - 2026-05-28 09:14:45 - FactorRegistry - INFO - ✅ 因子注册成功: volume_ratio_5_20 (technical) weight=0.6
+2026-05-28 09:14:45 - FactorRegistry - INFO - 2026-05-28 09:14:45 - FactorRegistry - INFO - ✅ 因子注册成功: rsi_14 (technical) weight=0.8
+2026-05-28 09:14:45 - FactorRegistry - INFO - 2026-05-28 09:14:45 - FactorRegistry - INFO - ✅ 因子注册成功: price_position_20d (technical) weight=0.7
+2026-05-28 09:14:45 - FactorRegistry - INFO - 2026-05-28 09:14:45 - FactorRegistry - INFO - ✅ 因子注册成功: turnover_momentum_20d (technical) weight=0.85
+2026-05-28 09:14:46 - uniquant.brain.ntf.ntf_engine - INFO - 2026-05-28 09:14:46 - uniquant.brain.ntf.ntf_engine - INFO - NTF SIGNAL: Volume pulsar detected (Ratio: 3.00, Side: SUPPORT, Confidence: 0.85)
+2026-05-28 09:14:46 - uniquant.brain.ntf.ntf_engine - INFO - 2026-05-28 09:14:46 - uniquant.brain.ntf.ntf_engine - INFO - NTF SIGNAL: Volume pulsar detected (Ratio: 3.00, Side: RESISTANCE, Confidence: 0.80)
+2026-05-28 09:14:46 - uniquant.brain.ntf.ntf_engine - INFO - 2026-05-28 09:14:46 - uniquant.brain.ntf.ntf_engine - INFO - NTF SIGNAL: Volume pulsar detected (Ratio: 3.00, Side: LIQUIDITY_PULSE, Confidence: 0.40)
+2026-05-28 09:14:46 - uniquant.brain.ntf.ntf_engine - WARNING - 2026-05-28 09:14:46 - uniquant.brain.ntf.ntf_engine - WARNING - 数据缺少成交量列 (volume/vol)
+2026-05-28 09:14:46 - uniquant.brain.ntf.ntf_engine - INFO - 2026-05-28 09:14:46 - uniquant.brain.ntf.ntf_engine - INFO - NTF SIGNAL: Volume pulsar detected (Ratio: 3.00, Side: SUPPORT, Confidence: 0.85)
+2026-05-28 09:14:46 - uniquant.brain.ntf.ntf_engine - ERROR - 2026-05-28 09:14:46 - uniquant.brain.ntf.ntf_engine - ERROR - 无法获取 510300.SH 的数据
+2026-05-28 09:14:46 - uniquant.brain.ntf.ntf_engine - ERROR - 2026-05-28 09:14:46 - uniquant.brain.ntf.ntf_engine - ERROR - 数据缺少必要列: close 或 volume
+2026-05-28 09:14:46 - uniquant.brain.regime.regime_detector - INFO - 2026-05-28 09:14:46 - uniquant.brain.regime.regime_detector - INFO - RegimeDetector初始化: entropy_threshold=0.1, turnover_z_limit=2.5, min_data_points=10
+2026-05-28 09:14:46 - uniquant.brain.regime.regime_detector - WARNING - 2026-05-28 09:14:46 - uniquant.brain.regime.regime_detector - WARNING - 输入数据为None
+2026-05-28 09:14:46 - uniquant.brain.regime.regime_detector - WARNING - 2026-05-28 09:14:46 - uniquant.brain.regime.regime_detector - WARNING - 输入数据类型错误: <class 'list'>
+2026-05-28 09:14:46 - uniquant.brain.regime.regime_detector - WARNING - 2026-05-28 09:14:46 - uniquant.brain.regime.regime_detector - WARNING - 输入数据为空
+2026-05-28 09:14:46 - uniquant.brain.regime.regime_detector - WARNING - 2026-05-28 09:14:46 - uniquant.brain.regime.regime_detector - WARNING - 数据点不足: 5 < 10
+2026-05-28 09:14:46 - uniquant.brain.regime.regime_detector - WARNING - 2026-05-28 09:14:46 - uniquant.brain.regime.regime_detector - WARNING - 缺少必需列: ['volume']
+2026-05-28 09:14:46 - uniquant.brain.regime.regime_detector - WARNING - 2026-05-28 09:14:46 - uniquant.brain.regime.regime_detector - WARNING - 收盘价列全为NaN
+2026-05-28 09:14:46 - uniquant.brain.regime.regime_detector - WARNING - 2026-05-28 09:14:46 - uniquant.brain.regime.regime_detector - WARNING - Empty entropy series detected, defaulting to NORMAL regime
+2026-05-28 09:14:46 - uniquant.brain.regime.regime_detector - INFO - 2026-05-28 09:14:46 - uniquant.brain.regime.regime_detector - INFO - RegimeDetector初始化: entropy_threshold=0.1, turnover_z_limit=2.5, min_data_points=10
+2026-05-28 09:14:46 - uniquant.brain.regime.regime_detector - WARNING - 2026-05-28 09:14:46 - uniquant.brain.regime.regime_detector - WARNING - FROZEN regime detected (Entropy percentile: 0.0000)
+2026-05-28 09:14:46 - uniquant.brain.regime.regime_detector - WARNING - 2026-05-28 09:14:46 - uniquant.brain.regime.regime_detector - WARNING - STRESSED regime detected (Turnover Z: 99.00)
+2026-05-28 09:14:46 - uniquant.brain.regime.regime_detector - WARNING - 2026-05-28 09:14:46 - uniquant.brain.regime.regime_detector - WARNING - Empty entropy series detected, defaulting to NORMAL regime
+2026-05-28 09:14:46 - uniquant.brain.regime.regime_detector - INFO - 2026-05-28 09:14:46 - uniquant.brain.regime.regime_detector - INFO - RegimeDetector初始化: entropy_threshold=0.1, turnover_z_limit=2.5, min_data_points=10
+2026-05-28 09:14:46 - uniquant.brain.regime.regime_detector - ERROR - 2026-05-28 09:14:46 - uniquant.brain.regime.regime_detector - ERROR - 无法获取 000001.SZ 的数据
+2026-05-28 09:14:47 - uniquant.brain.czsc.czsc_engine - WARNING - 2026-05-28 09:14:47 - uniquant.brain.czsc.czsc_engine - WARNING - open值必须为正数: -10.0
+2026-05-28 09:14:47 - uniquant.brain.czsc.czsc_engine - WARNING - 2026-05-28 09:14:47 - uniquant.brain.czsc.czsc_engine - WARNING - K线数据验证失败，跳过本次分析
+2026-05-28 09:14:47 - uniquant.brain.czsc.czsc_engine - WARNING - 2026-05-28 09:14:47 - uniquant.brain.czsc.czsc_engine - WARNING - 缺少必需列: {'low', 'open', 'high'}
+2026-05-28 09:14:47 - uniquant.brain.czsc.czsc_engine - WARNING - 2026-05-28 09:14:47 - uniquant.brain.czsc.czsc_engine - WARNING - K线数据验证失败，跳过本次分析
+2026-05-28 09:14:47 - uniquant.brain.czsc.czsc_engine - WARNING - 2026-05-28 09:14:47 - uniquant.brain.czsc.czsc_engine - WARNING - high值为NaN
+2026-05-28 09:14:47 - uniquant.brain.czsc.czsc_engine - WARNING - 2026-05-28 09:14:47 - uniquant.brain.czsc.czsc_engine - WARNING - K线数据验证失败，跳过本次分析
+2026-05-28 09:14:47 - uniquant.brain.czsc.czsc_engine - WARNING - 2026-05-28 09:14:47 - uniquant.brain.czsc.czsc_engine - WARNING - 价格逻辑错误: low <= close <= high 不满足
+2026-05-28 09:14:47 - uniquant.brain.czsc.czsc_engine - WARNING - 2026-05-28 09:14:47 - uniquant.brain.czsc.czsc_engine - WARNING - 输入数据行为None
+2026-05-28 09:14:47 - uniquant.brain.czsc.czsc_engine - WARNING - 2026-05-28 09:14:47 - uniquant.brain.czsc.czsc_engine - WARNING - K线数据验证失败，跳过本次分析
+2026-05-28 09:14:47 - uniquant.brain.czsc.czsc_engine - WARNING - 2026-05-28 09:14:47 - uniquant.brain.czsc.czsc_engine - WARNING - 输入数据类型错误: <class 'str'>
+2026-05-28 09:14:47 - uniquant.brain.czsc.czsc_engine - WARNING - 2026-05-28 09:14:47 - uniquant.brain.czsc.czsc_engine - WARNING - K线数据验证失败，跳过本次分析
+2026-05-28 09:14:47 - uniquant.brain.czsc.czsc_engine - WARNING - 2026-05-28 09:14:47 - uniquant.brain.czsc.czsc_engine - WARNING - open值必须为正数: 0.0
+2026-05-28 09:14:47 - uniquant.brain.czsc.czsc_engine - WARNING - 2026-05-28 09:14:47 - uniquant.brain.czsc.czsc_engine - WARNING - K线数据验证失败，跳过本次分析
+2026-05-28 09:14:47 - uniquant.brain.czsc.czsc_engine - ERROR - 2026-05-28 09:14:47 - uniquant.brain.czsc.czsc_engine - ERROR - CZSC分析失败: boom
+2026-05-28 09:14:47 - uniquant.brain.czsc.czsc_engine - ERROR - 2026-05-28 09:14:47 - uniquant.brain.czsc.czsc_engine - ERROR - Error in get_czsc_signals: 分析失败: boom
+Traceback (most recent call last):
+  File "/home/james/Documents/Project/UniQuant/src/uniquant/brain/czsc/czsc_engine.py", line 498, in get_czsc_signals
+    analyzer = self._initialize_czsc_analyzer(bars)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/unittest/mock.py", line 1134, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/unittest/mock.py", line 1138, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/unittest/mock.py", line 1193, in _execute_mock_call
+    raise effect
+RuntimeError: boom
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/james/Documents/Project/UniQuant/src/uniquant/shared/error_handling.py", line 87, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/james/Documents/Project/UniQuant/src/uniquant/brain/czsc/czsc_engine.py", line 508, in get_czsc_signals
+    raise CZSCAnalysisError(f"分析失败: {e}") from e
+uniquant.brain.czsc.czsc_engine.CZSCAnalysisError: 分析失败: boom
+2026-05-28 09:14:47 - uniquant.brain.czsc.czsc_engine - WARNING - 2026-05-28 09:14:47 - uniquant.brain.czsc.czsc_engine - WARNING - 跳过异常K线 0: bad rawbar
+2026-05-28 09:14:47 - MacroAnalysisService - ERROR - 2026-05-28 09:14:47 - MacroAnalysisService - ERROR - LPPL engine failed: lppl failed
+2026-05-28 09:14:47 - uniquant.brain.regime.regime_detector - INFO - 2026-05-28 09:14:47 - uniquant.brain.regime.regime_detector - INFO - RegimeDetector初始化: entropy_threshold=0.1, turnover_z_limit=2.5, min_data_points=30
+2026-05-28 09:14:47 - MacroAnalysisService - WARNING - 2026-05-28 09:14:47 - MacroAnalysisService - WARNING - RegimeDetector 分析失败: bad regime dependency
+2026-05-28 09:14:47 - MacroAnalysisService - WARNING - 2026-05-28 09:14:47 - MacroAnalysisService - WARNING - NTFEngine 分析失败: bad ntf dependency
+2026-05-28 09:14:47 - StorageManager - WARNING - 2026-05-28 09:14:47 - StorageManager - WARNING - 全量股票代码文件不存在: /tmp/pytest-of-james/pytest-4/test_scan_pipeline_load_data_s0/data/all_stock_codes.csv
+2026-05-28 09:14:47 - StorageManager - INFO - 2026-05-28 09:14:47 - StorageManager - INFO - 加载了 0 个股票代码
+2026-05-28 09:14:47 - StorageManager - INFO - 2026-05-28 09:14:47 - StorageManager - INFO - 初始化存储管理器，数据目录: /tmp/pytest-of-james/pytest-4/test_scan_pipeline_load_data_s0/data
+2026-05-28 09:14:47 - FinancialFactorBridge - INFO - 2026-05-28 09:14:47 - FinancialFactorBridge - INFO - FinancialFactorBridge initialized with 25 field mappings
+2026-05-28 09:14:47 - FactorAnalyzer - INFO - 2026-05-28 09:14:47 - FactorAnalyzer - INFO - FactorAnalyzer initialized
+2026-05-28 09:14:47 - FactorAnalyzer - INFO - 2026-05-28 09:14:47 - FactorAnalyzer - INFO - FactorAnalyzer initialized
+2026-05-28 09:14:47 - StockScreener - INFO - 2026-05-28 09:14:47 - StockScreener - INFO - StockScreener initialized with top_n=50
+2026-05-28 09:14:47 - ScanPipeline - INFO - 2026-05-28 09:14:47 - ScanPipeline - INFO - ScanPipeline initialized with top_n=50
+2026-05-28 09:14:47 - ScanPipeline - INFO - 2026-05-28 09:14:47 - ScanPipeline - INFO - Loading data for 1 symbols...
+2026-05-28 09:14:47 - ScanPipeline - WARNING - 2026-05-28 09:14:47 - ScanPipeline - WARNING - Failed to load financial data for 000001.SZ: cannot read /tmp/pytest-of-james/pytest-4/test_scan_pipeline_load_data_s0/data/lake/financial/000001.SZ.parquet
+2026-05-28 09:14:47 - ScanPipeline - INFO - 2026-05-28 09:14:47 - ScanPipeline - INFO - Loaded 1 daily and 0 financial datasets
+2026-05-28 09:14:47 - uniquant.brain.regime.regime_detector - INFO - 2026-05-28 09:14:47 - uniquant.brain.regime.regime_detector - INFO - RegimeDetector初始化: entropy_threshold=0.1, turnover_z_limit=2.5, min_data_points=30
+2026-05-28 09:14:47 - uniquant.services.analysis.regime_analysis_engine - WARNING - 2026-05-28 09:14:47 - uniquant.services.analysis.regime_analysis_engine - WARNING - RegimeDetector 分析失败: bad regime engine
+2026-05-28 09:14:47 - uniquant.services.analysis.lppl_analysis_engine - WARNING - 2026-05-28 09:14:47 - uniquant.services.analysis.lppl_analysis_engine - WARNING - LPPLEngine 分析失败: LPPLEngine.__init__() got an unexpected keyword argument 'config'
+2026-05-28 09:14:47 - uniquant.services.analysis.czsc_analysis_engine - ERROR - 2026-05-28 09:14:47 - uniquant.services.analysis.czsc_analysis_engine - ERROR - CZSC engine failed: czsc failed
+2026-05-28 09:14:47 - uniquant.brain.regime.regime_detector - INFO - 2026-05-28 09:14:47 - uniquant.brain.regime.regime_detector - INFO - RegimeDetector初始化: entropy_threshold=0.1, turnover_z_limit=2.5, min_data_points=30
+2026-05-28 09:14:47 - uniquant.brain.regime.regime_detector - INFO - 2026-05-28 09:14:47 - uniquant.brain.regime.regime_detector - INFO - RegimeDetector初始化: entropy_threshold=0.5, turnover_z_limit=2.0, min_data_points=50
+2026-05-28 09:14:47 - uniquant.services.analysis.ntf_analysis_engine - WARNING - 2026-05-28 09:14:47 - uniquant.services.analysis.ntf_analysis_engine - WARNING - NTFEngine 分析失败: bad ntf engine
+2026-05-28 09:14:47 - uniquant.services.analysis.report_generator_engine - ERROR - 2026-05-28 09:14:47 - uniquant.services.analysis.report_generator_engine - ERROR - 000001.SZ 报告生成失败: report failed
+2026-05-28 09:14:47 - uniquant.services.analysis.report_generator_engine - ERROR - 2026-05-28 09:14:47 - uniquant.services.analysis.report_generator_engine - ERROR - 批量生成报告失败: batch failed
+2026-05-28 09:14:47 - uniquant.services.analysis.report_generator_engine - ERROR - 2026-05-28 09:14:47 - uniquant.services.analysis.report_generator_engine - ERROR - 列出结果文件失败: list failed
+2026-05-28 09:14:47 - TechnicalAnalysisService - ERROR - 2026-05-28 09:14:47 - TechnicalAnalysisService - ERROR - CZSC engine failed: czsc failed
+2026-05-28 09:14:47 - TechnicalAnalysisService - WARNING - 2026-05-28 09:14:47 - TechnicalAnalysisService - WARNING - CZSCEngine 分析失败: bad czsc dependency
+2026-05-28 09:14:47 - uniquant.services.analysis.signal_service - WARNING - 2026-05-28 09:14:47 - uniquant.services.analysis.signal_service - WARNING - FSM 分析失败: fsm failed
+2026-05-28 09:14:47 - uniquant.services.analysis.signal_service - WARNING - 2026-05-28 09:14:47 - uniquant.services.analysis.signal_service - WARNING - Alpha 分析失败: test_analyze_alpha_sets_default_score_on_value_error.<locals>.raise_value_error() takes from 2 to 3 positional arguments but 4 were given
+2026-05-28 09:14:53 - uniquant.shared.cache.cache_factory - INFO - 2026-05-28 09:14:53 - uniquant.shared.cache.cache_factory - INFO - Creating MemoryCacheBackend with max_size=5000
+2026-05-28 09:14:53 - uniquant.shared.cache.backends - INFO - 2026-05-28 09:14:53 - uniquant.shared.cache.backends - INFO - MemoryCacheBackend initialized with max_size: 5000
+2026-05-28 09:14:53 - uniquant.data.utils.akshare_wrapper - INFO - 2026-05-28 09:14:53 - uniquant.data.utils.akshare_wrapper - INFO - AkShare initialized successfully
+2026-05-28 09:14:55 - FactorRegistry - INFO - 2026-05-28 09:14:55 - FactorRegistry - INFO - ✅ 因子注册成功: momentum_20d (technical) weight=1.0
+2026-05-28 09:14:55 - FactorRegistry - INFO - 2026-05-28 09:14:55 - FactorRegistry - INFO - ✅ 因子注册成功: momentum_60d (technical) weight=0.9
+2026-05-28 09:14:55 - FactorRegistry - INFO - 2026-05-28 09:14:55 - FactorRegistry - INFO - ✅ 因子注册成功: volatility_20d (technical) weight=0.8
+2026-05-28 09:14:55 - FactorRegistry - INFO - 2026-05-28 09:14:55 - FactorRegistry - INFO - ✅ 因子注册成功: volatility_60d (technical) weight=0.7
+2026-05-28 09:14:55 - FactorRegistry - INFO - 2026-05-28 09:14:55 - FactorRegistry - INFO - ✅ 因子注册成功: ma_ratio_5_20 (technical) weight=0.85
+2026-05-28 09:14:55 - FactorRegistry - INFO - 2026-05-28 09:14:55 - FactorRegistry - INFO - ✅ 因子注册成功: ma_ratio_10_60 (technical) weight=0.75
+2026-05-28 09:14:55 - FactorRegistry - INFO - 2026-05-28 09:14:55 - FactorRegistry - INFO - ✅ 因子注册成功: volume_ratio_5_20 (technical) weight=0.6
+2026-05-28 09:14:55 - FactorRegistry - INFO - 2026-05-28 09:14:55 - FactorRegistry - INFO - ✅ 因子注册成功: rsi_14 (technical) weight=0.8
+2026-05-28 09:14:55 - FactorRegistry - INFO - 2026-05-28 09:14:55 - FactorRegistry - INFO - ✅ 因子注册成功: price_position_20d (technical) weight=0.7
+2026-05-28 09:14:55 - FactorRegistry - INFO - 2026-05-28 09:14:55 - FactorRegistry - INFO - ✅ 因子注册成功: turnover_momentum_20d (technical) weight=0.85
+2026-05-28 09:14:56 - uniquant.data.utils.akshare_wrapper - INFO - 2026-05-28 09:14:56 - uniquant.data.utils.akshare_wrapper - INFO - AkShare initialized successfully
+2026-05-28 09:14:56 - uniquant.shared.cache.cache_factory - INFO - 2026-05-28 09:14:56 - uniquant.shared.cache.cache_factory - INFO - Creating MemoryCacheBackend with max_size=5000
+2026-05-28 09:14:56 - uniquant.shared.cache.backends - INFO - 2026-05-28 09:14:56 - uniquant.shared.cache.backends - INFO - MemoryCacheBackend initialized with max_size: 5000
+2026-05-28 09:14:57 - FactorRegistry - INFO - 2026-05-28 09:14:57 - FactorRegistry - INFO - ✅ 因子注册成功: momentum_20d (technical) weight=1.0
+2026-05-28 09:14:57 - FactorRegistry - INFO - 2026-05-28 09:14:57 - FactorRegistry - INFO - ✅ 因子注册成功: momentum_60d (technical) weight=0.9
+2026-05-28 09:14:57 - FactorRegistry - INFO - 2026-05-28 09:14:57 - FactorRegistry - INFO - ✅ 因子注册成功: volatility_20d (technical) weight=0.8
+2026-05-28 09:14:57 - FactorRegistry - INFO - 2026-05-28 09:14:57 - FactorRegistry - INFO - ✅ 因子注册成功: volatility_60d (technical) weight=0.7
+2026-05-28 09:14:57 - FactorRegistry - INFO - 2026-05-28 09:14:57 - FactorRegistry - INFO - ✅ 因子注册成功: ma_ratio_5_20 (technical) weight=0.85
+2026-05-28 09:14:57 - FactorRegistry - INFO - 2026-05-28 09:14:57 - FactorRegistry - INFO - ✅ 因子注册成功: ma_ratio_10_60 (technical) weight=0.75
+2026-05-28 09:14:57 - FactorRegistry - INFO - 2026-05-28 09:14:57 - FactorRegistry - INFO - ✅ 因子注册成功: volume_ratio_5_20 (technical) weight=0.6
+2026-05-28 09:14:57 - FactorRegistry - INFO - 2026-05-28 09:14:57 - FactorRegistry - INFO - ✅ 因子注册成功: rsi_14 (technical) weight=0.8
+2026-05-28 09:14:57 - FactorRegistry - INFO - 2026-05-28 09:14:57 - FactorRegistry - INFO - ✅ 因子注册成功: price_position_20d (technical) weight=0.7
+2026-05-28 09:14:57 - FactorRegistry - INFO - 2026-05-28 09:14:57 - FactorRegistry - INFO - ✅ 因子注册成功: turnover_momentum_20d (technical) weight=0.85

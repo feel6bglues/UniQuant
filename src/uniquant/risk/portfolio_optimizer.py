@@ -48,6 +48,7 @@ class PortfolioOptimizer:
         self.expected_return_: Optional[float] = None
         self.expected_volatility_: Optional[float] = None
         self.sharpe_ratio_: Optional[float] = None
+        self._last_assets: List[str] = []
         
         logger.info(f"PortfolioOptimizer initialized with config: {self.config}")
     
@@ -77,6 +78,7 @@ class PortfolioOptimizer:
                 f"does not match number of assets ({n_assets})"
             )
         
+        self._last_assets = assets
         return cov_matrix, expected_returns, assets
     
     def _portfolio_return(
@@ -358,7 +360,7 @@ class PortfolioOptimizer:
             "Weights:",
         ]
         
-        for asset, weight in self.weights_.items() if hasattr(self.weights_, 'items') else []:
+        for asset, weight in zip(self._last_assets, self.weights_):
             lines.append(f"  {asset}: {weight:.4%}")
         
         lines.append("=" * 60)

@@ -2,7 +2,7 @@ import datetime
 from pathlib import Path
 from typing import Any, Callable, Dict, Optional
 
-from ...shared.logger_factory import get_logger
+from ..shared.logger_factory import get_logger
 
 logger = get_logger(__name__)
 

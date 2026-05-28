@@ -6,9 +6,9 @@ import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 
-from ...brain.lppl.engine import LPPLEngine
-from ...data.services.lppl_data_service import LPPLDataService
-from ...shared.logger_factory import get_logger
+from ..brain.lppl.engine import LPPLEngine
+from ..data.services.lppl_data_service import LPPLDataService
+from ..shared.logger_factory import get_logger
 
 logger = get_logger("LPPLVisualizer")
 

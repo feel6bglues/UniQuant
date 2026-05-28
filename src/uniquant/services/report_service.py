@@ -1,5 +1,5 @@
 from typing import Any, Dict
-from ...shared.logger_factory import get_logger
+from ..shared.logger_factory import get_logger
 
 logger = get_logger(__name__)
 

@@ -58,7 +58,15 @@ class AnalysisEngineFactory:
 
     @property
     def brain(self):
-        return self._lazy_init("brain", "...brain.fsm", "DecisionBrain")
+        if "brain" not in self._engines:
+            try:
+                from ...brain.fsm import DecisionBrain
+                self._engines["brain"] = DecisionBrain()
+                logger.debug("Lazy-initialized brain")
+            except Exception as e:
+                logger.warning(f"Failed to init brain: {e}")
+                return None
+        return self._engines["brain"]
 
     @property
     def wyckoff(self):

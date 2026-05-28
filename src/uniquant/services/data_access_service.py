@@ -3,8 +3,8 @@ from typing import Any, Dict, Optional
 
 import pandas as pd
 
-from ...shared.exceptions import CacheError, DataFetchError
-from ...shared.logger_factory import get_logger
+from ..shared.exceptions import CacheError, DataFetchError
+from ..shared.logger_factory import get_logger
 
 logger = get_logger(__name__)
 
