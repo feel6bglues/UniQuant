@@ -412,6 +412,58 @@ def render_fsm_state_history(history: List[Dict]) -> None:
 
 # --- Health Check Components ---
 
+# --- Stress Test Components ---
+
+STRESS_SCENARIOS = {
+    "2008金融危机": -0.50,
+    "2020疫情冲击": -0.30,
+    "2015股灾": -0.35,
+    "2024流动性危机": -0.25,
+    "轻微调整": -0.10,
+}
+
+
+def render_stress_scenario_buttons() -> Dict[str, bool]:
+    """渲染压力场景按钮"""
+    st.markdown("### 🔥 压力场景模拟")
+    clicked = {}
+    cols = st.columns(len(STRESS_SCENARIOS))
+    for col, (name, _) in zip(cols, STRESS_SCENARIOS.items()):
+        with col:
+            clicked[name] = st.button(f"⚡ {name}", key=f"stress_{name}", use_container_width=True)
+    return clicked
+
+
+def render_stress_scenario_results(stress_result: Dict[str, Any]) -> None:
+    """渲染压力场景结果"""
+    if not stress_result:
+        st.warning("暂无压力测试结果")
+        return
+    st.markdown("#### 📊 场景损失分析")
+    df = pd.DataFrame(list(stress_result.items()), columns=["场景", "损失幅度"])
+    df["损失幅度"] = df["损失幅度"].apply(lambda x: f"{x:.2%}" if isinstance(x, float) else x)
+    st.dataframe(df, use_container_width=True)
+
+
+def render_drawdown_dashboard(drawdown_metrics: Dict[str, Any], tail_risk_metrics: Dict[str, Any]) -> None:
+    """渲染回撤仪表盘"""
+    st.markdown("### 📉 回撤分析仪表盘")
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.metric("最大回撤", f"{drawdown_metrics.get('max_drawdown', 0):.2%}" if drawdown_metrics else "N/A")
+    with col2:
+        st.metric("平均回撤", f"{drawdown_metrics.get('avg_drawdown', 0):.2%}" if drawdown_metrics else "N/A")
+    with col3:
+        st.metric("回撤天数", drawdown_metrics.get('drawdown_days', 0) if drawdown_metrics else 0)
+    if tail_risk_metrics:
+        st.markdown("#### 🦅 尾部风险")
+        col1, col2 = st.columns(2)
+        with col1:
+            st.metric("VaR 95%", f"{tail_risk_metrics.get('var_95', 0):.2%}")
+        with col2:
+            st.metric("CVaR 95%", f"{tail_risk_metrics.get('cvar_95', 0):.2%}")
+
+
 def render_health_metrics(network_ok: bool, lake_ok: bool, engine_ok: bool, kb_ok: bool = True, regime: str = "NORMAL") -> None:
     """渲染系统健康指标"""
     st.markdown("### 💚 系统健康状态")
