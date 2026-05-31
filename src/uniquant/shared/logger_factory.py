@@ -20,7 +20,7 @@ class LoggerFactory:
     # 单例实例
     _instance: Optional["LoggerFactory"] = None
     _initialized: bool = False
-    _lock = threading.Lock()
+    _lock = threading.RLock()
 
     # 已创建的logger缓存
     _loggers: Dict[str, logging.Logger] = {}
@@ -155,6 +155,7 @@ class LoggerFactory:
 
 # 全局工厂实例
 _factory: Optional[LoggerFactory] = None
+_factory_lock = threading.Lock()
 
 
 def get_logger(name: str) -> logging.Logger:
@@ -174,7 +175,9 @@ def get_logger(name: str) -> logging.Logger:
     """
     global _factory
     if _factory is None:
-        _factory = LoggerFactory()
+        with _factory_lock:
+            if _factory is None:
+                _factory = LoggerFactory()
     return _factory.get_logger(name)
 
 

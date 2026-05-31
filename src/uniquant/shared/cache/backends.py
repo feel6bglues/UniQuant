@@ -45,7 +45,7 @@ class MemoryCacheBackend(CacheInterface):
         self.access_times: Dict[str, float] = {}
         self.hits = 0
         self.misses = 0
-        self._lock = threading.Lock()
+        self._lock = threading.RLock()
         logger.info(f"MemoryCacheBackend initialized with max_size: {max_size}")
 
     def get(self, key: str) -> Optional[Any]:
@@ -190,7 +190,7 @@ class DiskCacheBackend(CacheInterface):
         self.max_cache_size = max_cache_size
         self.hits = 0
         self.misses = 0
-        self._lock = threading.Lock()
+        self._lock = threading.RLock()
         self._file_locks: Dict[str, "FileLock"] = {}
 
         # 创建缓存目录

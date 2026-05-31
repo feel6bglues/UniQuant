@@ -3346,3 +3346,478 @@ RuntimeError: signal failed
 2026-05-31 23:26:24 - FactorRegistry - INFO - 2026-05-31 23:26:24 - FactorRegistry - INFO - ✅ 因子注册成功: rsi_14 (technical) weight=0.8
 2026-05-31 23:26:24 - FactorRegistry - INFO - 2026-05-31 23:26:24 - FactorRegistry - INFO - ✅ 因子注册成功: price_position_20d (technical) weight=0.7
 2026-05-31 23:26:24 - FactorRegistry - INFO - 2026-05-31 23:26:24 - FactorRegistry - INFO - ✅ 因子注册成功: turnover_momentum_20d (technical) weight=0.85
+2026-05-31 23:43:39 - uniquant.shared.cache.cache_factory - INFO - 2026-05-31 23:43:39 - uniquant.shared.cache.cache_factory - INFO - Creating MemoryCacheBackend with max_size=5000
+2026-05-31 23:43:39 - uniquant.shared.cache.backends - INFO - 2026-05-31 23:43:39 - uniquant.shared.cache.backends - INFO - MemoryCacheBackend initialized with max_size: 5000
+2026-05-31 23:43:39 - uniquant.data.utils.akshare_wrapper - INFO - 2026-05-31 23:43:39 - uniquant.data.utils.akshare_wrapper - INFO - AkShare initialized successfully
+2026-05-31 23:43:40 - FactorRegistry - INFO - 2026-05-31 23:43:40 - FactorRegistry - INFO - ✅ 因子注册成功: momentum_20d (technical) weight=1.0
+2026-05-31 23:43:40 - FactorRegistry - INFO - 2026-05-31 23:43:40 - FactorRegistry - INFO - ✅ 因子注册成功: momentum_60d (technical) weight=0.9
+2026-05-31 23:43:40 - FactorRegistry - INFO - 2026-05-31 23:43:40 - FactorRegistry - INFO - ✅ 因子注册成功: volatility_20d (technical) weight=0.8
+2026-05-31 23:43:40 - FactorRegistry - INFO - 2026-05-31 23:43:40 - FactorRegistry - INFO - ✅ 因子注册成功: volatility_60d (technical) weight=0.7
+2026-05-31 23:43:40 - FactorRegistry - INFO - 2026-05-31 23:43:40 - FactorRegistry - INFO - ✅ 因子注册成功: ma_ratio_5_20 (technical) weight=0.85
+2026-05-31 23:43:40 - FactorRegistry - INFO - 2026-05-31 23:43:40 - FactorRegistry - INFO - ✅ 因子注册成功: ma_ratio_10_60 (technical) weight=0.75
+2026-05-31 23:43:40 - FactorRegistry - INFO - 2026-05-31 23:43:40 - FactorRegistry - INFO - ✅ 因子注册成功: volume_ratio_5_20 (technical) weight=0.6
+2026-05-31 23:43:40 - FactorRegistry - INFO - 2026-05-31 23:43:40 - FactorRegistry - INFO - ✅ 因子注册成功: rsi_14 (technical) weight=0.8
+2026-05-31 23:43:40 - FactorRegistry - INFO - 2026-05-31 23:43:40 - FactorRegistry - INFO - ✅ 因子注册成功: price_position_20d (technical) weight=0.7
+2026-05-31 23:43:40 - FactorRegistry - INFO - 2026-05-31 23:43:40 - FactorRegistry - INFO - ✅ 因子注册成功: turnover_momentum_20d (technical) weight=0.85
+2026-05-31 23:43:40 - ConfigLoader - INFO - 2026-05-31 23:43:40 - ConfigLoader - INFO - Loading unified configuration from config.yaml
+2026-05-31 23:43:41 - ConfigLoader - INFO - 2026-05-31 23:43:41 - ConfigLoader - INFO - Global Configuration Loaded.
+2026-05-31 23:43:41 - ConfigLoader - INFO - 2026-05-31 23:43:41 - ConfigLoader - INFO - Configuration validation passed
+2026-05-31 23:43:41 - uniquant.data.utils.akshare_market_service - WARNING - 2026-05-31 23:43:41 - uniquant.data.utils.akshare_market_service - WARNING - 方法 stock_zh_a_daily 返回的数据缺少日期列
+2026-05-31 23:43:41 - uniquant.data.utils.akshare_market_service - INFO - 2026-05-31 23:43:41 - uniquant.data.utils.akshare_market_service - INFO - 成功使用方法 stock_zh_a_hist 获取股票数据
+2026-05-31 23:43:41 - uniquant.data.utils.akshare_market_service - INFO - 2026-05-31 23:43:41 - uniquant.data.utils.akshare_market_service - INFO - Fell back to em for stock spot data
+2026-05-31 23:43:41 - uniquant.data.utils.akshare_market_service - INFO - 2026-05-31 23:43:41 - uniquant.data.utils.akshare_market_service - INFO - 开始获取 000001.SZ 龙虎榜数据: 20260401~20260424
+2026-05-31 23:43:41 - uniquant.data.utils.akshare_market_service - INFO - 2026-05-31 23:43:41 - uniquant.data.utils.akshare_market_service - INFO - 成功获取 000001.SZ 龙虎榜数据: 1 条记录
+2026-05-31 23:43:42 - alpha_tactician.errors - ERROR - 2026-05-31 23:43:42 - alpha_tactician.errors - ERROR - Error in calc_rs_slope: Input DataFrames cannot be None
+Traceback (most recent call last):
+  File "/home/james/Documents/Project/UniQuant/src/uniquant/shared/error_handling.py", line 89, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/james/Documents/Project/UniQuant/src/uniquant/brain/alpha_decoupler/alpha_decoupler.py", line 84, in calc_rs_slope
+    raise EngineError("Input DataFrames cannot be None")
+uniquant.shared.exceptions.EngineError: Input DataFrames cannot be None
+2026-05-31 23:43:42 - alpha_tactician.errors - ERROR - 2026-05-31 23:43:42 - alpha_tactician.errors - ERROR - Error in calc_rs_slope: stock_df must have 'date' and 'close' columns
+Traceback (most recent call last):
+  File "/home/james/Documents/Project/UniQuant/src/uniquant/shared/error_handling.py", line 89, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/james/Documents/Project/UniQuant/src/uniquant/brain/alpha_decoupler/alpha_decoupler.py", line 88, in calc_rs_slope
+    raise EngineError("stock_df must have 'date' and 'close' columns")
+uniquant.shared.exceptions.EngineError: stock_df must have 'date' and 'close' columns
+2026-05-31 23:43:42 - alpha_tactician.errors - ERROR - 2026-05-31 23:43:42 - alpha_tactician.errors - ERROR - Error in calc_rs_slope: Window must be positive, got -1
+Traceback (most recent call last):
+  File "/home/james/Documents/Project/UniQuant/src/uniquant/shared/error_handling.py", line 89, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/james/Documents/Project/UniQuant/src/uniquant/brain/alpha_decoupler/alpha_decoupler.py", line 94, in calc_rs_slope
+    raise EngineError(f"Window must be positive, got {window}")
+uniquant.shared.exceptions.EngineError: Window must be positive, got -1
+2026-05-31 23:43:42 - uniquant.brain.czsc.czsc_engine - INFO - 2026-05-31 23:43:42 - uniquant.brain.czsc.czsc_engine - INFO - CZSC分析: 总K线=100, 有效=100, 覆盖率=100.00%
+2026-05-31 23:43:42 - uniquant.brain.czsc.czsc_engine - INFO - 2026-05-31 23:43:42 - uniquant.brain.czsc.czsc_engine - INFO - CZSC分析: 总K线=100, 有效=100, 覆盖率=100.00%
+2026-05-31 23:43:42 - uniquant.brain.czsc.czsc_engine - INFO - 2026-05-31 23:43:42 - uniquant.brain.czsc.czsc_engine - INFO - CZSC分析: 总K线=100, 有效=100, 覆盖率=100.00%
+2026-05-31 23:43:42 - uniquant.brain.fsm.fsm - INFO - 2026-05-31 23:43:42 - uniquant.brain.fsm.fsm - INFO - FSM状态已从磁盘恢复: IDLE
+2026-05-31 23:43:42 - uniquant.brain.fsm.fsm - INFO - 2026-05-31 23:43:42 - uniquant.brain.fsm.fsm - INFO - FSM状态已从磁盘恢复: IDLE
+2026-05-31 23:43:42 - uniquant.brain.fsm.fsm - INFO - 2026-05-31 23:43:42 - uniquant.brain.fsm.fsm - INFO - FSM状态已从磁盘恢复: IDLE
+2026-05-31 23:43:42 - uniquant.brain.lppl.calculator - INFO - 2026-05-31 23:43:42 - uniquant.brain.lppl.calculator - INFO - Current max time point: 100
+2026-05-31 23:43:42 - uniquant.brain.lppl.calculator - INFO - 2026-05-31 23:43:42 - uniquant.brain.lppl.calculator - INFO - Starting differential evolution optimization
+2026-05-31 23:43:42 - uniquant.brain.lppl.calculator - INFO - 2026-05-31 23:43:42 - uniquant.brain.lppl.calculator - INFO - Calculated tc: 199.2504497811096, days_to_tc: 99.25044978110961
+2026-05-31 23:43:42 - uniquant.brain.lppl.calculator - INFO - 2026-05-31 23:43:42 - uniquant.brain.lppl.calculator - INFO - Sornette constraints check: False
+2026-05-31 23:43:42 - uniquant.brain.lppl.calculator - INFO - 2026-05-31 23:43:42 - uniquant.brain.lppl.calculator - INFO - Calculated confidence: 0.6199
+2026-05-31 23:43:42 - uniquant.brain.lppl.calculator - INFO - 2026-05-31 23:43:42 - uniquant.brain.lppl.calculator - INFO - Risk level: Safe
+2026-05-31 23:43:42 - uniquant.brain.lppl.calculator - INFO - 2026-05-31 23:43:42 - uniquant.brain.lppl.calculator - INFO - Is bubble: False
+2026-05-31 23:43:42 - uniquant.brain.regime.regime_detector - INFO - 2026-05-31 23:43:42 - uniquant.brain.regime.regime_detector - INFO - RegimeDetector初始化: entropy_threshold=0.2, turnover_z_limit=3.0, min_data_points=30
+2026-05-31 23:43:42 - uniquant.services.analysis.regime_analysis_engine - WARNING - 2026-05-31 23:43:42 - uniquant.services.analysis.regime_analysis_engine - WARNING - RegimeDetector 分析失败: 'Regime' object has no attribute 'get'
+2026-05-31 23:43:42 - uniquant.services.analysis.macro_analysis_engine - WARNING - 2026-05-31 23:43:42 - uniquant.services.analysis.macro_analysis_engine - WARNING - No data returned for HS300 index
+2026-05-31 23:43:42 - uniquant.shared.cache.cache_factory - INFO - 2026-05-31 23:43:42 - uniquant.shared.cache.cache_factory - INFO - Creating MemoryCacheBackend with max_size=1000
+2026-05-31 23:43:42 - uniquant.shared.cache.backends - INFO - 2026-05-31 23:43:42 - uniquant.shared.cache.backends - INFO - MemoryCacheBackend initialized with max_size: 1000
+2026-05-31 23:43:42 - uniquant.shared.cache.cache_factory - INFO - 2026-05-31 23:43:42 - uniquant.shared.cache.cache_factory - INFO - Creating DiskCacheBackend at data/cache/analysis
+2026-05-31 23:43:42 - uniquant.shared.cache.backends - INFO - 2026-05-31 23:43:42 - uniquant.shared.cache.backends - INFO - DiskCacheBackend initialized at: data/cache/analysis
+2026-05-31 23:43:42 - AnalysisService - INFO - 2026-05-31 23:43:42 - AnalysisService - INFO - Cache system initialized successfully
+2026-05-31 23:43:42 - AnalysisService - INFO - 2026-05-31 23:43:42 - AnalysisService - INFO - Market-level cache initialized with thread lock
+2026-05-31 23:43:42 - AnalysisService - INFO - 2026-05-31 23:43:42 - AnalysisService - INFO - Validation service initialized successfully
+2026-05-31 23:43:42 - AnalysisService - INFO - 2026-05-31 23:43:42 - AnalysisService - INFO - Optimized DataFrame memory usage: 0.00 MB
+2026-05-31 23:43:42 - uniquant.shared.cache.cache_factory - INFO - 2026-05-31 23:43:42 - uniquant.shared.cache.cache_factory - INFO - Creating MemoryCacheBackend with max_size=1000
+2026-05-31 23:43:42 - uniquant.shared.cache.backends - INFO - 2026-05-31 23:43:42 - uniquant.shared.cache.backends - INFO - MemoryCacheBackend initialized with max_size: 1000
+2026-05-31 23:43:42 - uniquant.shared.cache.cache_factory - INFO - 2026-05-31 23:43:42 - uniquant.shared.cache.cache_factory - INFO - Creating DiskCacheBackend at data/cache/analysis
+2026-05-31 23:43:42 - uniquant.shared.cache.backends - INFO - 2026-05-31 23:43:42 - uniquant.shared.cache.backends - INFO - DiskCacheBackend initialized at: data/cache/analysis
+2026-05-31 23:43:42 - AnalysisService - INFO - 2026-05-31 23:43:42 - AnalysisService - INFO - Cache system initialized successfully
+2026-05-31 23:43:42 - AnalysisService - INFO - 2026-05-31 23:43:42 - AnalysisService - INFO - Market-level cache initialized with thread lock
+2026-05-31 23:43:42 - AnalysisService - INFO - 2026-05-31 23:43:42 - AnalysisService - INFO - Validation service initialized successfully
+2026-05-31 23:43:42 - AnalysisService - INFO - 2026-05-31 23:43:42 - AnalysisService - INFO - Optimized DataFrame memory usage: 0.00 MB
+2026-05-31 23:43:42 - uniquant.shared.cache.cache_factory - INFO - 2026-05-31 23:43:42 - uniquant.shared.cache.cache_factory - INFO - Creating MemoryCacheBackend with max_size=1000
+2026-05-31 23:43:42 - uniquant.shared.cache.backends - INFO - 2026-05-31 23:43:42 - uniquant.shared.cache.backends - INFO - MemoryCacheBackend initialized with max_size: 1000
+2026-05-31 23:43:42 - uniquant.shared.cache.cache_factory - INFO - 2026-05-31 23:43:42 - uniquant.shared.cache.cache_factory - INFO - Creating DiskCacheBackend at data/cache/analysis
+2026-05-31 23:43:42 - uniquant.shared.cache.backends - INFO - 2026-05-31 23:43:42 - uniquant.shared.cache.backends - INFO - DiskCacheBackend initialized at: data/cache/analysis
+2026-05-31 23:43:42 - AnalysisService - INFO - 2026-05-31 23:43:42 - AnalysisService - INFO - Cache system initialized successfully
+2026-05-31 23:43:42 - AnalysisService - INFO - 2026-05-31 23:43:42 - AnalysisService - INFO - Market-level cache initialized with thread lock
+2026-05-31 23:43:42 - AnalysisService - INFO - 2026-05-31 23:43:42 - AnalysisService - INFO - Validation service initialized successfully
+2026-05-31 23:43:42 - AnalysisService - INFO - 2026-05-31 23:43:42 - AnalysisService - INFO - Optimized DataFrame memory usage: 0.00 MB
+2026-05-31 23:43:42 - uniquant.shared.cache.cache_factory - INFO - 2026-05-31 23:43:42 - uniquant.shared.cache.cache_factory - INFO - Creating MemoryCacheBackend with max_size=1000
+2026-05-31 23:43:42 - uniquant.shared.cache.backends - INFO - 2026-05-31 23:43:42 - uniquant.shared.cache.backends - INFO - MemoryCacheBackend initialized with max_size: 1000
+2026-05-31 23:43:42 - uniquant.shared.cache.cache_factory - INFO - 2026-05-31 23:43:42 - uniquant.shared.cache.cache_factory - INFO - Creating DiskCacheBackend at data/cache/analysis
+2026-05-31 23:43:42 - uniquant.shared.cache.backends - INFO - 2026-05-31 23:43:42 - uniquant.shared.cache.backends - INFO - DiskCacheBackend initialized at: data/cache/analysis
+2026-05-31 23:43:42 - AnalysisService - INFO - 2026-05-31 23:43:42 - AnalysisService - INFO - Cache system initialized successfully
+2026-05-31 23:43:42 - AnalysisService - INFO - 2026-05-31 23:43:42 - AnalysisService - INFO - Market-level cache initialized with thread lock
+2026-05-31 23:43:42 - AnalysisService - INFO - 2026-05-31 23:43:42 - AnalysisService - INFO - Validation service initialized successfully
+2026-05-31 23:43:42 - AnalysisService - INFO - 2026-05-31 23:43:42 - AnalysisService - INFO - Optimized DataFrame memory usage: 0.00 MB
+2026-05-31 23:43:42 - uniquant.hands.backtest.monte_carlo - WARNING - 2026-05-31 23:43:42 - uniquant.hands.backtest.monte_carlo - WARNING - 收益率数据过少，无法进行 Monte Carlo 模拟
+2026-05-31 23:43:42 - uniquant.brain.ntf.ntf_engine - INFO - 2026-05-31 23:43:42 - uniquant.brain.ntf.ntf_engine - INFO - NTF SIGNAL: Volume pulsar detected (Ratio: 3.00, Side: SUPPORT, Confidence: 0.85)
+2026-05-31 23:43:42 - uniquant.brain.ntf.ntf_engine - INFO - 2026-05-31 23:43:42 - uniquant.brain.ntf.ntf_engine - INFO - NTF SIGNAL: Volume pulsar detected (Ratio: 3.00, Side: RESISTANCE, Confidence: 0.80)
+2026-05-31 23:43:42 - uniquant.brain.ntf.ntf_engine - INFO - 2026-05-31 23:43:42 - uniquant.brain.ntf.ntf_engine - INFO - NTF SIGNAL: Volume pulsar detected (Ratio: 3.00, Side: LIQUIDITY_PULSE, Confidence: 0.40)
+2026-05-31 23:43:42 - uniquant.brain.ntf.ntf_engine - WARNING - 2026-05-31 23:43:42 - uniquant.brain.ntf.ntf_engine - WARNING - 数据缺少成交量列 (volume/vol)
+2026-05-31 23:43:42 - uniquant.brain.ntf.ntf_engine - INFO - 2026-05-31 23:43:42 - uniquant.brain.ntf.ntf_engine - INFO - NTF SIGNAL: Volume pulsar detected (Ratio: 3.00, Side: SUPPORT, Confidence: 0.85)
+2026-05-31 23:43:42 - uniquant.brain.ntf.ntf_engine - ERROR - 2026-05-31 23:43:42 - uniquant.brain.ntf.ntf_engine - ERROR - 无法获取 510300.SH 的数据
+2026-05-31 23:43:42 - uniquant.brain.ntf.ntf_engine - ERROR - 2026-05-31 23:43:42 - uniquant.brain.ntf.ntf_engine - ERROR - 数据缺少必要列: close 或 volume
+2026-05-31 23:43:42 - uniquant.brain.regime.regime_detector - INFO - 2026-05-31 23:43:42 - uniquant.brain.regime.regime_detector - INFO - RegimeDetector初始化: entropy_threshold=0.2, turnover_z_limit=3.0, min_data_points=10
+2026-05-31 23:43:42 - uniquant.brain.regime.regime_detector - WARNING - 2026-05-31 23:43:42 - uniquant.brain.regime.regime_detector - WARNING - 输入数据为None
+2026-05-31 23:43:42 - uniquant.brain.regime.regime_detector - WARNING - 2026-05-31 23:43:42 - uniquant.brain.regime.regime_detector - WARNING - 输入数据类型错误: <class 'list'>
+2026-05-31 23:43:42 - uniquant.brain.regime.regime_detector - WARNING - 2026-05-31 23:43:42 - uniquant.brain.regime.regime_detector - WARNING - 输入数据为空
+2026-05-31 23:43:42 - uniquant.brain.regime.regime_detector - WARNING - 2026-05-31 23:43:42 - uniquant.brain.regime.regime_detector - WARNING - 数据点不足: 5 < 10
+2026-05-31 23:43:42 - uniquant.brain.regime.regime_detector - WARNING - 2026-05-31 23:43:42 - uniquant.brain.regime.regime_detector - WARNING - 缺少必需列: ['volume']
+2026-05-31 23:43:42 - uniquant.brain.regime.regime_detector - WARNING - 2026-05-31 23:43:42 - uniquant.brain.regime.regime_detector - WARNING - 收盘价列全为NaN
+2026-05-31 23:43:42 - uniquant.brain.regime.regime_detector - WARNING - 2026-05-31 23:43:42 - uniquant.brain.regime.regime_detector - WARNING - Empty entropy series detected, defaulting to NORMAL regime
+2026-05-31 23:43:42 - uniquant.brain.regime.regime_detector - INFO - 2026-05-31 23:43:42 - uniquant.brain.regime.regime_detector - INFO - RegimeDetector初始化: entropy_threshold=0.2, turnover_z_limit=3.0, min_data_points=10
+2026-05-31 23:43:42 - uniquant.brain.regime.regime_detector - WARNING - 2026-05-31 23:43:42 - uniquant.brain.regime.regime_detector - WARNING - FROZEN regime detected (Entropy percentile: 0.0000)
+2026-05-31 23:43:42 - uniquant.brain.regime.regime_detector - WARNING - 2026-05-31 23:43:42 - uniquant.brain.regime.regime_detector - WARNING - STRESSED regime detected (Turnover Z: 99.00)
+2026-05-31 23:43:42 - uniquant.brain.regime.regime_detector - WARNING - 2026-05-31 23:43:42 - uniquant.brain.regime.regime_detector - WARNING - Empty entropy series detected, defaulting to NORMAL regime
+2026-05-31 23:43:42 - uniquant.brain.regime.regime_detector - INFO - 2026-05-31 23:43:42 - uniquant.brain.regime.regime_detector - INFO - RegimeDetector初始化: entropy_threshold=0.2, turnover_z_limit=3.0, min_data_points=10
+2026-05-31 23:43:42 - uniquant.brain.regime.regime_detector - ERROR - 2026-05-31 23:43:42 - uniquant.brain.regime.regime_detector - ERROR - 无法获取 000001.SZ 的数据
+2026-05-31 23:43:42 - uniquant.brain.czsc.czsc_engine - WARNING - 2026-05-31 23:43:42 - uniquant.brain.czsc.czsc_engine - WARNING - open值必须为正数: -10.0
+2026-05-31 23:43:42 - uniquant.brain.czsc.czsc_engine - WARNING - 2026-05-31 23:43:42 - uniquant.brain.czsc.czsc_engine - WARNING - K线数据验证失败，跳过本次分析
+2026-05-31 23:43:42 - uniquant.brain.czsc.czsc_engine - WARNING - 2026-05-31 23:43:42 - uniquant.brain.czsc.czsc_engine - WARNING - 缺少必需列: {'low', 'high', 'open'}
+2026-05-31 23:43:42 - uniquant.brain.czsc.czsc_engine - WARNING - 2026-05-31 23:43:42 - uniquant.brain.czsc.czsc_engine - WARNING - K线数据验证失败，跳过本次分析
+2026-05-31 23:43:42 - uniquant.brain.czsc.czsc_engine - WARNING - 2026-05-31 23:43:42 - uniquant.brain.czsc.czsc_engine - WARNING - high值为NaN
+2026-05-31 23:43:42 - uniquant.brain.czsc.czsc_engine - WARNING - 2026-05-31 23:43:42 - uniquant.brain.czsc.czsc_engine - WARNING - K线数据验证失败，跳过本次分析
+2026-05-31 23:43:42 - uniquant.brain.czsc.czsc_engine - WARNING - 2026-05-31 23:43:42 - uniquant.brain.czsc.czsc_engine - WARNING - 价格逻辑错误: low <= close <= high 不满足
+2026-05-31 23:43:42 - uniquant.brain.czsc.czsc_engine - WARNING - 2026-05-31 23:43:42 - uniquant.brain.czsc.czsc_engine - WARNING - 输入数据行为None
+2026-05-31 23:43:42 - uniquant.brain.czsc.czsc_engine - WARNING - 2026-05-31 23:43:42 - uniquant.brain.czsc.czsc_engine - WARNING - K线数据验证失败，跳过本次分析
+2026-05-31 23:43:42 - uniquant.brain.czsc.czsc_engine - WARNING - 2026-05-31 23:43:42 - uniquant.brain.czsc.czsc_engine - WARNING - 输入数据类型错误: <class 'str'>
+2026-05-31 23:43:42 - uniquant.brain.czsc.czsc_engine - WARNING - 2026-05-31 23:43:42 - uniquant.brain.czsc.czsc_engine - WARNING - K线数据验证失败，跳过本次分析
+2026-05-31 23:43:42 - uniquant.brain.czsc.czsc_engine - WARNING - 2026-05-31 23:43:42 - uniquant.brain.czsc.czsc_engine - WARNING - open值必须为正数: 0.0
+2026-05-31 23:43:42 - uniquant.brain.czsc.czsc_engine - WARNING - 2026-05-31 23:43:42 - uniquant.brain.czsc.czsc_engine - WARNING - K线数据验证失败，跳过本次分析
+2026-05-31 23:43:42 - uniquant.brain.czsc.czsc_engine - ERROR - 2026-05-31 23:43:42 - uniquant.brain.czsc.czsc_engine - ERROR - CZSC分析失败: boom
+2026-05-31 23:43:42 - uniquant.brain.czsc.czsc_engine - ERROR - 2026-05-31 23:43:42 - uniquant.brain.czsc.czsc_engine - ERROR - Error in get_czsc_signals: 分析失败: boom
+Traceback (most recent call last):
+  File "/home/james/Documents/Project/UniQuant/src/uniquant/brain/czsc/czsc_engine.py", line 497, in get_czsc_signals
+    analyzer = self._initialize_czsc_analyzer(bars)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/unittest/mock.py", line 1134, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/unittest/mock.py", line 1138, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/unittest/mock.py", line 1193, in _execute_mock_call
+    raise effect
+RuntimeError: boom
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/james/Documents/Project/UniQuant/src/uniquant/shared/error_handling.py", line 89, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/james/Documents/Project/UniQuant/src/uniquant/brain/czsc/czsc_engine.py", line 507, in get_czsc_signals
+    raise CZSCAnalysisError(f"分析失败: {e}") from e
+uniquant.brain.czsc.czsc_engine.CZSCAnalysisError: 分析失败: boom
+2026-05-31 23:43:42 - uniquant.brain.czsc.czsc_engine - WARNING - 2026-05-31 23:43:42 - uniquant.brain.czsc.czsc_engine - WARNING - 跳过异常K线 0: bad rawbar
+2026-05-31 23:43:42 - uniquant.services.data_access_service - INFO - 2026-05-31 23:43:42 - uniquant.services.data_access_service - INFO - Loaded benchmark from data lake (symbol: 000300.SH)
+2026-05-31 23:43:42 - StockQueryService - ERROR - 2026-05-31 23:43:42 - StockQueryService - ERROR - Failed to refresh stock map: source failed
+2026-05-31 23:43:42 - StockQueryService - ERROR - 2026-05-31 23:43:42 - StockQueryService - ERROR - Failed to refresh stock map: source failed
+2026-05-31 23:43:42 - StockQueryService - WARNING - 2026-05-31 23:43:42 - StockQueryService - WARNING - Failed to get stock name from data source: source failed
+2026-05-31 23:43:42 - DataFetcher - INFO - 2026-05-31 23:43:42 - DataFetcher - INFO - 初始化 DataFetcher - 系统的大脑和总指挥
+2026-05-31 23:43:42 - StorageManager - INFO - 2026-05-31 23:43:42 - StorageManager - INFO - 加载并标准化了 5933 个股票代码
+2026-05-31 23:43:42 - StorageManager - INFO - 2026-05-31 23:43:42 - StorageManager - INFO - 加载了 5933 个股票代码
+2026-05-31 23:43:42 - StorageManager - INFO - 2026-05-31 23:43:42 - StorageManager - INFO - 初始化存储管理器，数据目录: ./data
+2026-05-31 23:43:42 - TdxSource - INFO - 2026-05-31 23:43:42 - TdxSource - INFO - 从配置文件读取通达信路径: /home/james/.local/share/tdxcfv/drive_c/tc
+2026-05-31 23:43:42 - StorageManager - INFO - 2026-05-31 23:43:42 - StorageManager - INFO - 加载并标准化了 5933 个股票代码
+2026-05-31 23:43:42 - StorageManager - INFO - 2026-05-31 23:43:42 - StorageManager - INFO - 加载了 5933 个股票代码
+2026-05-31 23:43:42 - StorageManager - INFO - 2026-05-31 23:43:42 - StorageManager - INFO - 初始化存储管理器，数据目录: data
+2026-05-31 23:43:42 - FactorManager - INFO - 2026-05-31 23:43:42 - FactorManager - INFO - 成功加载股票代码状态数据，共 5933 条记录
+2026-05-31 23:43:42 - StorageManager - INFO - 2026-05-31 23:43:42 - StorageManager - INFO - 加载并标准化了 5933 个股票代码
+2026-05-31 23:43:42 - StorageManager - INFO - 2026-05-31 23:43:42 - StorageManager - INFO - 加载了 5933 个股票代码
+2026-05-31 23:43:42 - StorageManager - INFO - 2026-05-31 23:43:42 - StorageManager - INFO - 初始化存储管理器，数据目录: ./data
+2026-05-31 23:43:42 - StorageManager - INFO - 2026-05-31 23:43:42 - StorageManager - INFO - 加载并标准化了 5933 个股票代码
+2026-05-31 23:43:42 - StorageManager - INFO - 2026-05-31 23:43:42 - StorageManager - INFO - 加载了 5933 个股票代码
+2026-05-31 23:43:42 - StorageManager - INFO - 2026-05-31 23:43:42 - StorageManager - INFO - 初始化存储管理器，数据目录: data
+2026-05-31 23:43:42 - FactorManager - INFO - 2026-05-31 23:43:42 - FactorManager - INFO - 成功加载股票代码状态数据，共 5933 条记录
+2026-05-31 23:43:42 - DataFetcher - INFO - 2026-05-31 23:43:42 - DataFetcher - INFO - DataFetcher 初始化完成
+2026-05-31 23:43:42 - StorageManager - INFO - 2026-05-31 23:43:42 - StorageManager - INFO - 加载并标准化了 5933 个股票代码
+2026-05-31 23:43:42 - StorageManager - INFO - 2026-05-31 23:43:42 - StorageManager - INFO - 加载了 5933 个股票代码
+2026-05-31 23:43:42 - StorageManager - INFO - 2026-05-31 23:43:42 - StorageManager - INFO - 初始化存储管理器，数据目录: ./data
+2026-05-31 23:43:42 - uniquant.shared.cache.cache_factory - INFO - 2026-05-31 23:43:42 - uniquant.shared.cache.cache_factory - INFO - Creating DiskCacheBackend at data/service_cache
+2026-05-31 23:43:42 - uniquant.shared.cache.backends - INFO - 2026-05-31 23:43:42 - uniquant.shared.cache.backends - INFO - DiskCacheBackend initialized at: data/service_cache
+2026-05-31 23:43:42 - CacheCoordinator - INFO - 2026-05-31 23:43:42 - CacheCoordinator - INFO - CacheCoordinator initialized
+2026-05-31 23:43:42 - DataService - INFO - 2026-05-31 23:43:42 - DataService - INFO - DataService initialized with facade pattern
+2026-05-31 23:43:42 - uniquant.services.data_access_service - ERROR - 2026-05-31 23:43:42 - uniquant.services.data_access_service - ERROR - Error loading stock data: lake failed
+2026-05-31 23:43:42 - DataFetcher - INFO - 2026-05-31 23:43:42 - DataFetcher - INFO - 初始化 DataFetcher - 系统的大脑和总指挥
+2026-05-31 23:43:42 - StorageManager - INFO - 2026-05-31 23:43:42 - StorageManager - INFO - 加载并标准化了 5933 个股票代码
+2026-05-31 23:43:42 - StorageManager - INFO - 2026-05-31 23:43:42 - StorageManager - INFO - 加载了 5933 个股票代码
+2026-05-31 23:43:42 - StorageManager - INFO - 2026-05-31 23:43:42 - StorageManager - INFO - 初始化存储管理器，数据目录: ./data
+2026-05-31 23:43:42 - TdxSource - INFO - 2026-05-31 23:43:42 - TdxSource - INFO - 从配置文件读取通达信路径: /home/james/.local/share/tdxcfv/drive_c/tc
+2026-05-31 23:43:42 - StorageManager - INFO - 2026-05-31 23:43:42 - StorageManager - INFO - 加载并标准化了 5933 个股票代码
+2026-05-31 23:43:42 - StorageManager - INFO - 2026-05-31 23:43:42 - StorageManager - INFO - 加载了 5933 个股票代码
+2026-05-31 23:43:42 - StorageManager - INFO - 2026-05-31 23:43:42 - StorageManager - INFO - 初始化存储管理器，数据目录: data
+2026-05-31 23:43:42 - FactorManager - INFO - 2026-05-31 23:43:42 - FactorManager - INFO - 成功加载股票代码状态数据，共 5933 条记录
+2026-05-31 23:43:42 - StorageManager - INFO - 2026-05-31 23:43:42 - StorageManager - INFO - 加载并标准化了 5933 个股票代码
+2026-05-31 23:43:42 - StorageManager - INFO - 2026-05-31 23:43:42 - StorageManager - INFO - 加载了 5933 个股票代码
+2026-05-31 23:43:42 - StorageManager - INFO - 2026-05-31 23:43:42 - StorageManager - INFO - 初始化存储管理器，数据目录: ./data
+2026-05-31 23:43:43 - StorageManager - INFO - 2026-05-31 23:43:43 - StorageManager - INFO - 加载并标准化了 5933 个股票代码
+2026-05-31 23:43:43 - StorageManager - INFO - 2026-05-31 23:43:43 - StorageManager - INFO - 加载了 5933 个股票代码
+2026-05-31 23:43:43 - StorageManager - INFO - 2026-05-31 23:43:43 - StorageManager - INFO - 初始化存储管理器，数据目录: data
+2026-05-31 23:43:43 - FactorManager - INFO - 2026-05-31 23:43:43 - FactorManager - INFO - 成功加载股票代码状态数据，共 5933 条记录
+2026-05-31 23:43:43 - DataFetcher - INFO - 2026-05-31 23:43:43 - DataFetcher - INFO - DataFetcher 初始化完成
+2026-05-31 23:43:43 - StorageManager - INFO - 2026-05-31 23:43:43 - StorageManager - INFO - 加载并标准化了 5933 个股票代码
+2026-05-31 23:43:43 - StorageManager - INFO - 2026-05-31 23:43:43 - StorageManager - INFO - 加载了 5933 个股票代码
+2026-05-31 23:43:43 - StorageManager - INFO - 2026-05-31 23:43:43 - StorageManager - INFO - 初始化存储管理器，数据目录: ./data
+2026-05-31 23:43:43 - uniquant.shared.cache.cache_factory - INFO - 2026-05-31 23:43:43 - uniquant.shared.cache.cache_factory - INFO - Creating DiskCacheBackend at data/service_cache
+2026-05-31 23:43:43 - uniquant.shared.cache.backends - INFO - 2026-05-31 23:43:43 - uniquant.shared.cache.backends - INFO - DiskCacheBackend initialized at: data/service_cache
+2026-05-31 23:43:43 - CacheCoordinator - INFO - 2026-05-31 23:43:43 - CacheCoordinator - INFO - CacheCoordinator initialized
+2026-05-31 23:43:43 - DataService - INFO - 2026-05-31 23:43:43 - DataService - INFO - DataService initialized with facade pattern
+2026-05-31 23:43:43 - uniquant.services.data_access_service - WARNING - 2026-05-31 23:43:43 - uniquant.services.data_access_service - WARNING - No ETF data (510300) in data lake, falling back to data source
+2026-05-31 23:43:43 - uniquant.services.data_access_service - ERROR - 2026-05-31 23:43:43 - uniquant.services.data_access_service - ERROR - Error loading ETF data: fetch failed
+2026-05-31 23:43:43 - DataFetcher - INFO - 2026-05-31 23:43:43 - DataFetcher - INFO - 初始化 DataFetcher - 系统的大脑和总指挥
+2026-05-31 23:43:43 - StorageManager - WARNING - 2026-05-31 23:43:43 - StorageManager - WARNING - 全量股票代码文件不存在: /tmp/test_data_fetcher/all_stock_codes.csv
+2026-05-31 23:43:43 - StorageManager - INFO - 2026-05-31 23:43:43 - StorageManager - INFO - 加载了 0 个股票代码
+2026-05-31 23:43:43 - StorageManager - INFO - 2026-05-31 23:43:43 - StorageManager - INFO - 初始化存储管理器，数据目录: /tmp/test_data_fetcher
+2026-05-31 23:43:43 - TdxSource - INFO - 2026-05-31 23:43:43 - TdxSource - INFO - 从配置文件读取通达信路径: /home/james/.local/share/tdxcfv/drive_c/tc
+2026-05-31 23:43:43 - DataFetcher - WARNING - 2026-05-31 23:43:43 - DataFetcher - WARNING - 数据源 <MagicMock name='SinaSource' id='138095722740144'> 初始化失败，跳过: sina dependency missing
+2026-05-31 23:43:43 - DataFetcher - WARNING - 2026-05-31 23:43:43 - DataFetcher - WARNING - 数据源 <MagicMock name='TencentSource' id='138095721729632'> 初始化失败，跳过: tencent missing
+2026-05-31 23:43:43 - StorageManager - WARNING - 2026-05-31 23:43:43 - StorageManager - WARNING - 全量股票代码文件不存在: /tmp/test_data_fetcher/all_stock_codes.csv
+2026-05-31 23:43:43 - StorageManager - INFO - 2026-05-31 23:43:43 - StorageManager - INFO - 加载了 0 个股票代码
+2026-05-31 23:43:43 - StorageManager - INFO - 2026-05-31 23:43:43 - StorageManager - INFO - 初始化存储管理器，数据目录: /tmp/test_data_fetcher
+2026-05-31 23:43:43 - FactorManager - WARNING - 2026-05-31 23:43:43 - FactorManager - WARNING - 股票代码状态文件不存在: /tmp/test_data_fetcher/all_stock_codes.csv
+2026-05-31 23:43:43 - StorageManager - WARNING - 2026-05-31 23:43:43 - StorageManager - WARNING - 全量股票代码文件不存在: /tmp/test_data_fetcher/all_stock_codes.csv
+2026-05-31 23:43:43 - StorageManager - INFO - 2026-05-31 23:43:43 - StorageManager - INFO - 加载了 0 个股票代码
+2026-05-31 23:43:43 - StorageManager - INFO - 2026-05-31 23:43:43 - StorageManager - INFO - 初始化存储管理器，数据目录: /tmp/test_data_fetcher
+2026-05-31 23:43:43 - StorageManager - WARNING - 2026-05-31 23:43:43 - StorageManager - WARNING - 全量股票代码文件不存在: /tmp/test_data_fetcher/all_stock_codes.csv
+2026-05-31 23:43:43 - StorageManager - INFO - 2026-05-31 23:43:43 - StorageManager - INFO - 加载了 0 个股票代码
+2026-05-31 23:43:43 - StorageManager - INFO - 2026-05-31 23:43:43 - StorageManager - INFO - 初始化存储管理器，数据目录: /tmp/test_data_fetcher
+2026-05-31 23:43:43 - FactorManager - WARNING - 2026-05-31 23:43:43 - FactorManager - WARNING - 股票代码状态文件不存在: /tmp/test_data_fetcher/all_stock_codes.csv
+2026-05-31 23:43:43 - DataFetcher - INFO - 2026-05-31 23:43:43 - DataFetcher - INFO - DataFetcher 初始化完成
+2026-05-31 23:43:43 - DataFetcher - INFO - 2026-05-31 23:43:43 - DataFetcher - INFO - 初始化 DataFetcher - 系统的大脑和总指挥
+2026-05-31 23:43:43 - StorageManager - WARNING - 2026-05-31 23:43:43 - StorageManager - WARNING - 全量股票代码文件不存在: /tmp/test_data_fetcher_all_fail/all_stock_codes.csv
+2026-05-31 23:43:43 - StorageManager - INFO - 2026-05-31 23:43:43 - StorageManager - INFO - 加载了 0 个股票代码
+2026-05-31 23:43:43 - StorageManager - INFO - 2026-05-31 23:43:43 - StorageManager - INFO - 初始化存储管理器，数据目录: /tmp/test_data_fetcher_all_fail
+2026-05-31 23:43:43 - DataFetcher - WARNING - 2026-05-31 23:43:43 - DataFetcher - WARNING - 数据源 <MagicMock name='TdxSource' id='138095721733280'> 初始化失败，跳过: dependency missing
+2026-05-31 23:43:43 - DataFetcher - WARNING - 2026-05-31 23:43:43 - DataFetcher - WARNING - 数据源 <MagicMock name='BaostockSource' id='138095682917808'> 初始化失败，跳过: dependency missing
+2026-05-31 23:43:43 - DataFetcher - WARNING - 2026-05-31 23:43:43 - DataFetcher - WARNING - 数据源 <MagicMock name='SinaSource' id='138095682921744'> 初始化失败，跳过: dependency missing
+2026-05-31 23:43:43 - DataFetcher - WARNING - 2026-05-31 23:43:43 - DataFetcher - WARNING - 数据源 <MagicMock name='ThsSource' id='138095682925584'> 初始化失败，跳过: dependency missing
+2026-05-31 23:43:43 - DataFetcher - WARNING - 2026-05-31 23:43:43 - DataFetcher - WARNING - 数据源 <MagicMock name='TencentSource' id='138095613133552'> 初始化失败，跳过: dependency missing
+2026-05-31 23:43:43 - StorageManager - WARNING - 2026-05-31 23:43:43 - StorageManager - WARNING - 全量股票代码文件不存在: /tmp/test_data_fetcher_all_fail/all_stock_codes.csv
+2026-05-31 23:43:43 - StorageManager - INFO - 2026-05-31 23:43:43 - StorageManager - INFO - 加载了 0 个股票代码
+2026-05-31 23:43:43 - StorageManager - INFO - 2026-05-31 23:43:43 - StorageManager - INFO - 初始化存储管理器，数据目录: /tmp/test_data_fetcher_all_fail
+2026-05-31 23:43:43 - FactorManager - WARNING - 2026-05-31 23:43:43 - FactorManager - WARNING - 股票代码状态文件不存在: /tmp/test_data_fetcher_all_fail/all_stock_codes.csv
+2026-05-31 23:43:43 - StorageManager - WARNING - 2026-05-31 23:43:43 - StorageManager - WARNING - 全量股票代码文件不存在: /tmp/test_data_fetcher_all_fail/all_stock_codes.csv
+2026-05-31 23:43:43 - StorageManager - INFO - 2026-05-31 23:43:43 - StorageManager - INFO - 加载了 0 个股票代码
+2026-05-31 23:43:43 - StorageManager - INFO - 2026-05-31 23:43:43 - StorageManager - INFO - 初始化存储管理器，数据目录: /tmp/test_data_fetcher_all_fail
+2026-05-31 23:43:43 - StorageManager - WARNING - 2026-05-31 23:43:43 - StorageManager - WARNING - 全量股票代码文件不存在: /tmp/test_data_fetcher_all_fail/all_stock_codes.csv
+2026-05-31 23:43:43 - StorageManager - INFO - 2026-05-31 23:43:43 - StorageManager - INFO - 加载了 0 个股票代码
+2026-05-31 23:43:43 - StorageManager - INFO - 2026-05-31 23:43:43 - StorageManager - INFO - 初始化存储管理器，数据目录: /tmp/test_data_fetcher_all_fail
+2026-05-31 23:43:43 - FactorManager - WARNING - 2026-05-31 23:43:43 - FactorManager - WARNING - 股票代码状态文件不存在: /tmp/test_data_fetcher_all_fail/all_stock_codes.csv
+2026-05-31 23:43:43 - DataFetcher - INFO - 2026-05-31 23:43:43 - DataFetcher - INFO - DataFetcher 初始化完成
+2026-05-31 23:43:43 - DataFetcher - INFO - 2026-05-31 23:43:43 - DataFetcher - INFO - 初始化 DataFetcher - 系统的大脑和总指挥
+2026-05-31 23:43:43 - StorageManager - WARNING - 2026-05-31 23:43:43 - StorageManager - WARNING - 全量股票代码文件不存在: /tmp/test_data_fetcher_normal/all_stock_codes.csv
+2026-05-31 23:43:43 - StorageManager - INFO - 2026-05-31 23:43:43 - StorageManager - INFO - 加载了 0 个股票代码
+2026-05-31 23:43:43 - StorageManager - INFO - 2026-05-31 23:43:43 - StorageManager - INFO - 初始化存储管理器，数据目录: /tmp/test_data_fetcher_normal
+2026-05-31 23:43:43 - TdxSource - INFO - 2026-05-31 23:43:43 - TdxSource - INFO - 从配置文件读取通达信路径: /home/james/.local/share/tdxcfv/drive_c/tc
+2026-05-31 23:43:43 - StorageManager - WARNING - 2026-05-31 23:43:43 - StorageManager - WARNING - 全量股票代码文件不存在: /tmp/test_data_fetcher_normal/all_stock_codes.csv
+2026-05-31 23:43:43 - StorageManager - INFO - 2026-05-31 23:43:43 - StorageManager - INFO - 加载了 0 个股票代码
+2026-05-31 23:43:43 - StorageManager - INFO - 2026-05-31 23:43:43 - StorageManager - INFO - 初始化存储管理器，数据目录: /tmp/test_data_fetcher_normal
+2026-05-31 23:43:43 - FactorManager - WARNING - 2026-05-31 23:43:43 - FactorManager - WARNING - 股票代码状态文件不存在: /tmp/test_data_fetcher_normal/all_stock_codes.csv
+2026-05-31 23:43:43 - StorageManager - WARNING - 2026-05-31 23:43:43 - StorageManager - WARNING - 全量股票代码文件不存在: /tmp/test_data_fetcher_normal/all_stock_codes.csv
+2026-05-31 23:43:43 - StorageManager - INFO - 2026-05-31 23:43:43 - StorageManager - INFO - 加载了 0 个股票代码
+2026-05-31 23:43:43 - StorageManager - INFO - 2026-05-31 23:43:43 - StorageManager - INFO - 初始化存储管理器，数据目录: /tmp/test_data_fetcher_normal
+2026-05-31 23:43:43 - StorageManager - WARNING - 2026-05-31 23:43:43 - StorageManager - WARNING - 全量股票代码文件不存在: /tmp/test_data_fetcher_normal/all_stock_codes.csv
+2026-05-31 23:43:43 - StorageManager - INFO - 2026-05-31 23:43:43 - StorageManager - INFO - 加载了 0 个股票代码
+2026-05-31 23:43:43 - StorageManager - INFO - 2026-05-31 23:43:43 - StorageManager - INFO - 初始化存储管理器，数据目录: /tmp/test_data_fetcher_normal
+2026-05-31 23:43:43 - FactorManager - WARNING - 2026-05-31 23:43:43 - FactorManager - WARNING - 股票代码状态文件不存在: /tmp/test_data_fetcher_normal/all_stock_codes.csv
+2026-05-31 23:43:43 - DataFetcher - INFO - 2026-05-31 23:43:43 - DataFetcher - INFO - DataFetcher 初始化完成
+2026-05-31 23:43:43 - uniquant.data.managers.source_router - INFO - 2026-05-31 23:43:43 - uniquant.data.managers.source_router - INFO - 开始获取 000001.SZ 数据，使用 0 个数据源
+2026-05-31 23:43:43 - uniquant.data.managers.source_router - ERROR - 2026-05-31 23:43:43 - uniquant.data.managers.source_router - ERROR - 所有数据源都无法获取 000001.SZ 数据
+2026-05-31 23:43:43 - DataFetcher - INFO - 2026-05-31 23:43:43 - DataFetcher - INFO - 初始化 DataFetcher - 系统的大脑和总指挥
+2026-05-31 23:43:43 - StorageManager - WARNING - 2026-05-31 23:43:43 - StorageManager - WARNING - 全量股票代码文件不存在: /tmp/test_market_cap/all_stock_codes.csv
+2026-05-31 23:43:43 - StorageManager - INFO - 2026-05-31 23:43:43 - StorageManager - INFO - 加载了 0 个股票代码
+2026-05-31 23:43:43 - StorageManager - INFO - 2026-05-31 23:43:43 - StorageManager - INFO - 初始化存储管理器，数据目录: /tmp/test_market_cap
+2026-05-31 23:43:43 - TdxSource - INFO - 2026-05-31 23:43:43 - TdxSource - INFO - 从配置文件读取通达信路径: /home/james/.local/share/tdxcfv/drive_c/tc
+2026-05-31 23:43:43 - StorageManager - WARNING - 2026-05-31 23:43:43 - StorageManager - WARNING - 全量股票代码文件不存在: /tmp/test_market_cap/all_stock_codes.csv
+2026-05-31 23:43:43 - StorageManager - INFO - 2026-05-31 23:43:43 - StorageManager - INFO - 加载了 0 个股票代码
+2026-05-31 23:43:43 - StorageManager - INFO - 2026-05-31 23:43:43 - StorageManager - INFO - 初始化存储管理器，数据目录: /tmp/test_market_cap
+2026-05-31 23:43:43 - FactorManager - WARNING - 2026-05-31 23:43:43 - FactorManager - WARNING - 股票代码状态文件不存在: /tmp/test_market_cap/all_stock_codes.csv
+2026-05-31 23:43:43 - StorageManager - WARNING - 2026-05-31 23:43:43 - StorageManager - WARNING - 全量股票代码文件不存在: /tmp/test_market_cap/all_stock_codes.csv
+2026-05-31 23:43:43 - StorageManager - INFO - 2026-05-31 23:43:43 - StorageManager - INFO - 加载了 0 个股票代码
+2026-05-31 23:43:43 - StorageManager - INFO - 2026-05-31 23:43:43 - StorageManager - INFO - 初始化存储管理器，数据目录: /tmp/test_market_cap
+2026-05-31 23:43:43 - StorageManager - WARNING - 2026-05-31 23:43:43 - StorageManager - WARNING - 全量股票代码文件不存在: /tmp/test_market_cap/all_stock_codes.csv
+2026-05-31 23:43:43 - StorageManager - INFO - 2026-05-31 23:43:43 - StorageManager - INFO - 加载了 0 个股票代码
+2026-05-31 23:43:43 - StorageManager - INFO - 2026-05-31 23:43:43 - StorageManager - INFO - 初始化存储管理器，数据目录: /tmp/test_market_cap
+2026-05-31 23:43:43 - FactorManager - WARNING - 2026-05-31 23:43:43 - FactorManager - WARNING - 股票代码状态文件不存在: /tmp/test_market_cap/all_stock_codes.csv
+2026-05-31 23:43:43 - DataFetcher - INFO - 2026-05-31 23:43:43 - DataFetcher - INFO - DataFetcher 初始化完成
+2026-05-31 23:43:43 - DataFetcher - WARNING - 2026-05-31 23:43:43 - DataFetcher - WARNING - 获取市值失败 000001.SZ from MagicMock: market cap unavailable
+2026-05-31 23:43:43 - uniquant.shared.cache.backends - INFO - 2026-05-31 23:43:43 - uniquant.shared.cache.backends - INFO - MemoryCacheBackend initialized with max_size: 1
+2026-05-31 23:45:58 - uniquant.shared.cache.cache_factory - INFO - 2026-05-31 23:45:58 - uniquant.shared.cache.cache_factory - INFO - Creating MemoryCacheBackend with max_size=5000
+2026-05-31 23:45:58 - uniquant.shared.cache.backends - INFO - 2026-05-31 23:45:58 - uniquant.shared.cache.backends - INFO - MemoryCacheBackend initialized with max_size: 5000
+2026-05-31 23:45:59 - uniquant.data.utils.akshare_wrapper - INFO - 2026-05-31 23:45:59 - uniquant.data.utils.akshare_wrapper - INFO - AkShare initialized successfully
+2026-05-31 23:46:00 - FactorRegistry - INFO - 2026-05-31 23:46:00 - FactorRegistry - INFO - ✅ 因子注册成功: momentum_20d (technical) weight=1.0
+2026-05-31 23:46:00 - FactorRegistry - INFO - 2026-05-31 23:46:00 - FactorRegistry - INFO - ✅ 因子注册成功: momentum_60d (technical) weight=0.9
+2026-05-31 23:46:00 - FactorRegistry - INFO - 2026-05-31 23:46:00 - FactorRegistry - INFO - ✅ 因子注册成功: volatility_20d (technical) weight=0.8
+2026-05-31 23:46:00 - FactorRegistry - INFO - 2026-05-31 23:46:00 - FactorRegistry - INFO - ✅ 因子注册成功: volatility_60d (technical) weight=0.7
+2026-05-31 23:46:00 - FactorRegistry - INFO - 2026-05-31 23:46:00 - FactorRegistry - INFO - ✅ 因子注册成功: ma_ratio_5_20 (technical) weight=0.85
+2026-05-31 23:46:00 - FactorRegistry - INFO - 2026-05-31 23:46:00 - FactorRegistry - INFO - ✅ 因子注册成功: ma_ratio_10_60 (technical) weight=0.75
+2026-05-31 23:46:00 - FactorRegistry - INFO - 2026-05-31 23:46:00 - FactorRegistry - INFO - ✅ 因子注册成功: volume_ratio_5_20 (technical) weight=0.6
+2026-05-31 23:46:00 - FactorRegistry - INFO - 2026-05-31 23:46:00 - FactorRegistry - INFO - ✅ 因子注册成功: rsi_14 (technical) weight=0.8
+2026-05-31 23:46:00 - FactorRegistry - INFO - 2026-05-31 23:46:00 - FactorRegistry - INFO - ✅ 因子注册成功: price_position_20d (technical) weight=0.7
+2026-05-31 23:46:00 - FactorRegistry - INFO - 2026-05-31 23:46:00 - FactorRegistry - INFO - ✅ 因子注册成功: turnover_momentum_20d (technical) weight=0.85
+2026-05-31 23:46:00 - uniquant.shared.cache.backends - INFO - 2026-05-31 23:46:00 - uniquant.shared.cache.backends - INFO - MemoryCacheBackend initialized with max_size: 1
+2026-05-31 23:47:08 - uniquant.shared.cache.cache_factory - INFO - 2026-05-31 23:47:08 - uniquant.shared.cache.cache_factory - INFO - Creating MemoryCacheBackend with max_size=5000
+2026-05-31 23:47:08 - uniquant.shared.cache.backends - INFO - 2026-05-31 23:47:08 - uniquant.shared.cache.backends - INFO - MemoryCacheBackend initialized with max_size: 5000
+2026-05-31 23:47:08 - uniquant.shared.cache.backends - INFO - 2026-05-31 23:47:08 - uniquant.shared.cache.backends - INFO - MemoryCacheBackend initialized with max_size: 1
+2026-05-31 23:47:46 - uniquant.shared.cache.cache_factory - INFO - 2026-05-31 23:47:46 - uniquant.shared.cache.cache_factory - INFO - Creating MemoryCacheBackend with max_size=5000
+2026-05-31 23:47:46 - uniquant.shared.cache.backends - INFO - 2026-05-31 23:47:46 - uniquant.shared.cache.backends - INFO - MemoryCacheBackend initialized with max_size: 5000
+2026-05-31 23:47:47 - uniquant.shared.cache.backends - INFO - 2026-05-31 23:47:47 - uniquant.shared.cache.backends - INFO - MemoryCacheBackend initialized with max_size: 1
+2026-05-31 23:51:02 - uniquant.shared.cache.cache_factory - INFO - 2026-05-31 23:51:02 - uniquant.shared.cache.cache_factory - INFO - Creating MemoryCacheBackend with max_size=5000
+2026-05-31 23:51:02 - uniquant.shared.cache.backends - INFO - 2026-05-31 23:51:02 - uniquant.shared.cache.backends - INFO - MemoryCacheBackend initialized with max_size: 5000
+2026-05-31 23:51:03 - uniquant.shared.cache.backends - INFO - 2026-05-31 23:51:03 - uniquant.shared.cache.backends - INFO - MemoryCacheBackend initialized with max_size: 1
+1970-01-01 08:01:43 - uniquant.shared.cache.backends - INFO - 1970-01-01 08:01:43 - uniquant.shared.cache.backends - INFO - Cleared 1 cache entries matching pattern: k2
+1970-01-01 08:01:45 - uniquant.shared.cache.backends - INFO - 1970-01-01 08:01:45 - uniquant.shared.cache.backends - INFO - Cleaned up 1 expired cache entries
+1970-01-01 08:01:45 - uniquant.shared.cache.backends - INFO - 1970-01-01 08:01:45 - uniquant.shared.cache.backends - INFO - Cache stats reset
+2026-05-31 23:51:03 - uniquant.shared.cache.backends - INFO - 2026-05-31 23:51:03 - uniquant.shared.cache.backends - INFO - MemoryCacheBackend initialized with max_size: 2
+2026-05-31 23:51:03 - uniquant.shared.cache.backends - INFO - 2026-05-31 23:51:03 - uniquant.shared.cache.backends - INFO - DiskCacheBackend initialized at: /tmp/pytest-of-james/pytest-7/test_disk_cache_set_get_delete0
+2026-05-31 23:51:03 - uniquant.shared.cache.backends - INFO - 2026-05-31 23:51:03 - uniquant.shared.cache.backends - INFO - Cleared 2 cache entries
+2026-05-31 23:51:03 - uniquant.shared.cache.backends - INFO - 2026-05-31 23:51:03 - uniquant.shared.cache.backends - INFO - Cache stats reset
+2026-05-31 23:51:03 - uniquant.shared.cache.backends - INFO - 2026-05-31 23:51:03 - uniquant.shared.cache.backends - INFO - DiskCacheBackend initialized at: /tmp/pytest-of-james/pytest-7/test_disk_cache_handles_corrup0
+2026-05-31 23:51:03 - uniquant.shared.cache.backends - WARNING - 2026-05-31 23:51:03 - uniquant.shared.cache.backends - WARNING - Failed to load cache for corrupt: pop from empty list
+2026-05-31 23:51:03 - uniquant.shared.cache.backends - INFO - 2026-05-31 23:51:03 - uniquant.shared.cache.backends - INFO - Cleanup completed, cleaned 1 entries
+2026-05-31 23:51:03 - uniquant.shared.cache.backends - INFO - 2026-05-31 23:51:03 - uniquant.shared.cache.backends - INFO - DiskCacheBackend initialized at: /tmp/pytest-of-james/pytest-7/test_disk_cache_cleanup_and_ke0
+2026-05-31 23:51:03 - uniquant.shared.cache.backends - INFO - 2026-05-31 23:51:03 - uniquant.shared.cache.backends - INFO - Cleanup completed, cleaned 1 entries
+2026-05-31 23:51:03 - uniquant.shared.cache.backends - INFO - 2026-05-31 23:51:03 - uniquant.shared.cache.backends - INFO - Cleanup completed, cleaned 1 entries
+2026-05-31 23:51:03 - uniquant.shared.cache.backends - INFO - 2026-05-31 23:51:03 - uniquant.shared.cache.backends - INFO - Cleanup completed, cleaned 0 entries
+2026-05-31 23:51:03 - uniquant.shared.cache.cache_factory - INFO - 2026-05-31 23:51:03 - uniquant.shared.cache.cache_factory - INFO - Creating MemoryCacheBackend with max_size=5
+2026-05-31 23:51:03 - uniquant.shared.cache.backends - INFO - 2026-05-31 23:51:03 - uniquant.shared.cache.backends - INFO - MemoryCacheBackend initialized with max_size: 5
+2026-05-31 23:51:03 - uniquant.shared.cache.cache_factory - INFO - 2026-05-31 23:51:03 - uniquant.shared.cache.cache_factory - INFO - Creating DiskCacheBackend at /tmp/pytest-of-james/pytest-7/test_cache_factory_creates_exp0
+2026-05-31 23:51:03 - uniquant.shared.cache.backends - INFO - 2026-05-31 23:51:03 - uniquant.shared.cache.backends - INFO - DiskCacheBackend initialized at: /tmp/pytest-of-james/pytest-7/test_cache_factory_creates_exp0
+2026-05-31 23:51:03 - uniquant.shared.cache.cache_factory - INFO - 2026-05-31 23:51:03 - uniquant.shared.cache.cache_factory - INFO - Creating default DiskCacheBackend
+2026-05-31 23:51:03 - uniquant.shared.cache.cache_factory - INFO - 2026-05-31 23:51:03 - uniquant.shared.cache.cache_factory - INFO - Creating DiskCacheBackend at data/cache
+2026-05-31 23:51:03 - uniquant.shared.cache.backends - INFO - 2026-05-31 23:51:03 - uniquant.shared.cache.backends - INFO - DiskCacheBackend initialized at: data/cache
+2026-05-31 23:51:12 - uniquant.shared.cache.cache_factory - INFO - 2026-05-31 23:51:12 - uniquant.shared.cache.cache_factory - INFO - Creating MemoryCacheBackend with max_size=5000
+2026-05-31 23:51:12 - uniquant.shared.cache.backends - INFO - 2026-05-31 23:51:12 - uniquant.shared.cache.backends - INFO - MemoryCacheBackend initialized with max_size: 5000
+2026-05-31 23:51:25 - uniquant.shared.cache.cache_factory - INFO - 2026-05-31 23:51:25 - uniquant.shared.cache.cache_factory - INFO - Creating MemoryCacheBackend with max_size=5000
+2026-05-31 23:51:25 - uniquant.shared.cache.backends - INFO - 2026-05-31 23:51:25 - uniquant.shared.cache.backends - INFO - MemoryCacheBackend initialized with max_size: 5000
+2026-05-31 23:51:26 - uniquant.data.utils.akshare_wrapper - INFO - 2026-05-31 23:51:26 - uniquant.data.utils.akshare_wrapper - INFO - AkShare initialized successfully
+2026-05-31 23:51:26 - FactorRegistry - INFO - 2026-05-31 23:51:26 - FactorRegistry - INFO - ✅ 因子注册成功: momentum_20d (technical) weight=1.0
+2026-05-31 23:51:26 - FactorRegistry - INFO - 2026-05-31 23:51:26 - FactorRegistry - INFO - ✅ 因子注册成功: momentum_60d (technical) weight=0.9
+2026-05-31 23:51:26 - FactorRegistry - INFO - 2026-05-31 23:51:26 - FactorRegistry - INFO - ✅ 因子注册成功: volatility_20d (technical) weight=0.8
+2026-05-31 23:51:26 - FactorRegistry - INFO - 2026-05-31 23:51:26 - FactorRegistry - INFO - ✅ 因子注册成功: volatility_60d (technical) weight=0.7
+2026-05-31 23:51:26 - FactorRegistry - INFO - 2026-05-31 23:51:26 - FactorRegistry - INFO - ✅ 因子注册成功: ma_ratio_5_20 (technical) weight=0.85
+2026-05-31 23:51:26 - FactorRegistry - INFO - 2026-05-31 23:51:26 - FactorRegistry - INFO - ✅ 因子注册成功: ma_ratio_10_60 (technical) weight=0.75
+2026-05-31 23:51:26 - FactorRegistry - INFO - 2026-05-31 23:51:26 - FactorRegistry - INFO - ✅ 因子注册成功: volume_ratio_5_20 (technical) weight=0.6
+2026-05-31 23:51:26 - FactorRegistry - INFO - 2026-05-31 23:51:26 - FactorRegistry - INFO - ✅ 因子注册成功: rsi_14 (technical) weight=0.8
+2026-05-31 23:51:26 - FactorRegistry - INFO - 2026-05-31 23:51:26 - FactorRegistry - INFO - ✅ 因子注册成功: price_position_20d (technical) weight=0.7
+2026-05-31 23:51:26 - FactorRegistry - INFO - 2026-05-31 23:51:26 - FactorRegistry - INFO - ✅ 因子注册成功: turnover_momentum_20d (technical) weight=0.85
+2026-05-31 23:51:27 - uniquant.shared.cache.backends - INFO - 2026-05-31 23:51:27 - uniquant.shared.cache.backends - INFO - MemoryCacheBackend initialized with max_size: 1
+1970-01-01 08:01:43 - uniquant.shared.cache.backends - INFO - 1970-01-01 08:01:43 - uniquant.shared.cache.backends - INFO - Cleared 1 cache entries matching pattern: k2
+1970-01-01 08:01:45 - uniquant.shared.cache.backends - INFO - 1970-01-01 08:01:45 - uniquant.shared.cache.backends - INFO - Cleaned up 1 expired cache entries
+1970-01-01 08:01:45 - uniquant.shared.cache.backends - INFO - 1970-01-01 08:01:45 - uniquant.shared.cache.backends - INFO - Cache stats reset
+2026-05-31 23:51:27 - uniquant.shared.cache.backends - INFO - 2026-05-31 23:51:27 - uniquant.shared.cache.backends - INFO - MemoryCacheBackend initialized with max_size: 2
+2026-05-31 23:51:27 - uniquant.shared.cache.backends - INFO - 2026-05-31 23:51:27 - uniquant.shared.cache.backends - INFO - DiskCacheBackend initialized at: /tmp/pytest-of-james/pytest-8/test_disk_cache_set_get_delete0
+2026-05-31 23:51:27 - uniquant.shared.cache.backends - INFO - 2026-05-31 23:51:27 - uniquant.shared.cache.backends - INFO - Cleared 2 cache entries
+2026-05-31 23:51:27 - uniquant.shared.cache.backends - INFO - 2026-05-31 23:51:27 - uniquant.shared.cache.backends - INFO - Cache stats reset
+2026-05-31 23:51:27 - uniquant.shared.cache.backends - INFO - 2026-05-31 23:51:27 - uniquant.shared.cache.backends - INFO - DiskCacheBackend initialized at: /tmp/pytest-of-james/pytest-8/test_disk_cache_handles_corrup0
+2026-05-31 23:51:27 - uniquant.shared.cache.backends - WARNING - 2026-05-31 23:51:27 - uniquant.shared.cache.backends - WARNING - Failed to load cache for corrupt: pop from empty list
+2026-05-31 23:51:27 - uniquant.shared.cache.backends - INFO - 2026-05-31 23:51:27 - uniquant.shared.cache.backends - INFO - Cleanup completed, cleaned 1 entries
+2026-05-31 23:51:27 - uniquant.shared.cache.backends - INFO - 2026-05-31 23:51:27 - uniquant.shared.cache.backends - INFO - DiskCacheBackend initialized at: /tmp/pytest-of-james/pytest-8/test_disk_cache_cleanup_and_ke0
+2026-05-31 23:51:27 - uniquant.shared.cache.backends - INFO - 2026-05-31 23:51:27 - uniquant.shared.cache.backends - INFO - Cleanup completed, cleaned 1 entries
+2026-05-31 23:51:27 - uniquant.shared.cache.backends - INFO - 2026-05-31 23:51:27 - uniquant.shared.cache.backends - INFO - Cleanup completed, cleaned 1 entries
+2026-05-31 23:51:27 - uniquant.shared.cache.backends - INFO - 2026-05-31 23:51:27 - uniquant.shared.cache.backends - INFO - Cleanup completed, cleaned 0 entries
+2026-05-31 23:51:27 - uniquant.shared.cache.cache_factory - INFO - 2026-05-31 23:51:27 - uniquant.shared.cache.cache_factory - INFO - Creating MemoryCacheBackend with max_size=5
+2026-05-31 23:51:27 - uniquant.shared.cache.backends - INFO - 2026-05-31 23:51:27 - uniquant.shared.cache.backends - INFO - MemoryCacheBackend initialized with max_size: 5
+2026-05-31 23:51:27 - uniquant.shared.cache.cache_factory - INFO - 2026-05-31 23:51:27 - uniquant.shared.cache.cache_factory - INFO - Creating DiskCacheBackend at /tmp/pytest-of-james/pytest-8/test_cache_factory_creates_exp0
+2026-05-31 23:51:27 - uniquant.shared.cache.backends - INFO - 2026-05-31 23:51:27 - uniquant.shared.cache.backends - INFO - DiskCacheBackend initialized at: /tmp/pytest-of-james/pytest-8/test_cache_factory_creates_exp0
+2026-05-31 23:51:27 - uniquant.shared.cache.cache_factory - INFO - 2026-05-31 23:51:27 - uniquant.shared.cache.cache_factory - INFO - Creating default DiskCacheBackend
+2026-05-31 23:51:27 - uniquant.shared.cache.cache_factory - INFO - 2026-05-31 23:51:27 - uniquant.shared.cache.cache_factory - INFO - Creating DiskCacheBackend at data/cache
+2026-05-31 23:51:27 - uniquant.shared.cache.backends - INFO - 2026-05-31 23:51:27 - uniquant.shared.cache.backends - INFO - DiskCacheBackend initialized at: data/cache
+2026-05-31 23:51:27 - alpha_tactician.errors - ERROR - 2026-05-31 23:51:27 - alpha_tactician.errors - ERROR - Error in raise_value_error: test error
+Traceback (most recent call last):
+  File "/home/james/Documents/Project/UniQuant/src/uniquant/shared/error_handling.py", line 89, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/james/Documents/Project/UniQuant/tests/test_error_handling.py", line 150, in raise_value_error
+    raise ValueError("test error")
+ValueError: test error
+2026-05-31 23:51:27 - alpha_tactician.errors - ERROR - 2026-05-31 23:51:27 - alpha_tactician.errors - ERROR - Error in raise_value_error: test error
+Traceback (most recent call last):
+  File "/home/james/Documents/Project/UniQuant/src/uniquant/shared/error_handling.py", line 89, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/james/Documents/Project/UniQuant/tests/test_error_handling.py", line 159, in raise_value_error
+    raise ValueError("test error")
+ValueError: test error
+2026-05-31 23:51:27 - alpha_tactician.errors - ERROR - 2026-05-31 23:51:27 - alpha_tactician.errors - ERROR - Error in may_raise: test
+Traceback (most recent call last):
+  File "/home/james/Documents/Project/UniQuant/src/uniquant/shared/error_handling.py", line 89, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/james/Documents/Project/UniQuant/tests/test_error_handling.py", line 181, in may_raise
+    raise ValueError("test")
+ValueError: test
+2026-05-31 23:51:27 - alpha_tactician.errors - ERROR - 2026-05-31 23:51:27 - alpha_tactician.errors - ERROR - Error in may_raise: test
+Traceback (most recent call last):
+  File "/home/james/Documents/Project/UniQuant/src/uniquant/shared/error_handling.py", line 89, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/james/Documents/Project/UniQuant/tests/test_error_handling.py", line 181, in may_raise
+    raise ValueError("test")
+ValueError: test
+2026-05-31 23:51:27 - alpha_tactician.errors - ERROR - 2026-05-31 23:51:27 - alpha_tactician.errors - ERROR - Error in may_raise: test
+Traceback (most recent call last):
+  File "/home/james/Documents/Project/UniQuant/src/uniquant/shared/error_handling.py", line 89, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/james/Documents/Project/UniQuant/tests/test_error_handling.py", line 181, in may_raise
+    raise ValueError("test")
+ValueError: test
+2026-05-31 23:51:27 - alpha_tactician.errors - ERROR - 2026-05-31 23:51:27 - alpha_tactician.errors - ERROR - Error in may_raise: test
+Traceback (most recent call last):
+  File "/home/james/Documents/Project/UniQuant/src/uniquant/shared/error_handling.py", line 89, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/james/Documents/Project/UniQuant/tests/test_error_handling.py", line 181, in may_raise
+    raise ValueError("test")
+ValueError: test
+2026-05-31 23:51:27 - alpha_tactician.errors - ERROR - 2026-05-31 23:51:27 - alpha_tactician.errors - ERROR - Error in may_raise: test
+Traceback (most recent call last):
+  File "/home/james/Documents/Project/UniQuant/src/uniquant/shared/error_handling.py", line 89, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/james/Documents/Project/UniQuant/tests/test_error_handling.py", line 181, in may_raise
+    raise ValueError("test")
+ValueError: test
+2026-05-31 23:51:27 - uniquant.services.service_container - INFO - 2026-05-31 23:51:27 - uniquant.services.service_container - INFO - ServiceContainer initialized with DAG topology
+2026-05-31 23:51:27 - uniquant.shared.limit_checker - WARNING - 2026-05-31 23:51:27 - uniquant.shared.limit_checker - WARNING - Invalid pre_close: 0, symbol: 600000.SH
+2026-05-31 23:51:27 - uniquant.brain.lppl.calculator - WARNING - 2026-05-31 23:51:27 - uniquant.brain.lppl.calculator - WARNING - Price data contains zero, negative, or NaN values. Min=0.0, Max=0.0
+2026-05-31 23:51:27 - uniquant.brain.lppl.calculator - WARNING - 2026-05-31 23:51:27 - uniquant.brain.lppl.calculator - WARNING - Price data contains zero, negative, or NaN values. Min=-1.0, Max=-1.0
+2026-05-31 23:51:27 - uniquant.brain.lppl.calculator - WARNING - 2026-05-31 23:51:27 - uniquant.brain.lppl.calculator - WARNING - Price data contains zero, negative, or NaN values. Min=10.0, Max=10.0
+2026-05-31 23:51:27 - uniquant.brain.lppl.calculator - INFO - 2026-05-31 23:51:27 - uniquant.brain.lppl.calculator - INFO - Current max time point: 100
+2026-05-31 23:51:27 - uniquant.brain.lppl.calculator - INFO - 2026-05-31 23:51:27 - uniquant.brain.lppl.calculator - INFO - Starting differential evolution optimization
+2026-05-31 23:51:27 - uniquant.brain.lppl.calculator - INFO - 2026-05-31 23:51:27 - uniquant.brain.lppl.calculator - INFO - Calculated tc: 199.76003054686362, days_to_tc: 99.76003054686362
+2026-05-31 23:51:27 - uniquant.brain.lppl.calculator - INFO - 2026-05-31 23:51:27 - uniquant.brain.lppl.calculator - INFO - Sornette constraints check: False
+2026-05-31 23:51:27 - uniquant.brain.lppl.calculator - INFO - 2026-05-31 23:51:27 - uniquant.brain.lppl.calculator - INFO - Calculated confidence: 0.6199
+2026-05-31 23:51:27 - uniquant.brain.lppl.calculator - INFO - 2026-05-31 23:51:27 - uniquant.brain.lppl.calculator - INFO - Risk level: Safe
+2026-05-31 23:51:27 - uniquant.brain.lppl.calculator - INFO - 2026-05-31 23:51:27 - uniquant.brain.lppl.calculator - INFO - Is bubble: False
+2026-05-31 23:51:27 - uniquant.brain.lppl.calculator - WARNING - 2026-05-31 23:51:27 - uniquant.brain.lppl.calculator - WARNING - Price data contains invalid values (<=0 or NaN)
+2026-05-31 23:51:27 - uniquant.brain.lppl.calculator - WARNING - 2026-05-31 23:51:27 - uniquant.brain.lppl.calculator - WARNING - Price data contains invalid values (<=0 or NaN)
+2026-05-31 23:51:59 - uniquant.shared.cache.cache_factory - INFO - 2026-05-31 23:51:59 - uniquant.shared.cache.cache_factory - INFO - Creating MemoryCacheBackend with max_size=5000
+2026-05-31 23:51:59 - uniquant.shared.cache.backends - INFO - 2026-05-31 23:51:59 - uniquant.shared.cache.backends - INFO - MemoryCacheBackend initialized with max_size: 5000
+2026-05-31 23:51:59 - uniquant.data.utils.akshare_wrapper - INFO - 2026-05-31 23:51:59 - uniquant.data.utils.akshare_wrapper - INFO - AkShare initialized successfully
+2026-05-31 23:52:00 - FactorRegistry - INFO - 2026-05-31 23:52:00 - FactorRegistry - INFO - ✅ 因子注册成功: momentum_20d (technical) weight=1.0
+2026-05-31 23:52:00 - FactorRegistry - INFO - 2026-05-31 23:52:00 - FactorRegistry - INFO - ✅ 因子注册成功: momentum_60d (technical) weight=0.9
+2026-05-31 23:52:00 - FactorRegistry - INFO - 2026-05-31 23:52:00 - FactorRegistry - INFO - ✅ 因子注册成功: volatility_20d (technical) weight=0.8
+2026-05-31 23:52:00 - FactorRegistry - INFO - 2026-05-31 23:52:00 - FactorRegistry - INFO - ✅ 因子注册成功: volatility_60d (technical) weight=0.7
+2026-05-31 23:52:00 - FactorRegistry - INFO - 2026-05-31 23:52:00 - FactorRegistry - INFO - ✅ 因子注册成功: ma_ratio_5_20 (technical) weight=0.85
+2026-05-31 23:52:00 - FactorRegistry - INFO - 2026-05-31 23:52:00 - FactorRegistry - INFO - ✅ 因子注册成功: ma_ratio_10_60 (technical) weight=0.75
+2026-05-31 23:52:00 - FactorRegistry - INFO - 2026-05-31 23:52:00 - FactorRegistry - INFO - ✅ 因子注册成功: volume_ratio_5_20 (technical) weight=0.6
+2026-05-31 23:52:00 - FactorRegistry - INFO - 2026-05-31 23:52:00 - FactorRegistry - INFO - ✅ 因子注册成功: rsi_14 (technical) weight=0.8
+2026-05-31 23:52:00 - FactorRegistry - INFO - 2026-05-31 23:52:00 - FactorRegistry - INFO - ✅ 因子注册成功: price_position_20d (technical) weight=0.7
+2026-05-31 23:52:00 - FactorRegistry - INFO - 2026-05-31 23:52:00 - FactorRegistry - INFO - ✅ 因子注册成功: turnover_momentum_20d (technical) weight=0.85
+2026-05-31 23:52:00 - uniquant.brain.wyckoff.config - ERROR - 2026-05-31 23:52:00 - uniquant.brain.wyckoff.config - ERROR - Failed to read /nonexistent/path.yaml: [Errno 2] No such file or directory: '/nonexistent/path.yaml'
+2026-05-31 23:52:00 - uniquant.brain.wyckoff.state - INFO - 2026-05-31 23:52:00 - uniquant.brain.wyckoff.state - INFO - 状态已保存到：/tmp/tmpluhq9_y8/000001_state.json
+2026-05-31 23:52:00 - uniquant.brain.wyckoff.state - INFO - 2026-05-31 23:52:00 - uniquant.brain.wyckoff.state - INFO - 状态已保存到：/tmp/tmpn3b67ag9/600000_state.json
+2026-05-31 23:52:00 - uniquant.brain.wyckoff.state - INFO - 2026-05-31 23:52:00 - uniquant.brain.wyckoff.state - INFO - 状态已保存到：/tmp/tmpzmvhfup5/state.json
+2026-05-31 23:52:00 - uniquant.brain.wyckoff.state - INFO - 2026-05-31 23:52:00 - uniquant.brain.wyckoff.state - INFO - 状态已保存到：/tmp/tmpttj7d5rq/test_state.json
+2026-05-31 23:52:00 - uniquant.brain.wyckoff.state - WARNING - 2026-05-31 23:52:00 - uniquant.brain.wyckoff.state - WARNING - 状态文件不存在：/nonexistent/path/state.json
+2026-05-31 23:52:00 - uniquant.brain.wyckoff.state - INFO - 2026-05-31 23:52:00 - uniquant.brain.wyckoff.state - INFO - 状态已保存到：/tmp/tmptl_1x39p/TEST_wyckoff_state.json
+2026-05-31 23:52:00 - uniquant.hands.backtest.monte_carlo - WARNING - 2026-05-31 23:52:00 - uniquant.hands.backtest.monte_carlo - WARNING - 收益率数据过少，无法进行 Monte Carlo 模拟
+2026-05-31 23:52:00 - RetryDecorator - WARNING - 2026-05-31 23:52:00 - RetryDecorator - WARNING - flaky 第 1/2 次尝试失败: temporary, 0.01s 后重试...
+2026-05-31 23:52:00 - RetryDecorator - WARNING - 2026-05-31 23:52:00 - RetryDecorator - WARNING - flaky 第 2/2 次尝试失败: temporary, 0.02s 后重试...
+2026-05-31 23:52:00 - RetryDecorator - WARNING - 2026-05-31 23:52:00 - RetryDecorator - WARNING - always_fail 第 1/1 次尝试失败: fatal, 1.0s 后重试...
+2026-05-31 23:52:00 - RetryDecorator - ERROR - 2026-05-31 23:52:00 - RetryDecorator - ERROR - always_fail 所有 1 次重试都失败
+2026-05-31 23:52:00 - RetryDecorator - WARNING - 2026-05-31 23:52:00 - RetryDecorator - WARNING - always_fail 第 1/2 次尝试失败: fatal, 1.0s 后重试...
+2026-05-31 23:52:00 - RetryDecorator - WARNING - 2026-05-31 23:52:00 - RetryDecorator - WARNING - always_fail 第 2/2 次尝试失败: fatal, 2.0s 后重试...
+2026-05-31 23:52:00 - RetryDecorator - ERROR - 2026-05-31 23:52:00 - RetryDecorator - ERROR - always_fail 所有 2 次重试都失败，返回降级值: ['fallback']
+2026-05-31 23:52:00 - Utils - WARNING - 2026-05-31 23:52:00 - Utils - WARNING - 函数执行出错: x
+2026-05-31 23:52:00 - Utils - WARNING - 2026-05-31 23:52:00 - Utils - WARNING - 函数执行超时（0.001秒）
+2026-05-31 23:52:00 - Utils - ERROR - 2026-05-31 23:52:00 - Utils - ERROR - 执行操作时出错: bad
+2026-05-31 23:52:00 - Utils - WARNING - 2026-05-31 23:52:00 - Utils - WARNING - 数据源方法调用出错: boom
+2026-05-31 23:52:00 - Utils - WARNING - 2026-05-31 23:52:00 - Utils - WARNING - 数据源方法调用超时（0.001秒）
+2026-05-31 23:52:00 - Utils - WARNING - 2026-05-31 23:52:00 - Utils - WARNING - 尝试 1/3 失败: retry
+2026-05-31 23:52:00 - Utils - WARNING - 2026-05-31 23:52:00 - Utils - WARNING - 尝试 1/2 失败: fail
+2026-05-31 23:52:00 - Utils - WARNING - 2026-05-31 23:52:00 - Utils - WARNING - 尝试 2/2 失败: fail
+2026-05-31 23:52:00 - Utils - ERROR - 2026-05-31 23:52:00 - Utils - ERROR - 最大重试次数已用尽

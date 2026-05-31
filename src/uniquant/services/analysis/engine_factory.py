@@ -15,7 +15,7 @@ class AnalysisEngineFactory:
     def __init__(self, orchestrator):
         self._orchestrator = orchestrator
         self._engines: Dict[str, Any] = {}
-        self._lock = threading.Lock()
+        self._lock = threading.RLock()
 
     def _lazy_init(self, name: str, module_path: str, class_name: str, **kwargs) -> Any:
         if name not in self._engines:
