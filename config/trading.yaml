@@ -48,7 +48,7 @@ risk:
 execution:
   broker: "simulator"
   order_timeout_minutes: 30
-  slippage_pct: 0.05
+  slippage_pct: 0.0005
   initial_capital: 100000.0
   buy_fee_pct: 0.0003
   sell_fee_pct: 0.0003

@@ -81,8 +81,8 @@ class IndicatorThresholds:
     VOLUME_MA_PERIOD = 20  # 成交量MA周期
 
     # FSM相关阈值 (兼容旧代码)
-    FSM_MA_SHORT = 5  # FSM短期MA周期
-    FSM_MA_LONG = 20  # FSM长期MA周期
+    FSM_MA_SHORT = 20  # FSM短期MA周期
+    FSM_MA_LONG = 60  # FSM长期MA周期
     FSM_PULLBACK_UPPER = 1.05  # 回调上限
     FSM_PULLBACK_LOWER = 0.95  # 回调下限
     FSM_SCORE_CZSC = 20  # CZSC信号分数
@@ -109,7 +109,7 @@ class NTFConstants:
     VOLUME_RATIO_THRESHOLD = 2.0  # 成交量脉冲阈值
 
     # 计算窗口
-    WINDOW = 20  # 计算成交量均值的窗口大小
+    WINDOW = 5  # 计算成交量均值的窗口大小
 
     # 置信度阈值
     CONFIDENCE_SUPPORT = 0.85  # 支撑信号的置信度
@@ -191,10 +191,10 @@ class RegimeConstants:
     """市场状态检测器相关常量"""
 
     # 熵值阈值
-    ENTROPY_PERCENTILE_THRESHOLD = 0.1  # 熵值分位数阈值，低于此值视为FROZEN状态
+    ENTROPY_PERCENTILE_THRESHOLD = 0.2  # 熵值分位数阈值，低于此值视为FROZEN状态
 
     # 成交量Z-Score阈值
-    TURNOVER_Z_SCORE_THRESHOLD = 2.5  # 成交量Z-Score阈值，绝对值超过此值视为STRESSED状态
+    TURNOVER_Z_SCORE_THRESHOLD = 3.0  # 成交量Z-Score阈值，绝对值超过此值视为STRESSED状态
 
     # 数据要求
     MIN_DATA_POINTS = 30  # 最小数据点数

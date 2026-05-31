@@ -264,7 +264,10 @@ class LPPLCalculator:
         # 直接求解线性参数 (A, B, C1, C2)
         _, residuals, _, _ = np.linalg.lstsq(X, log_prices, rcond=None)
 
-        return np.sum(residuals**2)
+        cost = float(residuals[0]) if residuals.size > 0 else 0.0
+        if not np.isfinite(cost):
+            return 1e10
+        return cost
 
     @handle_errors(
         LPPLFitError, AnalysisError, default_return=None, log_level=logging.ERROR
@@ -348,7 +351,7 @@ class LPPLCalculator:
         params = [tc, m, w, a, b, c, phi]
 
         # 计算指标 - 直接使用residuals，省去一次lppl_func计算
-        rmse = np.sqrt(np.mean(residuals))
+        rmse = np.sqrt(residuals[0] / current_t) if residuals.size > 0 else 0.0
 
         # 缓存结果（进程本地，无需锁）
         fit_result = {"params": params, "rmse": rmse, "t_len": current_t}
@@ -406,8 +409,11 @@ class LPPLCalculator:
             tc_confidence = 0.3
 
         # 基于成本函数值的置信度（值越小越好）
+        # cost_value 是 SSE（残差平方和），转为 RMSE 再与 cost_scale 比较
+        mse = cost_value / max(data_length, 1)
+        rmse = np.sqrt(mse)
         cost_confidence = max(
-            0.1, min(1.0, 1.0 - (cost_value / (data_length * self.cost_scale)))
+            0.1, min(1.0, 1.0 - (rmse / self.cost_scale))
         )
 
         # 基于数据长度的置信度
@@ -541,7 +547,7 @@ class LPPLCalculator:
         logger.info(f"Sornette constraints check: {is_valid}")
 
         # 计算置信度
-        confidence = self._calculate_confidence(days_to_tc, result.fun, len(df))
+        confidence = self._calculate_confidence(days_to_tc, np.sqrt(result.fun / len(df)), len(df))
         logger.info(f"Calculated confidence: {confidence:.4f}")
 
         # 确定风险等级

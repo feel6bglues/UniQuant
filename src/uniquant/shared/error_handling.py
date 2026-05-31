@@ -360,15 +360,16 @@ def handle_network_errors(default_return: Any = None, max_retries: Optional[int]
 
     def decorator(func: Callable) -> Callable:
         @functools.wraps(func)
-        @retry_on_exception(
-            max_retries=max_retries,
-            retry_exceptions=network_exceptions,
-        )
         @handle_errors(
             *network_exceptions,
             default_return=default_return,
+            reraise=False,
             error_type="network",
             log_level=logging.WARNING,
+        )
+        @retry_on_exception(
+            max_retries=max_retries,
+            retry_exceptions=network_exceptions,
         )
         def wrapper(*args, **kwargs) -> Any:
             return func(*args, **kwargs)
@@ -453,15 +454,16 @@ def handle_api_errors(default_return: Any = None, max_retries: int = 3):
 
     def decorator(func: Callable) -> Callable:
         @functools.wraps(func)
-        @retry_on_exception(
-            max_retries=max_retries,
-            retry_exceptions=api_exceptions,
-        )
         @handle_errors(
             *api_exceptions,
             default_return=default_return,
+            reraise=False,
             error_type="api",
             log_level=logging.ERROR,
+        )
+        @retry_on_exception(
+            max_retries=max_retries,
+            retry_exceptions=api_exceptions,
         )
         def wrapper(*args, **kwargs) -> Any:
             return func(*args, **kwargs)

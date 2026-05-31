@@ -243,7 +243,14 @@ def detect_limit_moves(
     """检测涨跌停与炸板异动"""
     limit_moves = []
     recent = df.tail(20)
-    limit_pct = 0.05 if is_st else (0.20 if code_prefix in {"688", "689", "300", "301", "302"} else 0.10)
+    if is_st:
+        limit_pct = 0.05
+    elif code_prefix in {"688", "689", "300", "301", "302"}:
+        limit_pct = 0.20
+    elif code_prefix in {"83", "87", "920"}:
+        limit_pct = 0.30
+    else:
+        limit_pct = 0.10
     limit_threshold = limit_pct - 0.005
 
     prev_close = float(df.iloc[-21]["close"]) if len(df) > 20 else None
@@ -260,8 +267,8 @@ def detect_limit_moves(
             prev_close = float(row.close)
             continue
 
-        high_change = (row.high - row.open) / row.open
-        low_change = (row.low - row.open) / row.open
+        high_change = (row.high - prev_close) / prev_close if prev_close > 0 else 0.0
+        low_change = (row.low - prev_close) / prev_close if prev_close > 0 else 0.0
 
         if is_limit_up_flag:
             if high_change < limit_threshold:

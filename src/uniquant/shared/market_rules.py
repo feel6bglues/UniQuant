@@ -46,7 +46,7 @@ def detect_board(symbol: str, name: str = "") -> BoardType:
         return BoardType.MAIN_SH
     if upper.endswith(".SZ"):
         code = upper.replace(".SZ", "")
-        if code.startswith(("300", "301")):
+        if code.startswith(("300", "301", "302")):
             return BoardType.GEM
         return BoardType.MAIN_SZ
     raise ValueError(f"Cannot detect board for {symbol!r}: unknown exchange suffix")

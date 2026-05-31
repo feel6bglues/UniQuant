@@ -389,7 +389,7 @@ class DecisionBrain:
             action = "BUY" if self.state != FSMState.PYRAMID else "ADD"
             return self._build_response(
                 action,
-                f"状态: {self.state.value}, 综合得分: {score}, 风险等级: {evt_metrics['risk_level']}",
+                f"状态: {self.state.value}, 综合得分: {score}, 风险等级: {risk_level}",
                 ctx,
                 score,
                 shares=final_shares,

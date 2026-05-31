@@ -13,6 +13,7 @@ import pandas as pd
 from ...shared.constants import BacktestConstants, MarketConstants
 from ...shared.cost_model import TRANSFER_FEE_PCT
 from ...shared.limit_checker import get_board_type
+from ...shared.market_rules import get_board_rule
 from ...data.managers.trade_calendar_manager import TradeCalendarManager
 
 
@@ -120,9 +121,10 @@ class UnifiedMatchingEngine:
         total_costs = values + commissions + transfer_fees
 
         cash_shortfall = total_costs > cash_available
+        lot_sizes = np.array([get_board_rule(s).lot_size for s in symbols], dtype=np.int64)
         shares_adj = np.where(
             cash_shortfall & (cash_available > commissions + transfer_fees),
-            ((cash_available - commissions - transfer_fees) / np.maximum(exec_prices, 1e-8)).astype(np.int64) // 100 * 100,  # A股整手取整
+            ((cash_available - commissions - transfer_fees) / np.maximum(exec_prices, 1e-8)).astype(np.int64) // lot_sizes * lot_sizes,
             shares_requested,
         )
         shares_adj = np.maximum(shares_adj, 0)

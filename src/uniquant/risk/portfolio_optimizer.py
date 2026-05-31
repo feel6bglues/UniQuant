@@ -330,20 +330,19 @@ class PortfolioOptimizer:
         for target_ret in target_returns:
             original_target = self.config.target_return
             self.config.target_return = target_ret
-            
-            result = self.optimize_mean_variance(
-                returns, expected_returns, target="target_return"
-            )
-            
-            if result:
-                frontier.append({
-                    "target_return": target_ret,
-                    "expected_return": result["expected_return"],
-                    "volatility": result["expected_volatility"],
-                    "sharpe_ratio": result["sharpe_ratio"],
-                })
-            
-            self.config.target_return = original_target
+            try:
+                result = self.optimize_mean_variance(
+                    returns, expected_returns, target="target_return"
+                )
+                if result:
+                    frontier.append({
+                        "target_return": target_ret,
+                        "expected_return": result["expected_return"],
+                        "volatility": result["expected_volatility"],
+                        "sharpe_ratio": result["sharpe_ratio"],
+                    })
+            finally:
+                self.config.target_return = original_target
         
         return pd.DataFrame(frontier)
     

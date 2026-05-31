@@ -24,8 +24,8 @@ logger = logging.getLogger(__name__)
 # ── Module-level constants (backward-compatible) ──────────────────────────
 
 COMMISSION_PCT: float = 0.0003            # 万3
-STAMP_TAX_PCT: float = 0.0005             # 万5 (2024+)
-STAMP_TAX_PCT_OLD: float = 0.001          # 千1 (pre-2024)
+STAMP_TAX_PCT: float = 0.0005             # 万5 (2023-08-28起)
+STAMP_TAX_PCT_OLD: float = 0.001          # 千1 (2023-08-28前)
 MIN_COMMISSION: float = 5.0               # 单笔最低5元
 SLIPPAGE_PCT: float = 0.0005              # 万5
 TRANSFER_FEE_PCT: float = 0.00001         # 万0.1 (过户费)
@@ -104,7 +104,7 @@ class CostConfig:
             buy_fee = float(exec_cfg.get("buy_fee_pct", COMMISSION_PCT))
             sell_fee = float(exec_cfg.get("sell_fee_pct", COMMISSION_PCT))
             stamp_tax = float(exec_cfg.get("stamp_tax_pct", STAMP_TAX_PCT))
-            slippage_pct = float(exec_cfg.get("slippage_pct", SLIPPAGE_PCT * 100)) / 100
+            slippage_pct = float(exec_cfg.get("slippage_pct", SLIPPAGE_PCT))
             min_comm = float(exec_cfg.get("min_commission", MIN_COMMISSION))
             transfer_fee = float(exec_cfg.get("transfer_fee_pct", TRANSFER_FEE_PCT))
             return cls(buy_fee_pct=buy_fee, sell_fee_pct=sell_fee,

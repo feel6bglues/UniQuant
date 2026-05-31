@@ -38,12 +38,13 @@ class LoggerFactory:
         return cls._instance
 
     def __init__(self):
-        if LoggerFactory._initialized:
-            return
+        with LoggerFactory._lock:
+            if LoggerFactory._initialized:
+                return
 
-        self._load_config()
-        self._setup_root_logger()
-        LoggerFactory._initialized = True
+            self._load_config()
+            self._setup_root_logger()
+            LoggerFactory._initialized = True
 
     def _load_config(self):
         """从配置文件加载日志配置"""

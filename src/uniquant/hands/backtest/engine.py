@@ -182,6 +182,7 @@ class BacktestEngine:
             if shares <= 0:
                 return None
             value = exec_price * shares
+            commission = self._calculate_commission(value, is_sell=False)
             total_cost = value + commission
         
         self.cash -= total_cost
@@ -341,6 +342,8 @@ class BacktestEngine:
                     reason=reason,
                     pre_close=pre_close,
                     symbol=symbol,
+                    volume=int(row.get("volume", 0)),
+                    avg_daily_volume=float(row.get("avg_daily_volume", 0)),
                 )
                 if trade:
                     buy_date = timestamp
@@ -354,6 +357,8 @@ class BacktestEngine:
                     pre_close=pre_close,
                     symbol=symbol,
                     buy_date=buy_date,
+                    volume=int(row.get("volume", 0)),
+                    avg_daily_volume=float(row.get("avg_daily_volume", 0)),
                 )
                 if trade:
                     buy_date = None

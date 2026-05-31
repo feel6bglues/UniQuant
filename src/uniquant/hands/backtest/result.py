@@ -55,6 +55,9 @@ class BacktestResult:
     daily_returns: List[float] = field(default_factory=list)
     start_date: Optional[datetime] = None
     end_date: Optional[datetime] = None
+    drawdown_metrics: Optional[Dict] = None
+    tail_risk_metrics: Optional[Dict] = None
+    stress_test_results: Optional[Dict] = None
 
     def calculate_metrics(self) -> None:
         """计算回测指标"""

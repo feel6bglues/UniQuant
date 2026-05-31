@@ -177,12 +177,12 @@ class RegimeDetector:
 
         # 3. Micro-Logic from V9.0 Specs
         # 如果熵值分位数 < 阈值，则返回FROZEN状态
-        if e_pct < RegimeConstants.ENTROPY_PERCENTILE_THRESHOLD:
+        if e_pct < self.entropy_threshold:
             logger.warning("FROZEN regime detected (Entropy percentile: %.4f)", e_pct)
             return Regime.FROZEN
 
         # 如果成交量Z-Score的绝对值 > 阈值，则返回STRESSED状态
-        if abs(curr_z) > RegimeConstants.TURNOVER_Z_SCORE_THRESHOLD:
+        if abs(curr_z) > self.turnover_z_limit:
             logger.warning("STRESSED regime detected (Turnover Z: %.2f)", curr_z)
             return Regime.STRESSED
 

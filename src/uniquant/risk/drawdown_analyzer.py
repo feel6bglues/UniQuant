@@ -92,11 +92,13 @@ class DrawdownAnalyzer:
     def compute_rolling_mdd(equity: np.ndarray, window: int) -> np.ndarray:
         n = len(equity)
         result = np.zeros(n, dtype=np.float64)
-        for i in range(window - 1, n):
-            seg = equity[i - window + 1 : i + 1]
-            rm = np.maximum.accumulate(seg)
-            dd = (seg - rm) / np.maximum(rm, 1e-10)
-            result[i] = -np.min(dd)
+        if n < window:
+            return result
+        from numpy.lib.stride_tricks import sliding_window_view
+        windows = sliding_window_view(equity, window)
+        rolling_max = np.maximum.accumulate(windows, axis=1)
+        dd = (windows - rolling_max) / np.maximum(rolling_max, 1e-10)
+        result[window - 1:] = -np.min(dd, axis=1)
         return result
 
     @classmethod

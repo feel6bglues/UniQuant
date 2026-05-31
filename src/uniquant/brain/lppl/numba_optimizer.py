@@ -178,7 +178,7 @@ def _de_solve_numba(
     log_prices: np.ndarray,
     bounds: np.ndarray,
     popsize: int = 15,
-    maxiter: int = 100,
+    maxiter: int = 500,
     tol: float = 0.01,
     mutation_min: float = 0.5,
     mutation_max: float = 1.0,
@@ -189,6 +189,7 @@ def _de_solve_numba(
     Highly optimized, JIT-compiled Differential Evolution optimizer for LPPL fitting.
     Estimates non-linear params: [tc, m, w].
     """
+    # Numba np.random.seed is per-thread safe under @njit
     if seed >= 0:
         np.random.seed(seed)
 

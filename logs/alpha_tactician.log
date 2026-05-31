@@ -3950,3 +3950,132 @@ ValueError: test
 2026-06-01 00:05:45 - Utils - WARNING - 2026-06-01 00:05:45 - Utils - WARNING - 尝试 1/2 失败: fail
 2026-06-01 00:05:45 - Utils - WARNING - 2026-06-01 00:05:45 - Utils - WARNING - 尝试 2/2 失败: fail
 2026-06-01 00:05:45 - Utils - ERROR - 2026-06-01 00:05:45 - Utils - ERROR - 最大重试次数已用尽
+2026-06-01 00:16:06 - uniquant.shared.cache.cache_factory - INFO - 2026-06-01 00:16:06 - uniquant.shared.cache.cache_factory - INFO - Creating MemoryCacheBackend with max_size=5000
+2026-06-01 00:16:06 - uniquant.shared.cache.backends - INFO - 2026-06-01 00:16:06 - uniquant.shared.cache.backends - INFO - MemoryCacheBackend initialized with max_size: 5000
+2026-06-01 00:16:07 - uniquant.data.utils.akshare_wrapper - INFO - 2026-06-01 00:16:07 - uniquant.data.utils.akshare_wrapper - INFO - AkShare initialized successfully
+2026-06-01 00:16:08 - FactorRegistry - INFO - 2026-06-01 00:16:08 - FactorRegistry - INFO - ✅ 因子注册成功: momentum_20d (technical) weight=1.0
+2026-06-01 00:16:08 - FactorRegistry - INFO - 2026-06-01 00:16:08 - FactorRegistry - INFO - ✅ 因子注册成功: momentum_60d (technical) weight=0.9
+2026-06-01 00:16:08 - FactorRegistry - INFO - 2026-06-01 00:16:08 - FactorRegistry - INFO - ✅ 因子注册成功: volatility_20d (technical) weight=0.8
+2026-06-01 00:16:08 - FactorRegistry - INFO - 2026-06-01 00:16:08 - FactorRegistry - INFO - ✅ 因子注册成功: volatility_60d (technical) weight=0.7
+2026-06-01 00:16:08 - FactorRegistry - INFO - 2026-06-01 00:16:08 - FactorRegistry - INFO - ✅ 因子注册成功: ma_ratio_5_20 (technical) weight=0.85
+2026-06-01 00:16:08 - FactorRegistry - INFO - 2026-06-01 00:16:08 - FactorRegistry - INFO - ✅ 因子注册成功: ma_ratio_10_60 (technical) weight=0.75
+2026-06-01 00:16:08 - FactorRegistry - INFO - 2026-06-01 00:16:08 - FactorRegistry - INFO - ✅ 因子注册成功: volume_ratio_5_20 (technical) weight=0.6
+2026-06-01 00:16:08 - FactorRegistry - INFO - 2026-06-01 00:16:08 - FactorRegistry - INFO - ✅ 因子注册成功: rsi_14 (technical) weight=0.8
+2026-06-01 00:16:08 - FactorRegistry - INFO - 2026-06-01 00:16:08 - FactorRegistry - INFO - ✅ 因子注册成功: price_position_20d (technical) weight=0.7
+2026-06-01 00:16:08 - FactorRegistry - INFO - 2026-06-01 00:16:08 - FactorRegistry - INFO - ✅ 因子注册成功: turnover_momentum_20d (technical) weight=0.85
+2026-06-01 00:16:08 - uniquant.shared.cache.backends - INFO - 2026-06-01 00:16:08 - uniquant.shared.cache.backends - INFO - MemoryCacheBackend initialized with max_size: 1
+1970-01-01 08:01:43 - uniquant.shared.cache.backends - INFO - 1970-01-01 08:01:43 - uniquant.shared.cache.backends - INFO - Cleared 1 cache entries matching pattern: k2
+1970-01-01 08:01:45 - uniquant.shared.cache.backends - INFO - 1970-01-01 08:01:45 - uniquant.shared.cache.backends - INFO - Cleaned up 1 expired cache entries
+1970-01-01 08:01:45 - uniquant.shared.cache.backends - INFO - 1970-01-01 08:01:45 - uniquant.shared.cache.backends - INFO - Cache stats reset
+2026-06-01 00:16:08 - uniquant.shared.cache.backends - INFO - 2026-06-01 00:16:08 - uniquant.shared.cache.backends - INFO - MemoryCacheBackend initialized with max_size: 2
+2026-06-01 00:16:08 - uniquant.shared.cache.backends - INFO - 2026-06-01 00:16:08 - uniquant.shared.cache.backends - INFO - DiskCacheBackend initialized at: /tmp/pytest-of-james/pytest-10/test_disk_cache_set_get_delete0
+2026-06-01 00:16:08 - uniquant.shared.cache.backends - INFO - 2026-06-01 00:16:08 - uniquant.shared.cache.backends - INFO - Cleared 2 cache entries
+2026-06-01 00:16:08 - uniquant.shared.cache.backends - INFO - 2026-06-01 00:16:08 - uniquant.shared.cache.backends - INFO - Cache stats reset
+2026-06-01 00:16:08 - uniquant.shared.cache.backends - INFO - 2026-06-01 00:16:08 - uniquant.shared.cache.backends - INFO - DiskCacheBackend initialized at: /tmp/pytest-of-james/pytest-10/test_disk_cache_handles_corrup0
+2026-06-01 00:16:08 - uniquant.shared.cache.backends - WARNING - 2026-06-01 00:16:08 - uniquant.shared.cache.backends - WARNING - Failed to load cache for corrupt: pop from empty list
+2026-06-01 00:16:08 - uniquant.shared.cache.backends - INFO - 2026-06-01 00:16:08 - uniquant.shared.cache.backends - INFO - Cleanup completed, cleaned 1 entries
+2026-06-01 00:16:08 - uniquant.shared.cache.backends - INFO - 2026-06-01 00:16:08 - uniquant.shared.cache.backends - INFO - DiskCacheBackend initialized at: /tmp/pytest-of-james/pytest-10/test_disk_cache_cleanup_and_ke0
+2026-06-01 00:16:08 - uniquant.shared.cache.backends - INFO - 2026-06-01 00:16:08 - uniquant.shared.cache.backends - INFO - Cleanup completed, cleaned 1 entries
+2026-06-01 00:16:08 - uniquant.shared.cache.backends - INFO - 2026-06-01 00:16:08 - uniquant.shared.cache.backends - INFO - Cleanup completed, cleaned 1 entries
+2026-06-01 00:16:08 - uniquant.shared.cache.backends - INFO - 2026-06-01 00:16:08 - uniquant.shared.cache.backends - INFO - Cleanup completed, cleaned 0 entries
+2026-06-01 00:16:08 - uniquant.shared.cache.cache_factory - INFO - 2026-06-01 00:16:08 - uniquant.shared.cache.cache_factory - INFO - Creating MemoryCacheBackend with max_size=5
+2026-06-01 00:16:08 - uniquant.shared.cache.backends - INFO - 2026-06-01 00:16:08 - uniquant.shared.cache.backends - INFO - MemoryCacheBackend initialized with max_size: 5
+2026-06-01 00:16:08 - uniquant.shared.cache.cache_factory - INFO - 2026-06-01 00:16:08 - uniquant.shared.cache.cache_factory - INFO - Creating DiskCacheBackend at /tmp/pytest-of-james/pytest-10/test_cache_factory_creates_exp0
+2026-06-01 00:16:08 - uniquant.shared.cache.backends - INFO - 2026-06-01 00:16:08 - uniquant.shared.cache.backends - INFO - DiskCacheBackend initialized at: /tmp/pytest-of-james/pytest-10/test_cache_factory_creates_exp0
+2026-06-01 00:16:08 - uniquant.shared.cache.cache_factory - INFO - 2026-06-01 00:16:08 - uniquant.shared.cache.cache_factory - INFO - Creating default DiskCacheBackend
+2026-06-01 00:16:08 - uniquant.shared.cache.cache_factory - INFO - 2026-06-01 00:16:08 - uniquant.shared.cache.cache_factory - INFO - Creating DiskCacheBackend at data/cache
+2026-06-01 00:16:08 - uniquant.shared.cache.backends - INFO - 2026-06-01 00:16:08 - uniquant.shared.cache.backends - INFO - DiskCacheBackend initialized at: data/cache
+2026-06-01 00:16:08 - alpha_tactician.errors - ERROR - 2026-06-01 00:16:08 - alpha_tactician.errors - ERROR - Error in raise_value_error: test error
+Traceback (most recent call last):
+  File "/home/james/Documents/Project/UniQuant/src/uniquant/shared/error_handling.py", line 89, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/james/Documents/Project/UniQuant/tests/test_error_handling.py", line 150, in raise_value_error
+    raise ValueError("test error")
+ValueError: test error
+2026-06-01 00:16:08 - alpha_tactician.errors - ERROR - 2026-06-01 00:16:08 - alpha_tactician.errors - ERROR - Error in raise_value_error: test error
+Traceback (most recent call last):
+  File "/home/james/Documents/Project/UniQuant/src/uniquant/shared/error_handling.py", line 89, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/james/Documents/Project/UniQuant/tests/test_error_handling.py", line 159, in raise_value_error
+    raise ValueError("test error")
+ValueError: test error
+2026-06-01 00:16:08 - alpha_tactician.errors - ERROR - 2026-06-01 00:16:08 - alpha_tactician.errors - ERROR - Error in may_raise: test
+Traceback (most recent call last):
+  File "/home/james/Documents/Project/UniQuant/src/uniquant/shared/error_handling.py", line 89, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/james/Documents/Project/UniQuant/tests/test_error_handling.py", line 181, in may_raise
+    raise ValueError("test")
+ValueError: test
+2026-06-01 00:16:08 - alpha_tactician.errors - ERROR - 2026-06-01 00:16:08 - alpha_tactician.errors - ERROR - Error in may_raise: test
+Traceback (most recent call last):
+  File "/home/james/Documents/Project/UniQuant/src/uniquant/shared/error_handling.py", line 89, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/james/Documents/Project/UniQuant/tests/test_error_handling.py", line 181, in may_raise
+    raise ValueError("test")
+ValueError: test
+2026-06-01 00:16:08 - alpha_tactician.errors - ERROR - 2026-06-01 00:16:08 - alpha_tactician.errors - ERROR - Error in may_raise: test
+Traceback (most recent call last):
+  File "/home/james/Documents/Project/UniQuant/src/uniquant/shared/error_handling.py", line 89, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/james/Documents/Project/UniQuant/tests/test_error_handling.py", line 181, in may_raise
+    raise ValueError("test")
+ValueError: test
+2026-06-01 00:16:08 - alpha_tactician.errors - ERROR - 2026-06-01 00:16:08 - alpha_tactician.errors - ERROR - Error in may_raise: test
+Traceback (most recent call last):
+  File "/home/james/Documents/Project/UniQuant/src/uniquant/shared/error_handling.py", line 89, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/james/Documents/Project/UniQuant/tests/test_error_handling.py", line 181, in may_raise
+    raise ValueError("test")
+ValueError: test
+2026-06-01 00:16:08 - alpha_tactician.errors - ERROR - 2026-06-01 00:16:08 - alpha_tactician.errors - ERROR - Error in may_raise: test
+Traceback (most recent call last):
+  File "/home/james/Documents/Project/UniQuant/src/uniquant/shared/error_handling.py", line 89, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/james/Documents/Project/UniQuant/tests/test_error_handling.py", line 181, in may_raise
+    raise ValueError("test")
+ValueError: test
+2026-06-01 00:16:09 - uniquant.services.service_container - INFO - 2026-06-01 00:16:09 - uniquant.services.service_container - INFO - ServiceContainer initialized with DAG topology
+2026-06-01 00:16:09 - uniquant.shared.limit_checker - WARNING - 2026-06-01 00:16:09 - uniquant.shared.limit_checker - WARNING - Invalid pre_close: 0, symbol: 600000.SH
+2026-06-01 00:16:09 - uniquant.brain.lppl.calculator - WARNING - 2026-06-01 00:16:09 - uniquant.brain.lppl.calculator - WARNING - Price data contains zero, negative, or NaN values. Min=0.0, Max=0.0
+2026-06-01 00:16:09 - uniquant.brain.lppl.calculator - WARNING - 2026-06-01 00:16:09 - uniquant.brain.lppl.calculator - WARNING - Price data contains zero, negative, or NaN values. Min=-1.0, Max=-1.0
+2026-06-01 00:16:09 - uniquant.brain.lppl.calculator - WARNING - 2026-06-01 00:16:09 - uniquant.brain.lppl.calculator - WARNING - Price data contains zero, negative, or NaN values. Min=10.0, Max=10.0
+2026-06-01 00:16:09 - uniquant.brain.lppl.calculator - INFO - 2026-06-01 00:16:09 - uniquant.brain.lppl.calculator - INFO - Current max time point: 100
+2026-06-01 00:16:09 - uniquant.brain.lppl.calculator - INFO - 2026-06-01 00:16:09 - uniquant.brain.lppl.calculator - INFO - Starting differential evolution optimization
+2026-06-01 00:16:09 - uniquant.brain.lppl.calculator - INFO - 2026-06-01 00:16:09 - uniquant.brain.lppl.calculator - INFO - Calculated tc: 199.76003054686362, days_to_tc: 99.76003054686362
+2026-06-01 00:16:09 - uniquant.brain.lppl.calculator - INFO - 2026-06-01 00:16:09 - uniquant.brain.lppl.calculator - INFO - Sornette constraints check: False
+2026-06-01 00:16:09 - uniquant.brain.lppl.calculator - INFO - 2026-06-01 00:16:09 - uniquant.brain.lppl.calculator - INFO - Calculated confidence: 0.6199
+2026-06-01 00:16:09 - uniquant.brain.lppl.calculator - INFO - 2026-06-01 00:16:09 - uniquant.brain.lppl.calculator - INFO - Risk level: Safe
+2026-06-01 00:16:09 - uniquant.brain.lppl.calculator - INFO - 2026-06-01 00:16:09 - uniquant.brain.lppl.calculator - INFO - Is bubble: False
+2026-06-01 00:16:09 - uniquant.brain.lppl.calculator - WARNING - 2026-06-01 00:16:09 - uniquant.brain.lppl.calculator - WARNING - Price data contains invalid values (<=0 or NaN)
+2026-06-01 00:16:09 - uniquant.brain.lppl.calculator - WARNING - 2026-06-01 00:16:09 - uniquant.brain.lppl.calculator - WARNING - Price data contains invalid values (<=0 or NaN)
+2026-06-01 00:16:09 - uniquant.brain.wyckoff.config - ERROR - 2026-06-01 00:16:09 - uniquant.brain.wyckoff.config - ERROR - Failed to read /nonexistent/path.yaml: [Errno 2] No such file or directory: '/nonexistent/path.yaml'
+2026-06-01 00:16:09 - uniquant.brain.wyckoff.state - INFO - 2026-06-01 00:16:09 - uniquant.brain.wyckoff.state - INFO - 状态已保存到：/tmp/tmpym0jeu9b/000001_state.json
+2026-06-01 00:16:09 - uniquant.brain.wyckoff.state - INFO - 2026-06-01 00:16:09 - uniquant.brain.wyckoff.state - INFO - 状态已保存到：/tmp/tmpbn1hswwq/600000_state.json
+2026-06-01 00:16:09 - uniquant.brain.wyckoff.state - INFO - 2026-06-01 00:16:09 - uniquant.brain.wyckoff.state - INFO - 状态已保存到：/tmp/tmppx5hv3y_/state.json
+2026-06-01 00:16:09 - uniquant.brain.wyckoff.state - INFO - 2026-06-01 00:16:09 - uniquant.brain.wyckoff.state - INFO - 状态已保存到：/tmp/tmp1rz_23ng/test_state.json
+2026-06-01 00:16:09 - uniquant.brain.wyckoff.state - WARNING - 2026-06-01 00:16:09 - uniquant.brain.wyckoff.state - WARNING - 状态文件不存在：/nonexistent/path/state.json
+2026-06-01 00:16:09 - uniquant.brain.wyckoff.state - INFO - 2026-06-01 00:16:09 - uniquant.brain.wyckoff.state - INFO - 状态已保存到：/tmp/tmp5czh8e5i/TEST_wyckoff_state.json
+2026-06-01 00:16:09 - uniquant.hands.backtest.monte_carlo - WARNING - 2026-06-01 00:16:09 - uniquant.hands.backtest.monte_carlo - WARNING - 收益率数据过少，无法进行 Monte Carlo 模拟
+2026-06-01 00:16:09 - RetryDecorator - WARNING - 2026-06-01 00:16:09 - RetryDecorator - WARNING - flaky 第 1/2 次尝试失败: temporary, 0.01s 后重试...
+2026-06-01 00:16:09 - RetryDecorator - WARNING - 2026-06-01 00:16:09 - RetryDecorator - WARNING - flaky 第 2/2 次尝试失败: temporary, 0.02s 后重试...
+2026-06-01 00:16:09 - RetryDecorator - WARNING - 2026-06-01 00:16:09 - RetryDecorator - WARNING - always_fail 第 1/1 次尝试失败: fatal, 1.0s 后重试...
+2026-06-01 00:16:09 - RetryDecorator - ERROR - 2026-06-01 00:16:09 - RetryDecorator - ERROR - always_fail 所有 1 次重试都失败
+2026-06-01 00:16:09 - RetryDecorator - WARNING - 2026-06-01 00:16:09 - RetryDecorator - WARNING - always_fail 第 1/2 次尝试失败: fatal, 1.0s 后重试...
+2026-06-01 00:16:09 - RetryDecorator - WARNING - 2026-06-01 00:16:09 - RetryDecorator - WARNING - always_fail 第 2/2 次尝试失败: fatal, 2.0s 后重试...
+2026-06-01 00:16:09 - RetryDecorator - ERROR - 2026-06-01 00:16:09 - RetryDecorator - ERROR - always_fail 所有 2 次重试都失败，返回降级值: ['fallback']
+2026-06-01 00:16:09 - Utils - WARNING - 2026-06-01 00:16:09 - Utils - WARNING - 函数执行出错: x
+2026-06-01 00:16:09 - Utils - WARNING - 2026-06-01 00:16:09 - Utils - WARNING - 函数执行超时（0.001秒）
+2026-06-01 00:16:09 - Utils - ERROR - 2026-06-01 00:16:09 - Utils - ERROR - 执行操作时出错: bad
+2026-06-01 00:16:09 - Utils - WARNING - 2026-06-01 00:16:09 - Utils - WARNING - 数据源方法调用出错: boom
+2026-06-01 00:16:09 - Utils - WARNING - 2026-06-01 00:16:09 - Utils - WARNING - 数据源方法调用超时（0.001秒）
+2026-06-01 00:16:09 - Utils - WARNING - 2026-06-01 00:16:09 - Utils - WARNING - 尝试 1/3 失败: retry
+2026-06-01 00:16:09 - Utils - WARNING - 2026-06-01 00:16:09 - Utils - WARNING - 尝试 1/2 失败: fail
+2026-06-01 00:16:09 - Utils - WARNING - 2026-06-01 00:16:09 - Utils - WARNING - 尝试 2/2 失败: fail
+2026-06-01 00:16:09 - Utils - ERROR - 2026-06-01 00:16:09 - Utils - ERROR - 最大重试次数已用尽

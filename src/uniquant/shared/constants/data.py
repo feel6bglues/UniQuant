@@ -123,9 +123,9 @@ class DataServiceConstants:
 
     # 缓存过期时间（秒）
     CACHE_TTL_STOCK = 3600  # 股票数据 1小时
-    CACHE_TTL_INDEX = 7200  # 指数数据 2小时
+    CACHE_TTL_INDEX = 3600  # 指数数据 1小时
     CACHE_TTL_ETF = 3600  # ETF数据 1小时
-    CACHE_TTL_REALTIME = 300  # 实时数据 5分钟
+    CACHE_TTL_REALTIME = 60  # 实时数据 1分钟
     CACHE_TTL_INDUSTRY = 86400  # 行业数据 1天
     CACHE_TTL_CONCEPT = 86400  # 概念数据 1天
     CACHE_TTL_GENERAL = 3600  # 通用数据 1小时
@@ -175,9 +175,9 @@ class CacheConstants:
 
     # 数据服务TTL (兼容旧代码)
     CACHE_TTL_STOCK = 3600  # 股票数据 1小时
-    CACHE_TTL_INDEX = 7200  # 指数数据 2小时
+    CACHE_TTL_INDEX = 3600  # 指数数据 1小时
     CACHE_TTL_ETF = 3600  # ETF数据 1小时
-    CACHE_TTL_REALTIME = 300  # 实时数据 5分钟
+    CACHE_TTL_REALTIME = 60  # 实时数据 1分钟
     CACHE_TTL_INDUSTRY = 86400  # 行业数据 1天
     CACHE_TTL_CONCEPT = 86400  # 概念数据 1天
     CACHE_TTL_GENERAL = 3600  # 通用数据 1小时

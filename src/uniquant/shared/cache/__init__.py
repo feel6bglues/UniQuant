@@ -12,7 +12,7 @@ import pandas as pd
 
 from ..constants import CacheConstants
 from ..logger_factory import get_logger
-from .backends import DiskCacheBackend, MemoryCacheBackend
+from .backends import DiskCacheBackend, MemoryCacheBackend, _SENTINEL
 from .cache_factory import CacheFactory
 from .cache_interface import CacheInterface
 
@@ -76,7 +76,7 @@ def smart_cache(ttl: int = CacheConstants.CACHE_TTL_REALTIME) -> Callable:
             key = generate_cache_key(func, args, kwargs)
             
             cached_value = cache_manager.get(key)
-            if cached_value is not None:
+            if cached_value is not _SENTINEL:
                 logger.debug(f"SmartCache hit for {func.__name__}")
                 return cached_value
             
