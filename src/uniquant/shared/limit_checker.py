@@ -210,3 +210,49 @@ def validate_trade_action(
             result["reason"] = f"跌停无法卖出，当前价格比例: {status.price_ratio:.2%}"
     
     return result
+
+
+def is_limit_up(
+    current: Dict[str, Any],
+    pre_close: float,
+    symbol: str = "",
+    is_st: bool = False,
+) -> bool:
+    """兼容接口：判断是否涨停
+
+    Args:
+        current: 包含 'close' 键的字典
+        pre_close: 前收盘价
+        symbol: 股票代码
+        is_st: 是否 ST 股
+
+    Returns:
+        是否涨停
+    """
+    close_price = float(current.get("close", 0))
+    name = "ST" if is_st else None
+    status = check_limit_status(close_price, pre_close, symbol, name)
+    return status.is_limit_up
+
+
+def is_limit_down(
+    current: Dict[str, Any],
+    pre_close: float,
+    symbol: str = "",
+    is_st: bool = False,
+) -> bool:
+    """兼容接口：判断是否跌停
+
+    Args:
+        current: 包含 'close' 键的字典
+        pre_close: 前收盘价
+        symbol: 股票代码
+        is_st: 是否 ST 股
+
+    Returns:
+        是否跌停
+    """
+    close_price = float(current.get("close", 0))
+    name = "ST" if is_st else None
+    status = check_limit_status(close_price, pre_close, symbol, name)
+    return status.is_limit_down

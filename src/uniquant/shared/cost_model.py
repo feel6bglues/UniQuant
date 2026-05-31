@@ -13,6 +13,7 @@ Canonical values (A-share, 2024+):
 from __future__ import annotations
 
 import logging
+import math
 import os
 from dataclasses import dataclass
 from pathlib import Path
@@ -27,9 +28,29 @@ STAMP_TAX_PCT: float = 0.0005             # 万5 (2024+)
 STAMP_TAX_PCT_OLD: float = 0.001          # 千1 (pre-2024)
 MIN_COMMISSION: float = 5.0               # 单笔最低5元
 SLIPPAGE_PCT: float = 0.0005              # 万5
+TRANSFER_FEE_PCT: float = 0.00001         # 万0.1 (过户费)
 
 COST_BUY = COMMISSION_PCT
 COST_SELL = COMMISSION_PCT + STAMP_TAX_PCT  # 0.08%
+
+RISK_FREE_RATE: float = 0.02  # 2% annualized (A-share 1Y LPR proxy)
+
+
+def calculate_sharpe_ratio(returns, risk_free_rate: float = 0.0) -> float:
+    """Annualized Sharpe ratio from a sequence of period returns."""
+    if hasattr(returns, "__len__") and len(returns) < 2:
+        return 0.0
+    arr = list(returns) if not isinstance(returns, list) else returns
+    n = len(arr)
+    if n < 2:
+        return 0.0
+    mean_r = sum(arr) / n
+    var = sum((r - mean_r) ** 2 for r in arr) / (n - 1)
+    std_r = math.sqrt(var) if var > 0 else 0.0
+    if std_r == 0:
+        return 0.0
+    excess = mean_r - risk_free_rate / 252.0
+    return float(excess / std_r * math.sqrt(252.0))
 
 
 # ── Config dataclass (for dependency injection) ───────────────────────────

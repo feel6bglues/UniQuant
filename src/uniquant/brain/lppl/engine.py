@@ -54,7 +54,7 @@ class LPPLConfig:
 
     # 优化器配置 (使用DE保持与原verify_lppl.py一致)
     optimizer: str = "de"
-    maxiter: int = 100
+    maxiter: int = 500
     popsize: int = 15
     tol: float = 0.05
 
@@ -120,12 +120,7 @@ def classify_top_phase(days_left: float, r2: float, config: LPPLConfig) -> str:
 # ============================================================================
 
 
-def lppl_func(t: np.ndarray, tc: float, m: float, w: float, a: float, b: float, c: float, phi: float) -> np.ndarray:
-    """LPPL model function: f(t) = a + b*(tc-t)^m + c*(tc-t)^m*cos(w*log(tc-t)+phi)"""
-    tau = tc - t
-    tau = np.maximum(tau, 1e-10)
-    f = tau ** m
-    return a + b * f + c * f * np.cos(w * np.log(tau) + phi)
+from ...brain.lppl.calculator import lppl_func
 
 
 def cost_function(params: Tuple, t_data: np.ndarray, log_price: np.ndarray) -> float:

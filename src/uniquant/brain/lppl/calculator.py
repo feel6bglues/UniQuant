@@ -16,6 +16,29 @@ from ...shared.logger_factory import get_logger
 logger = get_logger(__name__)
 
 
+def lppl_func(t, tc, m, w, a, b, c, phi):
+    """LPPL 模型函数 (canonical implementation)
+
+    f(t) = a + b*(tc-t)^m + c*(tc-t)^m * cos(w*log(tc-t)+phi)
+
+    Args:
+        t: 时间序列
+        tc: 临界点时间
+        m: 缩放指数
+        w: 角频率
+        a: 常数项
+        b: 线性项系数
+        c: 周期性项系数
+        phi: 相位角
+
+    Returns:
+        LPPL 模型值
+    """
+    tau = tc - t
+    tau = np.maximum(tau, 1e-8)
+    return a + b * (tau**m) + c * (tau**m) * np.cos(w * np.log(tau) + phi)
+
+
 class LPPLCalculator:
     """
     LPPL计算器
@@ -185,15 +208,8 @@ class LPPLCalculator:
             LPPL模型值（tau <= 0 时返回 NaN）
         """
         tau = tc - t  # 不使用 abs，保持数学正确性
-        result = np.full_like(t, np.nan, dtype=np.float64)
-        valid = tau > 0
-        if np.any(valid):
-            tau_v = tau[valid]
-            result[valid] = (
-                a
-                + b * (tau_v**m)
-                + c * (tau_v**m) * np.cos(w * np.log(tau_v) + phi)
-            )
+        tau = np.maximum(tau, 1e-8)
+        result = a + b * (tau**m) + c * (tau**m) * np.cos(w * np.log(tau) + phi)
         return result
 
     def cost_function(self, params, t, log_prices):
@@ -211,7 +227,10 @@ class LPPLCalculator:
         tc, m, w, a, b, c, phi = params
         prediction = self.lppl_func(t, tc, m, w, a, b, c, phi)
         residuals = prediction - log_prices
-        return np.sum(residuals**2)
+        cost = np.sqrt(np.mean(residuals**2))
+        if np.isnan(cost) or np.isinf(cost):
+            return 1e10
+        return cost
 
     def cost_function_reduced(self, nonlinear_params, t, log_prices):
         """

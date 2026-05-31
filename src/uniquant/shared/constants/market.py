@@ -1,7 +1,7 @@
 """市场相关常量"""
 
 import datetime
-from typing import Optional
+from typing import Optional, Set
 
 
 class DateConstants:
@@ -122,8 +122,61 @@ class MarketHours:
     AFTERNOON_END_HOUR = 15
     AFTERNOON_END_MINUTE = 0
 
+    # 集合竞价时间 (北京时间)
+    MORNING_AUCTION_START_HOUR = 9
+    MORNING_AUCTION_START_MINUTE = 15
+    MORNING_AUCTION_END_HOUR = 9
+    MORNING_AUCTION_END_MINUTE = 25
+    CLOSING_AUCTION_START_HOUR = 14
+    CLOSING_AUCTION_START_MINUTE = 57
+    CLOSING_AUCTION_END_HOUR = 15
+    CLOSING_AUCTION_END_MINUTE = 0
+
     # 交易日 (周一到周五)
     TRADING_DAYS = [0, 1, 2, 3, 4]  # Monday=0, Friday=4
+
+    # A股节假日 (非交易日)
+    _CN_HOLIDAYS: Set[str] = {
+        "2024-01-01",
+        "2024-02-09", "2024-02-10", "2024-02-11", "2024-02-12",
+        "2024-02-13", "2024-02-14", "2024-02-15", "2024-02-16", "2024-02-17",
+        "2024-04-04", "2024-04-05", "2024-04-06",
+        "2024-05-01", "2024-05-02", "2024-05-03", "2024-05-04", "2024-05-05",
+        "2024-06-08", "2024-06-09", "2024-06-10",
+        "2024-09-15", "2024-09-16", "2024-09-17",
+        "2024-10-01", "2024-10-02", "2024-10-03", "2024-10-04",
+        "2024-10-05", "2024-10-06", "2024-10-07",
+        "2025-01-01",
+        "2025-01-28", "2025-01-29", "2025-01-30", "2025-01-31",
+        "2025-02-01", "2025-02-02", "2025-02-03", "2025-02-04",
+        "2025-04-04", "2025-04-05", "2025-04-06",
+        "2025-05-01", "2025-05-02", "2025-05-03", "2025-05-04", "2025-05-05",
+        "2025-05-31", "2025-06-01", "2025-06-02",
+        "2025-10-01", "2025-10-02", "2025-10-03", "2025-10-04",
+        "2025-10-05", "2025-10-06", "2025-10-07", "2025-10-08",
+        "2026-01-01",
+        "2026-02-16", "2026-02-17", "2026-02-18", "2026-02-19",
+        "2026-02-20", "2026-02-21", "2026-02-22", "2026-02-23",
+        "2026-04-04", "2026-04-05", "2026-04-06",
+        "2026-05-01", "2026-05-02", "2026-05-03", "2026-05-04", "2026-05-05",
+        "2026-06-19", "2026-06-20", "2026-06-21",
+        "2026-09-26", "2026-09-27", "2026-09-28",
+        "2026-10-01", "2026-10-02", "2026-10-03", "2026-10-04",
+        "2026-10-05", "2026-10-06", "2026-10-07",
+    }
+
+    # 调休工作日 (周末但实际交易)
+    _CN_SPECIAL_WORKDAYS: Set[str] = {
+        "2024-02-04",
+        "2024-02-18",
+        "2024-04-07",
+        "2024-09-29",
+        "2024-10-12",
+        "2025-01-26",
+        "2025-02-08",
+        "2025-09-28",
+        "2025-10-11",
+    }
 
     @classmethod
     def is_market_open(cls, dt: Optional[datetime.datetime] = None) -> bool:
@@ -227,6 +280,79 @@ class MarketHours:
             return "已收盘"
         else:
             return "午休"
+
+    @classmethod
+    def is_trading_day(cls, dt: Optional[datetime.date] = None) -> bool:
+        """
+        检查是否为交易日（考虑节假日和调休）
+
+        Args:
+            dt: 要检查的日期 (None表示今天)
+
+        Returns:
+            bool: 是否为交易日
+        """
+        if dt is None:
+            dt = datetime.date.today()
+
+        if isinstance(dt, datetime.datetime):
+            dt = dt.date()
+
+        iso = dt.isoformat()
+
+        # 调休工作日优先：周末但实际交易
+        if iso in cls._CN_SPECIAL_WORKDAYS:
+            return True
+
+        # 周末不交易
+        if dt.weekday() >= 5:
+            return False
+
+        # 节假日不交易
+        return iso not in cls._CN_HOLIDAYS
+
+    @classmethod
+    def is_call_auction(cls, dt: Optional[datetime.datetime] = None) -> bool:
+        """
+        检查是否在集合竞价时段
+
+        早盘集合竞价: 9:15-9:25 (9:25撮合成交)
+        收盘集合竞价: 14:57-15:00 (深圳)
+
+        Args:
+            dt: 要检查的日期时间 (None表示当前时间)
+
+        Returns:
+            bool: 是否在集合竞价时段
+        """
+        if dt is None:
+            dt = datetime.datetime.now()
+
+        if not cls.is_trading_day(dt):
+            return False
+
+        t = dt.time()
+
+        # 早盘集合竞价: 9:15-9:25
+        morning_auction_start = datetime.time(
+            cls.MORNING_AUCTION_START_HOUR, cls.MORNING_AUCTION_START_MINUTE
+        )
+        morning_auction_end = datetime.time(
+            cls.MORNING_AUCTION_END_HOUR, cls.MORNING_AUCTION_END_MINUTE
+        )
+
+        # 收盘集合竞价: 14:57-15:00
+        closing_auction_start = datetime.time(
+            cls.CLOSING_AUCTION_START_HOUR, cls.CLOSING_AUCTION_START_MINUTE
+        )
+        closing_auction_end = datetime.time(
+            cls.CLOSING_AUCTION_END_HOUR, cls.CLOSING_AUCTION_END_MINUTE
+        )
+
+        in_morning_auction = morning_auction_start <= t <= morning_auction_end
+        in_closing_auction = closing_auction_start <= t <= closing_auction_end
+
+        return in_morning_auction or in_closing_auction
 
 
 MAJOR_INDEXES: dict = {

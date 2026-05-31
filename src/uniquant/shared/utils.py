@@ -2,7 +2,7 @@
 通用工具函数
 """
 
-import threading
+import concurrent.futures
 import time
 from typing import Any, Callable, Optional, TypeVar
 
@@ -29,26 +29,17 @@ def with_timeout(
     Returns:
         函数执行结果或默认值
     """
-    result: list = []
-
-    def target():
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+        future = executor.submit(func)
         try:
-            result.append(func())
+            return future.result(timeout=timeout)
+        except concurrent.futures.TimeoutError:
+            logger.warning(f"函数执行超时（{timeout}秒）")
+            future.cancel()
+            return default
         except Exception as e:
             logger.warning(f"函数执行出错: {e}")
-            if default is not None:
-                result.append(default)
-
-    thread = threading.Thread(target=target)
-    thread.daemon = True
-    thread.start()
-    thread.join(timeout)
-
-    if thread.is_alive():
-        logger.warning(f"函数执行超时（{timeout}秒）")
-        return default
-
-    return result[0] if result else default
+            return default
 
 
 def safe_execute(
@@ -96,26 +87,21 @@ def fetch_with_timeout(
     Returns:
         方法执行结果或默认值
     """
-    result = []
+    def _call():
+        method = getattr(source, method_name)
+        return method(*args, **kwargs)
 
-    def target():
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+        future = executor.submit(_call)
         try:
-            method = getattr(source, method_name)
-            result.append(method(*args, **kwargs))
+            return future.result(timeout=timeout)
+        except concurrent.futures.TimeoutError:
+            logger.warning(f"数据源方法调用超时（{timeout}秒）")
+            future.cancel()
+            return default
         except Exception as e:
             logger.warning(f"数据源方法调用出错: {e}")
-            result.append(default)
-
-    thread = threading.Thread(target=target)
-    thread.daemon = True
-    thread.start()
-    thread.join(timeout)
-
-    if thread.is_alive():
-        logger.warning(f"数据源方法调用超时（{timeout}秒）")
-        return default
-
-    return result[0] if result else default
+            return default
 
 
 def normalize_dataframe(df: pd.DataFrame) -> pd.DataFrame:

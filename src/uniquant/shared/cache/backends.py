@@ -17,6 +17,8 @@ from .cache_interface import CacheInterface
 
 logger = get_logger(__name__)
 
+_SENTINEL = object()
+
 try:
     from filelock import FileLock
     FILELOCK_AVAILABLE = True
@@ -55,7 +57,7 @@ class MemoryCacheBackend(CacheInterface):
                 self.delete(key)
                 self.misses += 1
                 logger.debug(f"Cache expired for key: {key}")
-                return None
+                return _SENTINEL
 
             # 更新访问时间
             self.access_times[key] = time.time()
@@ -65,7 +67,7 @@ class MemoryCacheBackend(CacheInterface):
         else:
             self.misses += 1
             logger.debug(f"Cache miss for key: {key}")
-            return None
+            return _SENTINEL
 
     def set(self, key: str, value: Any, ttl: int = 3600) -> bool:
         """设置缓存数据"""
@@ -204,7 +206,7 @@ class DiskCacheBackend(CacheInterface):
 
         if not cache_path.exists():
             self.misses += 1
-            return None
+            return _SENTINEL
 
         file_lock = self._get_file_lock(cache_path)
         
@@ -220,7 +222,7 @@ class DiskCacheBackend(CacheInterface):
                 os.remove(cache_path)
                 self.misses += 1
                 logger.debug(f"Cache expired for key: {key}")
-                return None
+                return _SENTINEL
 
             self.hits += 1
             logger.debug(f"Cache hit for key: {key}")
@@ -235,7 +237,7 @@ class DiskCacheBackend(CacheInterface):
                     f"Failed to remove corrupted cache file {cache_path.name}: {e}"
                 )
             self.misses += 1
-            return None
+            return _SENTINEL
         finally:
             if file_lock:
                 try:

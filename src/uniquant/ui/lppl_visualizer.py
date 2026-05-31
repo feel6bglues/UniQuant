@@ -6,8 +6,6 @@ import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 
-from ..brain.lppl.engine import LPPLEngine
-from ..data.services.lppl_data_service import LPPLDataService
 from ..shared.logger_factory import get_logger
 
 logger = get_logger("LPPLVisualizer")
@@ -18,9 +16,26 @@ class LPPLVisualizer:
     LPPL可视化模块，用于计算和绘制LPPL拟合曲线
     """
 
-    def __init__(self):
-        self.lppl_engine = LPPLEngine()
-        self.data_service = LPPLDataService()
+    def __init__(self, lppl_engine=None, data_service=None):
+        if lppl_engine is not None:
+            self.lppl_engine = lppl_engine
+        else:
+            try:
+                from ..services.analysis.lppl_analysis_engine import create_lppl_engine
+                self.lppl_engine = create_lppl_engine()
+            except Exception:
+                self.lppl_engine = None
+
+        if data_service is not None:
+            self.data_service = data_service
+        else:
+            try:
+                from ..services.analysis.lppl_analysis_engine import (
+                    create_lppl_data_service,
+                )
+                self.data_service = create_lppl_data_service()
+            except Exception:
+                self.data_service = None
 
     def run_analysis_and_plot(
         self, symbol: str = "sh000001", days: int = 350

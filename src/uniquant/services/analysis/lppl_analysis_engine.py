@@ -4,8 +4,10 @@ LPPL 分析引擎适配器
 将 brain.lppl.LPPLEngine 包装为 services 层可用的分析引擎。
 """
 
-from typing import Dict, Any
+from typing import Any, Dict
+
 import pandas as pd
+
 from ...shared.logger_factory import get_logger
 
 logger = get_logger(__name__)
@@ -20,6 +22,20 @@ LPPL_RECOVERABLE_ERRORS = (
     TypeError,
     ValueError,
 )
+
+
+def create_lppl_engine():
+    """Factory: create a brain-layer LPPLEngine via the services layer."""
+    from ...brain.lppl.engine import LPPLEngine
+
+    return LPPLEngine()
+
+
+def create_lppl_data_service():
+    """Factory: create a data-layer LPPLDataService via the services layer."""
+    from ...data.services.lppl_data_service import LPPLDataService
+
+    return LPPLDataService()
 
 
 class LpplAnalysisEngine:

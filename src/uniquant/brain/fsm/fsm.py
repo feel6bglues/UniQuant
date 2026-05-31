@@ -285,7 +285,8 @@ class DecisionBrain:
             sell_conditions.append("LPPL_DANGER")
         if ctx.ma_status == f"MA{IndicatorThresholds.FSM_MA_SHORT} <= MA{IndicatorThresholds.FSM_MA_LONG}":
             sell_conditions.append("MA_REVERSAL")
-        if ctx.alpha_score < -0.5:
+        sell_threshold = get_config().get("brain.fsm.sell_threshold", -0.5)
+        if ctx.alpha_score < sell_threshold:
             sell_conditions.append("ALPHA_WEAK")
         if ctx.regime.value in ["FROZEN", "STRESSED"]:
             sell_conditions.append("REGIME_RISK")
@@ -339,7 +340,8 @@ class DecisionBrain:
             buy_blockers.append("LPPL_DANGER")
         if ctx.regime.value == "FROZEN":
             buy_blockers.append("MARKET_FROZEN")
-        if ctx.alpha_score < -0.3:
+        buy_block_threshold = get_config().get("brain.fsm.buy_block_threshold", -0.3)
+        if ctx.alpha_score < buy_block_threshold:
             buy_blockers.append("ALPHA_TOO_WEAK")
         
         if ctx.price > 0 and ctx.pre_close > 0:
@@ -414,13 +416,18 @@ class DecisionBrain:
             bool: 转换是否合法
         """
         # 定义合法的状态转换
+        _CB = FSMState.CIRCUIT_BREAK
         valid_transitions = {
-            FSMState.IDLE: [FSMState.SIGNAL, FSMState.PROBE],
-            FSMState.SIGNAL: [FSMState.PROBE, FSMState.IDLE],
-            FSMState.PROBE: [FSMState.MONITOR, FSMState.IDLE, FSMState.EXIT],
-            FSMState.MONITOR: [FSMState.PYRAMID, FSMState.EXIT, FSMState.IDLE],
-            FSMState.PYRAMID: [FSMState.MONITOR, FSMState.EXIT],
-            FSMState.EXIT: [FSMState.IDLE],
+            FSMState.IDLE: [FSMState.SIGNAL, FSMState.PROBE, _CB],
+            FSMState.SIGNAL: [FSMState.PROBE, FSMState.IDLE, _CB],
+            FSMState.PROBE: [
+                FSMState.MONITOR, FSMState.IDLE, FSMState.EXIT, _CB,
+            ],
+            FSMState.MONITOR: [
+                FSMState.PYRAMID, FSMState.EXIT, FSMState.IDLE, _CB,
+            ],
+            FSMState.PYRAMID: [FSMState.MONITOR, FSMState.EXIT, _CB],
+            FSMState.EXIT: [FSMState.IDLE, _CB],
             FSMState.CIRCUIT_BREAK: [FSMState.IDLE],
         }
 
@@ -504,6 +511,42 @@ class DecisionBrain:
             veto_result = self._check_veto_conditions(ctx)
             if veto_result:
                 return veto_result
+
+            # B-007: 熔断检查 — 当日跌幅超过阈值时触发 CIRCUIT_BREAK
+            if ctx.price > 0 and ctx.pre_close > 0:
+                daily_return = (
+                    (ctx.price - ctx.pre_close) / ctx.pre_close
+                )
+                cb_thresh = get_config().get(
+                    "brain.fsm.circuit_break_threshold", -0.05
+                )
+                if daily_return < cb_thresh:
+                    if self.state != FSMState.CIRCUIT_BREAK:
+                        self.state = FSMState.CIRCUIT_BREAK
+                        self._record_state_change(
+                            self._previous_state,
+                            FSMState.CIRCUIT_BREAK,
+                            f"当日跌幅 {daily_return:.2%} "
+                            f"超过熔断阈值 {cb_thresh:.2%}",
+                        )
+                    return self._build_response(
+                        "CIRCUIT_BREAK",
+                        f"触发熔断: 当日跌幅 {daily_return:.2%} "
+                        f"超过阈值 {cb_thresh:.2%}",
+                        ctx,
+                        final_decision="CIRCUIT_BREAK",
+                        state=FSMState.CIRCUIT_BREAK.value,
+                        daily_return=daily_return,
+                    )
+                elif self.state == FSMState.CIRCUIT_BREAK:
+                    # 冷却恢复: 跌幅回到阈值内，恢复到 IDLE
+                    self.state = FSMState.IDLE
+                    self._record_state_change(
+                        FSMState.CIRCUIT_BREAK,
+                        FSMState.IDLE,
+                        f"熔断恢复: 当日跌幅 {daily_return:.2%} "
+                        f"已回到阈值内",
+                    )
 
             score = self._calculate_score(ctx)
 

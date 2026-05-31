@@ -133,6 +133,25 @@ class GlobalConfig:
         except (KeyError, TypeError):
             return default
 
+    def set(self, key_path: str, value: Any) -> None:
+        """
+        Set a config value using dot notation.
+        e.g. set('brain.fsm.ma_short', 10)
+        """
+        keys = key_path.split(".")
+        cfg = self._config
+        for k in keys[:-1]:
+            if k not in cfg or not isinstance(cfg[k], dict):
+                cfg[k] = {}
+            cfg = cfg[k]
+        cfg[keys[-1]] = value
+
+    def reload(self) -> None:
+        """Re-read all config files and clear cached values."""
+        with self._lock:
+            self._config = {}
+            self._load_config()
+
     def validate_config(self) -> bool:
         """
         Validate the configuration parameters

@@ -1,0 +1,46 @@
+{
+  "symbol": "000858.SZ",
+  "date": "2026-05-23 23:54:26",
+  "decision_result": {
+    "action": "STAY_CURRENT_STATE",
+    "reason": "综合得分: 0, 维持当前状态",
+    "regime": "NORMAL",
+    "risk": "Safe",
+    "bubble_confidence": 0.6000000000000001,
+    "ntf_side": "NONE",
+    "ntf_intensity": 0.0,
+    "is_3rd_buy": false,
+    "bi_count": 0,
+    "alpha_score": 0.0,
+    "final_decision": "STAY_CURRENT_STATE",
+    "final_score": 0,
+    "state": "IDLE"
+  },
+  "indicators": {
+    "ma20": 93.3315,
+    "ma60": 99.76316666666666,
+    "ema20": 91.9217760792542,
+    "rsi": 13.452813861279111,
+    "macd": -4.31722320266303,
+    "macd_signal": -3.5971936574955494,
+    "macd_hist": -0.7200295451674803,
+    "atr": 2.2514285714285713,
+    "bollinger_upper": 105.53246506103834,
+    "bollinger_middle": 93.3315,
+    "bollinger_lower": 81.13053493896167,
+    "vol_ratio": 1.0495796564200521,
+    "market_entropy": 2.5847776529602826,
+    "turnover_z": 0.027490242092370606
+  },
+  "data_pack": {
+    "regime": "NORMAL",
+    "risk": "Safe",
+    "bubble_confidence": 0.6000000000000001,
+    "ntf_side": "NONE",
+    "ntf_intensity": 0.0,
+    "is_3rd_buy": false,
+    "bi_count": 0,
+    "alpha_score": 0.0,
+    "ma_status": "MA20 <= MA60"
+  }
+}

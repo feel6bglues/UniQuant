@@ -609,9 +609,16 @@ with tabs[2]:
     
     if not df_g.empty:
         try:
-            from uniquant.brain.czsc.czsc_engine import CZSCEngine
-            czsc_engine = CZSCEngine()
-            czsc_result = czsc_engine.get_czsc_signals(df_g)
+            from uniquant.services.service_container import ServiceContainer
+            try:
+                _factory = ServiceContainer.instance().get("engine_factory")
+                if _factory is None:
+                    ServiceContainer.instance().initialize()
+                    _factory = ServiceContainer.instance().get("engine_factory")
+                czsc_engine = _factory.czsc if _factory else None
+            except Exception:
+                czsc_engine = None
+            czsc_result = czsc_engine.run_czsc_analysis(symbol=ticker, df=df_g) if czsc_engine else None
             
             # 提取笔列表
             if czsc_result and not czsc_result.get("error"):

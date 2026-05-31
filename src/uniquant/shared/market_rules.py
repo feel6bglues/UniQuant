@@ -17,7 +17,9 @@ class BoardRule:
     price_limit_pct: float
     price_collar_pct: float = 0.02
 
-    def round_lot(self, shares: int) -> int:
+    def round_lot(self, shares: int, is_sell: bool = False) -> int:
+        if is_sell:
+            return max(shares, 0)
         return (shares // self.lot_size) * self.lot_size
 
 
@@ -50,3 +52,8 @@ def detect_board(symbol: str) -> BoardType:
 
 def get_board_rule(symbol: str) -> BoardRule:
     return BOARD_RULES[detect_board(symbol)]
+
+
+def round_lot(shares: int, is_sell: bool = False, symbol: str = "000001.SZ") -> int:
+    rule = get_board_rule(symbol)
+    return rule.round_lot(shares, is_sell=is_sell)
