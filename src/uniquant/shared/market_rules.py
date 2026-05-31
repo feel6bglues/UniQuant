@@ -26,14 +26,16 @@ class BoardRule:
 BOARD_RULES = {
     BoardType.MAIN_SH: BoardRule(lot_size=100, price_limit_pct=0.10, price_collar_pct=0.02),
     BoardType.MAIN_SZ: BoardRule(lot_size=100, price_limit_pct=0.10, price_collar_pct=0.02),
-    BoardType.GEM:     BoardRule(lot_size=100, price_limit_pct=0.20, price_collar_pct=0.01),
-    BoardType.STAR:    BoardRule(lot_size=200, price_limit_pct=0.20, price_collar_pct=0.01),
-    BoardType.BEIJING: BoardRule(lot_size=100, price_limit_pct=0.30, price_collar_pct=0.01),
+    BoardType.GEM:     BoardRule(lot_size=100, price_limit_pct=0.20, price_collar_pct=0.02),
+    BoardType.STAR:    BoardRule(lot_size=200, price_limit_pct=0.20, price_collar_pct=0.02),
+    BoardType.BEIJING: BoardRule(lot_size=100, price_limit_pct=0.30, price_collar_pct=0.05),
     BoardType.ST:      BoardRule(lot_size=100, price_limit_pct=0.05, price_collar_pct=0.01),
 }
 
 
-def detect_board(symbol: str) -> BoardType:
+def detect_board(symbol: str, name: str = "") -> BoardType:
+    if name and ("ST" in name.upper()):
+        return BoardType.ST
     upper = symbol.upper()
     if upper.endswith(".BJ"):
         return BoardType.BEIJING

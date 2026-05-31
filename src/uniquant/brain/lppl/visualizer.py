@@ -120,8 +120,9 @@ class LPPLVisualizer:
         Returns:
             LPPL模型值
         """
-        tau = np.abs(tc - t)  # 使用绝对值确保安全性
-        tau[tau <= 0] = LPPLConstants.EPSILON  # Avoid log(0)
+        tau = tc - t
+        valid = tau > 0
+        tau = np.where(valid, tau, np.nan)
         return a + b * (tau**m) + c * (tau**m) * np.cos(w * np.log(tau) + phi)
 
     def plot_risk_matrix(self, risk_matrix: Dict[str, Dict[str, Any]]):

@@ -58,10 +58,9 @@ class LpplAnalysisEngine:
         try:
             from ...brain.lppl.engine import LPPLEngine, LPPLConfig
             config = LPPLConfig(window_range=(60, 120))
-            engine = LPPLEngine(config=config)
+            engine = LPPLEngine()
             if df is not None and not df.empty:
-                close = df["close"]
-                result = engine.detect_bubble(close)
+                result = engine.detect_bubble(df)
                 return {
                     "symbol": symbol,
                     "status": "success",

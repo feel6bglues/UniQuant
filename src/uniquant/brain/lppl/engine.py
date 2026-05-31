@@ -340,7 +340,7 @@ def fit_single_window_lbfgsb(
         ss_tot = np.sum((log_price_data - log_mean) ** 2)
         r_squared = 1 - (ss_res / ss_tot) if ss_tot > 0 else 0.0
 
-        rmse = np.sqrt(best_cost / len(log_price_data))
+        rmse = best_cost
 
         is_danger = (
             (config.m_bounds[0] < m < config.m_bounds[1])

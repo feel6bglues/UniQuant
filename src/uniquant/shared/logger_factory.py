@@ -6,6 +6,7 @@ Logger工厂模块
 import logging
 import logging.handlers
 import sys
+import threading
 from pathlib import Path
 from typing import Dict, Optional
 
@@ -19,6 +20,7 @@ class LoggerFactory:
     # 单例实例
     _instance: Optional["LoggerFactory"] = None
     _initialized: bool = False
+    _lock = threading.Lock()
 
     # 已创建的logger缓存
     _loggers: Dict[str, logging.Logger] = {}
@@ -30,7 +32,9 @@ class LoggerFactory:
 
     def __new__(cls):
         if cls._instance is None:
-            cls._instance = super().__new__(cls)
+            with cls._lock:
+                if cls._instance is None:
+                    cls._instance = super().__new__(cls)
         return cls._instance
 
     def __init__(self):

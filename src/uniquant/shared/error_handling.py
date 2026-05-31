@@ -7,6 +7,10 @@ import time
 import traceback
 from typing import Any, Callable, Dict, Optional, Tuple, Type
 
+import pandas as pd
+import requests
+import urllib3
+
 from .constants import NetworkConstants
 from .exceptions import AlphaTacticianError
 from .logger_factory import get_logger
@@ -347,9 +351,6 @@ def handle_network_errors(default_return: Any = None, max_retries: Optional[int]
         default_return: 异常发生时的默认返回值
         max_retries: 最大重试次数
     """
-    import requests
-    import urllib3
-
     network_exceptions = (
         requests.RequestException,
         urllib3.exceptions.HTTPError,
@@ -413,8 +414,6 @@ def handle_data_errors(default_return: Any = None):
     Args:
         default_return: 异常发生时的默认返回值
     """
-    import pandas as pd
-
     data_exceptions = (
         pd.errors.EmptyDataError,
         pd.errors.ParserError,
@@ -446,8 +445,6 @@ def handle_api_errors(default_return: Any = None, max_retries: int = 3):
         default_return: 异常发生时的默认返回值
         max_retries: 最大重试次数
     """
-    import requests
-
     api_exceptions = (
         requests.RequestException,
         ValueError,

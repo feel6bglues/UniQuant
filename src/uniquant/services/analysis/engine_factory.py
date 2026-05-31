@@ -4,6 +4,7 @@ AnalysisService 不再直接持有引擎引用
 """
 
 from typing import Any, Dict
+import threading
 
 from ...shared.logger_factory import get_logger
 
@@ -14,18 +15,21 @@ class AnalysisEngineFactory:
     def __init__(self, orchestrator):
         self._orchestrator = orchestrator
         self._engines: Dict[str, Any] = {}
+        self._lock = threading.Lock()
 
     def _lazy_init(self, name: str, module_path: str, class_name: str, **kwargs) -> Any:
         if name not in self._engines:
-            import importlib
-            try:
-                mod = importlib.import_module(module_path, package=__package__)
-                cls = getattr(mod, class_name)
-                self._engines[name] = cls(orchestrator=self._orchestrator, **kwargs)
-                logger.debug(f"Lazy-initialized {name}")
-            except Exception as e:
-                logger.warning(f"Failed to init {name}: {e}")
-                return None
+            with self._lock:
+                if name not in self._engines:
+                    import importlib
+                    try:
+                        mod = importlib.import_module(module_path, package=__package__)
+                        cls = getattr(mod, class_name)
+                        self._engines[name] = cls(orchestrator=self._orchestrator, **kwargs)
+                        logger.debug(f"Lazy-initialized {name}")
+                    except Exception as e:
+                        logger.warning(f"Failed to init {name}: {e}")
+                        return None
         return self._engines[name]
 
     @property

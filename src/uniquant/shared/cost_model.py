@@ -62,6 +62,7 @@ class CostConfig:
     stamp_tax_pct: float = STAMP_TAX_PCT
     slippage_pct: float = SLIPPAGE_PCT
     min_commission: float = MIN_COMMISSION
+    transfer_fee_pct: float = TRANSFER_FEE_PCT
 
     @classmethod
     def from_env(cls) -> "CostConfig":
@@ -73,6 +74,7 @@ class CostConfig:
             ("LPPL_COST_STAMP_TAX", "stamp_tax_pct"),
             ("LPPL_COST_SLIPPAGE", "slippage_pct"),
             ("LPPL_COST_MIN_COMMISSION", "min_commission"),
+            ("LPPL_COST_TRANSFER_FEE", "transfer_fee_pct"),
         ]:
             val = os.environ.get(var)
             if val is not None:
@@ -101,10 +103,13 @@ class CostConfig:
             exec_cfg = cfg.get("execution", {}) if cfg else {}
             buy_fee = float(exec_cfg.get("buy_fee_pct", COMMISSION_PCT))
             sell_fee = float(exec_cfg.get("sell_fee_pct", COMMISSION_PCT))
+            stamp_tax = float(exec_cfg.get("stamp_tax_pct", STAMP_TAX_PCT))
             slippage_pct = float(exec_cfg.get("slippage_pct", SLIPPAGE_PCT * 100)) / 100
             min_comm = float(exec_cfg.get("min_commission", MIN_COMMISSION))
+            transfer_fee = float(exec_cfg.get("transfer_fee_pct", TRANSFER_FEE_PCT))
             return cls(buy_fee_pct=buy_fee, sell_fee_pct=sell_fee,
-                       slippage_pct=slippage_pct, min_commission=min_comm)
+                       stamp_tax_pct=stamp_tax, slippage_pct=slippage_pct,
+                       min_commission=min_comm, transfer_fee_pct=transfer_fee)
         except Exception as e:
             logger.warning("Failed to load cost config from %s: %s", yaml_path, e)
             return cls()

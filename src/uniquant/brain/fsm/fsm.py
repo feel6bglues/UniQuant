@@ -109,6 +109,8 @@ class FSM:
             return self._build_state_result(FSMState.IDLE, "数据不足，无法进行完整分析")
 
         # Calculate indicators using analysis data
+        if Indicators is None:
+            raise ImportError("Indicators module not available")
         ma20 = Indicators.calc_ma(analysis_df, self.ma_short)
         ma60 = Indicators.calc_ma(analysis_df, self.ma_long)
 
@@ -368,9 +370,12 @@ class DecisionBrain:
         """执行买入逻辑"""
         if ctx.returns is not None and not ctx.returns.empty:
             evt_metrics = self.evt_risk.calculate_metrics(ctx.returns)
+            risk_level_map = {"CRISIS": "CRITICAL", "HIGH_VOL": "HIGH", "BEAR": "WARNING", "BULL": "LOW", "NORMAL": "LOW"}
+            raw_risk = evt_metrics.get("regime", "NORMAL")
+            risk_level = risk_level_map.get(raw_risk, "LOW")
             risk_scaler = (
                 IndicatorThresholds.FSM_RISK_SCALER_CRITICAL
-                if evt_metrics["risk_level"] == "CRITICAL"
+                if risk_level == "CRITICAL"
                 else 1.0
             )
             position_plan = self.sizer.calculate_shares(

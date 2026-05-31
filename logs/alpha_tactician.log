@@ -3333,3 +3333,16 @@ RuntimeError: signal failed
 2026-05-31 23:09:59 - uniquant.brain.wyckoff.state - INFO - 2026-05-31 23:09:59 - uniquant.brain.wyckoff.state - INFO - 状态已保存到：/tmp/tmps_p_anm9/test_state.json
 2026-05-31 23:09:59 - uniquant.brain.wyckoff.state - WARNING - 2026-05-31 23:09:59 - uniquant.brain.wyckoff.state - WARNING - 状态文件不存在：/nonexistent/path/state.json
 2026-05-31 23:09:59 - uniquant.brain.wyckoff.state - INFO - 2026-05-31 23:09:59 - uniquant.brain.wyckoff.state - INFO - 状态已保存到：/tmp/tmp5ejxw8vw/TEST_wyckoff_state.json
+2026-05-31 23:26:23 - uniquant.shared.cache.cache_factory - INFO - 2026-05-31 23:26:23 - uniquant.shared.cache.cache_factory - INFO - Creating MemoryCacheBackend with max_size=5000
+2026-05-31 23:26:23 - uniquant.shared.cache.backends - INFO - 2026-05-31 23:26:23 - uniquant.shared.cache.backends - INFO - MemoryCacheBackend initialized with max_size: 5000
+2026-05-31 23:26:23 - uniquant.data.utils.akshare_wrapper - INFO - 2026-05-31 23:26:23 - uniquant.data.utils.akshare_wrapper - INFO - AkShare initialized successfully
+2026-05-31 23:26:24 - FactorRegistry - INFO - 2026-05-31 23:26:24 - FactorRegistry - INFO - ✅ 因子注册成功: momentum_20d (technical) weight=1.0
+2026-05-31 23:26:24 - FactorRegistry - INFO - 2026-05-31 23:26:24 - FactorRegistry - INFO - ✅ 因子注册成功: momentum_60d (technical) weight=0.9
+2026-05-31 23:26:24 - FactorRegistry - INFO - 2026-05-31 23:26:24 - FactorRegistry - INFO - ✅ 因子注册成功: volatility_20d (technical) weight=0.8
+2026-05-31 23:26:24 - FactorRegistry - INFO - 2026-05-31 23:26:24 - FactorRegistry - INFO - ✅ 因子注册成功: volatility_60d (technical) weight=0.7
+2026-05-31 23:26:24 - FactorRegistry - INFO - 2026-05-31 23:26:24 - FactorRegistry - INFO - ✅ 因子注册成功: ma_ratio_5_20 (technical) weight=0.85
+2026-05-31 23:26:24 - FactorRegistry - INFO - 2026-05-31 23:26:24 - FactorRegistry - INFO - ✅ 因子注册成功: ma_ratio_10_60 (technical) weight=0.75
+2026-05-31 23:26:24 - FactorRegistry - INFO - 2026-05-31 23:26:24 - FactorRegistry - INFO - ✅ 因子注册成功: volume_ratio_5_20 (technical) weight=0.6
+2026-05-31 23:26:24 - FactorRegistry - INFO - 2026-05-31 23:26:24 - FactorRegistry - INFO - ✅ 因子注册成功: rsi_14 (technical) weight=0.8
+2026-05-31 23:26:24 - FactorRegistry - INFO - 2026-05-31 23:26:24 - FactorRegistry - INFO - ✅ 因子注册成功: price_position_20d (technical) weight=0.7
+2026-05-31 23:26:24 - FactorRegistry - INFO - 2026-05-31 23:26:24 - FactorRegistry - INFO - ✅ 因子注册成功: turnover_momentum_20d (technical) weight=0.85

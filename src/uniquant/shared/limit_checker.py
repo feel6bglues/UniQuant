@@ -72,6 +72,7 @@ def check_limit_status(
     symbol: str = "",
     name: Optional[str] = None,
     board_type: Optional[str] = None,
+    trading_days_listed: int = 0,
 ) -> LimitStatus:
     """
     检查涨跌停状态
@@ -82,6 +83,7 @@ def check_limit_status(
         symbol: 股票代码
         name: 股票名称（可选）
         board_type: 板块类型（可选，自动识别）
+        trading_days_listed: 上市以来的交易日数（0=非IPO，>0=IPO期间）
     
     Returns:
         LimitStatus: 涨跌停状态对象
@@ -102,6 +104,48 @@ def check_limit_status(
     # 自动识别板块类型
     if board_type is None:
         board_type = get_board_type(symbol, name)
+    
+    # IPO涨跌停规则
+    if trading_days_listed > 0:
+        if board_type in ("sci_tech", "gem"):
+            if trading_days_listed <= 5:
+                # 科创板/创业板前5个交易日无涨跌停限制
+                return LimitStatus(
+                    is_limit_up=False, is_limit_down=False,
+                    can_buy=True, can_sell=True,
+                    board_type=board_type,
+                    up_limit_price=float('inf'), down_limit_price=0.0,
+                    price_ratio=current_price / pre_close if pre_close > 0 else 1.0,
+                )
+        elif board_type == "beijing":
+            if trading_days_listed <= 1:
+                # 北交所首个交易日无涨跌停限制
+                return LimitStatus(
+                    is_limit_up=False, is_limit_down=False,
+                    can_buy=True, can_sell=True,
+                    board_type=board_type,
+                    up_limit_price=float('inf'), down_limit_price=0.0,
+                    price_ratio=current_price / pre_close if pre_close > 0 else 1.0,
+                )
+        else:
+            # 主板IPO首日: +44%/-36%
+            if trading_days_listed == 1:
+                up_limit_ratio = 1.44
+                down_limit_ratio = 0.64
+                up_limit_price = pre_close * up_limit_ratio
+                down_limit_price = pre_close * down_limit_ratio
+                price_ratio = current_price / pre_close
+                tolerance = MarketConstants.PRICE_TOLERANCE
+                return LimitStatus(
+                    is_limit_up=price_ratio >= up_limit_ratio - tolerance,
+                    is_limit_down=price_ratio <= down_limit_ratio + tolerance,
+                    can_buy=price_ratio < up_limit_ratio - tolerance,
+                    can_sell=price_ratio > down_limit_ratio + tolerance,
+                    board_type=board_type,
+                    up_limit_price=up_limit_price,
+                    down_limit_price=down_limit_price,
+                    price_ratio=price_ratio,
+                )
     
     # 获取涨跌停比例
     limit_ratios = MarketConstants.LIMIT_RATIO.get(board_type, MarketConstants.LIMIT_RATIO["main"])

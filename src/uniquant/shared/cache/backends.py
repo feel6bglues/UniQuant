@@ -45,76 +45,81 @@ class MemoryCacheBackend(CacheInterface):
         self.access_times: Dict[str, float] = {}
         self.hits = 0
         self.misses = 0
+        self._lock = threading.Lock()
         logger.info(f"MemoryCacheBackend initialized with max_size: {max_size}")
 
     def get(self, key: str) -> Optional[Any]:
         """获取缓存数据"""
-        if key in self.cache:
-            cache_item = self.cache[key]
+        with self._lock:
+            if key in self.cache:
+                cache_item = self.cache[key]
 
-            # 检查是否过期
-            if (time.time() - cache_item["created_at"]) > cache_item["ttl"]:
-                self.delete(key)
+                # 检查是否过期
+                if (time.time() - cache_item["created_at"]) > cache_item["ttl"]:
+                    self.delete(key)
+                    self.misses += 1
+                    logger.debug(f"Cache expired for key: {key}")
+                    return _SENTINEL
+
+                # 更新访问时间
+                self.access_times[key] = time.time()
+                self.hits += 1
+                logger.debug(f"Cache hit for key: {key}")
+                return cache_item["data"]
+            else:
                 self.misses += 1
-                logger.debug(f"Cache expired for key: {key}")
+                logger.debug(f"Cache miss for key: {key}")
                 return _SENTINEL
-
-            # 更新访问时间
-            self.access_times[key] = time.time()
-            self.hits += 1
-            logger.debug(f"Cache hit for key: {key}")
-            return cache_item["data"]
-        else:
-            self.misses += 1
-            logger.debug(f"Cache miss for key: {key}")
-            return _SENTINEL
 
     def set(self, key: str, value: Any, ttl: int = 3600) -> bool:
         """设置缓存数据"""
-        if value is None:
-            return False
+        with self._lock:
+            if value is None:
+                return False
 
-        # 检查是否为空数据
-        if hasattr(value, "empty") and value.empty:
-            logger.debug(f"Skipping cache for empty data: {key}")
-            return False
+            # 检查是否为空数据
+            if hasattr(value, "empty") and value.empty:
+                logger.debug(f"Skipping cache for empty data: {key}")
+                return False
 
-        # 检查缓存大小
-        if len(self.cache) >= self.max_size:
-            self._evict_oldest()
+            # 检查缓存大小
+            if len(self.cache) >= self.max_size:
+                self._evict_oldest()
 
-        # 设置缓存
-        self.cache[key] = {"data": value, "ttl": ttl, "created_at": time.time()}
-        self.access_times[key] = time.time()
-        logger.debug(f"Cache set for key: {key}")
-        return True
+            # 设置缓存
+            self.cache[key] = {"data": value, "ttl": ttl, "created_at": time.time()}
+            self.access_times[key] = time.time()
+            logger.debug(f"Cache set for key: {key}")
+            return True
 
     def delete(self, key: str) -> bool:
         """删除指定缓存"""
-        if key in self.cache:
-            del self.cache[key]
-            if key in self.access_times:
-                del self.access_times[key]
-            logger.debug(f"Cache deleted for key: {key}")
-            return True
-        return False
+        with self._lock:
+            if key in self.cache:
+                del self.cache[key]
+                if key in self.access_times:
+                    del self.access_times[key]
+                logger.debug(f"Cache deleted for key: {key}")
+                return True
+            return False
 
     def clear(self, pattern: Optional[str] = None) -> int:
         """清空缓存"""
-        if pattern:
-            keys_to_delete = [key for key in self.cache if pattern in key]
-            for key in keys_to_delete:
-                self.delete(key)
-            logger.info(
-                f"Cleared {len(keys_to_delete)} cache entries matching pattern: {pattern}"
-            )
-            return len(keys_to_delete)
-        else:
-            count = len(self.cache)
-            self.cache.clear()
-            self.access_times.clear()
-            logger.info(f"Cleared all {count} cache entries")
-            return count
+        with self._lock:
+            if pattern:
+                keys_to_delete = [key for key in self.cache if pattern in key]
+                for key in keys_to_delete:
+                    self.delete(key)
+                logger.info(
+                    f"Cleared {len(keys_to_delete)} cache entries matching pattern: {pattern}"
+                )
+                return len(keys_to_delete)
+            else:
+                count = len(self.cache)
+                self.cache.clear()
+                self.access_times.clear()
+                logger.info(f"Cleared all {count} cache entries")
+                return count
 
     def get_stats(self) -> Dict[str, Any]:
         """获取缓存统计信息"""
@@ -290,17 +295,18 @@ class DiskCacheBackend(CacheInterface):
 
     def delete(self, key: str) -> bool:
         """删除指定缓存"""
-        cache_path = self._get_cache_path(key)
+        with self._lock:
+            cache_path = self._get_cache_path(key)
 
-        if cache_path.exists():
-            try:
-                os.remove(cache_path)
-                logger.debug(f"Cache deleted for key: {key}")
-                return True
-            except OSError as e:
-                logger.error(f"Failed to delete cache for {key}: {e}")
-                return False
-        return False
+            if cache_path.exists():
+                try:
+                    os.remove(cache_path)
+                    logger.debug(f"Cache deleted for key: {key}")
+                    return True
+                except OSError as e:
+                    logger.error(f"Failed to delete cache for {key}: {e}")
+                    return False
+            return False
 
     def clear(self, pattern: Optional[str] = None) -> int:
         """清空缓存"""

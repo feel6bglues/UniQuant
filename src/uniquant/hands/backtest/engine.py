@@ -299,15 +299,18 @@ class BacktestEngine:
         """
         self.reset()
         
-        required_cols = {"date", "open", "high", "low", "close"}
+        required_cols = {"date", "open", "high", "low", "close", "volume"}
         missing = required_cols - set(df.columns)
         if missing:
             raise BacktestError(f"缺少必需列: {missing}")
         
-        if "pre_close" not in df.columns:
+        if "pre_close" not in df.columns or "avg_daily_volume" not in df.columns:
             df = df.copy()
-            df["pre_close"] = df["close"].shift(1)
-            df["pre_close"] = df["pre_close"].fillna(df["open"])
+            if "pre_close" not in df.columns:
+                df["pre_close"] = df["close"].shift(1)
+                df["pre_close"] = df["pre_close"].fillna(df["open"])
+            if "avg_daily_volume" not in df.columns:
+                df["avg_daily_volume"] = df["volume"].rolling(20).mean().fillna(0)
         
         dates = pd.to_datetime(df["date"])
         start_date = dates.iloc[0]

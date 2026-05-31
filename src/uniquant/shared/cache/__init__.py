@@ -23,17 +23,7 @@ def _hash_dataframe(df: pd.DataFrame) -> str:
     if df.empty:
         return "empty"
     
-    hash_data = {
-        "shape": df.shape,
-        "columns": tuple(sorted(df.columns)),
-        "dtypes": tuple(df.dtypes.astype(str).tolist()),
-        "tail_timestamp": str(df.index[-1]) if isinstance(df.index, pd.DatetimeIndex) else "",
-        "head_timestamp": str(df.index[0]) if isinstance(df.index, pd.DatetimeIndex) else "",
-        "tail_values": str(df.tail(5).values),
-        "head_values": str(df.head(5).values),
-    }
-    
-    return hashlib.sha256(json.dumps(hash_data, sort_keys=True).encode()).hexdigest()[:32]
+    return pd.util.hash_pandas_object(df).values.tobytes().hex()[:32]
 
 def generate_cache_key(func: Callable, args: tuple, kwargs: dict) -> str:
     """生成优化的缓存键 (SHA256 + 前缀用于调试)"""
@@ -46,7 +36,7 @@ def generate_cache_key(func: Callable, args: tuple, kwargs: dict) -> str:
             args_repr.append(f"DataFrame:{df_hash}")
         elif isinstance(arg, (pd.Series, pd.Index)):
             series_hash = hashlib.sha256(
-                f"{arg.shape}:{arg.dtype}:{str(arg.head(3).values)}:{str(arg.tail(3).values)}".encode()
+                pd.util.hash_pandas_object(arg).values.tobytes()
             ).hexdigest()[:32]
             args_repr.append(f"Series:{series_hash}")
         elif isinstance(arg, dict):
