@@ -88,8 +88,8 @@ class MarketConstants:
 class MarketCapThresholds:
     """市值分级阈值 (单位: 亿元)"""
 
-    LARGE_CAP = 1000  # 大盘股
-    MID_CAP = 300  # 中盘股
+    LARGE_CAP = 500  # 大盘股
+    MID_CAP = 100  # 中盘股
     SMALL_CAP = 50  # 小盘股
     MICRO_CAP = 10  # 微盘股
 

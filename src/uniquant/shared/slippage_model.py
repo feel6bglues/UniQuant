@@ -1,6 +1,8 @@
 from abc import ABC, abstractmethod
 from datetime import datetime
 
+from .cost_model import SLIPPAGE_PCT
+
 
 class SlippageModel(ABC):
     @abstractmethod
@@ -12,7 +14,7 @@ class SlippageModel(ABC):
 class DefaultSlippage(SlippageModel):
     def estimate(self, symbol: str, quantity: int, direction: str,
                  price: float, timestamp: datetime) -> float:
-        return 0.001
+        return SLIPPAGE_PCT
 
 
 class DynamicSlippage(SlippageModel):
