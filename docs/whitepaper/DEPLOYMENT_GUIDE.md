@@ -46,10 +46,10 @@ source .venv/bin/activate
 # 3. 基础安装
 pip install -e .
 
-# 4. 完整安装 (含所有可选依赖)
-pip install -e ".[all]"
+# 4. 完整安装 (含所有可选依赖 + 开发工具)
+pip install -e ".[all,dev]"
 
-# 5. 仅开发依赖
+# 5. 仅开发依赖 (pytest, ruff, mypy)
 pip install -e ".[dev]"
 ```
 
@@ -76,6 +76,15 @@ pip install -e ".[dev]"
 | `PyYAML` | `>=6.0.0,<7.0.0` | YAML 配置解析 |
 | `requests` | `>=2.31.0` | HTTP 请求 |
 | `xxhash` | `>=3.4.0` | 高速哈希 |
+| `matplotlib` | `>=3.8.0,<4.0.0` | 图表绘制 |
+| `tqdm` | `>=4.65.0` | 进度条 |
+| `psutil` | `>=5.9.0` | 系统监控 |
+| `python-dateutil` | `>=2.8.0` | 日期解析 |
+| `pytz` | `>=2023.0` | 时区处理 |
+| `tabulate` | `>=0.9.0,<1.0.0` | 表格格式化 |
+| `lxml` | `>=4.9.0` | HTML/XML 解析 |
+| `beautifulsoup4` | `>=4.12.0` | 网页解析 |
+| `markdown` | `>=3.5.0` | Markdown 渲染 |
 
 ### 2.4 可选依赖
 
@@ -87,7 +96,7 @@ pip install -e ".[dev]"
 | `curl` | `curl-cffi` | cURL 绑定 |
 | `report` | `weasyprint` | PDF 报告 |
 | `js` | `py-mini-racer` | JS 执行器 (THS 解析) |
-| `all` | 以上所有 | 完整安装 |
+| `all` | tdx + baostock + curl + report + js | 完整安装 (不含 dev) |
 
 ### 2.5 验证安装
 
@@ -174,10 +183,11 @@ base:
     path: "/home/james/.local/share/tdxcfv/drive_c/tc"  # 通达信数据目录
 ```
 
-**路径常量** (`config_loader.py`):
-- `LAKE_DIR` = `{ROOT_DIR}/data/lake`
+**路径常量** (`config_loader.py:35-41`):
+- `LAKE_DIR` = `{ROOT_DIR}/{base.data_lake.path}` → 实际为 `{ROOT_DIR}/data/lake`
 - `CACHE_DIR` = `{ROOT_DIR}/data/cache`
-- `DATA_DIR` = `{ROOT_DIR}/data`
+- `DATA_DIR` = `{ROOT_DIR}/{base.data_lake.path}` → 与 LAKE_DIR 相同 (均为 `data/lake`)
+- `ROOT_DIR` = 项目根目录
 
 ### 3.4 数据源配置
 
@@ -228,22 +238,60 @@ cache:
 **文件**: `config/trading.yaml` (57 行)
 
 ```yaml
-execution:
-  broker: "simulator"
-  initial_capital: 100000.0       # 初始资金 10万
-  slippage_pct: 0.0005            # 滑点 万5
-  buy_fee_pct: 0.0003             # 买入佣金 万3
-  sell_fee_pct: 0.0003            # 卖出佣金 万3
-  stamp_tax_pct: 0.0005           # 印花税 万5
-  min_commission: 5.0             # 最低佣金 5元
+data:
+  tdx_paths:
+    sh: "${LPPL_TDX_DATA_DIR}/vipdoc/sh/lday/"   # 上海日线数据
+    sz: "${LPPL_TDX_DATA_DIR}/vipdoc/sz/lday/"   # 深圳日线数据
+  db_path: "data/trading.db"                       # 交易数据库
+  csi300_path: "${LPPL_TDX_DATA_DIR}/vipdoc/sh/lday/sh000300.day"
+
+strategies:
+  wyckoff:
+    enabled: true
+    lookback_days: 400
+    weekly_lookback: 120
+    monthly_lookback: 40
+    weight: 0.30
+    score_threshold: 0.45
+    min_confidence_level: "B"
+  ma_atr:
+    enabled: true
+    fast_period: 5
+    slow_period: 20
+    atr_period: 20
+    weight: 0.35
+  reversal:
+    enabled: true
+    lookback_days: 5
+    threshold_pct: 5.0
+    hold_days: 5
+    take_profit_pct: 4.0
+    stop_loss_pct: 4.0
+    weight: 0.20
+  regime:
+    enabled: true
+    weight: 0.15
 
 risk:
   max_positions: 30               # 最大持仓数
   max_single_stock_pct: 5.0       # 单股最大占比 5%
   max_single_sector_pct: 20.0     # 单行业最大占比 20%
   max_drawdown_pct: 15.0          # 最大回撤 15%
+  max_drawdown_stop_pct: 25.0     # 回撤止损 25%
+  consecutive_losses: 5           # 连续亏损次数
   var_confidence: 0.95            # VaR 置信度
   max_daily_var_pct: 2.0          # 日 VaR 上限 2%
+
+execution:
+  broker: "simulator"
+  order_timeout_minutes: 30       # 订单超时
+  slippage_pct: 0.0005            # 滑点 万5
+  initial_capital: 100000.0       # 初始资金 10万
+  buy_fee_pct: 0.0003             # 买入佣金 万3
+  sell_fee_pct: 0.0003            # 卖出佣金 万3
+  stamp_tax_pct: 0.0005           # 印花税 万5
+  transfer_fee_pct: 0.00001       # 过户费 万0.1
+  min_commission: 5.0             # 最低佣金 5元
 ```
 
 ### 3.7 因子配置
@@ -338,10 +386,10 @@ class SourceRouter:
 flowchart TD
     A["DataFetcher.get_price()"] --> B["DataIngestionService.fetch_price()"]
     B --> C{"SourceRouter.fetch_with_fallback()"}
-    C --> D["MootdxLocalSource"]
-    C --> E["MootdxOnlineSource"]
-    C --> F["BaostockSource"]
-    C --> G["SinaSource"]
+    C --> D["TdxSource"]
+    C --> E["BaostockSource"]
+    C --> F["SinaSource"]
+    C --> G["ThsSource"]
     C --> H["TencentSource"]
     D --> I["StandardAdapter._standardize_data()"]
     E --> I
@@ -379,7 +427,7 @@ from uniquant.shared.constants import MarketHours
 
 is_open = MarketHours.is_market_open()         # True/False
 is_trading = MarketHours.is_trading_day()       # True/False
-status = MarketHours.get_market_status()        # "交易中" / "午休" / "已收盘" / "休市"
+status = MarketHours.get_market_status()        # "交易中" / "休市(周末)" / "开盘前" / "已收盘" / "午休"
 next_open = MarketHours.get_next_open_time()    # datetime
 ```
 

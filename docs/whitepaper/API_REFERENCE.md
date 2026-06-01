@@ -292,19 +292,23 @@ class DecisionBrain:
 **`make_decision` 返回**:
 ```python
 {
-    "action": str,          # "BUY" | "SELL" | "HOLD" | "ADD" | "EXECUTE_SELL" | "CIRCUIT_BREAK" | "FORCE_WAIT" | "FORCE_EXIT"
+    "action": str,          # "BUY" | "SELL" | "HOLD" | "ADD" | "EXECUTE_SELL" | "EXECUTE_BUY" | "CIRCUIT_BREAK" | "FORCE_WAIT" | "FORCE_EXIT"
     "reason": str,
-    "regime": str,
+    "regime": str,          # MarketRegime.value
     "risk": str,
     "bubble_confidence": float,
-    "ntf_side": str,
+    "ntf_side": str,        # NtfSide.value
+    "ntf_intensity": float,
     "is_3rd_buy": bool,
     "bi_count": int,
     "alpha_score": float,
-    "final_score": int,
-    "state": str,           # 当前 FSM 状态
+    "final_decision": str,  # 同 action
+    "final_score": int,     # 综合得分
+    "state": str,           # FSMState.value (通过 **kwargs 注入)
 }
 ```
+
+> **注意**: `state` 键通过 `**kwargs` 注入，不在 `_build_response` 的固定字段中，但在 `_execute_buy` 和 `_check_sell_conditions` 等路径中会包含。
 
 ### 3.4 WyckoffEngine
 
@@ -321,6 +325,10 @@ class WyckoffEngine:
     ): ...
     def analyze(self, df, symbol="UNKNOWN", period="日线", multi_timeframe=False, image_evidence=None) -> WyckoffReport: ...
     def scan_signal(self, df, symbol="UNKNOWN") -> dict: ...
+    def detect_spring(self, df, symbol="UNKNOWN") -> dict: ...
+    def detect_utad(self, df, symbol="UNKNOWN") -> dict: ...
+    def detect_lps(self, df, symbol="UNKNOWN") -> dict: ...
+    def detect_sow(self, df, symbol="UNKNOWN") -> dict: ...
 ```
 
 **输入 DataFrame**: `date`, `open`, `high`, `low`, `close` (必需), `volume`/`vol` (推荐)
@@ -351,6 +359,8 @@ class DrawdownAnalyzer:
 class DrawdownMetrics:
     max_drawdown: float = 0.0
     max_drawdown_duration: int = 0
+    avg_drawdown: float = 0.0
+    avg_drawdown_duration: float = 0.0
     calmar_ratio: float = 0.0
     ulcer_index: float = 0.0
     rolling_mdd_60d: float = 0.0
@@ -368,7 +378,7 @@ class TailRiskMetrics:
     kurtosis: float = 3.0
 ```
 
-内置压力测试场景: `"2015_crash"` (-40%), `"2016_meltdown"` (-10%), `"2018_bear"` (-30%), `"2020_covid"` (-15%)
+内置压力测试场景: `"2015_crash"` (-40%), `"2016_meltdown"` (-10%), `"2018_bear"` (-30%), `"2020_covid"` (-15%), `"2024_microcap_stampede"` (-25%)
 
 ### 4.2 HistoricalSimulationRisk
 
@@ -405,9 +415,25 @@ class PositionSizer:
     ) -> Dict[str, Any]: ...
 ```
 
+> **Protocol 不匹配**: `PositionSizerProtocol` 定义 `czsc_bottom` 为第 3 个位置参数，但 `PositionSizer` 实现中 `market` 是第 3 个位置参数、`czsc_bottom` 是第 4 个。`isinstance(sizer, PositionSizerProtocol)` 检查会失败。
+
 返回: `建议动作, 入场区间, 几何止损, ATR止损, 执行止损, 风险敞口, 建议仓位, 资金占用, 是否触发熔断`
 
 **A 股特殊处理**: T+1 惩罚系数 `CN=1.2`
+
+#### PortfolioSizer
+
+```python
+# sizer.py:234-266
+class PortfolioSizer:
+    def __init__(self, max_total_risk=0.25, max_single=0.10, max_daily_loss=0.02): ...
+    def allocate(
+        self,
+        signals: Dict[str, PositionSizingResult],
+        portfolio_equity: float,
+        daily_pnl: float = 0.0,
+    ) -> PortfolioAllocation: ...
+```
 
 ### 4.4 PortfolioOptimizer
 
@@ -641,10 +667,16 @@ class FactorAnalyzer:
     DEFAULT_HOLDING_PERIODS: List[int] = [1, 5, 20]
 
     def compute_rank_ic(self, factor_values: pd.Series, forward_returns: pd.Series) -> float: ...
-    def compute_ic_ir(self, df, factor_cols, holding_periods=None, date_col="date", ...) -> Dict: ...
+    def compute_ic_ir(
+        self, df, factor_cols, holding_periods=None, date_col="date",
+        code_col="code", price_col="close",
+        mode=AnalysisMode.BACKTEST, half_life=None,
+    ) -> Dict: ...
     def compute_factor_correlation(self, df, factor_cols, method="spearman") -> pd.DataFrame: ...
     def get_top_factors(self, metric="icir", top_n=10, min_periods=10) -> List[Tuple[str, float]]: ...
 ```
+
+> **防前视偏差**: `mode` 参数为 `AnalysisMode` 枚举 (非字符串)。`mode=AnalysisMode.LIVE` 时 `_compute_forward_returns` 抛出 `ValueError`，禁止未来数据泄漏。
 
 #### FactorComposer — `brain/factors/composer.py:18-307`
 
@@ -713,8 +745,10 @@ def retry(
     max_retries: int = 3,
     delay: float = 1.0,
     backoff: float = 2.0,
+    max_delay: Optional[float] = None,
     exceptions: Tuple[Type[Exception], ...] = (Exception,),
     on_retry: Optional[Callable[[Exception, int], None]] = None,
+    on_failure: Optional[Callable[[Exception], None]] = None,
 ) -> Callable:
 ```
 
