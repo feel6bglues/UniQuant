@@ -56,8 +56,7 @@ class LpplAnalysisEngine:
             LPPL 分析结果
         """
         try:
-            from ...brain.lppl.engine import LPPLEngine, LPPLConfig
-            config = LPPLConfig(window_range=(60, 120))
+            from ...brain.lppl.engine import LPPLEngine
             engine = LPPLEngine()
             if df is not None and not df.empty:
                 result = engine.detect_bubble(df)

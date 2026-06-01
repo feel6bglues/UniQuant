@@ -139,14 +139,15 @@ class BacktestEngine:
         return bool(current_idx[0] - buy_idx[0] >= 1)
     
     def _check_limit_constraint(
-        self, 
-        price: float, 
-        pre_close: float, 
+        self,
+        price: float,
+        pre_close: float,
         action: str,
         symbol: str = "",
+        name: Optional[str] = None,
     ) -> bool:
         """检查涨跌停约束"""
-        limit_status = check_limit_status(price, pre_close, symbol)
+        limit_status = check_limit_status(price, pre_close, symbol, name)
         if action == "BUY" and limit_status.is_limit_up:
             return False
         if action == "SELL" and limit_status.is_limit_down:
@@ -161,6 +162,7 @@ class BacktestEngine:
         reason: str = "",
         pre_close: float = 0,
         symbol: str = "",
+        name: Optional[str] = None,
         volume: int = 0,
         avg_daily_volume: float = 0,
     ) -> Optional[TradeRecord]:
@@ -168,7 +170,7 @@ class BacktestEngine:
         if shares <= 0:
             return None
         
-        if pre_close > 0 and not self._check_limit_constraint(price, pre_close, "BUY", symbol):
+        if pre_close > 0 and not self._check_limit_constraint(price, pre_close, "BUY", symbol, name):
             logger.debug(f"涨停无法买入: {timestamp}")
             return None
         
@@ -212,6 +214,7 @@ class BacktestEngine:
         reason: str = "",
         pre_close: float = 0,
         symbol: str = "",
+        name: Optional[str] = None,
         buy_date: Optional[datetime] = None,
         volume: int = 0,
         avg_daily_volume: float = 0,
@@ -224,7 +227,7 @@ class BacktestEngine:
             logger.debug(f"T+1约束无法卖出: {timestamp}")
             return None
         
-        if pre_close > 0 and not self._check_limit_constraint(price, pre_close, "SELL", symbol):
+        if pre_close > 0 and not self._check_limit_constraint(price, pre_close, "SELL", symbol, name):
             logger.debug(f"跌停无法卖出: {timestamp}")
             return None
         
@@ -284,6 +287,7 @@ class BacktestEngine:
         df: pd.DataFrame,
         signal_generator: Callable[[pd.DataFrame, int, Dict[str, Any]], Dict[str, Any]],
         symbol: str = "",
+        name: Optional[str] = None,
         position_size: int = 100,
     ) -> BacktestResult:
         """
@@ -293,6 +297,7 @@ class BacktestEngine:
             df: K线数据，必须包含 date, open, high, low, close 列
             signal_generator: 信号生成函数，返回 {"action": "BUY"/"SELL"/"HOLD", "reason": "..."}
             symbol: 股票代码
+            name: 股票名称（用于 ST 识别）
             position_size: 每次交易股数
             
         Returns:
@@ -342,6 +347,7 @@ class BacktestEngine:
                     reason=reason,
                     pre_close=pre_close,
                     symbol=symbol,
+                    name=name,
                     volume=int(row.get("volume", 0)),
                     avg_daily_volume=float(row.get("avg_daily_volume", 0)),
                 )
@@ -356,6 +362,7 @@ class BacktestEngine:
                     reason=reason,
                     pre_close=pre_close,
                     symbol=symbol,
+                    name=name,
                     buy_date=buy_date,
                     volume=int(row.get("volume", 0)),
                     avg_daily_volume=float(row.get("avg_daily_volume", 0)),

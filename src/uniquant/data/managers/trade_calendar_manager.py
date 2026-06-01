@@ -123,6 +123,24 @@ class TradeCalendarManager:
             logger.error(f"检查交易日失败: {e}")
             return False
 
+    def _builtin_trade_calendar(self, start_date: str, end_date: str) -> pd.DataFrame:
+        """使用内置假日表生成交易日历回退"""
+        start_dt = pd.to_datetime(start_date)
+        end_dt = pd.to_datetime(end_date)
+        all_days = pd.bdate_range(start_dt, end_dt)
+        trade_dates = []
+        for d in all_days:
+            ds = d.strftime("%Y-%m-%d")
+            if ds in _CN_HOLIDAYS:
+                continue
+            if ds in _CN_SPECIAL_WORKDAYS:
+                trade_dates.append(d)
+            elif d.weekday() < 5:
+                trade_dates.append(d)
+        if not trade_dates:
+            return pd.DataFrame()
+        return pd.DataFrame({"trade_date": pd.to_datetime(trade_dates)}).sort_values("trade_date").reset_index(drop=True)
+
     def get_trade_calendar(self, start_date: str, end_date: str) -> pd.DataFrame:
         try:
             start_dt = pd.to_datetime(start_date)
@@ -144,11 +162,11 @@ class TradeCalendarManager:
                 ]
                 filtered_calendar = filtered_calendar.sort_values('trade_date').reset_index(drop=True)
                 return filtered_calendar
-                
-            return pd.DataFrame()
+
+            return self._builtin_trade_calendar(start_date, end_date)
         except Exception as e:
             logger.error(f"获取交易日历失败: {e}")
-            return pd.DataFrame()
+            return self._builtin_trade_calendar(start_date, end_date)
 
 def main():
     manager = TradeCalendarManager()

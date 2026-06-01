@@ -192,7 +192,7 @@ class LPPLCalculator:
 
     def lppl_func(self, t, tc, m, w, a, b, c, phi):
         """
-        LPPL函数实现
+        LPPL函数实现 (委托到模块级权威实现)
 
         Args:
             t: 时间序列
@@ -205,12 +205,9 @@ class LPPLCalculator:
             phi: 相位角
 
         Returns:
-            LPPL模型值（tau <= 0 时返回 NaN）
+            LPPL模型值（tau <= 0 时 clamp 到 1e-8）
         """
-        tau = tc - t  # 不使用 abs，保持数学正确性
-        tau = np.maximum(tau, 1e-8)
-        result = a + b * (tau**m) + c * (tau**m) * np.cos(w * np.log(tau) + phi)
-        return result
+        return lppl_func(t, tc, m, w, a, b, c, phi)
 
     def cost_function(self, params, t, log_prices):
         """
@@ -222,7 +219,7 @@ class LPPLCalculator:
             log_prices: 对数价格序列
 
         Returns:
-            均方误差
+            均方根误差 (RMSE)
         """
         tc, m, w, a, b, c, phi = params
         prediction = self.lppl_func(t, tc, m, w, a, b, c, phi)
@@ -242,7 +239,7 @@ class LPPLCalculator:
             log_prices: 对数价格序列
 
         Returns:
-            均方误差
+            残差平方和 (SSE)，用于 DE 优化器目标函数
         """
         tc, m, w = nonlinear_params
 
@@ -409,9 +406,8 @@ class LPPLCalculator:
             tc_confidence = 0.3
 
         # 基于成本函数值的置信度（值越小越好）
-        # cost_value 是 SSE（残差平方和），转为 RMSE 再与 cost_scale 比较
-        mse = cost_value / max(data_length, 1)
-        rmse = np.sqrt(mse)
+        # cost_value 是 RMSE，直接与 cost_scale 比较
+        rmse = cost_value
         cost_confidence = max(
             0.1, min(1.0, 1.0 - (rmse / self.cost_scale))
         )

@@ -363,7 +363,7 @@ def handle_network_errors(default_return: Any = None, max_retries: Optional[int]
         @handle_errors(
             *network_exceptions,
             default_return=default_return,
-            reraise=False,
+            reraise=True,
             error_type="network",
             log_level=logging.WARNING,
         )
@@ -457,7 +457,7 @@ def handle_api_errors(default_return: Any = None, max_retries: int = 3):
         @handle_errors(
             *api_exceptions,
             default_return=default_return,
-            reraise=False,
+            reraise=True,
             error_type="api",
             log_level=logging.ERROR,
         )

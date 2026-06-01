@@ -92,7 +92,7 @@ class CostConfig:
     def from_yaml(cls, yaml_path: Optional[str] = None) -> "CostConfig":
         """Load from trading.yaml execution section.
 
-        The yaml stores slippage_pct as a percentage (e.g. 0.1 for 0.1%).
+        The yaml stores slippage_pct as a decimal (e.g. 0.0005 for 0.05%).
         """
         if yaml_path is None:
             yaml_path = str(Path(__file__).resolve().parents[2] / "config" / "trading.yaml")

@@ -20,14 +20,13 @@ class DataCleaner:
         df.columns = [col.lower() for col in df.columns]
 
         # 2. 类型转换
+        price_cols = {"open", "high", "low", "close"}
         numeric_cols = ["open", "high", "low", "close", "volume"]
         for col in numeric_cols:
             if col in df.columns:
-                df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0)
-
-        # 3. 处理停牌逻辑
-        if "volume" in df.columns:
-            df["volume"] = df["volume"].fillna(0)
+                df[col] = pd.to_numeric(df[col], errors="coerce")
+                if col not in price_cols:
+                    df[col] = df[col].fillna(0)
 
         # 4. 处理缺失值和重复值
         df = df.dropna(subset=["date", "close"])
@@ -38,7 +37,7 @@ class DataCleaner:
         if "amount" not in df.columns:
             df["amount"] = df.get("close", 0) * df.get("volume", 0)
         else:
-            df["amount"] = pd.to_numeric(df["amount"], errors="coerce").fillna(0)
+            df["amount"] = pd.to_numeric(df["amount"], errors="coerce")
 
         # 6. 排序并重置索引
         df = df.sort_values("date").reset_index(drop=True)
