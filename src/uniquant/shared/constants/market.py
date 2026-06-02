@@ -1,6 +1,7 @@
 """市场相关常量"""
 
 import datetime
+import logging
 from typing import Optional, Set
 
 
@@ -178,6 +179,37 @@ class MarketHours:
         "2025-10-11",
     }
 
+    _holidays_loaded: bool = False
+
+    @classmethod
+    def _ensure_holidays_loaded(cls) -> None:
+        if not cls._holidays_loaded:
+            cls.refresh_holidays()
+            cls._holidays_loaded = True
+
+    @classmethod
+    def refresh_holidays(cls, min_year: int = 2000, max_year: int = 2026) -> None:
+        try:
+            import akshare as ak
+
+            trade_cal = ak.tool_trade_date_hist()
+            cls._CN_HOLIDAYS.clear()
+            cls._CN_SPECIAL_WORKDAYS.clear()
+            for _, row in trade_cal.iterrows():
+                date_str = str(row["trade_date"])[:10]
+                is_open = row["open"] if "open" in row else row.get("is_open", 1)
+                if not is_open:
+                    cls._CN_HOLIDAYS.add(date_str)
+                else:
+                    dt = datetime.date.fromisoformat(date_str)
+                    if dt.weekday() >= 5:
+                        cls._CN_SPECIAL_WORKDAYS.add(date_str)
+            cls._CN_HOLIDAYS -= cls._CN_SPECIAL_WORKDAYS
+            logger = logging.getLogger(__name__)
+            logger.info(f"刷新节假日日历: {len(cls._CN_HOLIDAYS)} 假日, {len(cls._CN_SPECIAL_WORKDAYS)} 调休")
+        except Exception:
+            pass
+
     @classmethod
     def is_market_open(cls, dt: Optional[datetime.datetime] = None) -> bool:
         """
@@ -192,8 +224,8 @@ class MarketHours:
         if dt is None:
             dt = datetime.datetime.now()
 
-        # 检查是否是工作日
-        if dt.weekday() not in cls.TRADING_DAYS:
+        # 检查是否为交易日（考虑节假日和调休）
+        if not cls.is_trading_day(dt.date() if isinstance(dt, datetime.datetime) else dt):
             return False
 
         # 检查时间是否在交易时段
@@ -227,7 +259,7 @@ class MarketHours:
             dt = datetime.datetime.now()
 
         # 如果是交易日且还没到下午收盘，可能是当天
-        if dt.weekday() in cls.TRADING_DAYS:
+        if cls.is_trading_day(dt.date() if isinstance(dt, datetime.datetime) else dt):
             afternoon_end = datetime.time(cls.AFTERNOON_END_HOUR, cls.AFTERNOON_END_MINUTE)
             if dt.time() < afternoon_end:
                 # 检查是否在交易时间之前
@@ -245,7 +277,7 @@ class MarketHours:
 
         # 找下一个交易日
         next_day = dt + datetime.timedelta(days=1)
-        while next_day.weekday() not in cls.TRADING_DAYS:
+        while not cls.is_trading_day(next_day):
             next_day += datetime.timedelta(days=1)
 
         return next_day.replace(hour=cls.MORNING_START_HOUR, minute=cls.MORNING_START_MINUTE, second=0, microsecond=0)
@@ -292,6 +324,8 @@ class MarketHours:
         Returns:
             bool: 是否为交易日
         """
+        cls._ensure_holidays_loaded()
+
         if dt is None:
             dt = datetime.date.today()
 
