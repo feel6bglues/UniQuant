@@ -57,17 +57,13 @@ class ServiceContainer:
 
         from .data_service import DataService
         from .cache_coordinator import CacheCoordinator
-        from .stock_query_service import StockQueryService
 
         storage = StorageManager()
         calendar = TradeCalendarManager()
         cache = CacheCoordinator()
-        stock_query = StockQueryService()
 
         data_svc = DataService(
             storage_manager=storage,
-            cache_coordinator=cache,
-            stock_query=stock_query,
         )
         self.register("storage", storage)
         self.register("calendar", calendar)
