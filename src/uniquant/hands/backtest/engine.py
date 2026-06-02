@@ -335,8 +335,6 @@ class BacktestEngine:
         for idx in range(len(df)):
             row = df.iloc[idx]
             current_price = row["close"]
-            pre_close = row.get("pre_close", row["open"])
-            timestamp = dates.iloc[idx]
 
             signal = signal_generator(df, idx, {
                 "position": self.position,
