@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
 import numpy as np
@@ -14,7 +14,7 @@ from ...shared.constants import BacktestConstants
 from ...shared.cost_model import RISK_FREE_RATE, calculate_sharpe_ratio
 from ...shared.logger_factory import get_logger
 from ...data.managers.trade_calendar_manager import TradeCalendarManager
-from .unified_matching_engine import UnifiedMatchingEngine, FillResult
+from .unified_matching_engine import UnifiedMatchingEngine
 
 logger = get_logger(__name__)
 

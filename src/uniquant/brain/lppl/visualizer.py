@@ -8,7 +8,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-from ...shared.constants import LPPLConstants
 from ...shared.error_handling import handle_errors
 from ...shared.exceptions import AnalysisError
 from ...shared.logger_factory import get_logger

@@ -1,8 +1,6 @@
 from __future__ import annotations
 
 from typing import Any, Dict, List, Optional, TYPE_CHECKING
-import base64
-import io
 from datetime import datetime
 
 import numpy as np

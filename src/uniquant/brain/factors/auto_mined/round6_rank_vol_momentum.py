@@ -50,7 +50,7 @@ if __name__ == "__main__":
     sys.path.insert(0, str(project_root / "src"))
     sys.path.insert(0, str(project_root))
 
-    from mining_harness import load_universe, run_factor_ic_analysis, verdict
+    from mining_harness import load_universe, verdict
 
     print("=" * 60)
     print("ROUND 6: Rank-Normalized Volume-Weighted Momentum")
@@ -109,7 +109,7 @@ if __name__ == "__main__":
     print(f"t-stat:    {best_result.ic_t_stat:.2f}")
     print(f"Periods:   {best_result.n_periods}")
 
-    print(f"\nAll periods:")
+    print("\nAll periods:")
     for p, r in period_results.items():
         print(f"  {p}d: IC={r.ic_mean:.4f}, ICIR={r.icir:.4f}, IC>0={r.ic_positive_ratio:.2%}")
 

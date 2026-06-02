@@ -1,9 +1,8 @@
 from typing import Dict, Any, Optional
-import numpy as np
 import pandas as pd
 
 from ...shared.logger_factory import get_logger
-from ...shared.constants import IndicatorThresholds, RiskCalculationConstants
+from ...shared.constants import IndicatorThresholds
 
 logger = get_logger(__name__)
 

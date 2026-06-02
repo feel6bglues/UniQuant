@@ -32,7 +32,7 @@ _DECAY_HALFLIFE = 10  # bars
 def compute_czsc_signal_score(df: pd.DataFrame, mode: str = "backtest") -> pd.Series:
     """CZSC signal score with exponential time-decay."""
     _live_guard(mode)
-    from uniquant.brain.czsc.czsc_engine import CZSCEngine, CZSCSignalType
+    from uniquant.brain.czsc.czsc_engine import CZSCEngine
 
     engine = CZSCEngine()
     # reset engine state

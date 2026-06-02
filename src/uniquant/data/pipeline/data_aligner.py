@@ -1,8 +1,5 @@
 # -*- coding: utf-8 -*-
-from datetime import datetime
 import pandas as pd
-import numpy as np
-from typing import Optional, Dict, Any
 
 from ...shared.logger_factory import get_logger
 from ..managers.trade_calendar_manager import TradeCalendarManager

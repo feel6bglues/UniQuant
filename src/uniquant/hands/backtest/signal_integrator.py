@@ -2,7 +2,7 @@ from typing import Optional
 
 import pandas as pd
 
-from uniquant.signal.models import Signal, SignalBatch, SignalType, SignalSource, SignalStrength
+from uniquant.signal.models import Signal
 from uniquant.signal.aggregator import SignalAggregator, SignalAggregationMethod
 
 

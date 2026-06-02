@@ -85,7 +85,7 @@ if __name__ == "__main__":
     print(f"t-stat:    {result['ic_t_stat']:.2f}")
     print(f"Periods:   {n}")
 
-    print(f"\nAll periods:")
+    print("\nAll periods:")
     for p, data in result.get("all_periods", {}).items():
         print(f"  {p}d: IC={data['ic_mean']:.4f}, ICIR={data['icir']:.4f}, IC>0={data['ic_positive_ratio']:.2%}")
 

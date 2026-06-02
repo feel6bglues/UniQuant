@@ -11,7 +11,6 @@ import numpy as np
 import pandas as pd
 
 from uniquant.shared.constants import RANDOM_SEED
-from pathlib import Path
 TDX_DATA_DIR = Path(__file__).resolve().parents[3] / "data"
 from uniquant.data.manager import DataManager
 from uniquant.data.tdx_loader import load_tdx_data
