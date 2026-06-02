@@ -63,6 +63,13 @@ UniQuant 是一套面向 A 股市场的量化交易系统，基于 Python 3.12+ 
 | [异常体系参考](reference/exceptions.md) | ✅ | 完整异常层次 |
 | [常量参考](reference/constants.md) | ✅ | 所有常量类完整参考 |
 
+### 研究报告
+
+| 文档 | 状态 | 说明 |
+|------|------|------|
+| [Alpha 挖掘综合报告 2026-06-02](research/ALPHA_MINING_REPORT_20260602.md) | ✅ | 5 个 Session、36 轮因子挖掘全记录，9 因子通过 ICIR≥0.4 |
+| [Auto-Mined 因子技术手册 2026-06-02](research/FACTOR_CATALOG_20260602.md) | ✅ | 9 个已注册 am_* 因子的接口、参数、使用指南 |
+
 ### 开发
 
 | 文档 | 状态 | 说明 |
