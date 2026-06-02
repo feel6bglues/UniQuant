@@ -7,5 +7,40 @@ data/cache/
 data/lake/
 output/
 *.egg-info/
-logs/
 *.log
+
+# Auto-generated analysis artifacts (root level)
+analysis_report.py
+comprehensive_analysis.py
+deep_optimization.py
+factor_analysis.py
+factor_effectiveness_analysis.py
+factor_effectiveness_multi_window.py
+factor_quintile_backtest.py
+hs300_batch_analysis.py
+mining_harness.py
+multi_stock_validation.py
+multi_stock_validation_local.py
+multi_window_analysis.py
+multi_window_index_comparison.py
+optimized_scoring_system.py
+out_of_sample_validation.py
+parameter_optimization.py
+parameter_optimization_v2.py
+quick_deep_optimization.py
+run_resonance_backtest.py
+run_smoke_test.py
+verify_session5_csi300.py
+wyckoff_csi300_backtest.py
+wyckoff_mining_harness.py
+wyckoff_rounds.py
+
+# Root-level generated reports & data
+/*.md
+/*.json
+/*.csv
+
+# Lock and cache files
+*.lock
+**/__pycache__/
+src/uniquant/shared/__pycache__/
