@@ -93,6 +93,7 @@ class CZSCEngine:
 
     def __init__(self):
         self.analyzer = None
+        self._current_symbol: str = ""
         self._analysis_coverage = 0.0  # 分析覆盖率
 
     def _get_volume(self, row) -> float:
@@ -154,7 +155,7 @@ class CZSCEngine:
         default_return={"is_3rd_buy": False, "bi_count": 0, "error": "分析失败"},
         log_level=logger.error,
     )
-    def update_and_get_signals(self, df_latest_row: pd.Series) -> Dict[str, Any]:
+    def update_and_get_signals(self, df_latest_row: pd.Series, symbol: str = "") -> Dict[str, Any]:
         """
         增量更新CZSC分析器并获取信号
 
@@ -175,6 +176,11 @@ class CZSCEngine:
             logger.warning("K线数据验证失败，跳过本次分析")
             return {"is_3rd_buy": False, "bi_count": 0, "error": "数据验证失败"}
 
+        # Reset analyzer when symbol changes to prevent cross-stock state pollution
+        if symbol and symbol != self._current_symbol:
+            self.analyzer = None
+            self._current_symbol = symbol
+
         try:
             # 计算amount值
             if "amount" in df_latest_row:
@@ -185,7 +191,7 @@ class CZSCEngine:
             volume = self._get_volume(df_latest_row)
             
             bar = RawBar(
-                symbol="S",
+                symbol=symbol or "S",
                 dt=df_latest_row["date"],
                 open=df_latest_row["open"],
                 close=df_latest_row["close"],
