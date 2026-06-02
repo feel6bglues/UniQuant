@@ -12,6 +12,8 @@ from uniquant.shared.limit_checker import check_limit_status
 from uniquant.shared.logger_factory import get_logger
 from .result import BacktestResult, TradeRecord
 
+from ...shared.cost_model import TRANSFER_FEE_PCT, get_stamp_tax_pct
+
 logger = get_logger(__name__)
 
 
@@ -41,6 +43,7 @@ class BacktestEngine:
         slippage_rate: float = BacktestConstants.DEFAULT_SLIPPAGE_RATE,
         min_commission: float = BacktestConstants.DEFAULT_MIN_COMMISSION,
         trade_calendar: Optional[TradeCalendarManager] = None,
+        stamp_date_aware: bool = True,
     ):
         self.initial_capital = initial_capital
         self.commission_rate = commission_rate
@@ -48,6 +51,7 @@ class BacktestEngine:
         self.slippage_rate = slippage_rate
         self.min_commission = min_commission
         self.trade_calendar = trade_calendar or TradeCalendarManager()
+        self.stamp_date_aware = stamp_date_aware
         
         self.cash = initial_capital
         self.position = 0
@@ -68,11 +72,15 @@ class BacktestEngine:
         self.daily_returns = []
         self._prev_equity = self.initial_capital
     
-    def _calculate_commission(self, value: float, is_sell: bool = False) -> float:
+    def _calculate_commission(self, value: float, timestamp: Optional[datetime] = None, is_sell: bool = False) -> float:
         """计算交易成本"""
         commission = max(value * self.commission_rate, self.min_commission)
-        stamp_duty = value * self.stamp_duty_rate if is_sell else 0
-        return commission + stamp_duty
+        stamp_duty = 0.0
+        if is_sell:
+            rate = get_stamp_tax_pct(timestamp.date()) if (self.stamp_date_aware and timestamp is not None) else self.stamp_duty_rate
+            stamp_duty = value * rate
+        transfer_fee = value * TRANSFER_FEE_PCT
+        return commission + stamp_duty + transfer_fee
     
     def _calculate_slippage(
         self, 
@@ -176,7 +184,7 @@ class BacktestEngine:
         
         exec_price = self._calculate_slippage(price, is_buy=True, volume=shares, avg_daily_volume=avg_daily_volume)
         value = exec_price * shares
-        commission = self._calculate_commission(value, is_sell=False)
+        commission = self._calculate_commission(value, timestamp=timestamp, is_sell=False)
         total_cost = value + commission
         
         if total_cost > self.cash:
@@ -184,7 +192,7 @@ class BacktestEngine:
             if shares <= 0:
                 return None
             value = exec_price * shares
-            commission = self._calculate_commission(value, is_sell=False)
+            commission = self._calculate_commission(value, timestamp=timestamp, is_sell=False)
             total_cost = value + commission
         
         self.cash -= total_cost
@@ -234,7 +242,7 @@ class BacktestEngine:
         shares = min(shares, self.position)
         exec_price = self._calculate_slippage(price, is_buy=False, volume=shares, avg_daily_volume=avg_daily_volume)
         value = exec_price * shares
-        commission = self._calculate_commission(value, is_sell=True)
+        commission = self._calculate_commission(value, timestamp=timestamp, is_sell=True)
         
         cost = self.position_cost * shares
         pnl = value - cost - commission
@@ -323,53 +331,61 @@ class BacktestEngine:
         end_date = dates.iloc[-1]
         
         buy_date = None
-        
+
         for idx in range(len(df)):
             row = df.iloc[idx]
             current_price = row["close"]
             pre_close = row.get("pre_close", row["open"])
             timestamp = dates.iloc[idx]
-            
+
             signal = signal_generator(df, idx, {
                 "position": self.position,
                 "position_cost": self.position_cost,
                 "cash": self.cash,
             })
-            
+
             action = signal.get("action", "HOLD")
             reason = signal.get("reason", "")
-            
-            if action == "BUY" and self.position == 0:
-                trade = self.execute_buy(
-                    price=current_price,
-                    shares=position_size,
-                    timestamp=timestamp,
-                    reason=reason,
-                    pre_close=pre_close,
-                    symbol=symbol,
-                    name=name,
-                    volume=int(row.get("volume", 0)),
-                    avg_daily_volume=float(row.get("avg_daily_volume", 0)),
-                )
-                if trade:
-                    buy_date = timestamp
-            
-            elif action == "SELL" and self.position > 0:
-                trade = self.execute_sell(
-                    price=current_price,
-                    shares=self.position,
-                    timestamp=timestamp,
-                    reason=reason,
-                    pre_close=pre_close,
-                    symbol=symbol,
-                    name=name,
-                    buy_date=buy_date,
-                    volume=int(row.get("volume", 0)),
-                    avg_daily_volume=float(row.get("avg_daily_volume", 0)),
-                )
-                if trade:
-                    buy_date = None
-            
+            next_idx = idx + 1
+
+            if action in ("BUY", "SELL") and next_idx < len(df):
+                next_row = df.iloc[next_idx]
+                exec_price = next_row["open"]
+                exec_ts = dates.iloc[next_idx]
+
+                if action == "BUY" and self.position == 0:
+                    pre_close_next = next_row.get("pre_close", next_row["open"])
+                    trade = self.execute_buy(
+                        price=exec_price,
+                        shares=position_size,
+                        timestamp=exec_ts,
+                        reason=reason,
+                        pre_close=pre_close_next,
+                        symbol=symbol,
+                        name=name,
+                        volume=int(next_row.get("volume", 0)),
+                        avg_daily_volume=float(next_row.get("avg_daily_volume", 0)),
+                    )
+                    if trade:
+                        buy_date = exec_ts
+
+                elif action == "SELL" and self.position > 0:
+                    pre_close_next = next_row.get("pre_close", next_row["open"])
+                    trade = self.execute_sell(
+                        price=exec_price,
+                        shares=self.position,
+                        timestamp=exec_ts,
+                        reason=reason,
+                        pre_close=pre_close_next,
+                        symbol=symbol,
+                        name=name,
+                        buy_date=buy_date,
+                        volume=int(next_row.get("volume", 0)),
+                        avg_daily_volume=float(next_row.get("avg_daily_volume", 0)),
+                    )
+                    if trade:
+                        buy_date = None
+
             self.update_equity(current_price)
         
         result = BacktestResult(
@@ -532,5 +548,27 @@ class BacktestEngine:
                 position_size=position_size,
             )
             results[scenario] = result
-        
+
         return results
+
+    def run_historical_stress_test(
+        self,
+        df: pd.DataFrame,
+        signal_generator: Callable,
+        historical_returns: np.ndarray,
+        symbol: str = "",
+        position_size: int = 100,
+    ) -> BacktestResult:
+        crash_len = min(len(historical_returns), len(df))
+        crash_df = df.iloc[:crash_len].copy()
+        crash_df.reset_index(drop=True, inplace=True)
+        cum_ret = np.cumprod(1 + historical_returns[:crash_len])
+        base_close = float(crash_df["close"].iloc[0])
+        crash_df["close"] = base_close * cum_ret
+        crash_df["open"] = crash_df["close"] * 0.99
+        crash_df["high"] = np.maximum(crash_df["close"], crash_df["open"]) * 1.01
+        crash_df["low"] = np.minimum(crash_df["close"], crash_df["open"]) * 0.99
+        if "pre_close" in crash_df.columns:
+            crash_df["pre_close"] = crash_df["close"].shift(1).fillna(crash_df["close"].iloc[0])
+        self.reset()
+        return self.run_backtest(crash_df, signal_generator, symbol, position_size)

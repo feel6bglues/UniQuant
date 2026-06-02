@@ -85,16 +85,13 @@ class BacktestResult:
         self.profit_factor = total_profit / total_loss if total_loss > 0 else float('inf')
 
         if self.equity_curve:
-            self.final_capital = self.equity_curve[-1]
+            ec = np.array(self.equity_curve, dtype=np.float64)
+            self.final_capital = float(ec[-1])
             self.total_return = (self.final_capital - self.initial_capital) / self.initial_capital
 
-            peak = self.initial_capital
-            max_dd = 0
-            for equity in self.equity_curve:
-                peak = max(peak, equity)
-                dd = (peak - equity) / peak
-                max_dd = max(max_dd, dd)
-            self.max_drawdown = max_dd
+            rolling_max = np.maximum.accumulate(ec)
+            dd = (rolling_max - ec) / np.maximum(rolling_max, 1e-10)
+            self.max_drawdown = float(np.max(dd))
 
             if self.daily_returns:
                 returns = np.array(self.daily_returns)
