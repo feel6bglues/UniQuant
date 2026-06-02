@@ -3,6 +3,7 @@ __pycache__/
 *.pyc
 logs/
 data/state/
+src/data/state/
 data/cache/
 data/lake/
 output/
