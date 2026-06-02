@@ -29,13 +29,12 @@ def compute_lppl_bubble_risk(df: pd.DataFrame, mode: str = "backtest") -> pd.Ser
     scores = np.full(n, np.nan)
     window_size = 100
 
-    for i in range(window_size - 1, n, 20):
+    for i in range(window_size - 1, n, 5):
         window = df.iloc[max(0, i - window_size + 1): i + 1].copy()
         try:
             result = calc.fit(window)
             if result is None:
-                scores[i] = 0.0
-                continue
+                continue  # leave as NaN
             # Attempt 3: days_to_tc as a safety buffer signal.
             # More days to critical time → safer → positive factor for long.
             # Cap days_to_tc at 200 to avoid outliers from non-converged fits.
@@ -44,7 +43,7 @@ def compute_lppl_bubble_risk(df: pd.DataFrame, mode: str = "backtest") -> pd.Ser
             # Positive = distant from crash; negative = past or near crash
             scores[i] = np.tanh(days_to_tc / 60.0)
         except Exception:
-            scores[i] = 0.0
+            pass  # leave as NaN
 
     result_series = pd.Series(scores, index=df.index)
-    return result_series.ffill().fillna(0.0)
+    return result_series.ffill()

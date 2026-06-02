@@ -19,7 +19,6 @@ def _live_guard(mode: str = "backtest"):
 
 _PHASE_BULLISH = {"ACCUMULATION": 1, "MARKUP": 1}
 _PHASE_BEARISH = {"DISTRIBUTION": -1, "MARKDOWN": -1}
-_CONF_MULT = {"A": 1.0, "B": 0.70, "C": 0.40, "D": 0.20}
 
 
 def compute_wyckoff_persistence(df: pd.DataFrame, mode: str = "backtest") -> pd.Series:
@@ -39,11 +38,11 @@ def compute_wyckoff_persistence(df: pd.DataFrame, mode: str = "backtest") -> pd.
         try:
             sig = engine.scan_signal(window, symbol="x")
             phase = str(sig.get("phase", "UNKNOWN")).upper()
-            conf = str(sig.get("confidence", "D")).upper()
+            conf = float(sig.get("confidence", 0.2))  # confidence is a float, not a letter grade
             direction = _PHASE_BULLISH.get(phase, _PHASE_BEARISH.get(phase, 0))
-            raw_phases.append((i, direction, _CONF_MULT.get(conf, 0.2)))
+            raw_phases.append((i, direction, conf))
         except Exception:
-            raw_phases.append((i, 0, 0.0))
+            raw_phases.append((i, 0, np.nan))
 
     # compute persistence: count consecutive same-direction bars
     # Attempt 3: negate — persistent Wyckoff phase signals MEAN-REVERSION at 20d
@@ -60,4 +59,4 @@ def compute_wyckoff_persistence(df: pd.DataFrame, mode: str = "backtest") -> pd.
         scores[idx] = -direction * streak * conf / 10.0
 
     result = pd.Series(scores, index=df.index)
-    return result.ffill().fillna(0.0)
+    return result.ffill()

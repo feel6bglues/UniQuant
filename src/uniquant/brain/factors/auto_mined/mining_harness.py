@@ -98,7 +98,7 @@ def build_factor_panel(
         rows.append(tmp)
         success += 1
 
-    if success < 5:
+    if success < 30:
         return None
     panel = pd.concat(rows, ignore_index=True)
     panel = panel.dropna(subset=["factor_value"])
@@ -112,7 +112,7 @@ def build_factor_panel(
 def compute_icir(
     panel: pd.DataFrame,
     holding_period: int = 5,
-    min_stocks: int = 5,
+    min_stocks: int = 30,
 ) -> Dict[str, float]:
     """Compute cross-sectional IC series and ICIR.
 
@@ -137,13 +137,13 @@ def compute_icir(
         )
         .dropna()
     )
-    if len(ic_series) < 10:
+    if len(ic_series) < 30:
         return {"icir": 0.0, "ic_mean": 0.0, "ic_std": 0.0, "ic_pos_ratio": 0.0, "n_periods": 0}
     ic_std = ic_series.std()
     if ic_std < 1e-12:
         icir = 0.0
     else:
-        icir = ic_series.mean() / ic_std * np.sqrt(252 / holding_period)
+        icir = ic_series.mean() / ic_std
     return {
         "icir": round(float(icir), 4),
         "ic_mean": round(float(ic_series.mean()), 4),
@@ -217,17 +217,16 @@ def run_round(
         try:
             panel = build_factor_panel(factor_func)
             if panel is None:
-                raise RuntimeError("Fewer than 5 stocks returned valid factor values")
+                raise RuntimeError("Fewer than 30 stocks returned valid factor values")
             metrics = compute_icir(panel, holding_period=holding_period)
             print(f"  ICIR={metrics['icir']:.4f}  IC_mean={metrics['ic_mean']:.4f}  "
                   f"IC>0={metrics['ic_pos_ratio']*100:.1f}%  N={metrics['n_periods']}")
-            if metrics["icir"] >= PASS_ICIR_THRESHOLD or metrics["ic_pos_ratio"] >= 0.55:
+            if metrics["icir"] >= PASS_ICIR_THRESHOLD:
                 log_success(round_num, name, category, metrics)
                 return True
             else:
                 log_failure(round_num, name,
-                            f"ICIR={metrics['icir']:.4f} < {PASS_ICIR_THRESHOLD} and "
-                            f"IC>0={metrics['ic_pos_ratio']*100:.1f}% < 55%",
+                            f"ICIR={metrics['icir']:.4f} < {PASS_ICIR_THRESHOLD}",
                             attempt)
                 return False  # no point retrying a deterministic IC calculation
         except Exception as e:

@@ -43,7 +43,7 @@ class FactorComposer:
             return df.sort_values("date")
         return df
 
-    def compute_all_factors(self, df: pd.DataFrame) -> pd.DataFrame:
+    def compute_all_factors(self, df: pd.DataFrame, mode: str = "backtest") -> pd.DataFrame:
         """
         一次性计算所有已注册的因子
         """
@@ -57,7 +57,10 @@ class FactorComposer:
                 factor_series = pd.Series(index=df.index, dtype=float)
                 for group in self._iter_groups(df):
                     group_df = self._sort_group(group.copy())
-                    series = factor.compute_func(group_df.copy())
+                    try:
+                        series = factor.compute_func(group_df.copy(), mode=mode)
+                    except TypeError:
+                        series = factor.compute_func(group_df.copy())
                     if len(series) != len(group_df):
                         logger.warning(f"因子 {factor.name} 返回长度不匹配")
                         continue
@@ -222,6 +225,7 @@ class FactorComposer:
         industry_dummies: Optional[pd.DataFrame] = None,
         log_market_cap: Optional[pd.Series] = None,
         neutralize: bool = False,
+        mode: str = "backtest",
     ) -> pd.DataFrame:
         """
         合成 composite_score
@@ -236,7 +240,7 @@ class FactorComposer:
         Returns:
             包含 composite_score 和标准化因子的 DataFrame
         """
-        factor_df = self.compute_all_factors(df)
+        factor_df = self.compute_all_factors(df, mode=mode)
         if factor_df.empty:
             return pd.DataFrame()
 
@@ -275,11 +279,12 @@ class FactorComposer:
         factor_cols: Optional[List[str]] = None,
         ic_results: Optional[Dict[str, Any]] = None,
         date_col: str = "date",
+        mode: str = "backtest",
     ) -> Tuple[pd.DataFrame, Dict[str, float]]:
         """
         兼容性入口：计算因子、生成权重并输出 composite_score。
         """
-        factor_df = self.compute_all_factors(df)
+        factor_df = self.compute_all_factors(df, mode=mode)
         if factor_cols is not None:
             factor_cols = [col for col in factor_cols if col in factor_df.columns]
             factor_df = factor_df[factor_cols]

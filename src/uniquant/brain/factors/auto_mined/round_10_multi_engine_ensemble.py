@@ -26,7 +26,7 @@ def _rank_norm(s: pd.Series) -> pd.Series:
         if len(window) < 5:
             return np.nan
         return 2 * (window.rank().iloc[-1] / len(window)) - 1
-    return s.rolling(60, min_periods=20).apply(_rank, raw=False)
+    return s.rolling(60, min_periods=10).apply(_rank, raw=False)
 
 
 def compute_multi_engine_ensemble(df: pd.DataFrame, mode: str = "backtest") -> pd.Series:

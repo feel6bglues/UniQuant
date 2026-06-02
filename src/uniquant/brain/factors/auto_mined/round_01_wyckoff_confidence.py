@@ -54,7 +54,7 @@ def compute_wyckoff_phase_confidence(df: pd.DataFrame, mode: str = "backtest") -
             if sig.get("utad_detected", False):
                 scores[i] -= 0.3
         except Exception:
-            scores[i] = 0.0
+            pass  # leave as NaN
 
     result = pd.Series(scores, index=df.index)
-    return result.ffill().fillna(0.0)
+    return result.ffill()

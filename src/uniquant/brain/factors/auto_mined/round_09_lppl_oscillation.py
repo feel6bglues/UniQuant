@@ -28,23 +28,20 @@ def compute_lppl_oscillation_amplitude(df: pd.DataFrame, mode: str = "backtest")
     scores = np.full(n, np.nan)
     window_size = 100
 
-    for i in range(window_size - 1, n, 20):
+    for i in range(window_size - 1, n, 5):
         window = df.iloc[max(0, i - window_size + 1): i + 1].copy()
         try:
             result = calc.fit(window)
             if result is None or "model_params" not in result:
-                scores[i] = 0.0
-                continue
+                continue  # leave as NaN
             params = result["model_params"]
             c = abs(float(params.get("c", 0.0)))
             w = float(params.get("w", 6.0))
             oscillation = c * w / (2 * np.pi)
-            is_bubble = bool(result.get("is_bubble", False))
-            # Attempt 2: flip sign — high oscillation predicts DOWN moves (mean reversion)
-            # Stronger oscillation = more extreme → negative signal
-            scores[i] = -oscillation   # always negative (short signal)
+            # high oscillation predicts DOWN moves (mean reversion after log-periodic amplification)
+            scores[i] = -oscillation
         except Exception:
-            scores[i] = 0.0
+            pass  # leave as NaN
 
     result_series = pd.Series(scores, index=df.index)
-    return result_series.ffill().fillna(0.0)
+    return result_series.ffill()

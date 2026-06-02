@@ -28,22 +28,24 @@
 
 本报告记录了 UniQuant 平台自动化 Alpha 挖掘机在 5 个会话中对 A 股市场的因子挖掘过程。主要结论：
 
+> ⚠️ **重要更正（2026-06-02）**：Session 5 原始报告中所有 ICIR 值均因错误的年化公式而被夸大约 **7.1 倍**。原公式 `ICIR = IC_mean / IC_std × √(252/5)` 混淆了时序 Sharpe 与横截面 ICIR 的计算方法；正确公式为 `ICIR = IC_mean / IC_std`（纯横截面，无年化因子）。所有原始 ICIR 值均已乘以 1/7.1 得到修正估计值（例如 am_multi_engine_ensemble：1.58 → ~0.22）。此外，CSI 300（300 只股票）独立验证结果为 2/10 因子存活，说明原 20 只股票测试存在**严重的数据挖掘过拟合**。代码已于本次报告生成后修复。
+
 **核心突破（Session 5）**：
-- 通过将现有系统引擎（Wyckoff、LPPL、Regime、Entropy、MA）重新组合，9/10 因子通过 ICIR ≥ 0.4 门槛
-- 最强因子 `am_multi_engine_ensemble` 实现 **ICIR = 1.58**（5 日持有期）
-- LPPL 振荡强度因子 `am_lppl_oscillation` 实现 **ICIR = 1.03**
+- 通过将现有系统引擎（Wyckoff、LPPL、Regime、Entropy、MA）重新组合，9/10 因子通过 ICIR ≥ 0.4 门槛（注：原始 ICIR 值已被夸大，见上方更正）
+- 最强因子 `am_multi_engine_ensemble` 报告 ICIR = 1.58（修正后 ~0.22）
+- LPPL 振荡强度因子 `am_lppl_oscillation` 报告 ICIR = 1.03（修正后 ~0.15）
 
 **关键市场洞察**：
 - A 股短期（5-20 日）呈**均值回归**特征，动量因子普遍失效
 - Wyckoff **BUY/SELL action** 信号（而非 phase×confidence 组合）具有有效预测力
 - 市场熵（Shannon Entropy）的突然下降是强均值回归信号
-- 低量上涨的"隐性吸筹"特征对 5 日收益有正向预测力（ICIR=0.68）
+- 低量上涨的"隐性吸筹"特征对 5 日收益有正向预测力
 
 **数据环境**：
 - 数据源：本地通达信（mootdx std reader），无外部 API 依赖
 - 股票池：20 只大盘流动性股（平安银行、万科、贵州茅台、宁德时代等）
 - 时间跨度：最近 3 年（约 720 个交易日）
-- IC 测试：Spearman 秩相关，年化 ICIR = IC_mean / IC_std × √(252/T)
+- IC 测试：Spearman 秩相关，ICIR = IC_mean / IC_std（已修复，不再年化）
 
 ---
 
@@ -66,8 +68,8 @@ build_factor_panel(factor_func, symbols=UNIVERSE)
     ▼
 compute_icir(panel, holding_period)
     │  ─ 计算每日横截面 Spearman IC
-    │  ─ IC_series 长度 ≥ 10 才计算 ICIR
-    │  ─ ICIR = IC_mean / IC_std × √(252/T)
+    │  ─ IC_series 长度 ≥ 30 才计算 ICIR（已修复，原为 10）
+    │  ─ ICIR = IC_mean / IC_std（已修复，原错误地乘以 √(252/T)）
     ▼
 裁决：ICIR ≥ 0.4 → PASS；否则 → 最多 3 次修复后入墓地
 ```
@@ -83,8 +85,8 @@ compute_icir(panel, holding_period)
 
 ### 2.3 通过标准
 
-主要标准：**ICIR ≥ 0.4**（5d 或 20d 持有期任一满足）  
-辅助标准：IC > 0 比率 ≥ 55%（有助于发现方向明确但 IC_std 较大的因子）
+主要标准：**ICIR ≥ 0.4**（5d 或 20d 持有期，ICIR = IC_mean/IC_std，不年化）  
+辅助标准：~~IC > 0 比率 ≥ 55%~~（已移除：20 只股票时统计不显著）
 
 ### 2.4 股票池（Session 5）
 
