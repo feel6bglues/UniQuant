@@ -66,6 +66,10 @@ def get_board_type(symbol: str, name: Optional[str] = None) -> str:
     return "main"
 
 
+def _round_limit_price(price: float, tick_size: float = 0.01) -> float:
+    return round(price / tick_size) * tick_size
+
+
 def check_limit_status(
     current_price: float,
     pre_close: float,
@@ -132,8 +136,9 @@ def check_limit_status(
             if trading_days_listed == 1:
                 up_limit_ratio = 1.44
                 down_limit_ratio = 0.64
-                up_limit_price = pre_close * up_limit_ratio
-                down_limit_price = pre_close * down_limit_ratio
+                price_tick = 0.01 if pre_close >= 1.0 else 0.001
+                up_limit_price = _round_limit_price(pre_close * up_limit_ratio, price_tick)
+                down_limit_price = _round_limit_price(pre_close * down_limit_ratio, price_tick)
                 price_ratio = current_price / pre_close
                 tolerance = MarketConstants.PRICE_TOLERANCE
                 return LimitStatus(
@@ -152,29 +157,30 @@ def check_limit_status(
     up_limit_ratio, down_limit_ratio = limit_ratios
     
     # 计算涨跌停价格
-    up_limit_price = pre_close * up_limit_ratio
-    down_limit_price = pre_close * down_limit_ratio
-    
+    price_tick = 0.01 if pre_close >= 1.0 else 0.001
+    up_limit_price = _round_limit_price(pre_close * up_limit_ratio, price_tick)
+    down_limit_price = _round_limit_price(pre_close * down_limit_ratio, price_tick)
+
     # 计算当前价格比例
     price_ratio = current_price / pre_close
-    
-    # 判断涨跌停状态（使用容差避免浮点精度问题）
+
+    # 判断涨跌停状态（使用比例 + 舍入价格双重保障）
     tolerance = MarketConstants.PRICE_TOLERANCE
     is_limit_up = price_ratio >= up_limit_ratio - tolerance
     is_limit_down = price_ratio <= down_limit_ratio + tolerance
-    
+
     # 判断是否可以买卖
     can_buy = not is_limit_up
     can_sell = not is_limit_down
-    
+
     return LimitStatus(
         is_limit_up=is_limit_up,
         is_limit_down=is_limit_down,
         can_buy=can_buy,
         can_sell=can_sell,
         board_type=board_type,
-        up_limit_price=round(up_limit_price, 2),
-        down_limit_price=round(down_limit_price, 2),
+        up_limit_price=up_limit_price,
+        down_limit_price=down_limit_price,
         price_ratio=round(price_ratio, 4),
     )
 

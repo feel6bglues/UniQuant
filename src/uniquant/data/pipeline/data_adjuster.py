@@ -237,8 +237,9 @@ class DataAdjuster:
                 df_merged["volume"] = df_merged["volume"].clip(lower=0, upper=10000000000)
         elif method == "qfq":
             # QFQ = Price * Factor / LatestFactor
-            # 获取最新的因子值 (当前累积因子)
-            latest_factor = df_factor_filtered["factor"].iloc[-1]
+            # Use the factor as-of the last date in df_raw (point-in-time), not the
+            # absolute latest factor which would leak future dividend events into history.
+            latest_factor = df_merged["factor"].iloc[-1]
             if latest_factor == 0:
                 logger.error(f"最新因子为0，无法计算前复权: {symbol}")
                 return df_raw
