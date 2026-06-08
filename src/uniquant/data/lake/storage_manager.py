@@ -1,4 +1,6 @@
 import logging
+import os
+import time
 from pathlib import Path
 from typing import Dict, Any, List, Optional
 
@@ -50,6 +52,7 @@ class StorageManager:
 
         self.data_types = ["daily", "factor", "index", "1mins", "5mins"]
         self.base_dir = self.data_dir
+        self._data_sources: Dict[str, str] = {}
         logger.info(f"初始化存储管理器，数据目录: {data_dir}")
 
     def ensure_directory(self, dir_path: str):
@@ -70,6 +73,18 @@ class StorageManager:
             return False
 
         file_path_obj = Path(file_path)
+        
+        # 路径遍历校验：确保写入目标在 data_dir 内
+        try:
+            resolved = file_path_obj.resolve()
+            data_dir_resolved = self.data_dir.resolve()
+            if not str(resolved).startswith(str(data_dir_resolved)):
+                logger.error(f"路径遍历拒绝: {file_path} 不在 {self.data_dir} 内")
+                return False
+        except (OSError, ValueError) as e:
+            logger.error(f"路径解析失败: {e}")
+            return False
+        
         dir_path = file_path_obj.parent
         self.ensure_directory(str(dir_path))
 
@@ -489,6 +504,27 @@ class StorageManager:
         self.write_data(symbol=symbol, df=monthly, data_type="monthly")
         logger.info(f"合成月线完成: {symbol}, 共 {len(monthly)} 条")
         return monthly
+
+    # --- 数据新鲜度检测 ---
+
+    def validate_freshness(self, max_lag_days: int = 7) -> List[str]:
+        """扫描 parquet 文件最近日期,返回陈旧文件清单"""
+        stale_files = []
+        for symbol, path in self._data_sources.items():
+            if not path.endswith(".parquet"):
+                continue
+            try:
+                mtime = os.path.getmtime(path)
+                age_days = (time.time() - mtime) / 86400
+                if age_days > max_lag_days:
+                    stale_files.append(f"{symbol}: {path} (年龄 {age_days:.1f} 天)")
+            except OSError:
+                continue
+        if stale_files:
+            logger.warning(f"发现 {len(stale_files)} 个陈旧数据文件 (超过 {max_lag_days} 天)")
+            for f in stale_files:
+                logger.warning(f"  陈旧: {f}")
+        return stale_files
 
     # --- 兼容性方法 (Compat with legacy DataLake) ---
 

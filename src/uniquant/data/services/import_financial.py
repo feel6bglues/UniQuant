@@ -100,6 +100,7 @@ class FinancialFingerprint:
                 'updated_at': datetime.now().isoformat(),
             }
         except OSError:
+            logger.exception("获取文件状态失败，跳过")
             pass
 
     def get_stats(self) -> Dict:

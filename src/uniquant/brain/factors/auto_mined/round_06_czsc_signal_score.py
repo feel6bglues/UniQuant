@@ -11,6 +11,10 @@ sys.path.insert(0, str(__import__('pathlib').Path(__file__).parents[5]))
 import numpy as np
 import pandas as pd
 
+from ....shared.logger_factory import get_logger
+
+logger = get_logger(__name__)
+
 
 def _live_guard(mode: str = "backtest"):
     if mode == "live":
@@ -44,13 +48,15 @@ def compute_czsc_signal_score(df: pd.DataFrame, mode: str = "backtest") -> pd.Se
     # High bi_count = complex zigzag structure → momentum tends to continue in direction of 5d return.
     bi_counts = np.zeros(len(df))
     is_3rd_buy = np.zeros(len(df))
-    for pos, (_, row) in enumerate(df.iterrows()):
+    rows = list(df.itertuples())
+    for pos in range(len(rows)):
+        row = rows[pos]
         try:
-            sig = engine.update_and_get_signals(row)
+            sig = engine.update_and_get_signals(row._asdict())
             bi_counts[pos] = float(sig.get("bi_count", 0) or 0)
             is_3rd_buy[pos] = 1.0 if sig.get("is_3rd_buy", False) else 0.0
         except Exception:
-            pass
+            logger.warning("CZSC signal score failed at row %d", pos, exc_info=True)
 
     bi_series = pd.Series(bi_counts, index=df.index)
     buy_series = pd.Series(is_3rd_buy, index=df.index)

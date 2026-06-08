@@ -59,10 +59,10 @@ def calculate_wyckoff_return(
     hit_stop = False
     hit_target = False
 
-    for _, row in future_data.iterrows():
-        close = float(row["close"])
-        high = float(row["high"])
-        low = float(row["low"])
+    for row in future_data.itertuples():
+        close = float(row.close)
+        high = float(row.high)
+        low = float(row.low)
 
         # 检查止损
         if stop_loss is not None and stop_loss > 0:

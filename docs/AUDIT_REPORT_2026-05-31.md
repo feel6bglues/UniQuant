@@ -1,5 +1,7 @@
 # UniQuant 项目全维度深度审计报告
 
+> **Obsolete as of 2026-06-07** — 见 FIVE_STAGE_ANALYSIS_REPORT_20260607.md / FIVE_STAGE_ROUND2_FINDINGS_20260607.md
+
 > **审计角色**: 顶级量化金融算法工程师 × 顶级Python程序员 × 顶级A股交易员
 > **审计范围**: 7大维度 × 150+ 源码模块 × 64 测试文件 × 4 配置文件
 > **审计日期**: 2026-05-31

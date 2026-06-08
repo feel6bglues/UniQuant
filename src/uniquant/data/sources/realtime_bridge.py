@@ -292,7 +292,7 @@ class RealtimeBridge:
                     try:
                         callback(e)
                     except Exception:
-                        pass
+                        logger.warning("Error callback raised exception", exc_info=True)
                 
                 if self.auto_reconnect:
                     self._state = ConnectionState.RECONNECTING

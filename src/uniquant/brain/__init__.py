@@ -8,7 +8,7 @@
 from .fsm.fsm import DecisionBrain, FSM, FSMState
 
 try:
-    from .indicators import Indicators
+    from .indicators.indicators import Indicators
 except ImportError:
     Indicators = None
 
@@ -23,12 +23,12 @@ except ImportError:
     RegimeDetector = None
 
 try:
-    from .alpha_decoupler import AlphaDecoupler
+    from .alpha_decoupler.alpha_decoupler import AlphaDecoupler
 except ImportError:
     AlphaDecoupler = None
 
 try:
-    from .screener import StockScreener
+    from .screener.screener import StockScreener
 except ImportError:
     StockScreener = None
 

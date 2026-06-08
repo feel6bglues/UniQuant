@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 import numpy as np
 import pandas as pd
@@ -30,7 +30,7 @@ class MonteCarloSimulator:
         self.n_simulations = n_simulations
         self.confidence_level = confidence_level
 
-    def run_shuffle(self, returns: pd.Series) -> Dict[str, Any]:
+    def run_shuffle(self, returns: pd.Series, seed: Optional[int] = None) -> Dict[str, Any]:
         """
         随机排列 Monte Carlo 模拟
         
@@ -39,10 +39,13 @@ class MonteCarloSimulator:
         
         Args:
             returns: 策略日收益率序列
+            seed: 随机种子，用于结果复现
             
         Returns:
             包含模拟结果统计和置信区间的字典
         """
+        if seed is not None:
+            np.random.seed(seed)
         if returns.empty or len(returns) < 10:
             logger.warning("收益率数据过少，无法进行 Monte Carlo 模拟")
             return {"error": "收益率数据过少"}
@@ -88,7 +91,7 @@ class MonteCarloSimulator:
             },
         }
 
-    def run_bootstrap(self, equity_curve: pd.Series) -> Dict[str, Any]:
+    def run_bootstrap(self, equity_curve: pd.Series, seed: Optional[int] = None) -> Dict[str, Any]:
         """
         Bootstrap Monte Carlo 模拟
         
@@ -97,10 +100,13 @@ class MonteCarloSimulator:
         
         Args:
             equity_curve: 策略权益曲线
+            seed: 随机种子，用于结果复现
             
         Returns:
             包含 Bootstrap 统计结果和置信区间的字典
         """
+        if seed is not None:
+            np.random.seed(seed)
         if equity_curve.empty or len(equity_curve) < 10:
             logger.warning("权益曲线数据过少，无法进行 Bootstrap 模拟")
             return {"error": "权益曲线数据过少"}

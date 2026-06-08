@@ -89,6 +89,7 @@ class DataImporter:
                 try:
                     self.fingerprint_file.unlink()
                 except OSError:
+                    logger.exception("删除损坏的指纹文件失败")
                     pass
                 return {}
             except Exception as e:

@@ -6,8 +6,9 @@
 """
 
 import json
-import logging
 import os
+
+from uniquant.shared.logger_factory import get_logger
 from datetime import datetime
 from typing import List, Optional
 
@@ -19,7 +20,7 @@ from uniquant.brain.wyckoff.models import (
     ImageEvidenceBundle,
 )
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class WyckoffReportGenerator:

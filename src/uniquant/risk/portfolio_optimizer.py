@@ -11,8 +11,66 @@ from scipy.optimize import minimize
 
 from ..shared.error_handling import handle_errors
 from ..shared.logger_factory import get_logger
+from ..shared.risk_constants import RISK_FREE_RATE
 
 logger = get_logger("PortfolioOptimizer")
+
+
+def _shrink_covariance(returns: np.ndarray) -> np.ndarray:
+    """Ledoit-Wolf shrinkage estimation for covariance matrix.
+
+    Combines sample covariance with a structured target (constant correlation)
+    to improve numerical stability in high-dimension/low-sample settings.
+    """
+    n, p = returns.shape
+    if n < 2 or p < 2:
+        return np.cov(returns, rowvar=False)
+
+    sample_cov = np.cov(returns, rowvar=False)
+
+    target = np.zeros_like(sample_cov)
+    np.fill_diagonal(target, np.diag(sample_cov))
+
+    var = np.diag(sample_cov).reshape(-1, 1)
+    std = np.sqrt(var)
+    corr = sample_cov / (std @ std.T)
+    corr[~np.isfinite(corr)] = 0
+    np.fill_diagonal(corr, 0)
+
+    r_bar = np.sum(corr) / (p * (p - 1)) if p > 1 else 0
+    target_corr = np.full_like(corr, r_bar)
+    np.fill_diagonal(target_corr, 1.0)
+    target = std @ std.T * target_corr
+
+    if n <= 1:
+        return target
+
+    returns_centered = returns - returns.mean(axis=0)
+
+    pi_sum = 0.0
+    for i in range(p):
+        for j in range(p):
+            if j >= i:
+                continue
+            pi_ij = np.sum(
+                ((returns_centered[:, i] * returns_centered[:, j] -
+                  sample_cov[i, j]) ** 2)
+            ) / n
+            pi_sum += pi_ij
+
+    pi_sum *= 2
+    if p > 1:
+        pi_sum /= p
+
+    gamma = np.sum((sample_cov - target) ** 2)
+    if gamma == 0:
+        shrinkage = 0.0
+    else:
+        shrinkage = max(0, min(1, pi_sum / gamma))
+
+    result = (1 - shrinkage) * sample_cov + shrinkage * target
+    result = (result + result.T) / 2
+    return result
 
 
 def _risk_parity_objective(weights: np.ndarray, cov: np.ndarray) -> float:
@@ -25,7 +83,7 @@ def _risk_parity_objective(weights: np.ndarray, cov: np.ndarray) -> float:
 @dataclass
 class OptimizerConfig:
     """优化器配置"""
-    risk_free_rate: float = 0.03  # 无风险利率 (年化)
+    risk_free_rate: float = RISK_FREE_RATE  # 无风险利率 (年化)
     max_weight: float = 0.40  # 单资产最大权重
     min_weight: float = 0.0  # 单资产最小权重
     target_return: Optional[float] = None  # 目标收益率 (None 表示不限制)
@@ -64,7 +122,7 @@ class PortfolioOptimizer:
         assets = returns.columns.tolist()
         n_assets = len(assets)
         
-        cov_matrix = returns.cov().values
+        cov_matrix = _shrink_covariance(returns.values.astype(np.float64))
         
         if np.any(np.isnan(cov_matrix)):
             raise ValueError("Covariance matrix contains NaN values")

@@ -6,7 +6,7 @@
 import logging
 from dataclasses import dataclass
 from enum import Enum, auto
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
@@ -16,6 +16,72 @@ from ...shared.error_handling import handle_errors
 from ...shared.logger_factory import get_logger
 
 logger = get_logger("FactorAnalyzer")
+
+
+class LookaheadBiasError(ValueError):
+    """Raised when a factor calculation depends on future data."""
+
+
+def check_lookahead_leakage(
+    df: pd.DataFrame,
+    factor_func: Callable,
+    factor_cols: List[str],
+) -> bool:
+    """
+    Detect look-ahead bias using future perturbation invariance.
+
+    Runs factor_func on the original df, then on copies with future close prices
+    perturbed at multiple cutoffs. If any factor value before a cutoff changes,
+    it depends on future data → raises LookaheadBiasError.
+
+    Args:
+        df: Input DataFrame with at least 'close' column.
+        factor_func: Callable that accepts a DataFrame and returns a DataFrame
+                     with factor columns added.
+        factor_cols: List of factor column names to check.
+
+    Returns:
+        True if no look-ahead bias detected.
+
+    Raises:
+        LookaheadBiasError: If a factor shows dependence on future data.
+    """
+    baseline = factor_func(df.copy()).copy()
+    n = len(df)
+    cutoffs = [int(n * p) for p in [0.33, 0.50, 0.66]]
+
+    rng = np.random.RandomState(42)
+
+    for cutoff in cutoffs:
+        if cutoff >= n or cutoff <= 0:
+            continue
+
+        perturbed = df.copy()
+        future_close = perturbed.loc[cutoff:, "close"].values
+        perturbed.loc[cutoff:, "close"] = future_close * rng.uniform(1.5, 3.0, size=len(future_close))
+
+        result = factor_func(perturbed.copy()).copy()
+
+        for col in factor_cols:
+            if col not in baseline.columns or col not in result.columns:
+                continue
+
+            b_before = baseline.loc[:cutoff - 1, col]
+            r_before = result.loc[:cutoff - 1, col]
+
+            if b_before.isna().all() or r_before.isna().all():
+                continue
+
+            if not np.allclose(
+                b_before.fillna(0).values,
+                r_before.fillna(0).values,
+                rtol=1e-5,
+            ):
+                raise LookaheadBiasError(
+                    f"Look-ahead bias detected in factor '{col}'"
+                )
+
+    return True
 
 
 class AnalysisMode(Enum):
@@ -182,7 +248,7 @@ class FactorAnalyzer:
         date_col: str = "date",
         code_col: str = "code",
         price_col: str = "close",
-        mode: AnalysisMode = AnalysisMode.BACKTEST,
+        mode: AnalysisMode | str = AnalysisMode.BACKTEST,
         half_life: Optional[int] = None,
     ) -> Dict[str, Dict[int, FactorICResult]]:
         """
@@ -206,8 +272,10 @@ class FactorAnalyzer:
         Raises:
             ValueError: 当 mode=AnalysisMode.LIVE 时，防止未来函数（Lookahead Bias）
         """
-        if not isinstance(mode, AnalysisMode):
-            raise TypeError(f"mode must be an AnalysisMode enum, got {type(mode).__name__}")
+        if isinstance(mode, str):
+            mode = AnalysisMode.from_config(mode)
+        elif not isinstance(mode, AnalysisMode):
+            raise TypeError(f"mode must be an AnalysisMode enum or str, got {type(mode).__name__}")
 
         if holding_periods is None:
             holding_periods = self.DEFAULT_HOLDING_PERIODS

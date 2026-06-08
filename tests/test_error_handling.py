@@ -145,7 +145,7 @@ class TestHandleErrorsDecorator:
 
     def test_handle_errors_catches_exception(self):
         """测试装饰器捕获异常"""
-        @handle_errors(ValueError, default_return="default")
+        @handle_errors(ValueError, default_return="default", reraise=False)
         def raise_value_error():
             raise ValueError("test error")
         
@@ -154,7 +154,7 @@ class TestHandleErrorsDecorator:
 
     def test_handle_errors_updates_stats(self):
         """测试装饰器更新统计"""
-        @handle_errors(ValueError, error_type="value_error")
+        @handle_errors(ValueError, error_type="value_error", reraise=False)
         def raise_value_error():
             raise ValueError("test error")
         
@@ -175,7 +175,7 @@ class TestHandleErrorsDecorator:
 
     def test_concurrent_decorated_calls(self):
         """测试并发调用装饰函数"""
-        @handle_errors(ValueError, error_type="concurrent_error")
+        @handle_errors(ValueError, error_type="concurrent_error", reraise=False)
         def may_raise(should_raise):
             if should_raise:
                 raise ValueError("test")

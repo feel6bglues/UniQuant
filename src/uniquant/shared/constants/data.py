@@ -118,17 +118,25 @@ class DataValidationConstants:
     MAX_MISSING_RATIO = 0.1  # 最大缺失值比例
 
 
+class _CacheTTLAlias:
+    """描述符,将 DataServiceConstants 的 TTL 属性访问委托到 CacheConstants"""
+    def __init__(self, name: str):
+        self._name = name
+    def __get__(self, obj, objtype):
+        return getattr(CacheConstants, self._name)
+
+
 class DataServiceConstants:
     """数据服务相关常量"""
 
-    # 缓存过期时间（秒）
-    CACHE_TTL_STOCK = 3600  # 股票数据 1小时
-    CACHE_TTL_INDEX = 3600  # 指数数据 1小时
-    CACHE_TTL_ETF = 3600  # ETF数据 1小时
-    CACHE_TTL_REALTIME = 60  # 实时数据 1分钟
-    CACHE_TTL_INDUSTRY = 86400  # 行业数据 1天
-    CACHE_TTL_CONCEPT = 86400  # 概念数据 1天
-    CACHE_TTL_GENERAL = 3600  # 通用数据 1小时
+    # 缓存过期时间（秒）— 委托到 CacheConstants,避免重复定义
+    CACHE_TTL_STOCK = _CacheTTLAlias("CACHE_TTL_STOCK")  # 股票数据 1小时
+    CACHE_TTL_INDEX = _CacheTTLAlias("CACHE_TTL_INDEX")  # 指数数据 1小时
+    CACHE_TTL_ETF = _CacheTTLAlias("CACHE_TTL_ETF")  # ETF数据 1小时
+    CACHE_TTL_REALTIME = _CacheTTLAlias("CACHE_TTL_REALTIME")  # 实时数据 1分钟
+    CACHE_TTL_INDUSTRY = _CacheTTLAlias("CACHE_TTL_INDUSTRY")  # 行业数据 1天
+    CACHE_TTL_CONCEPT = _CacheTTLAlias("CACHE_TTL_CONCEPT")  # 概念数据 1天
+    CACHE_TTL_GENERAL = _CacheTTLAlias("CACHE_TTL_GENERAL")  # 通用数据 1小时
 
     # 数据质量评分阈值
     QUALITY_SCORE_EXCELLENT = 90  # 优秀

@@ -1,5 +1,7 @@
 # FIX_PLAN vs OPTIMIZATION_DOCS_VERIFICATION 交叉核验报告
 
+> **Obsolete as of 2026-06-07** — 见 FIVE_STAGE_ANALYSIS_REPORT_20260607.md / FIVE_STAGE_ROUND2_FINDINGS_20260607.md
+
 > **核验人**: 顶级量化金融算法工程师 × 顶级Python程序员 × 顶级A股交易员
 > **核验日期**: 2026-05-31
 > **核验方法**: 逐项对照 VERIFICATION 报告中的每个问题，检查 FIX_PLAN 是否覆盖，并对 VERIFICATION 报告自身的准确性进行源码验证

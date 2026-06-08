@@ -187,8 +187,8 @@ class TradeAnalyzer:
         regime_idx = pd.to_datetime(regime.index)
 
         regimes = []
-        for _, row in df.iterrows():
-            matches = regime_idx[regime_idx <= row["timestamp"]]
+        for row in df.itertuples():
+            matches = regime_idx[regime_idx <= row.timestamp]
             if len(matches) > 0:
                 nearest = matches[-1]
                 regimes.append(regime.loc[nearest])

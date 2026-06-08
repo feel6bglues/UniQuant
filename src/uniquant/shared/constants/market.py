@@ -1,8 +1,9 @@
 """市场相关常量"""
 
 import datetime
-import logging
 from typing import Optional, Set
+
+from uniquant.shared.logger_factory import get_logger
 
 
 class DateConstants:
@@ -195,9 +196,9 @@ class MarketHours:
             trade_cal = ak.tool_trade_date_hist()
             cls._CN_HOLIDAYS.clear()
             cls._CN_SPECIAL_WORKDAYS.clear()
-            for _, row in trade_cal.iterrows():
-                date_str = str(row["trade_date"])[:10]
-                is_open = row["open"] if "open" in row else row.get("is_open", 1)
+            for row in trade_cal.itertuples(index=False):
+                date_str = str(row.trade_date)[:10]
+                is_open = getattr(row, "open", getattr(row, "is_open", 1))
                 if not is_open:
                     cls._CN_HOLIDAYS.add(date_str)
                 else:
@@ -205,10 +206,11 @@ class MarketHours:
                     if dt.weekday() >= 5:
                         cls._CN_SPECIAL_WORKDAYS.add(date_str)
             cls._CN_HOLIDAYS -= cls._CN_SPECIAL_WORKDAYS
-            logger = logging.getLogger(__name__)
+            logger = get_logger(__name__)
             logger.info(f"刷新节假日日历: {len(cls._CN_HOLIDAYS)} 假日, {len(cls._CN_SPECIAL_WORKDAYS)} 调休")
         except Exception:
-            pass
+            logger = get_logger(__name__)
+            logger.warning("刷新节假日日历失败", exc_info=True)
 
     @classmethod
     def is_market_open(cls, dt: Optional[datetime.datetime] = None) -> bool:
@@ -346,15 +348,18 @@ class MarketHours:
         return iso not in cls._CN_HOLIDAYS
 
     @classmethod
-    def is_call_auction(cls, dt: Optional[datetime.datetime] = None) -> bool:
+    def is_call_auction(cls, dt: Optional[datetime.datetime] = None,
+                        exchange: Optional[str] = None) -> bool:
         """
-        检查是否在集合竞价时段
+        Check if currently in call auction period.
 
-        早盘集合竞价: 9:15-9:25 (9:25撮合成交)
-        收盘集合竞价: 14:57-15:00 (深圳)
+        SH exchange: morning auction 9:15-9:25, closing auction at 15:00
+        SZ exchange: morning auction 9:15-9:25, closing auction 14:57-15:00
+        BJ exchange: same as SZ
 
         Args:
             dt: 要检查的日期时间 (None表示当前时间)
+            exchange: 交易所代码 (SH/SZ/BJ, None默认SZ)
 
         Returns:
             bool: 是否在集合竞价时段
@@ -367,26 +372,27 @@ class MarketHours:
 
         t = dt.time()
 
-        # 早盘集合竞价: 9:15-9:25
+        # 早盘集合竞价: 9:15-9:25 (all exchanges)
         morning_auction_start = datetime.time(
             cls.MORNING_AUCTION_START_HOUR, cls.MORNING_AUCTION_START_MINUTE
         )
         morning_auction_end = datetime.time(
             cls.MORNING_AUCTION_END_HOUR, cls.MORNING_AUCTION_END_MINUTE
         )
+        if morning_auction_start <= t <= morning_auction_end:
+            return True
 
-        # 收盘集合竞价: 14:57-15:00
-        closing_auction_start = datetime.time(
-            cls.CLOSING_AUCTION_START_HOUR, cls.CLOSING_AUCTION_START_MINUTE
-        )
-        closing_auction_end = datetime.time(
-            cls.CLOSING_AUCTION_END_HOUR, cls.CLOSING_AUCTION_END_MINUTE
-        )
+        # 收盘集合竞价 differs by exchange
+        if exchange == "SH":
+            # SH: closing call auction at 15:00 (one-time match)
+            closing_end = datetime.time(15, 0)
+            closing_start = datetime.time(14, 57)
+        else:
+            # SZ/BJ: 14:57-15:00
+            closing_end = datetime.time(15, 0)
+            closing_start = datetime.time(14, 57)
 
-        in_morning_auction = morning_auction_start <= t <= morning_auction_end
-        in_closing_auction = closing_auction_start <= t <= closing_auction_end
-
-        return in_morning_auction or in_closing_auction
+        return closing_start <= t <= closing_end
 
 
 MAJOR_INDEXES: dict = {

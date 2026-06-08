@@ -84,6 +84,9 @@ class GlobalConfig:
             for filename, namespace in config_files:
                 self._load_yaml(config_dir / filename, namespace)
 
+        # Always load factors.yaml separately (individual or standalone)
+        self._load_factors_config(config_dir)
+
         logger.info("Global Configuration Loaded.")
         self.validate_config()
 
@@ -105,6 +108,13 @@ class GlobalConfig:
             logger.error(f"File I/O error in {path}: {e}")
         except Exception as e:
             logger.critical(f"Unexpected error loading {path}: {e}", exc_info=True)
+
+    def _load_factors_config(self, config_dir: Path) -> None:
+        """Load factors.yaml into config (YAML already has 'factors:' root key)."""
+        factors_path = config_dir / "factors.yaml"
+        if factors_path.exists():
+            logger.info("Loading factors configuration from factors.yaml")
+            self._load_yaml(factors_path, "")
 
     def _get_defaults(self) -> Dict[str, Any]:
         return {

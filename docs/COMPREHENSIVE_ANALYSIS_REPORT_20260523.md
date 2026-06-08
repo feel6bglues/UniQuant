@@ -1,5 +1,7 @@
 # UniQuant 项目综合分析报告
 
+> **Obsolete as of 2026-06-07** — 见 FIVE_STAGE_ANALYSIS_REPORT_20260607.md / FIVE_STAGE_ROUND2_FINDINGS_20260607.md
+
 **日期**: 2026-05-23
 **分析方式**: 多Agent并行深度分析 (算法/回测风控/代码架构/数据源策略)
 **分析团队视角**: 顶尖量化金融工作小组

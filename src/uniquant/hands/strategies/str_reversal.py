@@ -33,8 +33,8 @@ def trade_str_reversal(df: pd.DataFrame, as_of_date: str,
     tp = entry + atr_mult * atr
     sl = entry - atr_mult * atr
     ep, ed = entry, len(fut)
-    for i, (_, rw) in enumerate(fut.iterrows()):
-        c, hi, lo = float(rw["close"]), float(rw["high"]), float(rw["low"])
+    for i, rw in enumerate(fut.itertuples(index=False)):
+        c, hi, lo = float(rw.close), float(rw.high), float(rw.low)
         if hi >= tp:
             ep, ed = tp, i + 1
             break

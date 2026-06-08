@@ -11,7 +11,7 @@ import pandas as pd
 import pytest
 from unittest.mock import MagicMock
 
-from uniquant.services.analysis_service import AnalysisService
+from uniquant.services.analysis_service_legacy import AnalysisService
 
 
 class TestStrengthDivZeroDefense:

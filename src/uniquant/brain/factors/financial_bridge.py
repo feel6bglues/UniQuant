@@ -175,17 +175,32 @@ class FinancialFactorBridge:
 
         raise ValueError(f"daily_df must contain one of {fallback_cols}")
 
+    @staticmethod
+    def _apply_report_date_offset(date_series: pd.Series) -> pd.Series:
+        month = date_series.dt.month
+        result = date_series.copy()
+        result.loc[month == 3] = date_series.loc[month == 3] + pd.DateOffset(months=3)
+        result.loc[month == 6] = date_series.loc[month == 6] + pd.DateOffset(months=2)
+        result.loc[month == 9] = date_series.loc[month == 9] + pd.DateOffset(months=3)
+        result.loc[month == 12] = date_series.loc[month == 12] + pd.DateOffset(months=4)
+        return result
+
     def _get_effective_date_col(self, financial_df: pd.DataFrame) -> str:
         for col in ANNOUNCEMENT_DATE_COLS:
             if col in financial_df.columns:
                 effective_col = "__effective_date"
                 financial_df[effective_col] = self._normalize_date_series(financial_df[col])
-                financial_df[effective_col] = financial_df[effective_col].fillna(financial_df["report_date"])
+                nan_mask = financial_df[effective_col].isna()
+                financial_df.loc[nan_mask, effective_col] = self._apply_report_date_offset(
+                    financial_df.loc[nan_mask, "report_date"]
+                )
                 earlier_than_report = financial_df[effective_col] < financial_df["report_date"]
                 financial_df.loc[earlier_than_report, effective_col] = financial_df.loc[earlier_than_report, "report_date"]
                 return effective_col
 
-        return "report_date"
+        effective_col = "__effective_date"
+        financial_df[effective_col] = self._apply_report_date_offset(financial_df["report_date"])
+        return effective_col
     
     def map_fields(self, df: pd.DataFrame) -> pd.DataFrame:
         """

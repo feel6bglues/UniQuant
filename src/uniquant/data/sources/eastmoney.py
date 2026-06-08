@@ -116,6 +116,7 @@ class EastmoneySource(DataSource):
                     logger.warning("403错误，可能被反爬，尝试切换代理")
                     self._switch_proxy()
             except (AttributeError, RuntimeError):
+                logger.exception("切换代理失败，继续抛出原始异常")
                 pass
             raise
         except Exception as e:  # noqa: E722 — _request 最终兜底，上层已有具体异常处理

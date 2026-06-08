@@ -103,16 +103,33 @@ class TradeCalendarManager:
     def is_trading_day(self, date: datetime.date) -> bool:
         try:
             year = date.year
-            calendar_file = os.path.join(self.data_dir, f"trade_calendar_{year}.csv")
-            if os.path.exists(calendar_file):
-                try:
-                    calendar = pd.read_csv(calendar_file, encoding='utf-8-sig')
-                    if 'trade_date' in calendar.columns:
-                        calendar['trade_date'] = pd.to_datetime(calendar['trade_date'])
-                        date_str = date.strftime("%Y-%m-%d")
-                        return date_str in calendar['trade_date'].dt.strftime("%Y-%m-%d").values
-                except Exception as e:
-                    logger.warning(f"加载本地交易日历失败: {e}")
+            
+            # 缓存每年的交易日集合，避免重复解析 CSV
+            if not hasattr(self, '_trading_days_cache'):
+                self._trading_days_cache = {}
+            
+            if year not in self._trading_days_cache:
+                calendar_file = os.path.join(self.data_dir, f"trade_calendar_{year}.csv")
+                if os.path.exists(calendar_file):
+                    try:
+                        calendar = pd.read_csv(calendar_file, encoding='utf-8-sig')
+                        if 'trade_date' in calendar.columns:
+                            calendar['trade_date'] = pd.to_datetime(calendar['trade_date'])
+                            self._trading_days_cache[year] = set(
+                                calendar['trade_date'].dt.strftime("%Y-%m-%d").values
+                            )
+                        else:
+                            self._trading_days_cache[year] = set()
+                    except Exception as e:
+                        logger.warning(f"加载本地交易日历失败: {e}")
+                        self._trading_days_cache[year] = set()
+                else:
+                    self._trading_days_cache[year] = set()
+            
+            date_str = date.strftime("%Y-%m-%d")
+            if self._trading_days_cache[year]:
+                return date_str in self._trading_days_cache[year]
+            
             iso = date.isoformat()
             if iso in _CN_SPECIAL_WORKDAYS:
                 return True

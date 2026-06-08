@@ -1,5 +1,7 @@
 # UniQuant 系统现状全景侦察报告 (V3)
 
+> **Obsolete as of 2026-06-07** — 见 FIVE_STAGE_ANALYSIS_REPORT_20260607.md / FIVE_STAGE_ROUND2_FINDINGS_20260607.md
+
 > 审计时间：2026-05-30 | 4 路 Subagent 并发审计
 > 本报告为 P0/P1 修复后的重新审计，验证修复并发现新问题
 

@@ -8,12 +8,12 @@ mootdx 复权因子同步脚本
 
 import argparse
 import json
-import logging
 from datetime import datetime
 from pathlib import Path
 from typing import List, Optional
 
 import pandas as pd
+from uniquant.shared.logger_factory import get_logger
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent.parent
 DATA_DIR = PROJECT_ROOT / "data"
@@ -24,15 +24,7 @@ LOG_FILE = DATA_DIR / "sync_factors_mootdx.log"
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 FACTOR_DIR.mkdir(parents=True, exist_ok=True)
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s",
-    handlers=[
-        logging.FileHandler(LOG_FILE, encoding="utf-8"),
-        logging.StreamHandler(),
-    ],
-)
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 MARKET_SUFFIX_MAP = {
     "60": "SH", "68": "SH",
@@ -65,6 +57,7 @@ def load_progress() -> set:
             with open(PROGRESS_FILE, "r") as f:
                 return set(json.load(f).get("completed", []))
         except (json.JSONDecodeError, IOError, OSError):
+            logger.exception("加载进度文件失败，返回空集合")
             pass
     return set()
 
@@ -139,15 +132,15 @@ def calculate_adj_factors(df_day: pd.DataFrame, df_gbbq: pd.DataFrame) -> pd.Dat
 
     df["adj_factor"] = 1.0
 
-    for _, row in df_gbbq.iterrows():
-        ex_date = row.get("date")
+    for row in df_gbbq.itertuples(index=False):
+        ex_date = row.date
         if pd.isna(ex_date):
             continue
 
-        cash_div = float(row.get("cash_div", 0) or 0)
-        split_ratio = float(row.get("split_ratio", 0) or 0)
-        rights_ratio = float(row.get("rights_ratio", 0) or 0)
-        rights_price = float(row.get("rights_price", 0) or 0)
+        cash_div = float(row.cash_div or 0)
+        split_ratio = float(row.split_ratio or 0)
+        rights_ratio = float(row.rights_ratio or 0)
+        rights_price = float(row.rights_price or 0)
 
         mask = df["date"] >= ex_date
         if not mask.any():

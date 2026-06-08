@@ -24,6 +24,7 @@ class LPPLVisualizer:
                 from ..services.analysis.lppl_analysis_engine import create_lppl_engine
                 self.lppl_engine = create_lppl_engine()
             except Exception:
+                logger.warning("Failed to create LPPL engine", exc_info=True)
                 self.lppl_engine = None
 
         if data_service is not None:
@@ -35,6 +36,7 @@ class LPPLVisualizer:
                 )
                 self.data_service = create_lppl_data_service()
             except Exception:
+                logger.warning("Failed to create LPPL data service", exc_info=True)
                 self.data_service = None
 
     def run_analysis_and_plot(
@@ -172,6 +174,7 @@ class LPPLVisualizer:
                         last_real_date = pd.to_datetime(df_fit[col].iloc[-1])
                         break
                     except (ValueError, KeyError, TypeError):
+                        logger.exception("获取最后日期列失败，跳过")
                         continue
 
         # 如果仍然找不到日期列，使用当前日期
@@ -212,6 +215,7 @@ class LPPLVisualizer:
                                 date_found = True
                                 break
                             except (ValueError, KeyError, TypeError, IndexError):
+                                logger.exception("获取绘图日期失败，跳过")
                                 continue
 
                 # 如果都没有，使用计算的日期

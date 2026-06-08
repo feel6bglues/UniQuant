@@ -1,5 +1,7 @@
 # Project Audit Supplement & Fix Priority Roadmap
 
+> **Obsolete as of 2026-06-07** — 见 FIVE_STAGE_ANALYSIS_REPORT_20260607.md / FIVE_STAGE_ROUND2_FINDINGS_20260607.md
+
 > **生成日期**: 2026-05-23  
 > **范围**: 对 `PROJECT_AUDIT_20260523.md` 原始审计的交叉验证 + 代码库深层补充审计  
 > **结论前置**: 原始审计 17 项声明经逐行代码验证全部成立（15 CORRECT / 2 PARTIALLY CORRECT，无误判）。补充审计新发现 17 个问题。合计 **34 项**。

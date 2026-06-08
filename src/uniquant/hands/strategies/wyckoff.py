@@ -1,4 +1,3 @@
-import logging
 from functools import lru_cache
 from pathlib import Path
 from typing import Dict, Optional
@@ -11,13 +10,14 @@ try:
 except ImportError:
     xcals = None
 
+from uniquant.shared.logger_factory import get_logger
 from uniquant.shared.cost_model import COST_BUY, COST_SELL
 from uniquant.hands.strategies.indicators import calc_atr
 from uniquant.hands.strategies.regime import get_regime
 from uniquant.brain.wyckoff.engine import WyckoffEngine
 from uniquant.brain.wyckoff.models import ConfidenceLevel
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 REGIME_PARAMS = {
     "range": {"atr_mult": 1.5, "ts": 45, "mh": 90},
@@ -68,6 +68,7 @@ def trade_wyckoff(df: pd.DataFrame, as_of_date: str, csi: pd.DataFrame = None,
             logger.debug("Wyckoff %s signal %s < min %s — skipped", symbol, signal_conf.value, min_conf)
             return None
     except (KeyError, ValueError):
+        logger.exception("获取 Wyckoff 信号置信度失败，跳过阈值检查")
         pass
     if rpt.signal.signal_type == "spring" and rpt.signal.spring_date:
         sd = pd.Timestamp(rpt.signal.spring_date)
@@ -111,14 +112,14 @@ def trade_wyckoff(df: pd.DataFrame, as_of_date: str, csi: pd.DataFrame = None,
     hs = False
     ht = False
     d_ = 0
-    for _, rw in f.iterrows():
+    for rw in f.itertuples(index=False):
         d_ += 1
-        c = float(rw["close"])
-        hi = float(rw["high"])
-        lo = float(rw["low"])
+        c = float(rw.close)
+        hi = float(rw.high)
+        lo = float(rw.low)
         peak = max(peak, hi)
         if hi < ss:
-            ep = float(rw["open"])
+            ep = float(rw.open)
             er = "gap_stop_loss"
             hs = True
             break

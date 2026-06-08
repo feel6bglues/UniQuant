@@ -14,8 +14,8 @@ import pandas as pd
 from ..brain.factors.financial_bridge import FinancialFactorBridge
 from ..brain.factors.analyzer import FactorAnalyzer
 from ..brain.factors.composer import FactorComposer
-from ..brain.screener import StockScreener, ScreenerConfig
-from ..brain.indicators import Indicators
+from ..brain.screener.screener import StockScreener, ScreenerConfig
+from ..brain.indicators.indicators import Indicators
 from ..data.lake.storage_manager import StorageManager
 from ..shared.constants import ResultsConstants
 from ..shared.error_handling import handle_errors
@@ -42,7 +42,11 @@ def get_default_scan_output_dir() -> str:
 
 @dataclass
 class ScanConfig:
-    """扫描配置"""
+    """扫描配置
+    注意: exclude_delisted 默认为 False，即包含退市股票。
+    历史研究和回测必须包含退市股票以消除幸存者偏差，确保点时间精度准确。
+    实盘交易时可设为 True 排除已退市股票。
+    """
     top_n: int = 50
     bottom_n: int = 50
     min_data_points: int = 60
@@ -50,7 +54,7 @@ class ScanConfig:
     factor_cols: List[str] = None
     weight_method: str = "ic_weighted"
     lightweight: bool = False
-    exclude_delisted: bool = True
+    exclude_delisted: bool = False
     batch_size: int = 500
     financial_subdir: str = "financial"
     
@@ -356,8 +360,8 @@ class ScanPipeline:
                     f.write(f"## {sector}\n\n")
                     f.write("| Rank | Code | Score |\n")
                     f.write("|------|------|-------|\n")
-                    for _, row in sector_data.iterrows():
-                        f.write(f"| {row.get('_sector_rank', '')} | {row.get('code', '')} | {row.get('composite_score', 0):.4f} |\n")
+                    for row in sector_data.itertuples(index=False):
+                        f.write(f"| {getattr(row, '_sector_rank', '')} | {getattr(row, 'code', '')} | {getattr(row, 'composite_score', 0):.4f} |\n")
                     f.write("\n")
             files["sector_top"] = str(sector_file)
         

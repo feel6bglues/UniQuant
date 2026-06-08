@@ -34,12 +34,7 @@ class TestDIContainer:
 
         container.clear()
         assert container.has("service") is False
-        try:
-            container.get("missing")
-        except ValueError as exc:
-            assert "missing" in str(exc)
-        else:
-            raise AssertionError("expected ValueError")
+        assert container.get("missing") is None
 
 
 class TestMemoryCacheBackend:

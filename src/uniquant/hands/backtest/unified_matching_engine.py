@@ -11,7 +11,7 @@ import numpy as np
 import pandas as pd
 
 from ...shared.constants import BacktestConstants, MarketConstants
-from ...shared.cost_model import TRANSFER_FEE_PCT
+from ...shared.cost_model import TRANSFER_FEE_PCT, get_stamp_tax_pct
 from ...shared.limit_checker import get_board_type
 from ...shared.market_rules import get_board_rule
 from ...data.managers.trade_calendar_manager import TradeCalendarManager
@@ -24,6 +24,7 @@ class FillResult:
     commissions: np.ndarray
     stamp_duties: np.ndarray
     slippages: np.ndarray
+    transfer_fees: np.ndarray
     rejected_mask: np.ndarray
     t1_violation_mask: np.ndarray
     limit_violation_mask: np.ndarray
@@ -80,19 +81,59 @@ class UnifiedMatchingEngine:
         prices: np.ndarray,
         pre_closes: np.ndarray,
         symbols: np.ndarray,
+        names: np.ndarray | None = None,
+        trading_days_listed: np.ndarray | None = None,
     ) -> Dict[str, np.ndarray]:
         n = len(prices)
         is_limit_up = np.zeros(n, dtype=bool)
         is_limit_down = np.zeros(n, dtype=bool)
         valid = pre_closes > 0
         price_ratios = np.where(valid, prices / np.maximum(pre_closes, 1e-8), 1.0)
+        tol = MarketConstants.PRICE_TOLERANCE
 
-        for board_type, (up_r, down_r) in MarketConstants.LIMIT_RATIO.items():
-            board_mask = np.array([get_board_type(s) == board_type for s in symbols])
-            mask = board_mask & valid
-            tol = MarketConstants.PRICE_TOLERANCE
-            is_limit_up |= mask & (price_ratios >= up_r - tol)
-            is_limit_down |= mask & (price_ratios <= down_r + tol)
+        # Fast path: no names or trading_days_listed — fully vectorized
+        if names is None and trading_days_listed is None:
+            # 预计算所有 symbol 的 board_type，避免 5n 次重复调用
+            board_types = np.array([get_board_type(s) for s in symbols])
+            for board_type, (up_r, down_r) in MarketConstants.LIMIT_RATIO.items():
+                board_mask = board_types == board_type
+                mask = board_mask & valid
+                is_limit_up |= mask & (price_ratios >= up_r - tol)
+                is_limit_down |= mask & (price_ratios <= down_r + tol)
+            return {"is_limit_up": is_limit_up, "is_limit_down": is_limit_down}
+
+        # Slow path: element-wise for ST name detection and/or IPO special rules
+        for i in range(n):
+            if not valid[i]:
+                continue
+
+            # Board type with ST name detection
+            bt = get_board_type(symbols[i])
+            if names is not None and names[i]:
+                nu = names[i].upper()
+                if any(nu.startswith(p) for p in ("ST", "*ST", "S*ST")):
+                    bt = "st"
+            pr = price_ratios[i]
+
+            # IPO special rules
+            if trading_days_listed is not None and trading_days_listed[i] > 0:
+                tdl = int(trading_days_listed[i])
+                if bt == "main" and tdl == 1:
+                    if pr >= 1.44 - tol:
+                        is_limit_up[i] = True
+                    if pr <= 0.64 + tol:
+                        is_limit_down[i] = True
+                    continue
+                if bt in ("sci_tech", "gem") and tdl <= 5:
+                    continue
+                if bt == "beijing" and tdl == 1:
+                    continue
+
+            up_r, down_r = MarketConstants.LIMIT_RATIO.get(bt, MarketConstants.LIMIT_RATIO["main"])
+            if pr >= up_r - tol:
+                is_limit_up[i] = True
+            if pr <= down_r + tol:
+                is_limit_down[i] = True
 
         return {"is_limit_up": is_limit_up, "is_limit_down": is_limit_down}
 
@@ -106,11 +147,13 @@ class UnifiedMatchingEngine:
         timestamps: np.ndarray,
         volumes: np.ndarray,
         avg_daily_volumes: np.ndarray,
+        names: np.ndarray | None = None,
+        trading_days_listed: np.ndarray | None = None,
     ) -> FillResult:
         n = len(prices)
         assert len(shares_requested) == n and len(cash_available) == n
 
-        limit_status = self.compute_limit_status_vectorized(prices, pre_closes, symbols)
+        limit_status = self.compute_limit_status_vectorized(prices, pre_closes, symbols, names, trading_days_listed)
         limit_rejected = limit_status["is_limit_up"]
 
         exec_prices = self.compute_execution_prices(prices, volumes, avg_daily_volumes, is_buy=True)
@@ -123,24 +166,31 @@ class UnifiedMatchingEngine:
         cash_shortfall = total_costs > cash_available
         lot_sizes = np.array([get_board_rule(s).lot_size for s in symbols], dtype=np.int64)
         shares_adj = np.where(
-            cash_shortfall & (cash_available > commissions + transfer_fees),
-            ((cash_available - commissions - transfer_fees) / np.maximum(exec_prices, 1e-8)).astype(np.int64) // lot_sizes * lot_sizes,
+            ~cash_shortfall,
             shares_requested,
+            np.where(
+                cash_available > commissions + transfer_fees,
+                ((cash_available - commissions - transfer_fees) / np.maximum(exec_prices, 1e-8)).astype(np.int64) // lot_sizes * lot_sizes,
+                0,
+            ),
         )
         shares_adj = np.maximum(shares_adj, 0)
+        shares_adj = np.where(limit_rejected, 0, shares_adj)
 
         values = exec_prices * shares_adj
         commissions = np.maximum(values * self.commission_rate, self.min_commission)
         transfer_fees = values * TRANSFER_FEE_PCT
         total_costs = values + commissions + transfer_fees
 
+        rejected_mask = limit_rejected | (shares_adj <= 0)
         return FillResult(
             executed_shares=shares_adj,
             exec_prices=exec_prices,
-            commissions=commissions,
+            commissions=np.where(rejected_mask, 0, commissions),
             stamp_duties=np.zeros(n),
-            slippages=exec_prices - prices,
-            rejected_mask=limit_rejected | (shares_adj <= 0),
+            slippages=np.where(rejected_mask, 0, exec_prices - prices),
+            transfer_fees=np.where(rejected_mask, 0, transfer_fees),
+            rejected_mask=rejected_mask,
             t1_violation_mask=np.zeros(n, dtype=bool),
             limit_violation_mask=limit_rejected,
             cash_shortfall_mask=cash_shortfall,
@@ -158,11 +208,13 @@ class UnifiedMatchingEngine:
         buy_dates: np.ndarray,
         volumes: np.ndarray,
         avg_daily_volumes: np.ndarray,
+        names: np.ndarray | None = None,
+        trading_days_listed: np.ndarray | None = None,
     ) -> FillResult:
         n = len(prices)
         assert len(shares_requested) == n and len(positions_held) == n
 
-        limit_status = self.compute_limit_status_vectorized(prices, pre_closes, symbols)
+        limit_status = self.compute_limit_status_vectorized(prices, pre_closes, symbols, names, trading_days_listed)
         limit_rejected = limit_status["is_limit_down"]
 
         t1_violation = np.zeros(n, dtype=bool)
@@ -187,7 +239,12 @@ class UnifiedMatchingEngine:
 
         values = exec_prices * shares_clamped
         commissions = np.maximum(values * self.commission_rate, self.min_commission)
-        stamp_duties = values * self.stamp_duty_rate
+        # 印花税向量化：预计算日期→税率映射，用 NumPy 索引替代 Python 循环
+        stamp_dates = pd.to_datetime(timestamps)
+        unique_dates = {d.date() for d in stamp_dates}
+        date_to_rate = {d: get_stamp_tax_pct(d) for d in unique_dates}
+        rates = np.array([date_to_rate[d.date()] for d in stamp_dates])
+        stamp_duties = values * rates
         transfer_fees = values * TRANSFER_FEE_PCT  # 过户费
         net_values = values - commissions - stamp_duties - transfer_fees
         cost_bases = position_costs * shares_clamped
@@ -197,9 +254,10 @@ class UnifiedMatchingEngine:
         return FillResult(
             executed_shares=np.where(rejected, 0, shares_clamped),
             exec_prices=exec_prices,
-            commissions=commissions,
-            stamp_duties=stamp_duties,
-            slippages=prices - exec_prices,
+            commissions=np.where(rejected, 0, commissions),
+            stamp_duties=np.where(rejected, 0, stamp_duties),
+            slippages=np.where(rejected, 0, prices - exec_prices),
+            transfer_fees=np.where(rejected, 0, transfer_fees),
             rejected_mask=rejected,
             t1_violation_mask=t1_violation,
             limit_violation_mask=limit_rejected,

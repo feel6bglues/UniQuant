@@ -109,7 +109,7 @@ class DataFetcher:
             logger.warning(f"未获取到 {symbol} 的数据")
             return pd.DataFrame()
 
-        df = self.pipeline.process(df, symbol)
+        df = self.pipeline.process(df, symbol, adjust=adjust)
 
         self._set_price_cache(symbol, adjust, df)
         return df
@@ -158,9 +158,23 @@ class DataFetcher:
         return 0.0
 
     def fetch_stocks_daily(self, symbols: List[str], start_date: str, end_date: str) -> Dict[str, pd.DataFrame]:
+        from concurrent.futures import ThreadPoolExecutor, as_completed
         result = {}
-        for symbol in symbols:
-            result[symbol] = self.fetch_stock_daily(symbol, start_date, end_date)
+        max_workers = min(16, len(symbols)) if symbols else 1
+        
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            future_to_symbol = {
+                executor.submit(self.fetch_stock_daily, symbol, start_date, end_date): symbol
+                for symbol in symbols
+            }
+            for future in as_completed(future_to_symbol):
+                symbol = future_to_symbol[future]
+                try:
+                    result[symbol] = future.result()
+                except Exception as e:
+                    logger.warning(f"获取 {symbol} 数据失败: {e}")
+                    result[symbol] = pd.DataFrame()
+        
         return result
 
     def fetch_index_daily(self, symbol: str, start_date: str, end_date: str) -> pd.DataFrame:

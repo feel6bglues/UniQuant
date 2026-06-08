@@ -11,12 +11,12 @@ LPPL 底层数值核心
 - src.lppl_engine 是本模块的调用方（策略级入口）
 """
 
-import logging
 from typing import Dict, Literal, Optional, Tuple
 
 import pandas as pd
 
 from uniquant.shared.constants import ENABLE_NUMBA_JIT, REQUIRED_COLUMNS, W_BOUNDS, M_BOUNDS
+from uniquant.shared.logger_factory import get_logger
 
 LPPL_RMSE_THRESHOLD = 10.0
 
@@ -42,7 +42,7 @@ def track_fit_failure(
 
 import numpy as np
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 NUMBA_AVAILABLE = False
 try:

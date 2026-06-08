@@ -1,5 +1,7 @@
 # UniQuant 多模型共振投研报告
 
+> **Obsolete as of 2026-06-07** — 见 FIVE_STAGE_ANALYSIS_REPORT_20260607.md / FIVE_STAGE_ROUND2_FINDINGS_20260607.md
+
 > 生成时间: 2026-05-30 12:21:50
 > 实验类型: 纯投研实验（只调用，不修改）
 > 防过拟合: 严格区分样本内/样本外

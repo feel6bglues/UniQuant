@@ -74,10 +74,23 @@ class PositionSizer:
     Implements T+1 overnight risk penalty and CZSC Geometry adjusted stop loss.
     """
 
-    def __init__(self, initial_capital: float = 100000.0, risk_pct: float = 0.05):
+    def __init__(self, initial_capital: float = 100000.0, risk_pct: float = 0.05,
+                 kelly_fraction: Optional[float] = None):
         self.capital = initial_capital
         self.risk_pct = risk_pct
+        self.kelly_fraction = kelly_fraction
         self.market_penalties = {"CN": 1.2, "US": 1.0, "HK": 1.0}  # T+1 penalty
+
+    @staticmethod
+    def calculate_kelly(win_rate: float, avg_win: float, avg_loss: float) -> float:
+        if avg_loss <= 0:
+            return 0.0
+        b = avg_win / avg_loss
+        q = 1.0 - win_rate
+        if b <= 0 or win_rate <= 0:
+            return 0.0
+        kelly = (b * win_rate - q) / b
+        return max(0.0, min(kelly, 1.0))
 
     def _get_lot_size(self, market: str, symbol: str = "UNKNOWN") -> int:
         if market == "CN":
@@ -144,7 +157,8 @@ class PositionSizer:
 
         # 3. Apply T+1 penalty to the risk amount
         penalty = self.market_penalties.get(market, 1.0)
-        max_loss_allowed = safe_round(self.capital * self.risk_pct, PrecisionConstants.PRICE_DECIMALS)
+        effective_risk_pct = self.risk_pct * self.kelly_fraction if self.kelly_fraction is not None else self.risk_pct
+        max_loss_allowed = safe_round(self.capital * effective_risk_pct, PrecisionConstants.PRICE_DECIMALS)
 
         # 4. Calculate shares with precision safety
         # Shares = MaxLoss / (RiskPerShare * Penalty)
@@ -232,10 +246,12 @@ class PortfolioAllocation:
 
 
 class PortfolioSizer:
-    def __init__(self, max_total_risk=0.25, max_single=0.10, max_daily_loss=0.02):
+    def __init__(self, max_total_risk=0.25, max_single=0.10, max_daily_loss=0.02,
+                 max_single_sector_pct=0.20):
         self._max_total_risk = max_total_risk
         self._max_single = max_single
         self._max_daily_loss = max_daily_loss
+        self._max_single_sector_pct = max_single_sector_pct
 
     def allocate(
         self,
@@ -243,6 +259,8 @@ class PortfolioSizer:
         portfolio_equity: float,
         daily_pnl: float = 0.0,
     ) -> PortfolioAllocation:
+        # TODO: Enforce max_single_sector_pct using industry classification
+        # Requires industry mapping per symbol, not yet implemented.
         if daily_pnl < -self._max_daily_loss:
             return PortfolioAllocation(remaining_cash=portfolio_equity)
 

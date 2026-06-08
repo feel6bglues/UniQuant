@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
-import logging
 import multiprocessing
+
+from uniquant.shared.logger_factory import get_logger
 import os
 import time
 from concurrent.futures import ProcessPoolExecutor, as_completed
@@ -19,7 +20,7 @@ from uniquant.brain.lppl.core import (
 )
 from uniquant.brain.lppl.engine import DEFAULT_CONFIG, LPPLConfig, calculate_risk_level, fit_single_window
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 JOBLIB_AVAILABLE = False
 try:

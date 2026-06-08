@@ -33,6 +33,17 @@ from .quality import (
     SignalQualityMetrics,
     SignalQualityTracker,
 )
+from .adapters import (
+    AdapterRegistry,
+    CZSCAdapter,
+    EngineAdapter,
+    FSMAdapter,
+    LPPLAdapter,
+    RegimeAdapter,
+    TradingSignalCollector,
+    WyckoffAdapter,
+    create_default_registry as create_default_adapter_registry,
+)
 
 __all__ = [
     # models
@@ -60,6 +71,16 @@ __all__ = [
     "SignalQualityMetrics",
     "SignalQualityAssessor",
     "SignalQualityTracker",
+    # adapters
+    "EngineAdapter",
+    "LPPLAdapter",
+    "CZSCAdapter",
+    "WyckoffAdapter",
+    "FSMAdapter",
+    "RegimeAdapter",
+    "AdapterRegistry",
+    "TradingSignalCollector",
+    "create_default_adapter_registry",
 ]
 
 # db 延迟导入，避免 SQLAlchemy 硬依赖

@@ -5,14 +5,15 @@ Wyckoff 状态管理器
 """
 
 import json
-import logging
 from datetime import datetime, timedelta
+
+from uniquant.shared.logger_factory import get_logger
 from pathlib import Path
 from typing import Dict, Optional
 
 from uniquant.brain.wyckoff.models import AnalysisResult, AnalysisState
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class StateManager:
@@ -146,6 +147,7 @@ class StateManager:
                 if now <= freeze_date:
                     return "cooling_down"
             except (ValueError, TypeError):
+                logger.exception("计算冷却状态日期失败，跳过")
                 pass
 
         if state.trigger_armed:

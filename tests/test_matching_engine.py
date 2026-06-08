@@ -11,7 +11,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from src.uniquant.hands.backtest.unified_matching_engine import UnifiedMatchingEngine, FillResult
+from uniquant.hands.backtest.unified_matching_engine import UnifiedMatchingEngine, FillResult
 
 
 def test_buy_normal_execution():
@@ -33,7 +33,7 @@ def test_buy_normal_execution():
 
 
 def test_limit_up_rejection():
-    eng = UnifiedMatchingEngine()
+    eng = UnifiedMatchingEngine(min_commission=5.0)
     px = np.array([11.0], dtype=np.float64)
     sh = np.array([100], dtype=np.int64)
     ca = np.array([10000.0], dtype=np.float64)
@@ -46,10 +46,14 @@ def test_limit_up_rejection():
     fill = eng.fill_buy(px, sh, ca, pc, sym, ts, vol, adv)
     assert fill.rejected_mask[0], "Limit-up should reject buy"
     assert fill.limit_violation_mask[0]
+    assert fill.executed_shares[0] == 0, "Rejected buy must have 0 shares"
+    assert fill.commissions[0] == 0, "Rejected buy must have 0 commissions"
+    assert fill.transfer_fees[0] == 0, "Rejected buy must have 0 transfer_fees"
+    assert fill.slippages[0] == 0, "Rejected buy must have 0 slippages"
 
 
 def test_limit_down_rejection():
-    eng = UnifiedMatchingEngine()
+    eng = UnifiedMatchingEngine(min_commission=5.0)
     px = np.array([9.0], dtype=np.float64)
     sh = np.array([100], dtype=np.int64)
     ca = np.array([10000.0], dtype=np.float64)
@@ -64,6 +68,11 @@ def test_limit_down_rejection():
 
     fill = eng.fill_sell(px, sh, pos, pco, pc, sym, ts, bd, vol, adv)
     assert fill.rejected_mask[0], "Limit-down should reject sell"
+    assert fill.executed_shares[0] == 0, "Rejected sell must have 0 shares"
+    assert fill.commissions[0] == 0, "Rejected sell must have 0 commissions"
+    assert fill.stamp_duties[0] == 0, "Rejected sell must have 0 stamp_duties"
+    assert fill.transfer_fees[0] == 0, "Rejected sell must have 0 transfer_fees"
+    assert fill.slippages[0] == 0, "Rejected sell must have 0 slippages"
 
 
 def test_cash_shortfall_auto_reduce():

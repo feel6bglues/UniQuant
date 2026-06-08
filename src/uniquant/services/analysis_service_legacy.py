@@ -1,5 +1,6 @@
 import logging
 import threading
+import warnings
 from typing import Any, Dict, List, Optional
 
 import numpy as np
@@ -53,6 +54,7 @@ class AnalysisService:
         sizer=None,
         validation_service=None,
     ):
+        warnings.warn("AnalysisService (v1) is deprecated, use analysis_service_v2", DeprecationWarning, stacklevel=2)
         self.data_service = data_service
         self.evt_risk = evt_risk
         self.sizer = sizer
@@ -920,7 +922,7 @@ class AnalysisService:
         基准数据（沪深300、中证500）是全市场共享的，只需获取一次
         """
         try:
-            from ..brain.alpha_decoupler import AlphaDecoupler
+            from ..brain.alpha_decoupler.alpha_decoupler import AlphaDecoupler
             from ..data.lake.storage_manager import StorageManager
 
             stock_df = data_pack.get("stock")
@@ -951,7 +953,7 @@ class AnalysisService:
     def _calculate_ma_status(self, data_pack: Dict[str, Any]) -> None:
         """计算 MA 状态"""
         try:
-            from ..brain.indicators import Indicators
+            from ..brain.indicators.indicators import Indicators
             indicators = Indicators()
             ma_short = indicators.calc_ma(data_pack["stock"], window=IndicatorThresholds.MA_SHORT)
             ma_long = indicators.calc_ma(data_pack["stock"], window=IndicatorThresholds.MA_MEDIUM)
@@ -978,7 +980,7 @@ class AnalysisService:
         """计算价格和止损"""
         try:
             data_pack["price"] = data_pack["stock"].iloc[-1]["close"]
-            from ..brain.indicators import Indicators
+            from ..brain.indicators.indicators import Indicators
             indicators = Indicators()
             atr = indicators.calc_atr(data_pack["stock"])
             if not atr.empty:
@@ -993,7 +995,7 @@ class AnalysisService:
     def _calculate_technical_indicators(self, data_pack: Dict[str, Any]) -> None:
         """计算技术指标用于报告展示"""
         try:
-            from ..brain.indicators import Indicators
+            from ..brain.indicators.indicators import Indicators
             indicators = Indicators()
             stock_df = data_pack.get("stock")
             

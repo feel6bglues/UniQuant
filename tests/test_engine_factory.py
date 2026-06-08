@@ -1,3 +1,4 @@
+import importlib as _importlib
 import pytest
 from unittest.mock import MagicMock, patch
 
@@ -19,7 +20,14 @@ for _cls_name in [
 
 @pytest.fixture(autouse=True)
 def mock_imports():
-    with patch("importlib.import_module", return_value=_mock_module):
+    _original_import_module = _importlib.import_module
+
+    def _side_effect(name, package=None):
+        if package == "uniquant.services.analysis":
+            return _mock_module
+        return _original_import_module(name, package)
+
+    with patch("importlib.import_module", side_effect=_side_effect):
         yield
 
 

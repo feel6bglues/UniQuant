@@ -7,7 +7,11 @@
 - RegimeStrategy: 市场状态驱动策略
 - ReversalStrategy: 短期超卖反弹策略
 - MaAtrStrategy: 均线交叉 + ATR 止损策略
+
+策略注册统一使用 registry.STRATEGY_MAP。
 """
+
+import warnings
 
 __all__ = [
     "BaseStrategy",
@@ -16,17 +20,7 @@ __all__ = [
     "RegimeStrategy",
     "ReversalStrategy",
     "MaAtrStrategy",
-    "STRATEGY_MAP",
 ]
-
-# 策略注册表: 名称 → 懒加载路径
-STRATEGY_MAP = {
-    "fsm": "uniquant.hands.strategies.fsm_strategy.FSMStrategy",
-    "wyckoff": "uniquant.hands.strategies.wyckoff_strategy.WyckoffStrategy",
-    "regime": "uniquant.hands.strategies.regime_strategy.RegimeStrategy",
-    "reversal": "uniquant.hands.strategies.reversal_strategy.ReversalStrategy",
-    "ma_atr": "uniquant.hands.strategies.ma_atr_strategy.MaAtrStrategy",
-}
 
 
 def __getattr__(name: str):
@@ -41,6 +35,8 @@ def __getattr__(name: str):
     }
 
     if name in _imports:
+        if name == "BaseStrategy":
+            warnings.warn("BaseStrategy is deprecated, use registry.STRATEGY_MAP", DeprecationWarning, stacklevel=2)
         try:
             import importlib
             mod = importlib.import_module(_imports[name], package=__name__)

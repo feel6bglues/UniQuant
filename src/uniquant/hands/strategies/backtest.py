@@ -1,7 +1,26 @@
+"""
+[DEPRECATED] 旧版策略回测 — 请使用 UnifiedResearchPipeline
+
+此文件中的 run_backtest 函数已被 UnifiedResearchPipeline 替代。
+新流水线特性:
+  - 强类型信号: List[TradingSignal]
+  - 全链路贯通: Brain → Adapter → Engine
+  - A 股防线: T+1/涨跌停/停牌/资金不透支
+"""
+
+import warnings
+warnings.warn(
+    "hands.strategies.backtest is deprecated. Use UnifiedResearchPipeline from "
+    "uniquant.services.research_pipeline instead.",
+    DeprecationWarning,
+    stacklevel=2,
+)
+
 import csv
 import functools
-import logging
 import math
+
+from uniquant.shared.logger_factory import get_logger
 import random
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from pathlib import Path
@@ -19,7 +38,7 @@ from uniquant.hands.strategies.registry import STRATEGY_MAP
 from uniquant.shared.backtest_utils import filter_suspended
 from uniquant.shared.limits import is_limit_down, is_limit_up
 
-logger = logging.getLogger("backtest")
+logger = get_logger("backtest")
 
 from uniquant.shared.cost_model import (
     COMMISSION_PCT,
@@ -29,8 +48,7 @@ from uniquant.shared.cost_model import (
     STAMP_TAX_PCT_OLD,
     TRANSFER_FEE_PCT,
 )
-
-RISK_FREE_RATE: float = 0.02  # 2% annualized (A-share 1Y LPR proxy)
+from uniquant.shared.risk_constants import RISK_FREE_RATE
 
 # Stamp tax rate change date: 2023-08-28
 # Before this date: 0.1% (千1), on/after: 0.05% (万5)
@@ -280,6 +298,21 @@ def process_stock(args: Tuple) -> List[Dict]:
                 try:
                     r = func(df, w, csi=csi, cost_buy=cost_buy, cost_sell=cost_sell, symbol=sym, is_st=is_st)
                     if r:
+                        # T+1 constraint: minimum 1-day holding period
+                        if r.get("days", 0) < 1:
+                            logger.debug("Skip %s %s: T+1 violation (days=%s)", sym, w, r.get("days", 0))
+                            continue
+                        # Sell-side limit-down check: reject trade if exit price is at limit-down
+                        if r.get("exit_price") is not None and code_prefix:
+                            exit_price = r["exit_price"]
+                            entry_idx = df[df["date"] > pd.Timestamp(w)].index[0] if len(df[df["date"] > pd.Timestamp(w)]) > 0 else None
+                            if entry_idx is not None:
+                                exit_row_idx = entry_idx + int(r.get("days", 0))
+                                if exit_row_idx < len(df):
+                                    prev_close = float(df.iloc[exit_row_idx - 1]["close"]) if exit_row_idx > 0 else float(df.iloc[exit_row_idx]["close"])
+                                    if is_limit_down({"close": exit_price}, prev_close, code_prefix, is_st=is_st):
+                                        logger.debug("Skip %s %s: exit at limit-down", sym, w)
+                                        continue
                         window_date = pd.Timestamp(w)
                         entry_date = df[df["date"] > window_date].iloc[0] if len(df[df["date"] > window_date]) > 0 else None
                         if entry_date is not None and code_prefix:
@@ -299,6 +332,13 @@ def process_stock(args: Tuple) -> List[Dict]:
                             is_delisted = last_date < pd.Timestamp.now() - pd.DateOffset(years=1)
                         except Exception:
                             is_delisted = False
+                        if is_delisted:
+                            # Apply survivorship bias penalty: delisted stocks get additional -20% annualized
+                            now = pd.Timestamp.now()
+                            days_since_last = (now - last_date).days
+                            if days_since_last > 0:
+                                penalty = -0.20 * days_since_last / 365.0
+                                r = {**r, "ret": r.get("ret", 0) + penalty, "survivorship_penalty": penalty}
                         trades.append({"strategy": s_name, "symbol": sym, "window": w, "delisted": is_delisted, **r})
                 except Exception as e:
                     logger.warning("strategy=%s symbol=%s window=%s error=%s", s_name, sym, w, e)

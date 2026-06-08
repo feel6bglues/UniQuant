@@ -1,5 +1,7 @@
 # UniQuant 系统全量验收与防弹测试报告
 
+> **Obsolete as of 2026-06-07** — 见 FIVE_STAGE_ANALYSIS_REPORT_20260607.md / FIVE_STAGE_ROUND2_FINDINGS_20260607.md
+
 > 测试时间：2026-05-30 | 4 路 Subagent 并发执行破坏性测试
 > 测试方法：动态执行 Python 测试脚本 + 严苛断言
 

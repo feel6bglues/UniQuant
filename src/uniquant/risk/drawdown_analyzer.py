@@ -11,6 +11,10 @@ from dataclasses import dataclass
 
 import numpy as np
 
+from uniquant.shared.logger_factory import get_logger
+
+logger = get_logger(__name__)
+
 
 @dataclass
 class DrawdownMetrics:
@@ -106,6 +110,9 @@ class DrawdownAnalyzer:
         n = len(equity)
         if n < 2:
             return DrawdownMetrics()
+
+        if np.any(equity <= 0):
+            logger.warning(f"equity 含非正值(min={equity.min():.4f}),可能存在数据污染")
 
         dd = cls.compute_drawdown_series(equity)
 

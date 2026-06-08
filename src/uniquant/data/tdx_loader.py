@@ -1,5 +1,10 @@
 from typing import Optional
+
 import pandas as pd
+
+from uniquant.shared.logger_factory import get_logger
+
+logger = get_logger(__name__)
 
 
 def load_tdx_data(filepath: str) -> Optional[pd.DataFrame]:
@@ -9,5 +14,5 @@ def load_tdx_data(filepath: str) -> Optional[pd.DataFrame]:
         if df is not None and not df.empty:
             return df
     except Exception:
-        pass
+        logger.warning("Failed to load TDX data from %s", filepath, exc_info=True)
     return None

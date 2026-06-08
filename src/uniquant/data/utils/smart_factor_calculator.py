@@ -151,8 +151,8 @@ class SmartFactorCalculatorV15:
 
         factors_daily = np.ones(len(df_daily))
 
-        for _, event in df_events.iterrows():
-            ex_date = event['date']
+        for event in df_events.itertuples(index=False):
+            ex_date = event.date
             idx = df_daily['date'].searchsorted(ex_date)
 
             if idx == 0 or idx >= len(df_daily):
@@ -160,10 +160,10 @@ class SmartFactorCalculatorV15:
 
             pre_close = float(df_daily.loc[idx - 1, 'close'])
             ex_open = float(df_daily.loc[idx, 'open'])
-            cash = float(event.get('cash', 0))
-            split = float(event.get('split', 0))
-            rights = float(event.get('rights', 0))
-            r_price = float(event.get('r_price', 0))
+            cash = float(event.cash)
+            split = float(event.split)
+            rights = float(event.rights)
+            r_price = float(event.r_price)
 
             if rights > 0 and r_price <= 0:
                 rights = 0.0

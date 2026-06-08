@@ -26,6 +26,7 @@ class AlphaDecoupler:
         AnalysisError,
         default_return="000300.SH",
         log_level=logging.ERROR,
+        reraise=False,
     )
     def get_benchmark(market_cap: float) -> str:
         """
@@ -58,6 +59,7 @@ class AlphaDecoupler:
         AnalysisError,
         default_return=lambda benchmark_symbol: benchmark_symbol,
         log_level=logging.ERROR,
+        reraise=False,
     )
     def get_benchmark_name(benchmark_symbol: str) -> str:
         """Get benchmark name from symbol."""
@@ -74,6 +76,7 @@ class AlphaDecoupler:
         AnalysisError,
         default_return=0.0,
         log_level=logging.ERROR,
+        reraise=False,
     )
     def calc_rs_slope(
         stock_df: Optional[pd.DataFrame],

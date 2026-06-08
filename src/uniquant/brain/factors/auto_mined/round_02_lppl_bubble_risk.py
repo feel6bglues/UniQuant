@@ -11,6 +11,10 @@ sys.path.insert(0, str(__import__('pathlib').Path(__file__).parents[5]))
 import numpy as np
 import pandas as pd
 
+from ....shared.logger_factory import get_logger
+
+logger = get_logger(__name__)
+
 
 def _live_guard(mode: str = "backtest"):
     if mode == "live":
@@ -43,7 +47,7 @@ def compute_lppl_bubble_risk(df: pd.DataFrame, mode: str = "backtest") -> pd.Ser
             # Positive = distant from crash; negative = past or near crash
             scores[i] = np.tanh(days_to_tc / 60.0)
         except Exception:
-            pass  # leave as NaN
+            logger.warning("LPPL bubble risk fit failed at window %d", i, exc_info=True)
 
     result_series = pd.Series(scores, index=df.index)
     return result_series.ffill()

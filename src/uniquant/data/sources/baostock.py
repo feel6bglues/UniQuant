@@ -278,12 +278,14 @@ class BaostockSource(DataSource):
 
     @retry(max_retries=3, delay=1.0, backoff=2.0, exceptions=(Exception,))
     @handle_errors(Exception, default_return=pd.DataFrame(), log_level=logging.ERROR)
-    def fetch_stock_list(self, date: Optional[str] = None) -> pd.DataFrame:
+    def fetch_stock_list(self, date: Optional[str] = None, include_delisted: bool = True) -> pd.DataFrame:
         """
         获取股票列表
 
         Args:
             date: 查询日期，格式 "YYYY-MM-DD"，默认当前日期
+            include_delisted: 是否包含已退市股票，默认True包含全量（回测/研究应包含退市股票以消除幸存者偏差）；
+                             仅在实盘交易时可根据需要设为False排除退市股票。
 
         Returns:
             pd.DataFrame: 股票列表
@@ -308,8 +310,8 @@ class BaostockSource(DataSource):
 
             df = pd.DataFrame(data_list, columns=rs.fields)
 
-            # 筛选正常上市的股票（status=1）
-            if "status" in df.columns:
+            # 筛选正常上市的股票（status=1），除非显式要求包含退市股票
+            if not include_delisted and "status" in df.columns:
                 df = df[df["status"] == "1"]
 
             logger.info(f"成功从BaoStock获取股票列表，共 {len(df)} 只股票")

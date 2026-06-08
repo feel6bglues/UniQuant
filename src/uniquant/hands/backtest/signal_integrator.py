@@ -4,6 +4,9 @@ import pandas as pd
 
 from uniquant.signal.models import Signal
 from uniquant.signal.aggregator import SignalAggregator, SignalAggregationMethod
+from ...shared.logger_factory import get_logger
+
+logger = get_logger(__name__)
 
 
 class SignalBacktestIntegrator:
@@ -54,11 +57,11 @@ class SignalBacktestIntegrator:
         if "signal_direction" not in merged.columns:
             merged["signal_direction"] = 0
             merged["signal_confidence"] = 0.0
-        for idx, row in trades.iterrows():
-            mask = merged.index.get_indexer([row["timestamp"]], method="nearest")
+        for row in trades.itertuples():
+            mask = merged.index.get_indexer([row.timestamp], method="nearest")
             if len(mask) > 0 and mask[0] >= 0:
-                merged.iloc[mask[0], merged.columns.get_loc("signal_direction")] = row["direction"]
-                merged.iloc[mask[0], merged.columns.get_loc("signal_confidence")] = row["confidence"]
+                merged.iloc[mask[0], merged.columns.get_loc("signal_direction")] = row.direction
+                merged.iloc[mask[0], merged.columns.get_loc("signal_confidence")] = row.confidence
         return merged
 
     @staticmethod
@@ -68,17 +71,18 @@ class SignalBacktestIntegrator:
         if trades.empty:
             return 0.0
         total_return = 0.0
-        for _, trade in trades.iterrows():
+        for trade in trades.itertuples():
             try:
-                idx = price_data.index.get_loc(trade["timestamp"])
+                idx = price_data.index.get_loc(trade.timestamp)
             except (KeyError, TypeError):
+                logger.exception("获取交易时间索引失败，跳过")
                 continue
             if idx + holding_periods >= len(price_data):
                 continue
-            entry = trade["price"]
+            entry = trade.price
             exit_price = price_data.iloc[idx + holding_periods]
             ret = (exit_price - entry) / entry
-            total_return += ret * trade["direction"]
+            total_return += ret * trade.direction
         return total_return
 
 

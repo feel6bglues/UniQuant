@@ -99,16 +99,16 @@ class CZSCEngine:
     def _get_volume(self, row) -> float:
         """获取成交量，兼容 volume 和 vol 两种列名"""
         for col in self.VOLUME_COLUMNS:
-            if col in row.index:
+            if col in (row.index if isinstance(row, pd.Series) else row):
                 return float(row[col])
         return 0.0
 
-    def _validate_input_row(self, df_latest_row: pd.Series) -> bool:
+    def _validate_input_row(self, df_latest_row) -> bool:
         """
         验证输入数据行
 
         Args:
-            df_latest_row: 数据行
+            df_latest_row: 数据行 (pd.Series 或 dict)
 
         Returns:
             bool: 是否有效
@@ -117,11 +117,15 @@ class CZSCEngine:
             logger.warning("输入数据行为None")
             return False
 
-        if not isinstance(df_latest_row, pd.Series):
+        if isinstance(df_latest_row, dict):
+            cols = set(df_latest_row.keys())
+        elif isinstance(df_latest_row, pd.Series):
+            cols = set(df_latest_row.index)
+        else:
             logger.warning(f"输入数据类型错误: {type(df_latest_row)}")
             return False
 
-        missing_cols = self.REQUIRED_COLUMNS - set(df_latest_row.index)
+        missing_cols = self.REQUIRED_COLUMNS - cols
         if missing_cols:
             logger.warning(f"缺少必需列: {missing_cols}")
             return False
@@ -154,6 +158,7 @@ class CZSCEngine:
         Exception,
         default_return={"is_3rd_buy": False, "bi_count": 0, "error": "分析失败"},
         log_level=logger.error,
+        reraise=False,
     )
     def update_and_get_signals(self, df_latest_row: pd.Series, symbol: str = "") -> Dict[str, Any]:
         """
@@ -462,6 +467,7 @@ class CZSCEngine:
             "error": "分析异常",
         },
         log_level=logger.error,
+        reraise=False,
     )
     def get_czsc_signals(self, df: pd.DataFrame) -> Dict[str, Any]:
         """

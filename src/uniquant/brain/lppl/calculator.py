@@ -187,6 +187,7 @@ class LPPLCalculator:
                 avg_price = prices.mean()
                 return max(0.05, float(avg_price) / 100 * 0.02)
         except AttributeError:
+            logger.exception("获取动态 RMSE 阈值失败，使用默认值")
             pass
         return LPPLConstants.RMSE_REJECT_THRESHOLD
 

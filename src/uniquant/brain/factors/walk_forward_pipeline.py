@@ -13,7 +13,7 @@ import numpy as np
 import pandas as pd
 
 from ...shared.logger_factory import get_logger
-from .analyzer import AnalysisMode, FactorAnalyzer
+from .analyzer import AnalysisMode, FactorAnalyzer, check_lookahead_leakage, LookaheadBiasError
 from .composer import FactorComposer
 
 logger = get_logger(__name__)
@@ -111,14 +111,25 @@ class WalkForwardFactorPipeline:
         price_col: str = "close",
         factor_func = None,
     ) -> WalkForwardResult:
-        assert date_col in df.columns, f"Missing date_col={date_col}"
-        assert code_col in df.columns, f"Missing code_col={code_col}"
-        assert price_col in df.columns, f"Missing price_col={price_col}"
+        if date_col not in df.columns:
+            raise ValueError(f"Missing date_col={date_col}")
+        if code_col not in df.columns:
+            raise ValueError(f"Missing code_col={code_col}")
+        if price_col not in df.columns:
+            raise ValueError(f"Missing price_col={price_col}")
 
         df = df.sort_values([code_col, date_col]).reset_index(drop=True)
 
         if factor_cols is None:
             factor_cols = [c for c in df.columns if c not in (date_col, code_col, price_col)]
+
+        # 前视偏差检测：在使用 factor_func 之前检查
+        if factor_func is not None:
+            try:
+                check_lookahead_leakage(df, factor_func, factor_cols)
+            except LookaheadBiasError as e:
+                logger.error(f"前视偏差检测失败: {e}")
+                raise
 
         if factor_func is not None:
             self.analyzer.compute_ic_ir(
@@ -132,7 +143,8 @@ class WalkForwardFactorPipeline:
             )
 
         windows = self._temporal_split(df, date_col)
-        assert windows, f"Data insufficient: need >= {self.train_window + self.test_window} days"
+        if not windows:
+            raise ValueError(f"Data insufficient: need >= {self.train_window + self.test_window} days")
 
         window_results: List[WalkForwardWindowResult] = []
         final_weights: Dict[str, float] = {}
@@ -142,8 +154,10 @@ class WalkForwardFactorPipeline:
             train_df = df[(pd.to_datetime(df[date_col]) >= ts) & (pd.to_datetime(df[date_col]) <= te)].copy()
             test_df = df[(pd.to_datetime(df[date_col]) >= ss) & (pd.to_datetime(df[date_col]) <= se)].copy()
 
-            assert len(train_df) >= self.min_train_days, f"Train window too short: {len(train_df)} < {self.min_train_days}"
-            assert not test_df.empty, f"Empty test window: {ss} to {se}"
+            if len(train_df) < self.min_train_days:
+                raise ValueError(f"Train window too short: {len(train_df)} < {self.min_train_days}")
+            if test_df.empty:
+                raise ValueError(f"Empty test window: {ss} to {se}")
 
             ic_results = self.analyzer.compute_ic_ir(
                 train_df,

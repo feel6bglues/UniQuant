@@ -12,6 +12,10 @@ sys.path.insert(0, str(__import__('pathlib').Path(__file__).parents[5]))
 import numpy as np
 import pandas as pd
 
+from ....shared.logger_factory import get_logger
+
+logger = get_logger(__name__)
+
 
 def _live_guard(mode: str = "backtest"):
     if mode == "live":
@@ -45,6 +49,7 @@ def compute_ma_dispersion_regime(df: pd.DataFrame, mode: str = "backtest") -> pd
             name = regime.value if hasattr(regime, "value") else str(regime)
             regime_flip.iloc[i] = _REGIME_FLIP.get(name.upper(), 0.3)
         except Exception:
+            logger.warning("Regime detection failed at index %d", i, exc_info=True)
             regime_flip.iloc[i] = 0.3
 
     regime_flip = regime_flip.ffill().fillna(0.3)

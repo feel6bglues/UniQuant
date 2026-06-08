@@ -12,6 +12,10 @@ sys.path.insert(0, str(__import__('pathlib').Path(__file__).parents[5]))
 import numpy as np
 import pandas as pd
 
+from ....shared.logger_factory import get_logger
+
+logger = get_logger(__name__)
+
 
 def _live_guard(mode: str = "backtest"):
     if mode == "live":
@@ -41,7 +45,7 @@ def compute_lppl_oscillation_amplitude(df: pd.DataFrame, mode: str = "backtest")
             # high oscillation predicts DOWN moves (mean reversion after log-periodic amplification)
             scores[i] = -oscillation
         except Exception:
-            pass  # leave as NaN
+            logger.warning("LPPL oscillation fit failed at window %d", i, exc_info=True)
 
     result_series = pd.Series(scores, index=df.index)
     return result_series.ffill()

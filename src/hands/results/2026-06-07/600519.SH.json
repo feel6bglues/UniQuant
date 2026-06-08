@@ -1,0 +1,50 @@
+{
+  "symbol": "600519.SH",
+  "date": "2026-06-07 17:06:00",
+  "decision_result": {
+    "action": "SELL",
+    "reason": "触发卖出条件: MA_REVERSAL, 综合得分: 0",
+    "regime": "NORMAL",
+    "risk": "Safe",
+    "bubble_confidence": 0.36,
+    "ntf_side": "NONE",
+    "ntf_intensity": 0.0,
+    "is_3rd_buy": false,
+    "bi_count": 49,
+    "alpha_score": 0.0,
+    "final_decision": "SELL",
+    "final_score": 0,
+    "state": "EXIT",
+    "sell_triggers": [
+      "MA_REVERSAL"
+    ],
+    "sell_limit_blocked": false
+  },
+  "indicators": {
+    "ma20": 1371.0295,
+    "ma60": 1415.3471666666667,
+    "ema20": 1362.6900852656092,
+    "rsi": 26.110157688796022,
+    "macd": -29.666901393937223,
+    "macd_signal": -24.168874186457337,
+    "macd_hist": -5.498027207479886,
+    "atr": 17.665714285714298,
+    "bollinger_upper": 1451.846211787932,
+    "bollinger_middle": 1371.0295,
+    "bollinger_lower": 1290.2127882120683,
+    "vol_ratio": 0.8513934323134601,
+    "market_entropy": 2.610469175401964,
+    "turnover_z": -0.5578489795334667
+  },
+  "data_pack": {
+    "regime": "NORMAL",
+    "risk": "Safe",
+    "bubble_confidence": 0.36,
+    "ntf_side": "NONE",
+    "ntf_intensity": 0.0,
+    "is_3rd_buy": false,
+    "bi_count": 49,
+    "alpha_score": 0.0,
+    "ma_status": "MA20 <= MA60"
+  }
+}

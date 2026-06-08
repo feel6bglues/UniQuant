@@ -8,11 +8,11 @@ mootdx 分钟线数据同步脚本
 
 import argparse
 import json
-import logging
 from datetime import datetime
 from pathlib import Path
 from typing import List, Optional
 
+from uniquant.shared.logger_factory import get_logger
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent.parent
 DATA_DIR = PROJECT_ROOT / "data"
@@ -21,15 +21,7 @@ LOG_FILE = DATA_DIR / "sync_minute_mootdx.log"
 
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s",
-    handlers=[
-        logging.FileHandler(LOG_FILE, encoding="utf-8"),
-        logging.StreamHandler(),
-    ],
-)
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 MARKET_SUFFIX_MAP = {
     "60": "SH", "68": "SH",
@@ -71,6 +63,7 @@ def load_progress() -> dict:
             with open(PROGRESS_FILE, "r") as f:
                 return json.load(f)
         except (json.JSONDecodeError, IOError, OSError):
+            logger.exception("加载进度文件失败，返回空字典")
             pass
     return {}
 

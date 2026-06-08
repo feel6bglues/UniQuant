@@ -24,7 +24,6 @@ class DataValidator:
                 return False
 
         # 2. 智能修复逻辑
-        # 如果 High < Low，交换它们
         mask_error = df["high"] < df["low"]
         if mask_error.any():
             logger.warning(f"发现 {mask_error.sum()} 条记录 High < Low，尝试修复")
@@ -32,45 +31,51 @@ class DataValidator:
                 mask_error, ["low", "high"]
             ].values
 
-        # 3. 再次严格校验
         if not (df["high"] >= df["low"]).all():
             logger.error("修复失败，仍有 High < Low 的记录")
             return False
 
-        # 4. 异常值过滤
+        # 3. 价格逻辑关系 + 自动修复
+        high_ok = (df["high"] >= df["open"]) & (df["high"] >= df["close"])
+        low_ok = (df["low"] <= df["open"]) & (df["low"] <= df["close"])
+
+        if not high_ok.all():
+            n = len(df) - high_ok.sum()
+            logger.warning(f"发现 {n} 条记录 High < Open/Close，自动修复")
+            df["high"] = df[["high", "open", "close"]].max(axis=1)
+
+        if not low_ok.all():
+            n = len(df) - low_ok.sum()
+            logger.warning(f"发现 {n} 条记录 Low > Open/Close，自动修复")
+            df["low"] = df[["low", "open", "close"]].min(axis=1)
+
+        # 4. 成交额基础校验
+        if "amount" in df.columns and (df["amount"] <= 0).any():
+            n_zero = (df["amount"] <= 0).sum()
+            logger.warning(f"发现 {n_zero} 条记录成交额 <= 0")
+
+        # 5. 异常值检测
         if "close" in df.columns and len(df) > 1:
             pct_change = df["close"].pct_change().abs()
             if (pct_change > 0.99).any():
                 logger.warning("发现异常值，跌幅超过 99%")
 
-        # 5. 验证价格逻辑关系
-        # 确保 high >= open/close，low <= open/close
-        high_validate = (df["high"] >= df["open"]) & (df["high"] >= df["close"])
-        low_validate = (df["low"] <= df["open"]) & (df["low"] <= df["close"])
-
-        if not high_validate.all():
-            logger.warning(f"发现 {~high_validate.sum()} 条记录 High < Open/Close")
-            df["high"] = df[["high", "open", "close"]].max(axis=1)
-
-        if not low_validate.all():
-            logger.warning(f"发现 {~low_validate.sum()} 条记录 Low > Open/Close")
-            df["low"] = df[["low", "open", "close"]].min(axis=1)
-
-        # 6. 验证日期连续性
+        # 6. 日期连续性检查
         if "date" in df.columns:
-            df["date"] = pd.to_datetime(df["date"])
-            df = df.sort_values("date")
-            date_diff = df["date"].diff().dt.days
+            dates = pd.to_datetime(df["date"])
+            sorted_dates = dates.sort_values()
+            date_diff = sorted_dates.diff().dt.days
 
             if (date_diff > 14).any():
                 logger.warning("发现异常长的日期间隔，可能存在数据缺失")
-                abnormal_gaps = date_diff[date_diff > 14]
-                for i, gap in abnormal_gaps.items():
-                    date = df.loc[i, "date"]
-                    prev_date = df.loc[i - 1, "date"] if i > 0 else "开始"
-                    logger.warning(f"异常间隔: {prev_date} 到 {date}, 间隔 {gap} 天")
-            else:
-                logger.info("日期连续性检查通过")
+
+        # 7. 检查是否为未复权数据
+        if "adjustflag" in df.columns:
+            if (df["adjustflag"] == 1).any():
+                n_unadj = (df["adjustflag"] == 1).sum()
+                logger.warning(f"发现 {n_unadj} 条记录 adjustflag=1，数据为未复权数据")
+        else:
+            logger.warning("缺少 adjustflag 列，无法确认复权状态，可能为未复权数据")
 
         logger.info(f"数据验证完成，共 {len(df)} 条记录通过验证")
         return True

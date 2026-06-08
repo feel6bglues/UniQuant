@@ -4,7 +4,7 @@ from typing import Any, Dict, List, Optional
 
 import pandas as pd
 
-from ..services.analysis_service import AnalysisService
+from ..services.analysis_service_legacy import AnalysisService
 
 # Import New Services
 from ..services.data_service import DataService

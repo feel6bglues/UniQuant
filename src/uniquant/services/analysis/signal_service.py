@@ -134,7 +134,7 @@ class SignalAnalysisService:
             Alpha 分析结果
         """
         try:
-            from ...brain.alpha_decoupler import AlphaDecoupler
+            from ...brain.alpha_decoupler.alpha_decoupler import AlphaDecoupler
             stock_df = data_pack.get("stock")
             bench_df = data_pack.get("benchmark")
             sector_df = data_pack.get("sector")

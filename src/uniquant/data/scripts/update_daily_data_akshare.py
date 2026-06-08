@@ -6,13 +6,13 @@ AKShare东方财富数据更新脚本 - 稳健版
 
 import time
 import random
-import logging
 from datetime import datetime
 from pathlib import Path
 from typing import Optional, List, Tuple
 
 import pandas as pd
 import numpy as np
+from uniquant.shared.logger_factory import get_logger
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent
 DATA_DIR = PROJECT_ROOT / "data"
@@ -23,15 +23,7 @@ LOG_FILE = DATA_DIR / "update_daily.log"
 
 DAILY_DIR.mkdir(parents=True, exist_ok=True)
 
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler(LOG_FILE, encoding='utf-8'),
-        logging.StreamHandler()
-    ]
-)
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 def load_stock_list() -> List[Tuple[str, str]]:
@@ -43,9 +35,9 @@ def load_stock_list() -> List[Tuple[str, str]]:
     df = pd.read_csv(STOCK_CODES_FILE, encoding='utf-8-sig')
     
     valid_stocks = []
-    for _, row in df.iterrows():
-        code_raw = str(row.get('code', ''))
-        status = row.get('status', 1)
+    for row in df.itertuples(index=False):
+        code_raw = str(row.code)
+        status = row.status
         
         if status != 1:
             continue
@@ -76,6 +68,7 @@ def load_progress() -> set:
                 data = json.load(f)
                 return set(data.get('completed', []))
         except (json.JSONDecodeError, IOError, OSError):
+            logger.exception("加载进度文件失败，返回空集合")
             pass
     return set()
 

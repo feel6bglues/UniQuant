@@ -217,10 +217,10 @@ tr:hover {{ background: #f1f1f1; }}
             return '<div class="chart-container"><h2>交易统计</h2><p>无交易记录</p></div>'
 
         table_rows = ""
-        for _, trade in trades.iterrows():
+        for trade in trades.itertuples():
             table_rows += "<tr>"
             for col in trades.columns:
-                val = trade[col]
+                val = getattr(trade, col)
                 if isinstance(val, float):
                     table_rows += f"<td>{val:.4f}</td>"
                 else:

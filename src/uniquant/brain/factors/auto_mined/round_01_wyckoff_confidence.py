@@ -10,6 +10,10 @@ sys.path.insert(0, str(__import__('pathlib').Path(__file__).parents[5]))
 import numpy as np
 import pandas as pd
 
+from ....shared.logger_factory import get_logger
+
+logger = get_logger(__name__)
+
 if True:  # mode guard
     def _live_guard(mode: str = "backtest"):
         if mode == "live":
@@ -54,7 +58,7 @@ def compute_wyckoff_phase_confidence(df: pd.DataFrame, mode: str = "backtest") -
             if sig.get("utad_detected", False):
                 scores[i] -= 0.3
         except Exception:
-            pass  # leave as NaN
+            logger.warning("Wyckoff confidence scan failed at window %d", i, exc_info=True)
 
     result = pd.Series(scores, index=df.index)
     return result.ffill()

@@ -14,6 +14,8 @@ class DataCleaner:
             logger.warning("空DataFrame传入clean方法")
             return df
 
+        df = df.copy()  # 防止原地修改调用方数据
+
         logger.info(f"开始清洗数据，原始数据共 {len(df)} 条记录")
 
         # 1. 标准化列名（小写）
@@ -28,9 +30,26 @@ class DataCleaner:
                 if col not in price_cols:
                     df[col] = df[col].fillna(0)
 
+        # 3. 修复 OHLC 一致性: 确保 high >= max(open, close), low <= min(open, close)
+        if {"open", "high", "low", "close"}.issubset(df.columns):
+            orig_high = df["high"].copy()
+            orig_low = df["low"].copy()
+            df["high"] = df[["open", "close", "high"]].max(axis=1)
+            df["low"] = df[["open", "close", "low"]].min(axis=1)
+            n_repaired_high = (orig_high != df["high"]).sum()
+            n_repaired_low = (orig_low != df["low"]).sum()
+            if n_repaired_high > 0 or n_repaired_low > 0:
+                logger.warning(f"修复了 {n_repaired_high} 条 high 异常, {n_repaired_low} 条 low 异常")
+
         # 4. 处理缺失值和重复值
         df = df.dropna(subset=["date", "close"])
         df["date"] = pd.to_datetime(df["date"])
+        
+        # 价格列 NaN 防护：ffill + bfill 兜底
+        for col in ["open", "high", "low"]:
+            if col in df.columns:
+                df[col] = df[col].ffill().bfill()
+        
         df = df.drop_duplicates(subset=["date"], keep="last")
 
         # 5. 确保成交额列存在

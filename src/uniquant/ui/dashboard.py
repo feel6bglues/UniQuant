@@ -617,6 +617,7 @@ with tabs[2]:
                     _factory = ServiceContainer.instance().get("engine_factory")
                 czsc_engine = _factory.czsc if _factory else None
             except Exception:
+                logger.warning("Failed to get CZSC engine from factory", exc_info=True)
                 czsc_engine = None
             czsc_result = czsc_engine.run_czsc_analysis(symbol=ticker, df=df_g) if czsc_engine else None
             
@@ -802,6 +803,7 @@ with tabs[3]:
                                         try:
                                             return item[key]
                                         except KeyError:
+                                            logger.exception("提取代码字段 KeyError，跳过")
                                             continue
 
                                 return None
@@ -936,8 +938,8 @@ with tabs[4]:
 
                 if isinstance(sel_lake, pd.DataFrame):
                     # DataFrame 格式：转换为字典列表
-                    for idx, row in sel_lake.iterrows():
-                        row_dict = row.to_dict()
+                    for row in sel_lake.itertuples(index=False):
+                        row_dict = row._asdict()
                         rows_to_delete.append(row_dict)
                 elif isinstance(sel_lake, list):
                     # 列表格式：可能是字典列表或 Series 列表
@@ -1468,6 +1470,7 @@ with tabs[7]:
                             ret = df["close"].pct_change().dropna()
                             all_rets.append(ret)
                     except UI_RECOVERABLE_ERRORS:
+                        logger.exception("获取收益率数据失败，跳过")
                         continue
                 if not all_rets:
                     return None, None

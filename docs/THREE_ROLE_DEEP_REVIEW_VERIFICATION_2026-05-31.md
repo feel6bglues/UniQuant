@@ -1,5 +1,7 @@
 # 三类角色穿透审查核验报告
 
+> **Obsolete as of 2026-06-07** — 见 FIVE_STAGE_ANALYSIS_REPORT_20260607.md / FIVE_STAGE_ROUND2_FINDINGS_20260607.md
+
 > **核验人**: 基于 3 路并行 Agent 逐行源码验证
 > **核验日期**: 2026-05-31
 > **核验范围**: 量化工程师 × Python 程序员 × A 股交易员 提出的 15 个遗漏 Bug + 5 处修复方案深化 + 3 处优先级错配

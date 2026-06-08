@@ -1,5 +1,7 @@
 # UniQuant 优化文档与源代码一致性核实报告
 
+> **Obsolete as of 2026-06-07** — 见 FIVE_STAGE_ANALYSIS_REPORT_20260607.md / FIVE_STAGE_ROUND2_FINDINGS_20260607.md
+
 > **核实角色**: 顶级量化金融算法工程师 × 顶级Python程序员 × 顶级A股交易员
 > **核实范围**: 5份优化文档 × 150+ 源码模块 × 逐条代码验证
 > **核实日期**: 2026-05-31

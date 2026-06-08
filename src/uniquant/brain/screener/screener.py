@@ -12,7 +12,7 @@ import pandas as pd
 
 from ...shared.error_handling import handle_errors
 from ...shared.logger_factory import get_logger
-from ..indicators import Indicators
+from ..indicators.indicators import Indicators
 
 logger = get_logger("StockScreener")
 
@@ -173,8 +173,10 @@ class StockScreener:
                         value = factor.compute_func(df)
                         signals[factor.name] = float(value.iloc[-1]) if len(value) > 0 else 0.0
                     except (AttributeError, KeyError, TypeError, ValueError, IndexError):
+                        logger.exception("计算因子信号失败，跳过")
                         pass
         except ImportError:
+            logger.exception("加载 FactorRegistry 失败，跳过")
             pass
             
         return signals

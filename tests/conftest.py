@@ -2,6 +2,8 @@ import pytest
 import pandas as pd
 import numpy as np
 
+np.random.seed(42)
+
 @pytest.fixture
 def sample_ohlcv_data():
     dates = pd.date_range("2024-01-01", periods=252, freq="B")

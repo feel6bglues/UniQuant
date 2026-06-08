@@ -1,5 +1,7 @@
 # UniQuant 审计报告源码核实结果
 
+> **Obsolete as of 2026-06-07** — 见 FIVE_STAGE_ANALYSIS_REPORT_20260607.md / FIVE_STAGE_ROUND2_FINDINGS_20260607.md
+
 > **核实方法**: 5线程并行源码逐行比对
 > **核实日期**: 2026-05-31
 > **核实范围**: 35+ 具体断言，覆盖审计报告全部7个维度

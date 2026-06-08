@@ -17,7 +17,7 @@ from ...shared.interfaces import MarketSignalContext, PositionSizerProtocol, Ris
 from ...shared.limit_checker import check_limit_status
 from ...shared.logger_factory import get_logger
 try:
-    from ..indicators import Indicators
+    from ..indicators.indicators import Indicators
 except ImportError:
     Indicators = None  # TODO: Phase 1A 迁移 brain/indicators.py 后移除
 
@@ -302,7 +302,7 @@ class DecisionBrain:
         
         if sell_conditions:
             self.state = FSMState.EXIT
-            action = "HOLD" if sell_limit_blocked else "EXECUTE_SELL"
+            action = "HOLD" if sell_limit_blocked else "SELL"
             reason_suffix = " (跌停无法卖出)" if sell_limit_blocked else ""
             return self._build_response(
                 action,
@@ -397,7 +397,7 @@ class DecisionBrain:
                 position_details=position_plan,
             )
         return self._build_response(
-            "EXECUTE_BUY",
+            "BUY",
             f"状态: {self.state.value}, 综合得分: {score}, 但缺少计算仓位所需数据",
             ctx,
             score,
@@ -510,6 +510,12 @@ class DecisionBrain:
         else:
             ctx = MarketSignalContext.from_dict(data_packet)
 
+        # 跨股票状态重置：检测 symbol 变化时重置 FSM 状态
+        if hasattr(self, '_last_symbol') and self._last_symbol != ctx.symbol:
+            logger.info(f"检测到股票切换 {self._last_symbol} -> {ctx.symbol}，重置 FSM 状态")
+            self.state = FSMState.IDLE
+        self._last_symbol = ctx.symbol
+
         self._previous_state = self.state
 
         try:
@@ -580,7 +586,7 @@ class DecisionBrain:
             if self.state == FSMState.EXIT:
                 self.state = FSMState.IDLE
                 return self._build_response(
-                    "EXECUTE_SELL",
+                    "SELL",
                     f"综合得分: {score}, 趋势转弱或形态走坏",
                     ctx,
                     score,

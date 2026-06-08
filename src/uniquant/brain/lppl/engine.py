@@ -58,9 +58,9 @@ class LPPLConfig:
     popsize: int = 15
     tol: float = 0.05
 
-    # 风险阈值 (与plan.md v1.2.0一致)
-    m_bounds: Tuple[float, float] = (0.1, 0.9)
-    w_bounds: Tuple[float, float] = (5, 18)
+    # 风险阈值 (与 constants/technical.py W_BOUNDS/M_BOUNDS 统一)
+    m_bounds: Tuple[float, float] = M_BOUNDS
+    w_bounds: Tuple[float, float] = W_BOUNDS
     tc_bound: Tuple[float, float] = (1, 100)  # days after current_t
 
     # 信号阈值
@@ -325,6 +325,7 @@ def fit_single_window_lbfgsb(
                 best_cost = res.fun
                 best_params = res.x
         except (ValueError, TypeError, FloatingPointError):
+            logger.exception("优化窗口失败，跳过")
             continue
 
     if best_params is None:
@@ -578,31 +579,33 @@ def calculate_trend_scores(
     df = pd.DataFrame(daily_results)
     df = df.sort_values("idx").reset_index(drop=True)
 
-    # 如果没有is_danger列，根据参数计算
+    # 如果没有is_danger列，根据参数计算 (向量化)
     if "is_danger" not in df.columns:
-        is_danger_list = []
-        for row in df.itertuples():
-            is_d = (
-                config.m_bounds[0] < row.m < config.m_bounds[1]
-                and config.w_bounds[0] < row.w < config.w_bounds[1]
-                and row.days_to_crash < config.danger_days
-                and row.r_squared > config.r2_threshold
-            )
-            is_danger_list.append(is_d)
-        df["is_danger"] = is_danger_list
+        m_arr = df["m"].values
+        w_arr = df["w"].values
+        d_arr = df["days_to_crash"].values
+        r_arr = df["r_squared"].values
+        df["is_danger"] = (
+            (config.m_bounds[0] < m_arr) & (m_arr < config.m_bounds[1]) &
+            (config.w_bounds[0] < w_arr) & (w_arr < config.w_bounds[1]) &
+            (d_arr < config.danger_days) & (r_arr > config.r2_threshold)
+        )
 
-    # 如果没有is_warning列，根据参数计算
+    # 如果没有is_warning列，根据参数计算 (向量化)
     if "is_warning" not in df.columns:
-        is_warning_list = []
-        for row in df.itertuples():
-            phase = classify_top_phase(float(row.days_to_crash), float(row.r_squared), config)
-            is_w = (
-                config.m_bounds[0] < row.m < config.m_bounds[1]
-                and config.w_bounds[0] < row.w < config.w_bounds[1]
-                and phase in {"watch", "warning", "danger"}
-            )
-            is_warning_list.append(is_w)
-        df["is_warning"] = is_warning_list
+        m_arr = df["m"].values
+        w_arr = df["w"].values
+        d_arr = df["days_to_crash"].values
+        r_arr = df["r_squared"].values
+        in_bounds = (
+            (config.m_bounds[0] < m_arr) & (m_arr < config.m_bounds[1]) &
+            (config.w_bounds[0] < w_arr) & (w_arr < config.w_bounds[1])
+        )
+        phases = np.array([
+            classify_top_phase(float(d), float(r), config)
+            for d, r in zip(d_arr, r_arr)
+        ])
+        df["is_warning"] = in_bounds & np.isin(phases, ["watch", "warning", "danger"])
 
     # R²移动平均
     df["r2_ma"] = df["r_squared"].rolling(window=ma_window, min_periods=1).mean()
@@ -947,10 +950,27 @@ class LPPLEngine:
         valid_windows = [w for w in LPPLConstants.WINDOWS_ALL if len(df) >= w]
         if not valid_windows:
             return []
-        results = Parallel(n_jobs=-1, backend="loky")(
-            delayed(self._process_window)(df, w) for w in valid_windows
-        )
-        return [r for r in results if r is not None]
+        if os.environ.get("LPPL_DISABLE_PARALLEL") == "1":
+            results = [self._process_window(df, w) for w in valid_windows]
+        else:
+            results = Parallel(n_jobs=-1, backend="loky")(
+                delayed(self._process_window)(df, w) for w in valid_windows
+            )
+        results = [r for r in results if r is not None]
+        buckets = {
+            "Short (100-300d)": lambda w: w <= 300,
+            "Medium (300-600d)": lambda w: 300 < w <= 600,
+            "Long (>600d)": lambda w: w > 600,
+        }
+        selected = []
+        for name, condition in buckets.items():
+            candidates = [r for r in results if condition(r["window"])]
+            if not candidates:
+                continue
+            best = min(candidates, key=lambda r: r["rmse"])
+            best["span"] = name
+            selected.append(best)
+        return selected
 
     @staticmethod
     def _process_window(df, window):
@@ -963,6 +983,7 @@ class LPPLEngine:
                 res["window"] = window
                 return res
         except LPPL_ENGINE_RECOVERABLE_ERRORS:
+            logger.exception("单窗口 LPPL 拟合失败")
             pass
         return None
 
@@ -983,6 +1004,7 @@ class LPPLEngine:
                     bubble_votes += 1
                 details.append(res)
             except LPPL_ENGINE_RECOVERABLE_ERRORS:
+                logger.exception("气泡检测窗口失败，跳过")
                 continue
         confidence = bubble_votes / len(windows) if windows else 0.0
         risk_level = "Danger" if confidence >= LPPLConstants.CONFIDENCE_THRESHOLD else (

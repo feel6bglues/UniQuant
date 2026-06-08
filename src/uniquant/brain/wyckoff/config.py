@@ -5,14 +5,15 @@
 管理规则引擎、图像引擎、融合引擎的配置参数
 """
 
-import logging
 import os
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional
 
 import yaml
 
-logger = logging.getLogger(__name__)
+from uniquant.shared.logger_factory import get_logger
+
+logger = get_logger(__name__)
 
 from uniquant.shared.constants import (
     BC_LOOKBACK_WINDOW,

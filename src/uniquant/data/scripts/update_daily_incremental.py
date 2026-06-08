@@ -5,7 +5,6 @@ AKShare 日线数据增量更新脚本 v2.0
 """
 
 import json
-import logging
 import random
 import shutil
 import time
@@ -17,6 +16,7 @@ from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
+from uniquant.shared.logger_factory import get_logger
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent
 DATA_DIR = PROJECT_ROOT / "data"
@@ -29,15 +29,7 @@ LOG_FILE = DATA_DIR / "incremental_update.log"
 DAILY_DIR.mkdir(parents=True, exist_ok=True)
 BACKUP_DIR.mkdir(parents=True, exist_ok=True)
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s",
-    handlers=[
-        logging.FileHandler(LOG_FILE, encoding="utf-8"),
-        logging.StreamHandler(),
-    ],
-)
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class UpdateMode(Enum):
@@ -120,9 +112,9 @@ class IncrementalUpdater:
         df = pd.read_csv(STOCK_CODES_FILE, encoding="utf-8-sig")
         valid_stocks = []
 
-        for _, row in df.iterrows():
-            code_raw = str(row.get("code", ""))
-            status = row.get("status", 1)
+        for row in df.itertuples(index=False):
+            code_raw = str(row.code)
+            status = row.status
 
             if status != 1:
                 continue

@@ -10,7 +10,7 @@ from ...shared.error_handling import handle_errors
 from ...shared.exceptions import AnalysisError
 from ...shared.logger_factory import get_logger
 
-from ..indicators import Indicators
+from ..indicators.indicators import Indicators
 
 logger = get_logger(__name__)
 
@@ -125,7 +125,7 @@ class RegimeDetector:
         return True
 
     @handle_errors(
-        AnalysisError, Exception, default_return=Regime.UNKNOWN, log_level=logger.error
+        AnalysisError, Exception, default_return=Regime.UNKNOWN, log_level=logger.error, reraise=False
     )
     def detect(self, df: pd.DataFrame) -> Regime:
         """

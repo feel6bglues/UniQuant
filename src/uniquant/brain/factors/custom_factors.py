@@ -102,82 +102,87 @@ def compute_turnover_momentum_20d(df: pd.DataFrame) -> pd.Series:
     return turnover.pct_change(20, fill_method=None)
 
 
-FactorRegistry.register(
-    name="momentum_20d",
-    compute_func=compute_momentum_20d,
-    category="technical",
-    default_weight=1.0,
-    description="20日动量因子 (收益率)"
-)
+def register_all() -> None:
+    """Register all custom factors with the FactorRegistry."""
+    FactorRegistry.register(
+        name="momentum_20d",
+        compute_func=compute_momentum_20d,
+        category="technical",
+        default_weight=1.0,
+        description="20日动量因子 (收益率)"
+    )
 
-FactorRegistry.register(
-    name="momentum_60d",
-    compute_func=compute_momentum_60d,
-    category="technical",
-    default_weight=0.9,
-    description="60日动量因子 (收益率)"
-)
+    FactorRegistry.register(
+        name="momentum_60d",
+        compute_func=compute_momentum_60d,
+        category="technical",
+        default_weight=0.9,
+        description="60日动量因子 (收益率)"
+    )
 
-FactorRegistry.register(
-    name="volatility_20d",
-    compute_func=compute_volatility_20d,
-    category="technical",
-    default_weight=0.8,
-    description="20日波动率因子"
-)
+    FactorRegistry.register(
+        name="volatility_20d",
+        compute_func=compute_volatility_20d,
+        category="technical",
+        default_weight=0.8,
+        description="20日波动率因子"
+    )
 
-FactorRegistry.register(
-    name="volatility_60d",
-    compute_func=compute_volatility_60d,
-    category="technical",
-    default_weight=0.7,
-    description="60日波动率因子"
-)
+    FactorRegistry.register(
+        name="volatility_60d",
+        compute_func=compute_volatility_60d,
+        category="technical",
+        default_weight=0.7,
+        description="60日波动率因子"
+    )
 
-FactorRegistry.register(
-    name="ma_ratio_5_20",
-    compute_func=compute_ma_ratio_5_20,
-    category="technical",
-    default_weight=0.85,
-    description="5日/20日均线比率"
-)
+    FactorRegistry.register(
+        name="ma_ratio_5_20",
+        compute_func=compute_ma_ratio_5_20,
+        category="technical",
+        default_weight=0.85,
+        description="5日/20日均线比率"
+    )
 
-FactorRegistry.register(
-    name="ma_ratio_10_60",
-    compute_func=compute_ma_ratio_10_60,
-    category="technical",
-    default_weight=0.75,
-    description="10日/60日均线比率"
-)
+    FactorRegistry.register(
+        name="ma_ratio_10_60",
+        compute_func=compute_ma_ratio_10_60,
+        category="technical",
+        default_weight=0.75,
+        description="10日/60日均线比率"
+    )
 
-FactorRegistry.register(
-    name="volume_ratio_5_20",
-    compute_func=compute_volume_ratio_5_20,
-    category="technical",
-    default_weight=0.6,
-    description="5日/20日成交量比率"
-)
+    FactorRegistry.register(
+        name="volume_ratio_5_20",
+        compute_func=compute_volume_ratio_5_20,
+        category="technical",
+        default_weight=0.6,
+        description="5日/20日成交量比率"
+    )
 
-FactorRegistry.register(
-    name="rsi_14",
-    compute_func=compute_rsi_14,
-    category="technical",
-    default_weight=0.8,
-    description="14日RSI因子"
-)
+    FactorRegistry.register(
+        name="rsi_14",
+        compute_func=compute_rsi_14,
+        category="technical",
+        default_weight=0.8,
+        description="14日RSI因子"
+    )
 
-FactorRegistry.register(
-    name="price_position_20d",
-    compute_func=compute_price_position_20d,
-    category="technical",
-    default_weight=0.7,
-    description="20日价格位置因子"
-)
+    FactorRegistry.register(
+        name="price_position_20d",
+        compute_func=compute_price_position_20d,
+        category="technical",
+        default_weight=0.7,
+        description="20日价格位置因子"
+    )
 
-FactorRegistry.register(
-    name="turnover_momentum_20d",
-    compute_func=compute_turnover_momentum_20d,
-    category="technical",
-    default_weight=0.85,
-    description="20日换手率动量因子"
-)
+    FactorRegistry.register(
+        name="turnover_momentum_20d",
+        compute_func=compute_turnover_momentum_20d,
+        category="technical",
+        default_weight=0.85,
+        description="20日换手率动量因子"
+    )
+
+
+register_all()

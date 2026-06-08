@@ -40,15 +40,15 @@ class TestErrorHandlingHelpers:
         assert messages == [("callable message", True)]
 
     def test_handle_errors_reraise_alpha_and_unexpected(self):
-        @handle_errors(ValueError, default_return="fallback", error_type="value")
+        @handle_errors(ValueError, default_return="fallback", error_type="value", reraise=False)
         def expected():
             raise ValueError("bad value")
 
-        @handle_errors(ValueError, default_return="fallback")
+        @handle_errors(ValueError, default_return="fallback", reraise=False)
         def alpha():
             raise AlphaTacticianError("alpha")
 
-        @handle_errors(ValueError, default_return="fallback")
+        @handle_errors(ValueError, default_return="fallback", reraise=False)
         def unexpected():
             raise RuntimeError("boom")
 

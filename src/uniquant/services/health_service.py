@@ -7,7 +7,7 @@ import pandas as pd
 from ..shared.config_loader import get_config
 from ..shared.logger_factory import get_logger
 from .data_service import DataService
-from .analysis_service import AnalysisService
+from .analysis_service_legacy import AnalysisService
 from ..brain.fsm import DecisionBrain
 from ..risk.evt_risk import HistoricalSimulationRisk as EVTRisk
 from ..risk.sizer import PositionSizer
@@ -363,6 +363,7 @@ class HealthService:
                         "Low disk space detected, consider cleaning up old data"
                     )
             except (ImportError, OSError):
+                logger.exception("检查磁盘空间失败，跳过")
                 pass
 
             if not recommendations:

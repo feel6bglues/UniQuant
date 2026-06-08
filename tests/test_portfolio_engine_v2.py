@@ -47,7 +47,7 @@ def _make_price_data(dates):
 
 
 def _make_fill_buy():
-    def fill_buy(px, sh, cash, pc, sym, ts, vol, adv):
+    def fill_buy(px, sh, cash, pc, sym, ts, vol, adv, **kwargs):
         n = len(px)
         affordable = ((cash - 5.0) / np.maximum(px, 1e-8)).astype(np.int64)
         actual = np.where(cash > px * sh, sh, np.minimum(sh, affordable))
@@ -58,6 +58,7 @@ def _make_fill_buy():
             commissions=np.maximum(actual * px * 0.0003, np.full(n, 5.0)),
             stamp_duties=np.zeros(n),
             slippages=np.zeros(n),
+            transfer_fees=np.zeros(n),
             rejected_mask=actual <= 0,
             t1_violation_mask=np.zeros(n, dtype=bool),
             limit_violation_mask=np.zeros(n, dtype=bool),
@@ -67,7 +68,7 @@ def _make_fill_buy():
 
 
 def _make_fill_sell():
-    def fill_sell(px, sh, pos, pcost, pc, sym, ts, bd, vol, adv):
+    def fill_sell(px, sh, pos, pcost, pc, sym, ts, bd, vol, adv, **kwargs):
         n = len(px)
         actual = np.where(sh > 0, sh, 0)
         return FillResult(
@@ -76,6 +77,7 @@ def _make_fill_sell():
             commissions=np.maximum(actual * px * 0.0003, np.full(n, 5.0)),
             stamp_duties=actual * px * 0.001,
             slippages=np.zeros(n),
+            transfer_fees=np.zeros(n),
             rejected_mask=actual <= 0,
             t1_violation_mask=np.zeros(n, dtype=bool),
             limit_violation_mask=np.zeros(n, dtype=bool),

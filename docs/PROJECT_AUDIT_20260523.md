@@ -1,5 +1,7 @@
 # UniQuant Project Audit
 
+> **Obsolete as of 2026-06-07** — 见 FIVE_STAGE_ANALYSIS_REPORT_20260607.md / FIVE_STAGE_ROUND2_FINDINGS_20260607.md
+
 Date: 2026-05-23  
 Scope: read-only project audit covering architecture, quantitative research/backtesting logic, risk controls, data flow, configuration, imports, and test quality.
 

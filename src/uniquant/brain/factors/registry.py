@@ -34,6 +34,7 @@ class FactorRegistry:
     _factors: Dict[str, FactorInfo] = {}
     _instance = None
     _lock = threading.Lock()
+    _loaded: bool = False
 
     def __new__(cls):
         if cls._instance is None:
@@ -43,11 +44,39 @@ class FactorRegistry:
         return cls._instance
 
     @classmethod
+    def _ensure_loaded(cls):
+        """Lazy-load custom factors on first query for deterministic registration."""
+        if not cls._loaded:
+            from . import custom_factors
+            with cls._lock:
+                cls._loaded = True
+
+    @classmethod
     def register(cls, name: str, compute_func: Callable, 
                  category: str = "custom", 
                  default_weight: float = 1.0, 
                  description: str = ""):
-        """注册一个新因子 - Thread-safe"""
+        """注册一个新因子 - Thread-safe
+        
+        Checks factors.yaml config for enabled/weight/category overrides.
+        If the factor is disabled in config, skip registration entirely.
+        """
+        # Apply factors.yaml overrides if available
+        try:
+            from ...shared.config_loader import get_config
+            cfg = get_config()
+            factor_cfg = cfg.get(f"factors.{name}")
+            if factor_cfg is not None:
+                if not factor_cfg.get("enabled", True):
+                    logger.info(f"⏭️ 因子 {name} 被 factors.yaml 禁用，跳过注册")
+                    return
+                if "weight" in factor_cfg:
+                    default_weight = factor_cfg["weight"]
+                if "category" in factor_cfg:
+                    category = factor_cfg["category"]
+        except Exception:
+            pass  # If config not available, proceed with defaults
+
         with cls._lock:
             if name in cls._factors:
                 logger.warning(f"因子 {name} 已存在，将覆盖")
@@ -64,18 +93,21 @@ class FactorRegistry:
     @classmethod
     def get_all(cls) -> List[FactorInfo]:
         """获取所有因子 - Thread-safe"""
+        cls._ensure_loaded()
         with cls._lock:
             return list(cls._factors.values())
 
     @classmethod
     def get_enabled(cls) -> List[FactorInfo]:
         """获取启用的因子 - Thread-safe"""
+        cls._ensure_loaded()
         with cls._lock:
             return [f for f in cls._factors.values() if f.enabled]
 
     @classmethod
     def get_factor(cls, name: str) -> Optional[FactorInfo]:
         """获取指定因子 - Thread-safe"""
+        cls._ensure_loaded()
         with cls._lock:
             return cls._factors.get(name)
 
@@ -98,5 +130,6 @@ class FactorRegistry:
     @classmethod
     def list_factors(cls) -> Dict[str, str]:
         """列出所有因子（用于调试） - Thread-safe"""
+        cls._ensure_loaded()
         with cls._lock:
             return {f.name: f.description for f in cls._factors.values()}

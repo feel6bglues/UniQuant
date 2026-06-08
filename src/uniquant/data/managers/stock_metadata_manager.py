@@ -77,8 +77,8 @@ class StockMetadataManager:
         df = pd.read_csv(self._stock_list_path, encoding='utf-8-sig')
         df = self._normalize_columns(df)
         
-        for _, row in df.iterrows():
-            code = str(row.get('code', ''))
+        for row in df.itertuples(index=False):
+            code = str(row.code)
             if not code:
                 continue
             
@@ -88,11 +88,11 @@ class StockMetadataManager:
                 market=''
             ))
             
-            metadata.name = str(row.get('name', metadata.name))
-            metadata.market = str(row.get('market', metadata.market))
-            metadata.sector = row.get('sector') if pd.notna(row.get('sector')) else metadata.sector
-            metadata.vol_unit = int(row['vol_unit']) if pd.notna(row.get('vol_unit')) else metadata.vol_unit
-            metadata.decimal_point = int(row['decimal_point']) if pd.notna(row.get('decimal_point')) else metadata.decimal_point
+            metadata.name = str(row.name)
+            metadata.market = str(row.market)
+            metadata.sector = row.sector if pd.notna(row.sector) else metadata.sector
+            metadata.vol_unit = int(row.vol_unit) if pd.notna(row.vol_unit) else metadata.vol_unit
+            metadata.decimal_point = int(row.decimal_point) if pd.notna(row.decimal_point) else metadata.decimal_point
             
             self._metadata_cache[code] = metadata
     
@@ -105,8 +105,8 @@ class StockMetadataManager:
         df = pd.read_csv(self._all_codes_path, encoding='utf-8-sig')
         df = self._normalize_columns(df)
         
-        for _, row in df.iterrows():
-            code = str(row.get('code', ''))
+        for row in df.itertuples(index=False):
+            code = str(row.code)
             if not code:
                 continue
             
@@ -116,14 +116,14 @@ class StockMetadataManager:
                 market=self._infer_market(code)
             ))
             
-            metadata.name = str(row.get('name', row.get('code_name', metadata.name)))
-            metadata.stock_type = str(row['stock_type']) if pd.notna(row.get('stock_type')) else metadata.stock_type
-            metadata.stock_status = str(row['stock_status']) if pd.notna(row.get('status')) else metadata.stock_status
+            metadata.name = str(getattr(row, 'name', getattr(row, 'code_name', metadata.name)))
+            metadata.stock_type = str(row.stock_type) if pd.notna(getattr(row, 'stock_type', None)) else metadata.stock_type
+            metadata.stock_status = str(row.stock_status) if pd.notna(getattr(row, 'status', None)) else metadata.stock_status
             
-            if pd.notna(row.get('ipo_date')):
-                metadata.ipo_date = self._parse_date(row['ipo_date'])
-            if pd.notna(row.get('delist_date')):
-                metadata.delist_date = self._parse_date(row.get('outDate', row.get('delist_date')))
+            if pd.notna(getattr(row, 'ipo_date', None)):
+                metadata.ipo_date = self._parse_date(row.ipo_date)
+            if pd.notna(getattr(row, 'delist_date', None)):
+                metadata.delist_date = self._parse_date(getattr(row, 'outDate', getattr(row, 'delist_date', None)))
             
             self._metadata_cache[code] = metadata
     

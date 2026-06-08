@@ -11,6 +11,10 @@ sys.path.insert(0, str(__import__('pathlib').Path(__file__).parents[5]))
 import numpy as np
 import pandas as pd
 
+from ....shared.logger_factory import get_logger
+
+logger = get_logger(__name__)
+
 
 def _live_guard(mode: str = "backtest"):
     if mode == "live":
@@ -42,6 +46,7 @@ def compute_wyckoff_persistence(df: pd.DataFrame, mode: str = "backtest") -> pd.
             direction = _PHASE_BULLISH.get(phase, _PHASE_BEARISH.get(phase, 0))
             raw_phases.append((i, direction, conf))
         except Exception:
+            logger.warning("Wyckoff persistence scan failed at window %d", i, exc_info=True)
             raw_phases.append((i, 0, np.nan))
 
     # compute persistence: count consecutive same-direction bars

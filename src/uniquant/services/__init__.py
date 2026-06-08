@@ -23,7 +23,7 @@ def __getattr__(name: str):
         "ScanPipeline": ".scan_service",
         "StockQueryService": ".stock_query_service",
         "ValidationService": ".validation_service",
-        "AnalysisService": ".analysis_service",
+        "AnalysisService": ".analysis_service_v2",
         "ServiceContainer": ".service_container",
         "DataAccessService": ".data_access_service",
         "DataQualityService": ".data_quality_service",

@@ -100,6 +100,7 @@ def create_baostock_cache():
                         try:
                             os.remove(temp_path)
                         except OSError:
+                            logger.exception("清理临时文件失败")
                             pass
             else:
                 logger.error("6. 数据缺少代码列")

@@ -12,16 +12,17 @@ Canonical values (A-share, 2024+):
 
 from __future__ import annotations
 
-import logging
 import datetime
 import os
+
+from uniquant.shared.logger_factory import get_logger
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, Optional
 
 import numpy as np
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # ── Module-level constants (backward-compatible) ──────────────────────────
 
@@ -32,10 +33,10 @@ MIN_COMMISSION: float = 5.0               # 单笔最低5元
 SLIPPAGE_PCT: float = 0.0005              # 万5
 TRANSFER_FEE_PCT: float = 0.00001         # 万0.1 (过户费)
 
-COST_BUY = COMMISSION_PCT
-COST_SELL = COMMISSION_PCT + STAMP_TAX_PCT  # 0.08%
+COST_BUY = COMMISSION_PCT + TRANSFER_FEE_PCT                                # 0.03% + 0.001% = 0.031%
+COST_SELL = COMMISSION_PCT + STAMP_TAX_PCT + TRANSFER_FEE_PCT              # 0.03% + 0.05% + 0.001% = 0.081%
 
-RISK_FREE_RATE: float = 0.02  # 2% annualized (A-share 1Y LPR proxy)
+RISK_FREE_RATE: float = 0.03  # 3% annualized (A-share 1Y LPR proxy)
 
 _STAMP_TAX_CUTOFF = datetime.date(2023, 8, 28)
 
@@ -121,7 +122,7 @@ class CostConfig:
 
     @property
     def cost_sell(self) -> float:
-        return self.sell_fee_pct + self.stamp_tax_pct
+        return self.sell_fee_pct + self.stamp_tax_pct + self.transfer_fee_pct
 
     def calculate_buy_cost(self, trade_value: float) -> Dict[str, float]:
         commission = max(trade_value * self.buy_fee_pct, self.min_commission)

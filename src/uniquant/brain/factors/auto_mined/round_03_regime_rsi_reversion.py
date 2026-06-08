@@ -10,6 +10,10 @@ sys.path.insert(0, str(__import__('pathlib').Path(__file__).parents[5]))
 import numpy as np
 import pandas as pd
 
+from ....shared.logger_factory import get_logger
+
+logger = get_logger(__name__)
+
 
 def _live_guard(mode: str = "backtest"):
     if mode == "live":
@@ -42,6 +46,7 @@ def compute_regime_rsi_reversion(df: pd.DataFrame, mode: str = "backtest") -> pd
             regime_name = regime.value if hasattr(regime, "value") else str(regime)
             regime_weights.iloc[i] = _REGIME_WEIGHT.get(regime_name.upper(), 0.5)
         except Exception:
+            logger.warning("Regime detection failed at index %d", i, exc_info=True)
             regime_weights.iloc[i] = 0.5
 
     regime_weights = regime_weights.ffill().fillna(0.5)

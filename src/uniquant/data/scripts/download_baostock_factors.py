@@ -3,7 +3,7 @@ import pandas as pd
 import os
 import datetime
 from tqdm import tqdm
-import logging
+from uniquant.shared.logger_factory import get_logger
 
 # ================= 配置区域 =================
 # 数据保存目录
@@ -14,12 +14,7 @@ START_DATE = "1990-01-01"
 END_DATE = datetime.datetime.now().strftime("%Y-%m-%d")
 # ===========================================
 
-# 配置日志
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 def init_baostock():
     """登录 Baostock"""

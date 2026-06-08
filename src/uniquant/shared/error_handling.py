@@ -68,7 +68,7 @@ def handle_errors(
     *expected_exceptions: Type[Exception],
     default_return: Any = None,
     log_level: int = logging.ERROR,
-    reraise: bool = False,
+    reraise: bool = True,
     error_type: str = "unknown",
     context: Optional[Dict[str, Any]] = None,
 ):
@@ -363,9 +363,9 @@ def handle_network_errors(default_return: Any = None, max_retries: Optional[int]
         @handle_errors(
             *network_exceptions,
             default_return=default_return,
-            reraise=True,
             error_type="network",
             log_level=logging.WARNING,
+            reraise=False,
         )
         @retry_on_exception(
             max_retries=max_retries,
@@ -400,6 +400,7 @@ def handle_file_errors(default_return: Any = None):
             default_return=default_return,
             error_type="file",
             log_level=logging.ERROR,
+            reraise=False,
         )
         def wrapper(*args, **kwargs) -> Any:
             return func(*args, **kwargs)
@@ -430,6 +431,7 @@ def handle_data_errors(default_return: Any = None):
             default_return=default_return,
             error_type="data",
             log_level=logging.ERROR,
+            reraise=False,
         )
         def wrapper(*args, **kwargs) -> Any:
             return func(*args, **kwargs)
@@ -457,9 +459,9 @@ def handle_api_errors(default_return: Any = None, max_retries: int = 3):
         @handle_errors(
             *api_exceptions,
             default_return=default_return,
-            reraise=True,
             error_type="api",
             log_level=logging.ERROR,
+            reraise=False,
         )
         @retry_on_exception(
             max_retries=max_retries,

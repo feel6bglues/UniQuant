@@ -1,3 +1,28 @@
+"""
+[DEPRECATED] 旧版回测引擎 — 请使用 UnifiedBacktestEngine
+
+此文件已被 unified_engine.py 中的 UnifiedBacktestEngine 替代。
+新引擎特性:
+  - 强类型输入: List[TradingSignal]
+  - T+1 铁律: 交易日序号差检查
+  - 涨跌停拦截: 主板/ST/创业板/北交所
+  - 停牌拦截: volume=0 不成交
+  - 资金不透支: 实时现金扣减
+  - 正确滑点: 使用交易量而非日均量
+
+迁移指南:
+  旧: engine = BacktestEngine(); result = engine.run_backtest(df, signal_generator)
+  新: engine = UnifiedBacktestEngine(); result = engine.run(df, signals, symbol)
+"""
+
+import warnings
+warnings.warn(
+    "BacktestEngine is deprecated. Use UnifiedBacktestEngine from "
+    "uniquant.hands.backtest.unified_engine instead.",
+    DeprecationWarning,
+    stacklevel=2,
+)
+
 from datetime import datetime
 from typing import Any, Callable, Dict, List, Optional, Protocol
 
@@ -120,31 +145,35 @@ class BacktestEngine:
             return price * (1 - total_slippage)
     
     def _check_t1_constraint(self, buy_date: datetime, current_date: datetime) -> bool:
-        """检查T+1约束 - 使用真实交易日历"""
+        """检查T+1约束 - 使用预加载的交易日序号数组 + searchsorted"""
         if buy_date is None:
             return True
         
         if not self.trade_calendar.is_trading_day(current_date):
             return False
         
-        trading_days = self.trade_calendar.get_trade_calendar(
-            start_date=buy_date.strftime("%Y-%m-%d"),
-            end_date=current_date.strftime("%Y-%m-%d")
-        )
+        # 预加载交易日序号映射 (缓存到实例)
+        if not hasattr(self, '_td_ordinal_map'):
+            cal = self.trade_calendar.get_trade_calendar(
+                start_date="2010-01-01", end_date="2030-12-31"
+            )
+            if cal.empty:
+                return False
+            self._td_ordinal_map = {
+                pd.Timestamp(d).toordinal(): i
+                for i, d in enumerate(cal['trade_date'].values)
+            }
         
-        if trading_days.empty:
-            # 保守策略：无法确认交易日历时拒绝卖出
+        buy_ord = pd.Timestamp(buy_date).toordinal()
+        cur_ord = pd.Timestamp(current_date).toordinal()
+        
+        buy_idx = self._td_ordinal_map.get(buy_ord)
+        cur_idx = self._td_ordinal_map.get(cur_ord)
+        
+        if buy_idx is None or cur_idx is None:
             return False
         
-        trade_dates = trading_days['trade_date'].values
-        buy_idx = np.where(trade_dates == pd.Timestamp(buy_date))[0]
-        current_idx = np.where(trade_dates == pd.Timestamp(current_date))[0]
-        
-        if len(buy_idx) == 0 or len(current_idx) == 0:
-            # 保守策略：日期不在交易日历中时拒绝卖出
-            return False
-        
-        return bool(current_idx[0] - buy_idx[0] >= 1)
+        return cur_idx - buy_idx >= 1
     
     def _check_limit_constraint(
         self,
@@ -326,15 +355,66 @@ class BacktestEngine:
             if "avg_daily_volume" not in df.columns:
                 df["avg_daily_volume"] = df["volume"].rolling(20).mean().fillna(0)
         
+        dates_arr = pd.to_datetime(df["date"]).values
+        opens_arr = df["open"].values.astype(np.float64)
+        highs_arr = df["high"].values.astype(np.float64)
+        lows_arr = df["low"].values.astype(np.float64)
+        closes_arr = df["close"].values.astype(np.float64)
+        volumes_arr = df["volume"].values.astype(np.float64)
+        pre_close_arr = df["pre_close"].values.astype(np.float64)
+        avg_daily_vol_arr = df["avg_daily_volume"].values.astype(np.float64)
+        
         dates = pd.to_datetime(df["date"])
         start_date = dates.iloc[0]
         end_date = dates.iloc[-1]
         
         buy_date = None
 
+        pending_order = None
+
         for idx in range(len(df)):
-            row = df.iloc[idx]
-            current_price = row["close"]
+            current_price = closes_arr[idx]
+
+            if pending_order is not None:
+                exec_price = opens_arr[idx]
+                exec_ts = pd.Timestamp(dates_arr[idx])
+
+                if pending_order["action"] == "BUY":
+                    pre_close_next = pre_close_arr[idx]
+                    trade = self.execute_buy(
+                        price=exec_price,
+                        shares=pending_order["size"],
+                        timestamp=exec_ts,
+                        reason=pending_order["reason"],
+                        pre_close=pre_close_next,
+                        symbol=symbol,
+                        name=name,
+                        volume=int(volumes_arr[idx]),
+                        avg_daily_volume=float(avg_daily_vol_arr[idx]),
+                    )
+                    if trade:
+                        buy_date = exec_ts
+
+                elif pending_order["action"] == "SELL":
+                    pre_close_next = pre_close_arr[idx]
+                    trade = self.execute_sell(
+                        price=exec_price,
+                        shares=pending_order["size"],
+                        timestamp=exec_ts,
+                        reason=pending_order["reason"],
+                        pre_close=pre_close_next,
+                        symbol=symbol,
+                        name=name,
+                        buy_date=pending_order["buy_date"],
+                        volume=int(volumes_arr[idx]),
+                        avg_daily_volume=float(avg_daily_vol_arr[idx]),
+                    )
+                    if trade:
+                        buy_date = None
+
+                pending_order = None
+
+            self.update_equity(current_price)
 
             signal = signal_generator(df, idx, {
                 "position": self.position,
@@ -346,45 +426,20 @@ class BacktestEngine:
             reason = signal.get("reason", "")
             next_idx = idx + 1
 
-            if action in ("BUY", "SELL") and next_idx < len(df):
-                next_row = df.iloc[next_idx]
-                exec_price = next_row["open"]
-                exec_ts = dates.iloc[next_idx]
-
-                if action == "BUY" and self.position == 0:
-                    pre_close_next = next_row.get("pre_close", next_row["open"])
-                    trade = self.execute_buy(
-                        price=exec_price,
-                        shares=position_size,
-                        timestamp=exec_ts,
-                        reason=reason,
-                        pre_close=pre_close_next,
-                        symbol=symbol,
-                        name=name,
-                        volume=int(next_row.get("volume", 0)),
-                        avg_daily_volume=float(next_row.get("avg_daily_volume", 0)),
-                    )
-                    if trade:
-                        buy_date = exec_ts
-
+            if action in ("BUY", "SELL", "ADD") and next_idx < len(df):
+                if action in ("BUY", "ADD") and self.position == 0:
+                    pending_order = {
+                        "action": "BUY",
+                        "size": position_size,
+                        "reason": reason,
+                    }
                 elif action == "SELL" and self.position > 0:
-                    pre_close_next = next_row.get("pre_close", next_row["open"])
-                    trade = self.execute_sell(
-                        price=exec_price,
-                        shares=self.position,
-                        timestamp=exec_ts,
-                        reason=reason,
-                        pre_close=pre_close_next,
-                        symbol=symbol,
-                        name=name,
-                        buy_date=buy_date,
-                        volume=int(next_row.get("volume", 0)),
-                        avg_daily_volume=float(next_row.get("avg_daily_volume", 0)),
-                    )
-                    if trade:
-                        buy_date = None
-
-            self.update_equity(current_price)
+                    pending_order = {
+                        "action": "SELL",
+                        "size": self.position,
+                        "reason": reason,
+                        "buy_date": buy_date,
+                    }
         
         result = BacktestResult(
             initial_capital=self.initial_capital,
@@ -395,7 +450,46 @@ class BacktestEngine:
             end_date=end_date.to_pydatetime(),
         )
         result.calculate_metrics()
-        
+
+        try:
+            from .overfitting_detector import OverfittingDetector
+            from .monte_carlo import MonteCarloSimulator
+            import scipy.stats as scipy_stats
+
+            if len(self.trades) >= 20:
+                returns_arr = np.array(self.daily_returns, dtype=np.float64)
+                n_obs = len(returns_arr)
+                if n_obs > 1 and np.std(returns_arr) > 0:
+                    detector = OverfittingDetector()
+                    sharpe = result.sharpe_ratio
+                    skewness = float(scipy_stats.skew(returns_arr))
+                    kurtosis = float(scipy_stats.kurtosis(returns_arr, fisher=False))
+                    dsr = detector.deflated_sharpe_ratio(
+                        observed_sharpe=sharpe,
+                        n_trials=100,
+                        num_observations=n_obs,
+                        skewness=skewness,
+                        kurtosis=kurtosis,
+                    )
+                    mdd_p = detector.mdd_p_value(result.max_drawdown, n_obs)
+                    result.overfitting_metrics = {
+                        "dsr": dsr,
+                        "mdd_p_value": mdd_p,
+                        "num_trials": 100,
+                        "num_observations": n_obs,
+                    }
+                if n_obs >= 10:
+                    mc = MonteCarloSimulator(n_simulations=200)
+                    result.metadata["monte_carlo_shuffle"] = mc.run_shuffle(
+                        pd.Series(self.daily_returns)
+                    )
+                    result.metadata["monte_carlo_bootstrap"] = mc.run_bootstrap(
+                        pd.Series(self.equity_curve)
+                    )
+        except Exception:
+            logger.exception("Monte Carlo 引导分析失败，跳过")
+            pass
+
         return result
     
     @handle_errors(
@@ -498,7 +592,22 @@ class BacktestEngine:
                 position_size=position_size,
             )
             results.append(result)
-        
+
+        try:
+            if len(results) >= 2:
+                from .robustness_checker import RobustnessChecker
+                checker = RobustnessChecker()
+                combined = np.concatenate([r.daily_returns for r in results if r.daily_returns])
+                if len(combined) > 0:
+                    consistency = checker.check_subperiod_consistency(
+                        pd.Series(combined), n_splits=len(results)
+                    )
+                    for r in results:
+                        r.metadata["robustness"] = consistency
+        except Exception:
+            logger.exception("稳健性检查失败，跳过")
+            pass
+
         return results
     
     def run_stress_test(

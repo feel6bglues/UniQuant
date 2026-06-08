@@ -129,6 +129,7 @@ class LoggerFactory:
 
         logger = logging.getLogger(name)
         logger.setLevel(self.log_level)
+        logger.propagate = False  # 防止日志重复传播到根 logger
 
         # 缓存logger
         self._loggers[name] = logger

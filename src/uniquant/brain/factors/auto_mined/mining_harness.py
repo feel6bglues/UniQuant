@@ -7,6 +7,8 @@ from __future__ import annotations
 
 import logging
 import os
+
+from uniquant.shared.logger_factory import get_logger
 import sys
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -23,8 +25,8 @@ GRAVEYARD_FILE = PROJECT_ROOT / "MINING_GRAVEYARD.md"
 AUTO_MINED_DIR = Path(__file__).parent
 
 # suppress noisy INFO from data layer
-logging.getLogger("uniquant").setLevel(logging.WARNING)
-logging.getLogger("TdxSource").setLevel(logging.WARNING)
+get_logger("uniquant").setLevel(logging.WARNING)
+get_logger("TdxSource").setLevel(logging.WARNING)
 
 # --- liquid A-share universe (large-cap, data-rich) ---
 UNIVERSE = [

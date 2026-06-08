@@ -58,6 +58,8 @@ class BacktestResult:
     drawdown_metrics: Optional[Dict] = None
     tail_risk_metrics: Optional[Dict] = None
     stress_test_results: Optional[Dict] = None
+    overfitting_metrics: Optional[Dict] = None
+    metadata: Dict[str, Any] = field(default_factory=dict)
 
     def calculate_metrics(self) -> None:
         """计算回测指标"""

@@ -5,7 +5,7 @@ import datetime
 import time
 import re
 from tqdm import tqdm
-import logging
+from uniquant.shared.logger_factory import get_logger
 
 # 股票代码文件路径
 STOCK_CODES_FILE = "data/all_stock_codes.csv"
@@ -21,12 +21,7 @@ END_DATE = datetime.datetime.now().strftime("%Y-%m-%d")
 MAX_RETRIES = 3
 # ===========================================
 
-# 配置日志
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 def ensure_dir(directory):
     if not os.path.exists(directory):
@@ -69,8 +64,8 @@ def get_stock_list():
         logger.info(f"✅ 活跃股票数: {len(active_stocks)}")
         
         codes = []
-        for _, row in active_stocks.iterrows():
-            code = row['code']
+        for row in active_stocks.itertuples(index=False):
+            code = row.code
             if is_valid_stock(code):
                 codes.append(code)
         

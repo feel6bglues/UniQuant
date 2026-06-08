@@ -227,7 +227,7 @@ class TechnicalAnalysisService:
     def calculate_ma_status(self, data_pack: Dict[str, Any]) -> None:
         """Calculate MA status for data pack."""
         try:
-            from ...brain.indicators import Indicators
+            from ...brain.indicators.indicators import Indicators
             indicators = Indicators()
             ma_short = indicators.calc_ma(data_pack["stock"], window=IndicatorThresholds.MA_SHORT)
             ma_long = indicators.calc_ma(data_pack["stock"], window=IndicatorThresholds.MA_MEDIUM)
@@ -246,7 +246,7 @@ class TechnicalAnalysisService:
         """Calculate price and stop loss for data pack."""
         try:
             data_pack["price"] = data_pack["stock"].iloc[-1]["close"]
-            from ...brain.indicators import Indicators
+            from ...brain.indicators.indicators import Indicators
             indicators = Indicators()
             atr = indicators.calc_atr(data_pack["stock"])
             if not atr.empty:

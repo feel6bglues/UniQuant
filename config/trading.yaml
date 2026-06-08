@@ -35,7 +35,7 @@ strategies:
     enabled: true
     weight: 0.15
 
-risk:
+execution_risk:
   max_positions: 30
   max_single_stock_pct: 5.0
   max_single_sector_pct: 20.0

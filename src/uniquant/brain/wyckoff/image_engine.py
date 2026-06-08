@@ -4,15 +4,16 @@ Wyckoff 图像引擎
 负责扫描图表文件夹、提取视觉证据、识别时间周期与图像质量
 """
 
-import logging
 import os
 import re
 from pathlib import Path
+
+from uniquant.shared.logger_factory import get_logger
 from typing import Dict, List, Optional, Tuple
 
 from uniquant.brain.wyckoff.models import ChartManifest, ChartManifestItem, ImageEvidenceBundle
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # 支持的图片格式
 SUPPORTED_IMAGE_FORMATS = {".png", ".jpg", ".jpeg", ".webp"}

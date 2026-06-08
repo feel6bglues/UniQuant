@@ -5,13 +5,14 @@ Wyckoff 融合引擎
 """
 
 import json
-import logging
 from pathlib import Path
+
+from uniquant.shared.logger_factory import get_logger
 from typing import List, Optional
 
 from uniquant.brain.wyckoff.models import AnalysisResult, AnalysisState, ImageEvidenceBundle, WyckoffReport
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class FusionEngine:

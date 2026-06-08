@@ -1,5 +1,7 @@
+import datetime
 from typing import Any, Dict, List, Optional, Protocol, runtime_checkable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+import enum
 from enum import Enum
 
 import pandas as pd
@@ -17,6 +19,22 @@ class NtfSide(Enum):
     NONE = "NONE"
     SUPPORT = "SUPPORT"
     RESISTANCE = "RESISTANCE"
+
+
+class RegimeType(enum.Enum):
+    """Unified regime type covering both liquidity and trend detectors."""
+    # Trend regimes (from LPPL)
+    STRONG_BULL = "strong_bull"
+    WEAK_BULL = "weak_bull"
+    RANGE = "range"
+    WEAK_BEAR = "weak_bear"
+    STRONG_BEAR = "strong_bear"
+    # Liquidity regimes (from RegimeDetector)
+    NORMAL = "normal"
+    STRESSED = "stressed"
+    FROZEN = "frozen"
+    # Fallback
+    UNKNOWN = "unknown"
 
 
 @dataclass
@@ -97,6 +115,51 @@ class MarketSignalContext:
             "market": self.market,
             "lppl_days_to_tc": self.lppl_days_to_tc,
         }
+
+
+@dataclass
+class TradingSignal:
+    """
+    Brain ↔ Hands 统一信号接口。
+    
+    所有 Brain 引擎输出和 BacktestEngine 输入均使用此格式，
+    消除 action 值不匹配导致的信号丢失。
+    """
+    action: str  # "BUY" | "SELL" | "HOLD"
+    reason: str = ""
+    confidence: float = 0.0
+    shares: int = 0
+    symbol: str = ""
+    price: float = 0.0
+    timestamp: Optional[datetime.datetime] = field(default=None, repr=False)
+
+    # 兼容旧接口：从 dict 构造
+    @classmethod
+    def from_dict(cls, data: dict) -> "TradingSignal":
+        action = data.get("action", "HOLD")
+        # 统一 action 映射
+        action_map = {
+            "EXECUTE_BUY": "BUY",
+            "EXECUTE_SELL": "SELL",
+            "ADD": "BUY",
+            "FORCE_WAIT": "HOLD",
+            "FORCE_EXIT": "SELL",
+            "CIRCUIT_BREAK": "HOLD",
+            "STAY_CURRENT_STATE": "HOLD",
+        }
+        action = action_map.get(action, action)
+        ts = data.get("timestamp")
+        if ts is not None and isinstance(ts, str):
+            ts = datetime.datetime.fromisoformat(ts)
+        return cls(
+            action=action,
+            reason=data.get("reason", ""),
+            confidence=data.get("confidence", 0.0),
+            shares=data.get("shares", 0),
+            symbol=data.get("symbol", ""),
+            price=data.get("price", 0.0),
+            timestamp=ts,
+        )
 
 
 @runtime_checkable

@@ -14,8 +14,10 @@ class DataPipelineService:
         self.validator = DataValidator()
         self.adjuster = DataAdjuster(StorageManager(data_dir))
 
-    def process(self, df: pd.DataFrame, symbol: str) -> pd.DataFrame:
+    def process(self, df: pd.DataFrame, symbol: str, adjust: str = "qfq") -> pd.DataFrame:
         df = self.cleaner.clean_stock_daily(df)
-        df = self.validator.validate(df)
-        df = self.adjuster.adjust(df, symbol)
+        if not self.validator.validate(df):
+            logger.warning(f"数据验证失败 {symbol}，跳过复权")
+            return df
+        df = self.adjuster.apply_adjustment(symbol, df, method=adjust)
         return df

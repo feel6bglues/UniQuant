@@ -157,7 +157,8 @@ class DataAdjuster:
             return False
 
     def apply_adjustment(
-        self, symbol: str, df_raw: pd.DataFrame, method: str
+        self, symbol: str, df_raw: pd.DataFrame, method: str,
+        cutoff_date: str | pd.Timestamp | None = None,
     ) -> pd.DataFrame:
         """应用复权算法 (Vectorized Implementation)"""
         if df_raw.empty or method not in ["qfq", "hfq"]:
@@ -209,7 +210,14 @@ class DataAdjuster:
         # 如果原始数据早于因子表的第一条记录，fillna(1.0) 是对的
         df_merged["factor"] = df_merged["factor"].ffill().fillna(1.0)
 
-        # 5. 执行计算
+        # 5. 截断到截止日期，防止未来除权事件泄露
+        if cutoff_date is not None:
+            cutoff = pd.Timestamp(cutoff_date)
+            df_merged = df_merged[df_merged["date"] <= cutoff].copy()
+        else:
+            cutoff = df_merged["date"].max()
+
+        # 6. 执行计算
         # 注意：factor 是 HFQ 累积因子 (Start=1.0, Split -> Factor increases)
         adjust_cols = ["open", "high", "low", "close"]
         
@@ -263,7 +271,7 @@ class DataAdjuster:
                 # 限制成交量范围，防止异常值
                 df_merged["volume"] = df_merged["volume"].clip(lower=0, upper=10000000000)
 
-        # 6. 清理和排序
+        # 7. 清理和排序
         df_result = df_merged.drop(columns=["factor"])
         df_result = df_result.sort_values("date").reset_index(drop=True)
 
@@ -281,10 +289,20 @@ class DataAdjuster:
         # 读取原始数据
         df_raw = self.storage_manager.read_local_raw(symbol)
 
+        if df_raw.empty:
+            return df_raw
+
+        # 按日期范围过滤
+        df_raw["date"] = pd.to_datetime(df_raw["date"])
+        df_raw = df_raw[
+            (df_raw["date"] >= pd.Timestamp(start_date))
+            & (df_raw["date"] <= pd.Timestamp(end_date))
+        ].copy()
+
         # 应用复权
         if adjust == "qfq":
-            return self.apply_adjustment(symbol, df_raw, method="qfq")
+            return self.apply_adjustment(symbol, df_raw, method="qfq", cutoff_date=end_date)
         elif adjust == "hfq":
-            return self.apply_adjustment(symbol, df_raw, method="hfq")
+            return self.apply_adjustment(symbol, df_raw, method="hfq", cutoff_date=end_date)
 
         return df_raw

@@ -96,6 +96,7 @@ class IndicatorThresholds:
     FSM_SCORE_THRESHOLD_TO_PYRAMID = 70  # 加仓阈值
     FSM_SCORE_THRESHOLD_EXIT = 10  # 退出阈值
     FSM_RISK_SCALER_CRITICAL = 2.0  # 风险缩放因子
+    SAMPLE_MAX_ROWS_WYCKOFF = 800
 
 
 class NTFConstants:

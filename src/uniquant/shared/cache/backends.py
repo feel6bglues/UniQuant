@@ -176,6 +176,7 @@ class DiskCacheBackend(CacheInterface):
         cache_dir: str = "data/cache",
         max_cache_age: int = 7,
         max_cache_size: int = 500 * 1024 * 1024,  # 500MB
+        max_entries: int = 1000,  # 最大缓存条目数
     ):
         """
         初始化磁盘缓存
@@ -184,10 +185,12 @@ class DiskCacheBackend(CacheInterface):
             cache_dir: 缓存目录路径
             max_cache_age: 缓存最大天数
             max_cache_size: 最大缓存大小（字节）
+            max_entries: 最大缓存条目数
         """
         self.cache_dir = Path(cache_dir)
         self.max_cache_age = max_cache_age
         self.max_cache_size = max_cache_size
+        self.max_entries = max_entries
         self.hits = 0
         self.misses = 0
         self._lock = threading.RLock()
@@ -248,7 +251,7 @@ class DiskCacheBackend(CacheInterface):
                 try:
                     file_lock.release()
                 except Exception:
-                    pass
+                    logger.warning("Failed to release file lock for cache get", exc_info=True)
 
     def set(self, key: str, value: Any, ttl: int = 3600) -> bool:
         """设置缓存数据"""
@@ -259,6 +262,10 @@ class DiskCacheBackend(CacheInterface):
         if hasattr(value, "empty") and value.empty:
             logger.debug(f"Skipping cache for empty data: {key}")
             return False
+
+        # 检查缓存条目数，超过上限则淘汰最旧条目
+        if self._get_entry_count() >= self.max_entries:
+            self._evict_oldest_entry()
 
         cache_path = self._get_cache_path(key)
         file_lock = self._get_file_lock(cache_path)
@@ -291,7 +298,7 @@ class DiskCacheBackend(CacheInterface):
                 try:
                     file_lock.release()
                 except Exception:
-                    pass
+                    logger.warning("Failed to release file lock for cache set", exc_info=True)
 
     def delete(self, key: str) -> bool:
         """删除指定缓存"""
@@ -432,3 +439,23 @@ class DiskCacheBackend(CacheInterface):
             except OSError:
                 pass
         return total_size
+
+    def _get_entry_count(self) -> int:
+        """获取缓存条目数"""
+        try:
+            return len(list(self.cache_dir.glob("*.joblib")))
+        except OSError:
+            return 0
+
+    def _evict_oldest_entry(self) -> None:
+        """淘汰最旧的缓存条目"""
+        try:
+            cache_files = list(self.cache_dir.glob("*.joblib"))
+            if not cache_files:
+                return
+            cache_files.sort(key=lambda p: p.stat().st_mtime)
+            oldest = cache_files[0]
+            os.remove(oldest)
+            logger.debug(f"Evicted oldest cache entry: {oldest.name}")
+        except (OSError, IndexError, PermissionError) as e:
+            logger.debug(f"Failed to evict oldest cache entry: {e}")

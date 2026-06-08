@@ -6,8 +6,9 @@ v3.0 威科夫分析引擎 - 唯一入口
 
 from __future__ import annotations
 
-import logging
 from typing import List, Optional, Tuple
+
+from uniquant.shared.logger_factory import get_logger
 
 import numpy as np
 import pandas as pd
@@ -58,7 +59,7 @@ from uniquant.brain.wyckoff.models import (
 )
 from uniquant.brain.wyckoff.rules import V3Rules
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class WyckoffEngine:

@@ -45,8 +45,8 @@ class Reporter:
             if csv_path.exists():
                 df = pd.read_csv(csv_path)
                 name_col = "code_name" if "code_name" in df.columns else "name"
-                for _, row in df.iterrows():
-                    stock_name_map[str(row['code'])] = row.get(name_col, "")
+                for row in df.itertuples(index=False):
+                    stock_name_map[str(row.code)] = getattr(row, name_col, "")
                 logger.info(f"成功加载 {len(stock_name_map)} 个股票名称")
             else:
                 logger.warning(f"股票代码文件不存在: {csv_path}")

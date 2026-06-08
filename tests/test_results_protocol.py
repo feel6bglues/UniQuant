@@ -3,7 +3,7 @@ import importlib.util
 from types import SimpleNamespace
 from pathlib import Path
 
-import uniquant.services.analysis_service as analysis_service_module
+import uniquant.services.analysis_service_legacy as analysis_service_module
 from uniquant.hands.results_manager import ResultsManager
 from uniquant.shared.constants import ResultsConstants
 

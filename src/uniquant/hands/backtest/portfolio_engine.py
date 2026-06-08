@@ -1,6 +1,17 @@
 """
-投资组合回测引擎 - 使用 UnifiedMatchingEngine 强制执行 A 股约束
+[DEPRECATED] 投资组合回测引擎 — 请使用 UnifiedBacktestEngine
+
+此文件已被 unified_engine.py 中的 UnifiedBacktestEngine 替代。
+新版引擎支持 List[TradingSignal] 强类型输入，实时现金扣减，T+1 铁律。
 """
+
+import warnings
+warnings.warn(
+    "PortfolioEngine is deprecated. Use UnifiedBacktestEngine from "
+    "uniquant.hands.backtest.unified_engine instead.",
+    DeprecationWarning,
+    stacklevel=2,
+)
 
 from __future__ import annotations
 
@@ -90,6 +101,8 @@ class PortfolioEngine:
         volumes: Optional[Dict[str, float]] = None,
         avg_daily_volumes: Optional[Dict[str, float]] = None,
         sizing_fraction: float = 0.25,
+        names: Optional[Dict[str, str]] = None,
+        trading_days_listed: Optional[Dict[str, int]] = None,
     ) -> List[Position]:
         if not signals:
             return []
@@ -106,7 +119,6 @@ class PortfolioEngine:
         pc_arr = np.array([pre_closes.get(s, 0.0) for s in buy_symbols], dtype=np.float64)
         sym_arr = np.array(buy_symbols)
         ts_arr = np.full(n, timestamps)
-        vol_arr = np.array([volumes.get(s, 0) if volumes else 0 for s in buy_symbols], dtype=np.float64)
         adv_arr = np.array([avg_daily_volumes.get(s, 0) if avg_daily_volumes else 0 for s in buy_symbols], dtype=np.float64)
 
         if shares_per_trade > 0:
@@ -117,7 +129,12 @@ class PortfolioEngine:
 
         cash_arr = np.full(n, self.cash / max(n, 1), dtype=np.float64)
 
-        fill = self.matching.fill_buy(px_arr, sh_arr, cash_arr, pc_arr, sym_arr, ts_arr, vol_arr, adv_arr)
+        fill_kwargs: Dict[str, np.ndarray] = {}
+        if names is not None:
+            fill_kwargs["names"] = np.array([names.get(s, "") for s in buy_symbols], dtype=object)
+        if trading_days_listed is not None:
+            fill_kwargs["trading_days_listed"] = np.array([trading_days_listed.get(s, 0) for s in buy_symbols], dtype=np.int64)
+        fill = self.matching.fill_buy(px_arr, sh_arr, cash_arr, pc_arr, sym_arr, ts_arr, sh_arr, adv_arr, **fill_kwargs)
 
         created: List[Position] = []
         for i in range(n):
@@ -131,7 +148,7 @@ class PortfolioEngine:
                 entry_time=timestamps,
             )
             self.positions[buy_symbols[i]] = pos
-            cost = float(fill.exec_prices[i] * fill.executed_shares[i] + fill.commissions[i])
+            cost = float(fill.exec_prices[i] * fill.executed_shares[i] + fill.commissions[i] + fill.transfer_fees[i])
             self.cash -= cost
             self.trades.append({
                 "timestamp": timestamps, "symbol": buy_symbols[i], "action": "BUY",
@@ -150,6 +167,8 @@ class PortfolioEngine:
         timestamps: pd.Timestamp,
         volumes: Optional[Dict[str, float]] = None,
         avg_daily_volumes: Optional[Dict[str, float]] = None,
+        names: Optional[Dict[str, str]] = None,
+        trading_days_listed: Optional[Dict[str, int]] = None,
     ) -> int:
         if not signals:
             return 0
@@ -166,11 +185,16 @@ class PortfolioEngine:
         pos_arr = np.array([self.positions[s].shares for s in sell_symbols], dtype=np.int64)
         pcost_arr = np.array([self.positions[s].cost_basis for s in sell_symbols], dtype=np.float64)
         bd_arr = np.array([self.positions[s].entry_time for s in sell_symbols], dtype=object)
-        vol_arr = np.array([volumes.get(s, 0) if volumes else 0 for s in sell_symbols], dtype=np.float64)
         adv_arr = np.array([avg_daily_volumes.get(s, 0) if avg_daily_volumes else 0 for s in sell_symbols], dtype=np.float64)
 
+        fill_kwargs: Dict[str, np.ndarray] = {}
+        if names is not None:
+            fill_kwargs["names"] = np.array([names.get(s, "") for s in sell_symbols], dtype=object)
+        if trading_days_listed is not None:
+            fill_kwargs["trading_days_listed"] = np.array([trading_days_listed.get(s, 0) for s in sell_symbols], dtype=np.int64)
         fill = self.matching.fill_sell(
-            px_arr, pos_arr, pos_arr, pcost_arr, pc_arr, sym_arr, ts_arr, bd_arr, vol_arr, adv_arr
+            px_arr, pos_arr, pos_arr, pcost_arr, pc_arr, sym_arr, ts_arr, bd_arr, pos_arr, adv_arr,
+            **fill_kwargs,
         )
 
         closed = 0
@@ -179,7 +203,7 @@ class PortfolioEngine:
                 continue
             sym = sell_symbols[i]
             pos = self.positions.pop(sym)
-            net_value = float(fill.exec_prices[i] * fill.executed_shares[i] - fill.commissions[i] - fill.stamp_duties[i])
+            net_value = float(fill.exec_prices[i] * fill.executed_shares[i] - fill.commissions[i] - fill.stamp_duties[i] - fill.transfer_fees[i])
             cost = pos.cost_basis * int(fill.executed_shares[i])
             pnl = net_value - cost
             self.cash += net_value
@@ -213,6 +237,8 @@ class PortfolioEngine:
         date_column: str = "date",
         shares_per_trade: int = 0,
         sizing_fraction: float = 0.25,
+        name_data: Optional[Dict[str, str]] = None,
+        trading_days_listed_data: Optional[Dict[str, int]] = None,
     ) -> pd.DataFrame:
         self.reset()
 
@@ -238,20 +264,18 @@ class PortfolioEngine:
                         p = float(price_data.loc[date, sym])
                         pc_val = float(pre_close_data.loc[date, sym])
                     else:
-                        p = float(price_data[sym].iloc[-1])
-                        pc_val = float(pre_close_data[sym].iloc[-1])
+                        index_type = type(price_data.index).__name__
+                        raise TypeError(f"price_data must have a DatetimeIndex, got {index_type}")
                     px[sym] = p
                     pc[sym] = pc_val
                     if volume_data is not None and isinstance(volume_data.index, pd.DatetimeIndex):
                         try:
-                            vol[sym] = float(volume_data.loc[date, sym])
-                        except (KeyError, IndexError, TypeError):
-                            pass
-                        try:
                             adv[sym] = float(avg_daily_volume_data.loc[date, sym]) if avg_daily_volume_data is not None else 0.0
                         except (KeyError, IndexError, TypeError):
+                            logger.exception("获取日均成交量失败，跳过")
                             pass
                 except (KeyError, IndexError, TypeError):
+                    logger.exception("处理价格/成交量数据失败，跳过")
                     pass
             return px, pc, vol, adv
 
@@ -268,23 +292,24 @@ class PortfolioEngine:
                 pending_buys = {s["symbol"]: 1.0 for s in self._pending_signals if s["action"] == "BUY"}
                 pending_sells = {s["symbol"]: -1.0 for s in self._pending_signals if s["action"] == "SELL"}
                 if pending_sells:
-                    self.batch_close_positions(pending_sells, day_px, day_pc, date, day_vol, day_adv)
+                    self.batch_close_positions(pending_sells, day_px, day_pc, date, day_vol, day_adv,
+                                               names=name_data, trading_days_listed=trading_days_listed_data)
                 if pending_buys:
                     self.batch_open_positions(pending_buys, day_px, day_pc, date,
                                               shares_per_trade=shares_per_trade,
                                               volumes=day_vol, avg_daily_volumes=day_adv,
-                                              sizing_fraction=sizing_fraction)
+                                              sizing_fraction=sizing_fraction,
+                                              names=name_data, trading_days_listed=trading_days_listed_data)
                 self._pending_signals.clear()
 
-            for _, row in day_signals.iterrows():
-                sig = row[signal_column]
-                if sig != 0:
-                    self._pending_signals.append({
-                        "symbol": row[symbol_column],
-                        "action": "BUY" if sig > 0 else "SELL",
-                        "shares": abs(int(sig)),
-                        "signal_day_index": t,
-                    })
+            active = day_signals.loc[day_signals[signal_column] != 0, [symbol_column, signal_column]]
+            for sym, sig in active.itertuples(index=False, name=None):
+                self._pending_signals.append({
+                    "symbol": sym,
+                    "action": "BUY" if sig > 0 else "SELL",
+                    "shares": abs(int(sig)),
+                    "signal_day_index": t,
+                })
 
             if not day_px:
                 eq_arr[t] = self.cash
@@ -306,21 +331,6 @@ class PortfolioEngine:
 
             eq_arr[t] = self.equity_curve[-1]
             ret_arr[t] = self.daily_returns[-1]
-
-        if self._pending_signals:
-            last_date = unique_dates[-1]
-            pending_symbols = {s["symbol"] for s in self._pending_signals}
-            last_px, last_pc, last_vol, last_adv = _build_price_data(last_date, pending_symbols)
-            pending_buys = {s["symbol"]: 1.0 for s in self._pending_signals if s["action"] == "BUY"}
-            pending_sells = {s["symbol"]: -1.0 for s in self._pending_signals if s["action"] == "SELL"}
-            if pending_sells:
-                self.batch_close_positions(pending_sells, last_px, last_pc, last_date, last_vol, last_adv)
-            if pending_buys:
-                self.batch_open_positions(pending_buys, last_px, last_pc, last_date,
-                                          shares_per_trade=shares_per_trade,
-                                          volumes=last_vol, avg_daily_volumes=last_adv,
-                                          sizing_fraction=sizing_fraction)
-            self._pending_signals.clear()
 
         return pd.DataFrame({"equity": eq_arr, "daily_return": ret_arr}, index=unique_dates)
 

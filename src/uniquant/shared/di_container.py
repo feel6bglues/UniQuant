@@ -8,7 +8,10 @@ future release.
 
 import warnings
 
-from ..services.service_container import ServiceContainer
+try:
+    from ..services.service_container import ServiceContainer
+except ImportError:
+    ServiceContainer = None
 
 warnings.warn(
     "uniquant.shared.di_container is deprecated and will be removed in a future "
