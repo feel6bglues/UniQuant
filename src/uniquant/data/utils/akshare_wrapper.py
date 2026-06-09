@@ -16,6 +16,9 @@ from .akshare_reference_service import AkshareReferenceService
 
 logger = get_logger(__name__)
 
+# NON_RESEARCH_RANDOMNESS: User-Agent rotation and rate sleeps are anti-throttle
+# network behavior, not research/model RNG.
+
 
 class AkShareWrapper:
     """

@@ -15,13 +15,17 @@
 from __future__ import annotations
 
 import logging
+import uuid
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
 import pandas as pd
 
-from ..shared.config_loader import get_config
-from ..shared.constants import MarketConstants, ResultsConstants
+from ..shared.constants import (
+    AnalysisServiceConstants,
+    MarketConstants,
+    PrecisionConstants,
+)
 from ..shared.error_handling import handle_errors
 from ..shared.exceptions import AnalysisError, DataFetchError, ServiceError
 from ..shared.interfaces import TradingSignal
@@ -51,6 +55,7 @@ class TickerAnalysisResult:
     signals: List[TradingSignal]
     success: bool = True
     error: Optional[str] = None
+    trace_id: Optional[str] = None
 
 
 # ══════════════════════════════════════════════════════════════
@@ -81,9 +86,13 @@ class AnalysisService:
     ):
         self.data_service = data_service
         self._market_cache = market_cache or MarketLevelCache()
+        self.evt_risk = None
+        self.sizer = None
 
         if engine_factory is None:
             engine_factory = AnalysisEngineFactory(orchestrator=self)
+        elif hasattr(engine_factory, "bind_orchestrator"):
+            engine_factory.bind_orchestrator(self)
         self._factory = engine_factory
 
     # ── 引擎属性 (延迟初始化) ──────────────────────────────
@@ -128,7 +137,111 @@ class AnalysisService:
         result = self.run_ticker_analysis(ticker)
         return result.success
 
-    def run_ticker_analysis(self, ticker: str) -> TickerAnalysisResult:
+    # ── Engine adapter compatibility contract ─────────────────
+
+    def _generate_cache_key(self, prefix: str, **kwargs) -> str:
+        """Generate deterministic cache keys for analysis engine adapters."""
+        parts = [prefix]
+        for key, value in sorted(kwargs.items()):
+            if value is not None:
+                parts.append(f"{key}={value}")
+        return ":".join(parts)
+
+    def _get_cached_result(self, cache_key: str, use_disk: bool = False) -> Any:
+        """Read adapter cache via DataService's shared cache facade."""
+        if hasattr(self.data_service, "_get_cached"):
+            return self.data_service._get_cached(cache_key)
+        return None
+
+    def _set_cached_result(
+        self,
+        cache_key: str,
+        result: Any,
+        use_disk: bool = False,
+        ttl: Optional[int] = None,
+    ) -> bool:
+        """Write adapter cache via DataService's shared cache facade."""
+        if hasattr(self.data_service, "_set_cache"):
+            self.data_service._set_cache(cache_key, result, ttl=ttl)
+            return True
+        return False
+
+    def _sample_data(
+        self, df: pd.DataFrame, max_rows: Optional[int] = None,
+    ) -> pd.DataFrame:
+        """Downsample oversized frames while preserving chronological coverage."""
+        if max_rows is None:
+            max_rows = AnalysisServiceConstants.SAMPLE_MAX_ROWS_DEFAULT
+        if df is None or len(df) <= max_rows:
+            return df
+        if max_rows <= 0:
+            raise ValueError("max_rows must be positive")
+        step = max(len(df) // max_rows, 1)
+        sampled = df.iloc[::step].tail(max_rows)
+        return sampled.reset_index(drop=True) if "date" in sampled.columns else sampled
+
+    def _optimize_dataframe(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Apply lightweight dtype optimization expected by legacy adapters."""
+        optimized = df.copy()
+        for col in optimized.columns:
+            if pd.api.types.is_integer_dtype(optimized[col]):
+                optimized[col] = pd.to_numeric(optimized[col], downcast="integer")
+            elif pd.api.types.is_float_dtype(optimized[col]):
+                optimized[col] = pd.to_numeric(optimized[col], downcast="float")
+        if "date" in optimized.columns:
+            optimized = optimized.sort_values("date").reset_index(drop=True)
+        return optimized
+
+    def round_to_precision(self, value: float, precision_type: str) -> float:
+        """Round numeric outputs using the shared analysis precision policy."""
+        if precision_type == "price":
+            return round(value, PrecisionConstants.PRICE_DECIMALS)
+        if precision_type in {"ratio", "var", "drawdown"}:
+            return round(value, PrecisionConstants.PCT_DECIMALS)
+        return value
+
+    def ensure_precision_consistency(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """Normalize nested adapter result precision without changing schema."""
+        result: Dict[str, Any] = {}
+        for key, value in data.items():
+            if isinstance(value, float):
+                if key in {"var_95", "var_99", "cvar_95", "cvar_99"}:
+                    result[key] = self.round_to_precision(value, "var")
+                elif key == "max_drawdown":
+                    result[key] = self.round_to_precision(value, "drawdown")
+                elif key in {"signal_strength", "confidence", "amplitude"}:
+                    result[key] = self.round_to_precision(value, "ratio")
+                elif key in {"stop_loss", "take_profit", "close", "open", "high", "low"}:
+                    result[key] = self.round_to_precision(value, "price")
+                else:
+                    result[key] = value
+            elif isinstance(value, dict):
+                result[key] = self.ensure_precision_consistency(value)
+            else:
+                result[key] = value
+        return result
+
+    @staticmethod
+    def _mark_engine_status(
+        data_pack: Dict[str, Any],
+        engine_name: str,
+        status: str,
+        error: Optional[str] = None,
+    ) -> None:
+        data_pack.setdefault("engine_status", {})[engine_name] = status
+        if error:
+            data_pack.setdefault("engine_errors", {})[engine_name] = error
+
+    @staticmethod
+    def _attach_trace_id(data_pack: Dict[str, Any], trace_id: str) -> None:
+        data_pack["trace_id"] = trace_id
+        data_pack.setdefault("engine_status_meta", {})["trace_id"] = trace_id
+
+    def run_ticker_analysis(
+        self,
+        ticker: str,
+        trace_id: Optional[str] = None,
+    ) -> TickerAnalysisResult:
         """全流程分析 — 返回强类型结果对象
 
         流程:
@@ -136,19 +249,24 @@ class AnalysisService:
           2. AnalysisEngineFactory 运行所有 Brain 引擎
           3. DecisionBrain 做出决策
         """
+        trace_id = trace_id or uuid.uuid4().hex
+
         # Step 1: 获取数据
         data_pack = self._prepare_data(ticker)
         if data_pack is None:
+            data_pack = {}
+            self._attach_trace_id(data_pack, trace_id)
             return TickerAnalysisResult(
-                symbol=ticker, data_pack={}, decision={},
-                signals=[], success=False, error="数据不足",
+                symbol=ticker, data_pack=data_pack, decision={},
+                signals=[], success=False, error="数据不足", trace_id=trace_id,
             )
+        self._attach_trace_id(data_pack, trace_id)
 
         # Step 2: 运行引擎
         if not self._run_engines(ticker, data_pack):
             return TickerAnalysisResult(
                 symbol=ticker, data_pack=data_pack, decision={},
-                signals=[], success=False, error="引擎分析失败",
+                signals=[], success=False, error="引擎分析失败", trace_id=trace_id,
             )
 
         # Step 3: 决策
@@ -156,7 +274,7 @@ class AnalysisService:
         if decision is None:
             return TickerAnalysisResult(
                 symbol=ticker, data_pack=data_pack, decision={},
-                signals=[], success=False, error="决策失败",
+                signals=[], success=False, error="决策失败", trace_id=trace_id,
             )
 
         return TickerAnalysisResult(
@@ -165,6 +283,7 @@ class AnalysisService:
             decision=decision,
             signals=[],  # 由 Pipeline 层通过 TradingSignalCollector 填充
             success=True,
+            trace_id=trace_id,
         )
 
     # ── 内部方法: 数据准备 ─────────────────────────────────
@@ -214,6 +333,7 @@ class AnalysisService:
                 if details:
                     data_pack["entropy"] = details.get("entropy", 0.0)
                     data_pack["turnover_z"] = details.get("turnover_z", 0.0)
+                self._mark_engine_status(data_pack, "regime", "OK")
                 return
 
             from ..brain.regime.regime_detector import RegimeDetector
@@ -224,15 +344,29 @@ class AnalysisService:
             if df is not None and not df.empty:
                 result = detector.get_summary(df)
             else:
-                result = {"regime": "NORMAL", "entropy": 0.0, "turnover_z": 0.0}
+                data_pack["regime"] = "UNKNOWN"
+                data_pack["entropy"] = 0.0
+                data_pack["turnover_z"] = 0.0
+                self._mark_engine_status(
+                    data_pack,
+                    "regime",
+                    "DATA_UNAVAILABLE",
+                    "HS300 index data unavailable",
+                )
+                return
 
-            self._market_cache.set_regime(result.get("regime", "NORMAL"), result)
-            data_pack["regime"] = result.get("regime", "NORMAL")
+            regime = result.get("regime") or "UNKNOWN"
+            self._market_cache.set_regime(regime, result)
+            data_pack["regime"] = regime
             data_pack["entropy"] = result.get("entropy", 0.0)
             data_pack["turnover_z"] = result.get("turnover_z", 0.0)
+            self._mark_engine_status(data_pack, "regime", "OK")
         except RECOVERABLE_ERRORS as e:
             logger.warning(f"Regime 检测失败: {e}")
-            data_pack["regime"] = "NORMAL"
+            data_pack["regime"] = "UNKNOWN"
+            data_pack["entropy"] = 0.0
+            data_pack["turnover_z"] = 0.0
+            self._mark_engine_status(data_pack, "regime", "ENGINE_FAILED", str(e))
 
     def _run_lppl(self, data_pack: Dict[str, Any]) -> None:
         """LPPL 泡沫检测"""
@@ -241,12 +375,25 @@ class AnalysisService:
             result = self.lppl_engine.run_lppl_analysis(
                 symbol=symbol, df=data_pack.get("stock"),
             )
-            data_pack["risk"] = result.get("risk_level", "Safe")
+            if result.get("status") != "success" or "risk_level" not in result:
+                data_pack["risk"] = "ENGINE_FAILED"
+                data_pack["bubble_confidence"] = 1.0
+                self._mark_engine_status(
+                    data_pack,
+                    "lppl",
+                    "ENGINE_FAILED",
+                    result.get("error", "LPPL risk_level unavailable"),
+                )
+                return
+
+            data_pack["risk"] = result["risk_level"]
             data_pack["bubble_confidence"] = result.get("confidence", 0.0)
+            self._mark_engine_status(data_pack, "lppl", "OK")
         except RECOVERABLE_ERRORS as e:
             logger.warning(f"LPPL 检测失败: {e}")
-            data_pack["risk"] = "Safe"
-            data_pack["bubble_confidence"] = 0.0
+            data_pack["risk"] = "ENGINE_FAILED"
+            data_pack["bubble_confidence"] = 1.0
+            self._mark_engine_status(data_pack, "lppl", "ENGINE_FAILED", str(e))
 
     def _run_ntf(self, ticker: str, data_pack: Dict[str, Any]) -> None:
         """NTF 国家队检测 (市场级缓存)"""
@@ -259,9 +406,8 @@ class AnalysisService:
                 return
 
             from ..brain.ntf.ntf_engine import NTFEngine
-            from ..data.data_fetcher import DataFetcher
 
-            fetcher = DataFetcher()
+            fetcher = self.data_service.fetcher
             end_date = pd.Timestamp.now().strftime("%Y-%m-%d")
             start_date = (
                 pd.Timestamp.now() - pd.DateOffset(months=3)
@@ -318,8 +464,7 @@ class AnalysisService:
                 data_pack["alpha_score"] = 0.0
                 return
 
-            from ..data.lake.storage_manager import StorageManager
-            storage = StorageManager()
+            storage = self.data_service.lake
             bench = storage.read_data("000300.SH", "index")
             sector = storage.read_data("000905.SH", "index")
 

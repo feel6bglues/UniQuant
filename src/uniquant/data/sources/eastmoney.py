@@ -19,6 +19,8 @@ from .base import DataSource
 
 logger = get_logger(__name__)
 
+# NON_RESEARCH_RANDOMNESS: request sleeps are source throttling controls only.
+
 
 class EastmoneySource(DataSource):
     """

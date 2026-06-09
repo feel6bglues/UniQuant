@@ -9,7 +9,6 @@ UnifiedMatchingEngine 测试：
 
 import numpy as np
 import pandas as pd
-import pytest
 
 from uniquant.hands.backtest.unified_matching_engine import UnifiedMatchingEngine, FillResult
 
@@ -56,7 +55,6 @@ def test_limit_down_rejection():
     eng = UnifiedMatchingEngine(min_commission=5.0)
     px = np.array([9.0], dtype=np.float64)
     sh = np.array([100], dtype=np.int64)
-    ca = np.array([10000.0], dtype=np.float64)
     pc = np.array([10.0], dtype=np.float64)
     sym = np.array(["000001.SZ"])
     ts = np.array(["2024-01-02"], dtype=object)

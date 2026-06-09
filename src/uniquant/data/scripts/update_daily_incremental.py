@@ -18,6 +18,8 @@ import numpy as np
 import pandas as pd
 from uniquant.shared.logger_factory import get_logger
 
+# NON_RESEARCH_RANDOMNESS: script sleeps are provider throttling/backoff controls.
+
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent
 DATA_DIR = PROJECT_ROOT / "data"
 DAILY_DIR = DATA_DIR / "lake" / "quotes" / "daily"

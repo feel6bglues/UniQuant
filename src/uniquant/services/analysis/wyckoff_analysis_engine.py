@@ -3,6 +3,7 @@ import pandas as pd
 
 from ...shared.logger_factory import get_logger
 from ...shared.constants import IndicatorThresholds
+from ...shared.constants.misc import AnalysisServiceConstants
 
 logger = get_logger(__name__)
 
@@ -63,7 +64,7 @@ class WyckoffAnalysisEngine:
                     cache_key = self.orchestrator._generate_cache_key("wyckoff_analysis", symbol=symbol)
                     self.orchestrator._set_cached_result(
                         cache_key, result, use_disk=True,
-                        ttl=IndicatorThresholds.CACHE_TTL_2HOURS,
+                        ttl=AnalysisServiceConstants.CACHE_TTL_2HOURS,
                     )
 
                 return result
@@ -89,10 +90,10 @@ class WyckoffAnalysisEngine:
             prices = df["close"]
             volume = df["volume"]
 
-            volume_sma = volume.rolling(window=20).mean()
+            volume_sma = volume.shift(1).rolling(window=20).mean()
             volume_ratio = (volume / volume_sma).fillna(1.0)
 
-            price_sma20 = prices.rolling(window=20).mean()
+            price_sma20 = prices.shift(1).rolling(window=20).mean()
             price_position = (prices - price_sma20) / price_sma20
 
             recent_vol_ratio = volume_ratio.iloc[-min(5, len(volume_ratio)):].mean()
@@ -157,7 +158,7 @@ class WyckoffAnalysisEngine:
         if len(recent) < 30:
             return {"utad_detected": False, "confidence": 0.0}
 
-        price_up = recent["close"].pct_change(5).iloc[-1] > 0.02
+        price_up = recent["close"].shift(1).pct_change(5).iloc[-1] > 0.02
         vol_ratio = recent["volume"].tail(5).mean() / recent["volume"].head(30).mean()
         price_range = (recent["high"].tail(5).max() - recent["low"].tail(5).min()) / recent["close"].mean()
 
@@ -174,7 +175,7 @@ class WyckoffAnalysisEngine:
         if len(recent) < 20:
             return {"lps_detected": False, "confidence": 0.0}
 
-        price_down = recent["close"].pct_change(5).iloc[-1] < -0.02
+        price_down = recent["close"].shift(1).pct_change(5).iloc[-1] < -0.02
         vol_ratio = recent["volume"].tail(5).mean() / recent["volume"].head(20).mean()
         narrowing_range = (recent["high"].tail(5).max() - recent["low"].tail(5).min()) < \
                           (recent["high"].head(5).max() - recent["low"].head(5).min()) * 0.7

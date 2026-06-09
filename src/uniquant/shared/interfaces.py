@@ -12,6 +12,7 @@ class MarketRegime(Enum):
     NORMAL = "NORMAL"
     STRESSED = "STRESSED"
     FROZEN = "FROZEN"
+    UNKNOWN = "UNKNOWN"
 
 
 class NtfSide(Enum):
@@ -63,6 +64,8 @@ class MarketSignalContext:
     market: str = "CN"
     returns: Optional[pd.Series] = None
     lppl_days_to_tc: Optional[float] = None
+    engine_status: Dict[str, str] = field(default_factory=dict)
+    engine_errors: Dict[str, str] = field(default_factory=dict)
     
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "MarketSignalContext":
@@ -92,6 +95,8 @@ class MarketSignalContext:
             market=data.get("market", "CN"),
             returns=data.get("returns"),
             lppl_days_to_tc=data.get("lppl_days_to_tc"),
+            engine_status=data.get("engine_status", {}),
+            engine_errors=data.get("engine_errors", {}),
         )
     
     def to_dict(self) -> Dict[str, Any]:
@@ -114,6 +119,8 @@ class MarketSignalContext:
             "czsc_bottom": self.czsc_bottom,
             "market": self.market,
             "lppl_days_to_tc": self.lppl_days_to_tc,
+            "engine_status": self.engine_status,
+            "engine_errors": self.engine_errors,
         }
 
 

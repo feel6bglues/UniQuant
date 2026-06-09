@@ -4,6 +4,7 @@ from typing import Any, Dict, List, Optional
 import numpy as np
 import pandas as pd
 
+from ..services.portfolio_service import PortfolioService
 from ..shared.constants import RiskCalculationConstants
 from ..shared.logger_factory import get_logger
 
@@ -15,14 +16,12 @@ class ManagerPortfolioAnalyticsService:
 
     def __init__(self, manager: Any):
         self.manager = manager
+        self.portfolio_service = getattr(manager, "portfolio_service", None) or PortfolioService()
 
     def calculate_portfolio_risk_metrics(
         self, symbols: List[str], lookback_days: int = 252
     ) -> Dict[str, Any]:
         try:
-            from ..risk.evt_risk import EVTRisk
-
-            evt_risk = EVTRisk()
             portfolio_returns = self._collect_returns(
                 symbols=symbols,
                 lookback_days=lookback_days,
@@ -33,7 +32,9 @@ class ManagerPortfolioAnalyticsService:
                 return {"error": "无法获取足够的股票数据"}
 
             portfolio_returns_series = self._build_equal_weight_series(portfolio_returns)
-            risk_metrics = evt_risk.calculate_metrics(portfolio_returns_series)
+            risk_metrics = self.portfolio_service.calculate_evt_risk_metrics(
+                portfolio_returns_series
+            )
 
             return {
                 "status": "success",
@@ -61,8 +62,6 @@ class ManagerPortfolioAnalyticsService:
         lookback_days: int = 252,
     ) -> Dict[str, Any]:
         try:
-            from ..risk.portfolio_optimizer import OptimizerConfig, PortfolioOptimizer
-
             returns_data = self._collect_returns(
                 symbols=symbols,
                 lookback_days=lookback_days,
@@ -72,33 +71,8 @@ class ManagerPortfolioAnalyticsService:
             if len(returns_data) < 2:
                 return {"error": "需要至少2只股票进行优化"}
 
-            returns_df = pd.DataFrame(
-                {
-                    symbol: returns.iloc[-min(len(r) for r in returns_data.values()) :].values
-                    for symbol, returns in returns_data.items()
-                }
-            )
-
-            optimizer = PortfolioOptimizer(OptimizerConfig(max_weight=0.4, min_weight=0.0))
-            if method == "risk_parity":
-                result = optimizer.optimize_risk_parity(returns_df)
-            elif method == "mean_variance":
-                result = optimizer.optimize_mean_variance(returns_df, target="max_sharpe")
-            else:
-                return {"error": f"未知的优化方法: {method}"}
-
-            if result is None:
-                return {"error": "优化失败"}
-
-            return {
-                "status": "success",
-                "method": method,
-                "weights": result.get("weights", {}),
-                "expected_return": result.get("expected_return", 0),
-                "expected_volatility": result.get("expected_volatility", 0),
-                "sharpe_ratio": result.get("sharpe_ratio", 0),
-                "risk_contributions": result.get("risk_contributions", {}),
-            }
+            returns_df = self._build_returns_frame(returns_data)
+            return self.portfolio_service.optimize_returns_portfolio(returns_df, method)
         except (ValueError, TypeError) as exc:
             logger.error("组合优化输入错误: %s", exc)
             return {"status": "error", "message": str(exc)}
@@ -110,9 +84,6 @@ class ManagerPortfolioAnalyticsService:
         self, symbols: List[str], scenarios: Optional[List[str]] = None
     ) -> Dict[str, Any]:
         try:
-            from ..risk.evt_risk import EVTRisk
-
-            evt_risk = EVTRisk()
             portfolio_returns = self._collect_returns(
                 symbols=symbols,
                 lookback_days=252,
@@ -125,7 +96,7 @@ class ManagerPortfolioAnalyticsService:
             portfolio_returns_series = self._build_equal_weight_series(portfolio_returns)
             if scenarios is None:
                 scenarios = list(RiskCalculationConstants.CRASH_SCENARIOS.keys())[:5]
-            stress_results = evt_risk.calculate_stress_test(
+            stress_results = self.portfolio_service.run_evt_stress_test(
                 portfolio_returns_series, scenarios
             )
             return {
@@ -174,3 +145,13 @@ class ManagerPortfolioAnalyticsService:
         min_len = min(len(r) for r in returns_data.values())
         aligned_returns = [returns.iloc[-min_len:].values for returns in returns_data.values()]
         return pd.Series(np.mean(aligned_returns, axis=0))
+
+    @staticmethod
+    def _build_returns_frame(returns_data: Dict[str, pd.Series]) -> pd.DataFrame:
+        min_len = min(len(r) for r in returns_data.values())
+        return pd.DataFrame(
+            {
+                symbol: returns.iloc[-min_len:].values
+                for symbol, returns in returns_data.items()
+            }
+        )

@@ -168,8 +168,8 @@ class TechnicalAnalysisService:
             recent_lows = df["low"].tail(AnalysisServiceConstants.RECENT_HIGH_LOW_WINDOW).min()
 
             if len(df) > AnalysisServiceConstants.MA_WINDOW_MEDIUM:
-                short_ma = df["close"].rolling(window=AnalysisServiceConstants.MA_WINDOW_SHORT).mean().iloc[-1]
-                medium_ma = df["close"].rolling(window=AnalysisServiceConstants.MA_WINDOW_MEDIUM).mean().iloc[-1]
+                short_ma = df["close"].shift(1).rolling(window=AnalysisServiceConstants.MA_WINDOW_SHORT).mean().iloc[-1]
+                medium_ma = df["close"].shift(1).rolling(window=AnalysisServiceConstants.MA_WINDOW_MEDIUM).mean().iloc[-1]
                 if short_ma > medium_ma:
                     trend = "上升"
                 elif short_ma < medium_ma:
@@ -229,8 +229,9 @@ class TechnicalAnalysisService:
         try:
             from ...brain.indicators.indicators import Indicators
             indicators = Indicators()
-            ma_short = indicators.calc_ma(data_pack["stock"], window=IndicatorThresholds.MA_SHORT)
-            ma_long = indicators.calc_ma(data_pack["stock"], window=IndicatorThresholds.MA_MEDIUM)
+            shifted_stock = data_pack["stock"].shift(1)
+            ma_short = indicators.calc_ma(shifted_stock, window=IndicatorThresholds.MA_SHORT)
+            ma_long = indicators.calc_ma(shifted_stock, window=IndicatorThresholds.MA_MEDIUM)
             if not ma_short.empty and not ma_long.empty:
                 if ma_short.iloc[-1] > ma_long.iloc[-1]:
                     data_pack["ma_status"] = "MA20 > MA60"

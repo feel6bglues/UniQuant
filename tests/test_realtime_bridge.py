@@ -13,7 +13,6 @@ from uniquant.data.sources.realtime_bridge import (
     TickData,
     KlineData,
     ConnectionState,
-    DataSourceAdapter,
 )
 
 

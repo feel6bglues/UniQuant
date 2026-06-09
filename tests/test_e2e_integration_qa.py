@@ -3,10 +3,7 @@ UniQuant 全链路 E2E 集成验收测试
 覆盖: 导入链 → DI容器 → 引擎工厂 → 回测引擎 → 组合引擎 → 信号模块 → 风控 → 健康检查 → 数据管道 → 参数对齐
 """
 
-import time
-import traceback
 import warnings
-from datetime import datetime, timedelta
 from typing import Any, Dict
 
 import numpy as np
@@ -313,7 +310,6 @@ class TestPortfolioEngine:
             low = close * (1 - rng.uniform(0, 0.03, n_days))
             low = np.minimum(low, close)
             high = np.maximum(high, close)
-            open_ = close * (1 + rng.uniform(-0.02, 0.02, n_days))
             price_dict[sym] = close.round(2)
             pre_close_dict[sym] = np.roll(close, 1).round(2)
             pre_close_dict[sym][0] = close[0]
@@ -496,7 +492,7 @@ class TestSignalModule:
 
     def test_aggregator_weighted_average(self):
         from uniquant.signal.aggregator import SignalAggregator, SignalAggregationMethod
-        from uniquant.signal.models import Signal, SignalType, SignalSource, SignalStrength
+        from uniquant.signal.models import Signal, SignalType, SignalSource
 
         agg = SignalAggregator(method=SignalAggregationMethod.WEIGHTED_AVERAGE)
         signals = [

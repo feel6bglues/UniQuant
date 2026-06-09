@@ -45,6 +45,23 @@ def get_stamp_tax_pct(trade_date: datetime.date) -> float:
     return STAMP_TAX_PCT if trade_date >= _STAMP_TAX_CUTOFF else STAMP_TAX_PCT_OLD
 
 
+def _has_transfer_fee(symbol: str) -> bool:
+    """沪市(60xxxx)收过户费，深市免收。"""
+    return symbol.startswith("60")
+
+
+def calculate_total_cost(
+    trade_value: float,
+    is_sell: bool = False,
+    symbol: str = "",
+    trade_date: Optional[datetime.date] = None,
+) -> float:
+    commission = max(trade_value * COMMISSION_PCT, MIN_COMMISSION)
+    stamp_duty = trade_value * get_stamp_tax_pct(trade_date) if (is_sell and trade_date) else (trade_value * STAMP_TAX_PCT if is_sell else 0.0)
+    transfer_fee = trade_value * TRANSFER_FEE_PCT if _has_transfer_fee(symbol) else 0.0
+    return commission + stamp_duty + transfer_fee
+
+
 def calculate_sharpe_ratio(returns, risk_free_rate: float = RISK_FREE_RATE) -> float:
     if hasattr(returns, "__len__") and len(returns) < 2:
         return 0.0
@@ -124,13 +141,13 @@ class CostConfig:
     def cost_sell(self) -> float:
         return self.sell_fee_pct + self.stamp_tax_pct + self.transfer_fee_pct
 
-    def calculate_buy_cost(self, trade_value: float) -> Dict[str, float]:
+    def calculate_buy_cost(self, trade_value: float, symbol: str = "") -> Dict[str, float]:
         commission = max(trade_value * self.buy_fee_pct, self.min_commission)
-        transfer_fee = trade_value * self.transfer_fee_pct
+        transfer_fee = trade_value * self.transfer_fee_pct if _has_transfer_fee(symbol) else 0.0
         return {"commission": commission, "transfer_fee": transfer_fee, "total": commission + transfer_fee}
 
-    def calculate_sell_cost(self, trade_value: float, trade_date: Optional[datetime.date] = None) -> Dict[str, float]:
+    def calculate_sell_cost(self, trade_value: float, trade_date: Optional[datetime.date] = None, symbol: str = "") -> Dict[str, float]:
         commission = max(trade_value * self.sell_fee_pct, self.min_commission)
         stamp = trade_value * get_stamp_tax_pct(trade_date) if trade_date else trade_value * self.stamp_tax_pct
-        transfer_fee = trade_value * self.transfer_fee_pct
+        transfer_fee = trade_value * self.transfer_fee_pct if _has_transfer_fee(symbol) else 0.0
         return {"commission": commission, "stamp_duty": stamp, "transfer_fee": transfer_fee, "total": commission + stamp + transfer_fee}

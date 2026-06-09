@@ -246,8 +246,6 @@ class UnifiedMatchingEngine:
         rates = np.array([date_to_rate[d.date()] for d in stamp_dates])
         stamp_duties = values * rates
         transfer_fees = values * TRANSFER_FEE_PCT  # 过户费
-        net_values = values - commissions - stamp_duties - transfer_fees
-        cost_bases = position_costs * shares_clamped
 
         rejected = limit_rejected | t1_violation | (shares_clamped <= 0)
 

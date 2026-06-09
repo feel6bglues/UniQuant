@@ -13,6 +13,8 @@ logger = get_logger(__name__)
 
 T = TypeVar("T")
 
+# NON_RESEARCH_RANDOMNESS: delays here are network throttling/backoff noise only.
+
 
 class RequestControlManager:
     """请求控制管理器"""

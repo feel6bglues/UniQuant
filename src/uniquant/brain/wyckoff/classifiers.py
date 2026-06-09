@@ -90,10 +90,10 @@ def classify_wyckoff_markup_event(df: pd.DataFrame, boundary_upper: float) -> st
     prev_vol = float(prev_row["volume"])
 
     # Tech indicators
-    ma5 = df["close"].rolling(5).mean().iloc[-1]
-    ma20 = df["close"].rolling(20).mean().iloc[-1]
-    ma60 = df["close"].rolling(60).mean().iloc[-1]
-    ma_vol20 = df["volume"].rolling(20).mean().iloc[-1]
+    ma5 = df["close"].shift(1).rolling(5).mean().iloc[-1]
+    ma20 = df["close"].shift(1).rolling(20).mean().iloc[-1]
+    ma60 = df["close"].shift(1).rolling(60).mean().iloc[-1]
+    ma_vol20 = df["volume"].shift(1).rolling(20).mean().iloc[-1]
 
     amplitude = (high_val - low_val) / max(low_val, 0.01)
     close_loc = (close_val - low_val) / max(high_val - low_val, 0.01)
@@ -101,12 +101,12 @@ def classify_wyckoff_markup_event(df: pd.DataFrame, boundary_upper: float) -> st
     lower_wick = min(close_val, open_val) - low_val
 
     # 1. Phase E: Perfect bull alignment, massive volume expansion and making new highs (using high price)
-    is_new_high_30 = (high_val == df["high"].rolling(30).max().iloc[-1])
+    is_new_high_30 = (high_val == df["high"].shift(1).rolling(30).max().iloc[-1])
     if ma5 > ma20 > ma60 and vol_val > 1.5 * ma_vol20 and is_new_high_30:
         return "处于上涨阶段 (Markup - Phase E已确认)"
 
     # 2. BUEC (Back Up to Edge of Creek): Breakthrough confirmation after testing TR upper limit
-    is_new_high_15 = (close_val == df["close"].rolling(15).max().iloc[-1])
+    is_new_high_15 = (close_val == df["close"].shift(1).rolling(15).max().iloc[-1])
     if is_new_high_15 and close_loc >= 0.8 and vol_val >= 1.0 * ma_vol20 and close_val > boundary_upper * 0.98:
         return "处于上涨阶段 (Markup - BUEC已确认)"
 

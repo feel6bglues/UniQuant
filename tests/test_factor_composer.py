@@ -95,3 +95,65 @@ def test_compose_scores_returns_valid_result(sample_df):
     assert "a" in result.columns
     assert "b" in result.columns
     assert len(result) == 5
+
+
+def test_process_reports_failed_factor_diagnostics(sample_df):
+    def bad_factor(df):
+        raise ValueError("factor exploded")
+
+    FactorRegistry.register("bad", bad_factor, default_weight=2.0)
+    composer = FactorComposer()
+
+    scored_df, weights, diagnostics = composer.process(
+        sample_df,
+        factor_cols=["a", "bad"],
+        return_diagnostics=True,
+    )
+
+    assert "composite_score" in scored_df.columns
+    assert "a" in scored_df.columns
+    assert "bad" not in scored_df.columns
+    assert weights == {"a": pytest.approx(0.5)}
+    assert diagnostics["composite_usable"] is True
+    assert diagnostics["composite_status"] == "DEGRADED"
+    assert "bad" in diagnostics["failed_factors"]
+    assert "factor exploded" in diagnostics["failed_factors"]["bad"]
+
+
+def test_compose_scores_reports_orthogonalization_failure(sample_df, monkeypatch):
+    def raise_linalg_error(*args, **kwargs):
+        raise np.linalg.LinAlgError("singular covariance")
+
+    monkeypatch.setattr("uniquant.brain.factors.composer.linalg.eigh", raise_linalg_error)
+    composer = FactorComposer(orthogonalize=True)
+
+    result, diagnostics = composer.compose_scores(
+        sample_df,
+        factor_cols=["a", "b"],
+        return_diagnostics=True,
+    )
+
+    assert "composite_score" in result.columns
+    assert diagnostics["orthogonalization_attempted"] is True
+    assert diagnostics["orthogonalization_failed"] is True
+    assert "singular covariance" in diagnostics["orthogonalization_error"]
+    assert diagnostics["composite_status"] == "DEGRADED"
+
+
+def test_compute_all_factors_can_return_diagnostics(sample_df):
+    def bad_factor(df):
+        raise RuntimeError("bad factor")
+
+    FactorRegistry.register("bad", bad_factor)
+    composer = FactorComposer()
+
+    factor_df, diagnostics = composer.compute_all_factors(
+        sample_df,
+        return_diagnostics=True,
+    )
+
+    assert "a" in factor_df.columns
+    assert "bad" not in factor_df.columns
+    assert diagnostics["computed_factors"] == ["a", "b"]
+    assert "bad" in diagnostics["failed_factors"]
+    assert composer.get_last_diagnostics() == diagnostics

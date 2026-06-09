@@ -2,13 +2,13 @@
 
 > UniQuant: A 股量化交易平台 | Python 3.12+ | 当前 v0.6.x (263 .py 文件, 58,231 LOC)
 >
-> **生成时间**: 2026-06-07 | 基于实测代码,无幻觉
+> **生成时间**: 2026-06-08 | 基于实测代码,无幻觉
 
 ---
 
 ## 项目概述
 
-UniQuant 是面向 A 股市场的全栈量化交易系统,覆盖数据接入、信号生成、因子分析、风险度量、回测撮合、UI 仪表盘。已度过 Phase 0 导入期,**所有 8 个声明层均已就位**(`data/` 与 `signal/` 长期存在,与早期文档相反)。当前主线问题是 **12 个测试用例失败 + 2 个收集错误**,集中在 portfolio e2e、FSM 涨跌停决策、数据校验混沌测试。
+UniQuant 是面向 A 股市场的全栈量化交易系统,覆盖数据接入、信号生成、因子分析、风险度量、回测撮合、UI 仪表盘。已度过 Phase 0 导入期,**所有 8 个声明层均已就位**(`data/` 与 `signal/` 长期存在,与早期文档相反)。当前测试状态: **986 通过, 7 跳过, 0 失败**。
 
 **技术栈**: Python 3.12+, NumPy, Pandas, SciPy, Numba, PyArrow, mootdx, AkShare, Streamlit, Plotly, pytest
 
@@ -43,31 +43,39 @@ UniQuant 是面向 A 股市场的全栈量化交易系统,覆盖数据接入、�
 
 **配置**: `config/` 含 4 个 YAML (config.yaml, trading.yaml, factors.yaml, optimal_params.yaml)
 
-**测试**: `tests/` 含 76 个 .py 文件,共 966 个用例,**951 通过, 7 跳过, 12 失败, 2 收集错误**
+**测试**: `tests/` 含 76 个 .py 文件,共 993 个用例,**986 通过, 7 跳过, 0 失败**
 
 **文档**: `docs/` 含 106 个 .md 文件 (另有 19 个历史文档已归档至 `docs/archive/`), 17 个子目录
 
 ---
 
-## 阻塞问题清单(2026-06-07 实测)
+## 阻塞问题清单(2026-06-08 — 全部已修复)
 
-| # | 问题 | 影响 | 优先级 | 修复方向 |
-|---|------|------|--------|----------|
-| 1 | `tests/test_drawdown_analyzer.py:13` 用 `from src.uniquant.risk.drawdown_analyzer import ...` | pytest 收集错误,阻塞整个文件 | P0 | 改为 `from uniquant.risk.drawdown_analyzer import ...` |
-| 2 | `tests/test_portfolio_engine_v2.py` 同样 `from src.uniquant...` 风格 | pytest 收集错误,阻塞整个文件 | P0 | 同上,检查全文 `from src.` 前缀 |
-| 3 | `tests/test_fsm.py::TestDecisionBrain::test_make_decision_limit_down_sell_blocked` 失败 | FSM 在跌停时未拒绝卖出,违反 A 股规则 | P0 | `brain/fsm/fsm.py` DecisionBrain.make_decision 需结合 `LimitStatus` 检查 |
-| 4 | `tests/test_e2e_integration_qa.py::TestImportChain::test_import[uniquant.hands.backtest.portfolio_engine]` 失败 | `uniquant.hands.backtest.portfolio_engine` 导入失败 | P0 | 核查 `hands/backtest/portfolio_engine.py` 模块完整性 |
-| 5 | `tests/test_e2e_integration_qa.py::TestPortfolioEngine` 5 个用例失败 | portfolio_run / metrics / reset / 参数对齐全部失败 | P0 | 依赖 #4 修复后重测 |
-| 6 | `tests/test_data_chaos_qa.py::TestDataValidatorChaos::test_high_lt_open_close_auto_fix` 失败 | 行情数据 high<open/close 时未自动修复 | P1 | `data/pipeline/data_aligner.py` 校验逻辑 |
-| 7 | `tests/` 中存在 `__pycache__` 残留 | 不影响功能,但可能掩盖真实 import 错误 | P3 | `find tests -name __pycache__ -exec rm -rf {} +` |
+**当前测试状态: `pytest tests/ -q` = 986 通过, 7 跳过, 0 失败**
 
-**已不存在的历史阻塞**(AGENTS.md 旧版列出,全部已修复):
-- ✅ `services/__init__.py` 幽灵导入 — 改为 `__getattr__` 懒加载
-- ✅ `brain/lppl/__init__.py` 幽灵导入 — 改为 `try/except` 守卫
-- ✅ `brain/fsm/fsm.py` `from ..indicators import Indicators` — `brain/indicators/indicators.py` 存在,导入正常
-- ✅ `data/` 整层缺失 — 从未缺失(65 文件,15K LOC)
-- ✅ `signal/` 整层缺失 — 从未缺失(7 文件,2K LOC)
-- ✅ `engine_factory` 参数错配 — `__init__(self, orchestrator)` 签名正确,6 个测试全过
+以下所有阻塞问题均已修复并验证:
+
+| # | 问题 | 修复 |
+|---|------|------|
+| 1 | `test_drawdown_analyzer.py` `from src.uniquant...` 导入风格 | 修 import 路径 |
+| 2 | `test_portfolio_engine_v2.py` `from src.uniquant...` 导入风格 | 修 import 路径 |
+| 3 | FSM 跌停时未拒绝卖出 | `_check_sell_conditions` 已接入 `LimitStatus` 检查,返回 `"HOLD"` |
+| 4 | `portfolio_engine` 导入失败 | `from __future__ import annotations` 移至文件首行 |
+| 5 | portfolio e2e 5 用例失败 | 依赖 #4,修复后全通 |
+| 6 | 数据校验 `high<open/close` 未修复 | `data/pipeline/data_validator.py` `_fix_price_extremes` 已实现 |
+| 7 | `__pycache__` 残留 | gitignore 已覆盖,缓存已清理 |
+
+**已修复的历史阻塞**:
+- ✅ `services/__init__.py` 幽灵导入 → `__getattr__` 懒加载
+- ✅ `brain/lppl/__init__.py` 幽灵导入 → `try/except` 守卫
+- ✅ `brain/fsm/fsm.py` `from ..indicators import Indicators` → 模块存在
+- ✅ `engine_factory` 参数错配 → 签名正确
+- ✅ `data/` 整层缺失 → 从未缺失(65 文件,15K LOC)
+- ✅ `signal/` 整层缺失 → 从未缺失(7 文件,2K LOC)
+- ✅ 上帝对象解体 → `alpha_decoupler` 包化,`screener` 包化
+- ✅ `UnifiedBacktestEngine` 新引擎 → 强类型 `TradingSignal`,实时现金扣减, T+1 铁律
+- ✅ `research_pipeline.py` → E2E 端到端流水线
+- ✅ `signal/adapters.py` → 6 个引擎 Adapter
 
 ---
 
@@ -77,11 +85,8 @@ UniQuant 是面向 A 股市场的全栈量化交易系统,覆盖数据接入、�
 # 安装 (根目录 pyproject.toml 是真实的,可直接用)
 pip install -e ".[all]"
 
-# 全量测试(会暴露 12 失败 + 2 收集错误)
+# 全量测试(986 通过, 7 跳过, 0 失败)
 pytest tests/ -q
-
-# 排除已知阻塞文件后跑剩余 74 个测试
-pytest tests/ -q --ignore=tests/test_drawdown_analyzer.py --ignore=tests/test_portfolio_engine_v2.py
 
 # 单引擎工厂冒烟
 pytest tests/test_engine_factory.py -xvs
@@ -167,7 +172,7 @@ streamlit run src/uniquant/ui/dashboard.py
 | CZSC | `czsc_analysis_engine.py` | 缠论分型/笔/线段 |
 | FSM | `fsm_analysis_engine.py` | 状态机决策(MA 交叉 + 涨跌停) |
 | LPPL | `lppl_analysis_engine.py` | 对数周期幂律泡沫检测 |
-| NTF | `ntf_analysis_engine.py` | 内日趋势跟随(待 FSM 修复后回归) |
+| NTF | `ntf_analysis_engine.py` | 内日趋势跟随 |
 | Regime | `regime_analysis_engine.py` | 市场状态分类 |
 | Wyckoff | `wyckoff_analysis_engine.py` | 威科夫量价 |
 | Macro | `macro_analysis_engine.py` | 宏观因子 |
@@ -187,8 +192,8 @@ python3 -c "import uniquant.shared, uniquant.brain, uniquant.data, uniquant.sign
 # 2. 核心测试
 pytest tests/test_engine_factory.py -xvs
 
-# 3. 全量测试(预期 12 失败 + 2 收集错误,其他应绿)
-pytest tests/ -q --ignore=tests/test_drawdown_analyzer.py --ignore=tests/test_portfolio_engine_v2.py
+# 3. 全量测试(预期 0 失败)
+pytest tests/ -q
 
 # 4. Lint
 ruff check src/uniquant/
@@ -202,4 +207,4 @@ python3 -c "from uniquant.services import ServiceContainer; c = ServiceContainer
 
 ---
 
-*生成时间: 2026-06-07 | 基于实测, AGENTS.md 旧版 12 天前已不反映现状*
+*生成时间: 2026-06-08 | 基于实测, AGENTS.md 旧版 12 天前已不反映现状*

@@ -1,5 +1,7 @@
 from itertools import chain, repeat
 
+import importlib
+import sys
 import time
 
 import pandas as pd
@@ -10,6 +12,19 @@ from uniquant.shared.di_container import DIContainer
 
 
 class TestDIContainer:
+    def test_import_does_not_initialize_service_container_singleton(self):
+        from uniquant.services.service_container import ServiceContainer
+
+        ServiceContainer._instance = None
+        sys.modules.pop("uniquant.shared.di_container", None)
+
+        module = importlib.import_module("uniquant.shared.di_container")
+
+        assert ServiceContainer._instance is None
+        assert module.container.get("missing") is None
+        assert ServiceContainer._instance is not None
+        ServiceContainer._instance = None
+
     def test_register_get_reset_and_clear(self):
         container = DIContainer()
         service = object()

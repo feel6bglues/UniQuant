@@ -10,7 +10,6 @@ from uniquant.brain.factors.custom_factors import compute_momentum_20d
 from uniquant.brain.factors.registry import FactorRegistry
 from uniquant.brain.factors.financial_bridge import (
     FinancialFactorBridge,
-    FINANCIAL_FIELD_MAPPINGS,
     FIELD_MAPPING_DICT,
 )
 from uniquant.services.scan_service import ScanPipeline, ScanConfig

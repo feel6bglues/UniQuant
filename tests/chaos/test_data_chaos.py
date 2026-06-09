@@ -6,9 +6,6 @@ Injects dirty/chaotic data to verify system resilience.
 import math
 import os
 import sys
-import time
-import traceback
-from io import StringIO
 
 import numpy as np
 import pandas as pd
@@ -19,10 +16,10 @@ PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, os.path.join(PROJECT_ROOT, "src"))
 
-from uniquant.data.pipeline.data_cleaner import DataCleaner
-from uniquant.data.pipeline.data_validator import DataValidator
-from uniquant.data.pipeline.data_adjuster import DataAdjuster
-from uniquant.shared.limit_checker import check_limit_status, get_board_type
+from uniquant.data.pipeline.data_cleaner import DataCleaner  # noqa: E402
+from uniquant.data.pipeline.data_validator import DataValidator  # noqa: E402
+from uniquant.data.pipeline.data_adjuster import DataAdjuster  # noqa: E402
+from uniquant.shared.limit_checker import check_limit_status, get_board_type  # noqa: E402
 
 
 # ---------------------------------------------------------------------------
@@ -281,7 +278,7 @@ class TestDataAdjusterChaos:
 
     def test_apply_adjustment_no_factor_data(self):
         """When factor_manager returns empty, should return raw data unchanged."""
-        from unittest.mock import MagicMock, PropertyMock
+        from unittest.mock import MagicMock
         mock_sm = MagicMock()
         mock_sm.data_dir = "/tmp/test_data"
         adjuster = DataAdjuster(storage_manager=mock_sm)

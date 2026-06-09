@@ -18,6 +18,8 @@ from .base import DataSource
 
 logger = get_logger(__name__)
 
+# NON_RESEARCH_RANDOMNESS: random sleeps are data-source throttling controls only.
+
 
 class SinaSource(DataSource):
     @property

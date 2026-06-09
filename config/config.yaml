@@ -75,7 +75,7 @@ network:
     burst_size: 10            # 突发请求数
     min_interval: 0.2         # 最小请求间隔(秒)
   
-  # HTTP请求头 (与 constants.py DEFAULT_HEADERS 保持一致)
+  # HTTP请求头 (与 shared.constants.NetworkConstants.USER_AGENT 保持一致)
   headers:
     User-Agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
     Accept: "*/*"
@@ -428,3 +428,6 @@ brain:
   fsm:
     ma_short: 20
     ma_long: 60
+    sell_threshold: -0.5
+    buy_block_threshold: -0.3
+    circuit_break_threshold: -0.05

@@ -54,6 +54,7 @@ class MacroAnalysisService:
     def __init__(
         self,
         data_service=None,
+        data_fetcher=None,
         evt_risk=None,
         memory_cache=None,
         disk_cache=None,
@@ -63,11 +64,13 @@ class MacroAnalysisService:
         
         Args:
             data_service: 数据服务实例
+            data_fetcher: 共享 DataFetcher 实例
             evt_risk: EVT风险计算器
             memory_cache: 内存缓存
             disk_cache: 磁盘缓存
         """
         self.data_service = data_service
+        self.data_fetcher = data_fetcher or getattr(data_service, "fetcher", None)
         self.evt_risk = evt_risk
         self.memory_cache = memory_cache
         self.disk_cache = disk_cache
@@ -129,17 +132,34 @@ class MacroAnalysisService:
         },
         log_level=logging.ERROR,
     )
-    def analyze_macro_health(self, mock: bool = False) -> Dict[str, Any]:
+    def analyze_macro_health(self, mock: bool = False, seed: int = 42) -> Dict[str, Any]:
         """Calculate EVT metrics for macro health."""
-        cache_key = self._generate_cache_key("macro_health", mock=mock)
+        cache_key = self._generate_cache_key("macro_health", mock=mock, seed=seed if mock else None)
         cached_result = self._get_cached_result(cache_key, use_disk=True)
         if cached_result is not None:
             return cached_result
 
         returns = self.get_macro_returns()
         if returns.empty:
+            if not mock:
+                result = {
+                    "status": "failed",
+                    "error": "DATA_UNAVAILABLE",
+                    "regime": "UNKNOWN",
+                    "ntf_signal": "未知",
+                    "summary": "宏观收益数据不可用，未生成随机替代数据",
+                }
+                self._set_cached_result(
+                    cache_key,
+                    result,
+                    use_disk=True,
+                    ttl=AnalysisServiceConstants.CACHE_TTL_1HOUR,
+                )
+                return result
+
+            rng = np.random.default_rng(seed)
             returns = pd.Series(
-                np.random.normal(
+                rng.normal(
                     0,
                     AnalysisServiceConstants.RANDOM_DATA_STD,
                     AnalysisServiceConstants.RANDOM_DATA_LENGTH,
@@ -405,9 +425,11 @@ class MacroAnalysisService:
                 return
             
             from ...brain.ntf.ntf_engine import NTFEngine
-            from ...data.data_fetcher import DataFetcher
-            
-            fetcher = DataFetcher()
+
+            fetcher = self.data_fetcher or getattr(self.data_service, "fetcher", None)
+            if fetcher is None:
+                raise DataFetchError("NTF detection requires an injected DataFetcher")
+
             end_date = pd.Timestamp.now().strftime("%Y-%m-%d")
             start_date = (pd.Timestamp.now() - pd.DateOffset(days=TimeConstants.DAYS_MONTH * 3)).strftime("%Y-%m-%d")
             

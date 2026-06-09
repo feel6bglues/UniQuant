@@ -15,7 +15,8 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+import uuid
+from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
 import pandas as pd
@@ -24,7 +25,7 @@ from ..hands.backtest.unified_engine import BacktestResult, UnifiedBacktestEngin
 from ..shared.interfaces import TradingSignal
 from ..shared.logger_factory import get_logger
 from ..signal.adapters import TradingSignalCollector, create_default_registry
-from .analysis_service_v2 import AnalysisService, TickerAnalysisResult
+from .analysis_service_v2 import AnalysisService
 
 logger = get_logger(__name__)
 
@@ -46,6 +47,7 @@ class PipelineResult:
     backtest: BacktestResult
     success: bool = True
     error: Optional[str] = None
+    trace_id: Optional[str] = None
 
     @property
     def total_signals(self) -> int:
@@ -95,6 +97,7 @@ class UnifiedResearchPipeline:
         symbol: str,
         name: Optional[str] = None,
         default_shares: int = 100,
+        trace_id: Optional[str] = None,
     ) -> PipelineResult:
         """运行完整研报流水线
 
@@ -106,8 +109,10 @@ class UnifiedResearchPipeline:
         Returns:
             PipelineResult 包含全链路输出
         """
+        trace_id = trace_id or uuid.uuid4().hex
+
         # Step 1-2: 运行 Brain 引擎分析
-        analysis = self._analysis.run_ticker_analysis(symbol)
+        analysis = self._analysis.run_ticker_analysis(symbol, trace_id=trace_id)
         if not analysis.success:
             return PipelineResult(
                 symbol=symbol,
@@ -117,13 +122,17 @@ class UnifiedResearchPipeline:
                 backtest=BacktestResult(),
                 success=False,
                 error=analysis.error,
+                trace_id=trace_id,
             )
 
         # Step 3: 收集信号
         data_pack = analysis.data_pack
+        collector_pack = self._merge_decision_for_collection(
+            data_pack, analysis.decision,
+        )
         timestamp = pd.Timestamp.now()
         signals = self._collector.collect(
-            data_pack, timestamp=timestamp, default_shares=default_shares,
+            collector_pack, timestamp=timestamp, default_shares=default_shares,
         )
 
         # Step 4: 回测撮合
@@ -137,6 +146,7 @@ class UnifiedResearchPipeline:
                 backtest=BacktestResult(),
                 success=False,
                 error="K线数据为空",
+                trace_id=trace_id,
             )
 
         backtest_result = self._engine.run(
@@ -147,7 +157,7 @@ class UnifiedResearchPipeline:
         )
 
         logger.info(
-            f"Pipeline 完成: {symbol} | "
+            f"Pipeline 完成: trace_id={trace_id} | {symbol} | "
             f"信号={len(signals)} | 成交={backtest_result.total_trades} | "
             f"收益={backtest_result.total_return:.2%}"
         )
@@ -159,6 +169,7 @@ class UnifiedResearchPipeline:
             signals=signals,
             backtest=backtest_result,
             success=True,
+            trace_id=trace_id,
         )
 
     def run_batch(
@@ -195,3 +206,32 @@ class UnifiedResearchPipeline:
                     error=str(e),
                 ))
         return results
+
+    @staticmethod
+    def _merge_decision_for_collection(
+        data_pack: Dict[str, Any],
+        decision: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        """Expose DecisionBrain output to TradingSignalCollector safely."""
+        if not decision:
+            return data_pack
+
+        collector_pack = dict(data_pack)
+        if "final_decision" in decision:
+            collector_pack["final_decision"] = decision["final_decision"]
+        elif "action" in decision:
+            collector_pack["action"] = decision["action"]
+
+        for key in ("action", "shares", "confidence", "reason", "price"):
+            if key in decision:
+                collector_pack[key] = decision[key]
+        if "final_score" in decision and "confidence" not in collector_pack:
+            collector_pack["confidence"] = max(
+                0.0, min(float(decision["final_score"]) / 100.0, 1.0)
+            )
+        if "score" in decision and "confidence" not in collector_pack:
+            collector_pack["confidence"] = max(
+                0.0, min(float(decision["score"]) / 100.0, 1.0)
+            )
+
+        return collector_pack

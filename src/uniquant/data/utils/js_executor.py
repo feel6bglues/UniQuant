@@ -7,6 +7,8 @@ from ...shared.logger_factory import get_logger
 
 logger = get_logger(__name__)
 
+# NON_RESEARCH_RANDOMNESS: JS/browser mock IDs are request-signature helpers only.
+
 
 class JsExecutor:
     """

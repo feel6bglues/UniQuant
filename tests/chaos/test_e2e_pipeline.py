@@ -19,7 +19,6 @@ from typing import Any, Dict, List
 
 import numpy as np
 import pandas as pd
-import pytest
 
 
 # ─── Timing helper ────────────────────────────────────────────────────────────
@@ -228,7 +227,6 @@ def _step4_backtest():
     from uniquant.hands.backtest.engine import BacktestEngine
     from uniquant.hands.backtest.result import BacktestResult
     from unittest.mock import MagicMock
-    import datetime
 
     df = SYNTHETIC_DF.copy()
 
@@ -286,7 +284,7 @@ def _step4_backtest():
     assert not np.any(np.isinf(dr)), "inf in daily_returns"
 
     # Must have executed at least some trades
-    assert len(result.trades) > 0, f"No trades recorded (trades list is empty)"
+    assert len(result.trades) > 0, "No trades recorded (trades list is empty)"
     buy_count = sum(1 for t in result.trades if t.action == "BUY")
     sell_count = sum(1 for t in result.trades if t.action == "SELL")
     assert buy_count > 0, "No BUY trades executed"

@@ -21,14 +21,25 @@ class MonteCarloSimulator:
     - 置信区间计算
     """
 
-    def __init__(self, n_simulations: int = 1000, confidence_level: float = 0.95):
+    def __init__(
+        self,
+        n_simulations: int = 1000,
+        confidence_level: float = 0.95,
+        seed: Optional[int] = 42,
+    ):
         """
         Args:
             n_simulations: 模拟次数
             confidence_level: 置信水平 (默认 0.95)
+            seed: 默认随机种子；传 None 时使用非确定性 RNG
         """
         self.n_simulations = n_simulations
         self.confidence_level = confidence_level
+        self.seed = seed
+
+    def _rng(self, seed: Optional[int] = None) -> np.random.Generator:
+        effective_seed = self.seed if seed is None else seed
+        return np.random.default_rng(effective_seed)
 
     def run_shuffle(self, returns: pd.Series, seed: Optional[int] = None) -> Dict[str, Any]:
         """
@@ -44,20 +55,18 @@ class MonteCarloSimulator:
         Returns:
             包含模拟结果统计和置信区间的字典
         """
-        if seed is not None:
-            np.random.seed(seed)
         if returns.empty or len(returns) < 10:
             logger.warning("收益率数据过少，无法进行 Monte Carlo 模拟")
             return {"error": "收益率数据过少"}
 
         returns = returns.dropna().values
-        n = len(returns)
         observed_sharpe = calculate_sharpe_ratio(returns)
+        rng = self._rng(seed)
 
         simulated_sharpes: List[float] = []
 
         for i in range(self.n_simulations):
-            shuffled = np.random.permutation(returns)
+            shuffled = rng.permutation(returns)
             sim_sharpe = calculate_sharpe_ratio(shuffled)
             simulated_sharpes.append(sim_sharpe)
 
@@ -105,8 +114,6 @@ class MonteCarloSimulator:
         Returns:
             包含 Bootstrap 统计结果和置信区间的字典
         """
-        if seed is not None:
-            np.random.seed(seed)
         if equity_curve.empty or len(equity_curve) < 10:
             logger.warning("权益曲线数据过少，无法进行 Bootstrap 模拟")
             return {"error": "权益曲线数据过少"}
@@ -119,9 +126,10 @@ class MonteCarloSimulator:
         simulated_returns: List[float] = []
 
         n = len(returns)
+        rng = self._rng(seed)
 
         for i in range(self.n_simulations):
-            bootstrap_returns = np.random.choice(returns, size=n, replace=True)
+            bootstrap_returns = rng.choice(returns, size=n, replace=True)
             sim_equity = equity_curve.iloc[0] * np.prod(1 + bootstrap_returns)
             simulated_finals.append(sim_equity)
             simulated_returns.append((sim_equity - equity_curve.iloc[0]) / equity_curve.iloc[0])

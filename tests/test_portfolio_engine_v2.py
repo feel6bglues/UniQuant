@@ -4,10 +4,9 @@ Tests for PortfolioEngine
 
 import numpy as np
 import pandas as pd
-import pytest
 from unittest.mock import MagicMock
 
-from uniquant.hands.backtest.portfolio_engine import PortfolioEngine, Position
+from uniquant.hands.backtest.portfolio_engine import PortfolioEngine
 from uniquant.hands.backtest.unified_matching_engine import FillResult
 
 

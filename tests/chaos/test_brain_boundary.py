@@ -9,9 +9,7 @@ to verify graceful degradation instead of infinite loops or silent corruption.
 import signal
 import sys
 import threading
-import traceback
 from contextlib import contextmanager
-from datetime import datetime, timedelta
 
 import numpy as np
 import pandas as pd
@@ -445,7 +443,7 @@ class TestFactorLookAheadBias:
         if "random_noise" in ic_results and ic_results["random_noise"].get(1):
             ic_noise = ic_results["random_noise"][1].ic_mean
 
-        print(f"\n  [LOOK-AHEAD DETECTION]")
+        print("\n  [LOOK-AHEAD DETECTION]")
         print(f"    future_return_leak IC = {ic_leak:.4f}")
         print(f"    random_noise      IC = {ic_noise:.4f}")
 
@@ -462,10 +460,10 @@ class TestFactorLookAheadBias:
             f"Random noise IC suspiciously high: {ic_noise:.4f}"
         )
 
-        print(f"  ⚠ LOOK-AHEAD CONFIRMED: Pipeline accepts future return as feature")
+        print("  ⚠ LOOK-AHEAD CONFIRMED: Pipeline accepts future return as feature")
         print(f"    Leaked IC ({ic_leak:.4f}) >> Random IC ({ic_noise:.4f})")
-        print(f"    BACKTEST mode does NOT reject future data — by design for offline analysis.")
-        print(f"    LIVE mode correctly raises ValueError to prevent this.")
+        print("    BACKTEST mode does NOT reject future data — by design for offline analysis.")
+        print("    LIVE mode correctly raises ValueError to prevent this.")
 
     # ── LIVE mode rejects negative shift ─────────────────────────────────────
 

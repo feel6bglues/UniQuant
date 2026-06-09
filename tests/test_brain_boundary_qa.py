@@ -77,7 +77,7 @@ class TestLPPLBoundary:
         calc = LPPLCalculator()
         prices = np.full(80, 10.0)
         t0 = time.time()
-        result = calc.fit_single_window(prices)
+        calc.fit_single_window(prices)
         elapsed = time.time() - t0
         assert elapsed < 30, f"平缓价格序列导致死循环, 耗时 {elapsed:.1f}s"
         # BUG: LPPLCalculator.fit_single_window 不检查恒定价格序列
@@ -111,7 +111,7 @@ class TestLPPLBoundary:
         config = LPPLConfig(window_range=[40], maxiter=2, popsize=3, tol=1.0)
         prices = np.abs(np.random.RandomState(42).normal(10, 0.5, 100))
         t0 = time.time()
-        result = fit_single_window(prices, 60, config)
+        fit_single_window(prices, 60, config)
         elapsed = time.time() - t0
         assert elapsed < 60, f"DE 优化器超时未安全返回, 耗时 {elapsed:.1f}s"
 
@@ -285,7 +285,6 @@ class TestWyckoffBoundary:
 
     def test_accumulation_data(self):
         from uniquant.brain.wyckoff.engine import WyckoffEngine
-        from uniquant.brain.wyckoff.models import WyckoffPhase
         engine = WyckoffEngine()
         rng = np.random.RandomState(42)
         n = 150
@@ -433,7 +432,7 @@ class TestFSMBoundary:
         assert "action" in result
 
     def test_make_decision_frozen_regime(self):
-        from uniquant.brain.fsm.fsm import DecisionBrain, FSMState
+        from uniquant.brain.fsm.fsm import DecisionBrain
         from uniquant.shared.interfaces import MarketSignalContext, MarketRegime, NtfSide
         brain = DecisionBrain(persist_state=False)
         ctx = MarketSignalContext(
@@ -443,7 +442,7 @@ class TestFSMBoundary:
         assert result["action"] == "FORCE_WAIT"
 
     def test_circuit_break_trigger(self):
-        from uniquant.brain.fsm.fsm import DecisionBrain, FSMState
+        from uniquant.brain.fsm.fsm import DecisionBrain
         from uniquant.shared.interfaces import MarketSignalContext, MarketRegime, NtfSide
         brain = DecisionBrain(persist_state=False)
         ctx = MarketSignalContext(

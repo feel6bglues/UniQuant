@@ -16,13 +16,6 @@
 """
 
 import warnings
-warnings.warn(
-    "BacktestEngine is deprecated. Use UnifiedBacktestEngine from "
-    "uniquant.hands.backtest.unified_engine instead.",
-    DeprecationWarning,
-    stacklevel=2,
-)
-
 from datetime import datetime
 from typing import Any, Callable, Dict, List, Optional, Protocol
 
@@ -30,14 +23,22 @@ import numpy as np
 import pandas as pd
 
 from uniquant.data.managers.trade_calendar_manager import TradeCalendarManager
-from uniquant.shared.constants import BacktestConstants, RiskCalculationConstants
+from uniquant.shared.constants import BacktestConstants, RiskCalculationConstants, RANDOM_SEED
 from uniquant.shared.error_handling import handle_errors
 from uniquant.shared.exceptions import BacktestError
 from uniquant.shared.limit_checker import check_limit_status
 from uniquant.shared.logger_factory import get_logger
 from .result import BacktestResult, TradeRecord
+from .unified_matching_engine import UnifiedMatchingEngine
 
 from ...shared.cost_model import TRANSFER_FEE_PCT, get_stamp_tax_pct
+
+warnings.warn(
+    "BacktestEngine is deprecated. Use UnifiedBacktestEngine from "
+    "uniquant.hands.backtest.unified_engine instead.",
+    DeprecationWarning,
+    stacklevel=2,
+)
 
 logger = get_logger(__name__)
 
@@ -69,6 +70,7 @@ class BacktestEngine:
         min_commission: float = BacktestConstants.DEFAULT_MIN_COMMISSION,
         trade_calendar: Optional[TradeCalendarManager] = None,
         stamp_date_aware: bool = True,
+        monte_carlo_seed: Optional[int] = RANDOM_SEED,
     ):
         self.initial_capital = initial_capital
         self.commission_rate = commission_rate
@@ -77,6 +79,14 @@ class BacktestEngine:
         self.min_commission = min_commission
         self.trade_calendar = trade_calendar or TradeCalendarManager()
         self.stamp_date_aware = stamp_date_aware
+        self.monte_carlo_seed = monte_carlo_seed
+        self.matching = UnifiedMatchingEngine(
+            commission_rate=commission_rate,
+            stamp_duty_rate=stamp_duty_rate,
+            min_commission=min_commission,
+            slippage_rate=slippage_rate,
+            trade_calendar=self.trade_calendar,
+        )
         
         self.cash = initial_capital
         self.position = 0
@@ -190,6 +200,26 @@ class BacktestEngine:
         if action == "SELL" and limit_status.is_limit_down:
             return False
         return True
+
+    @staticmethod
+    def _matching_symbol(symbol: str) -> str:
+        """旧版直接 API 允许省略 symbol；撮合器内部需要可识别的 A 股板块。"""
+        if not symbol:
+            return "600000.SH"
+
+        upper = symbol.upper()
+        if upper.endswith((".SH", ".SZ", ".BJ")):
+            return upper
+
+        code = upper.replace("SH", "").replace("SZ", "").replace("BJ", "").replace(".", "")
+        if len(code) == 6 and code.isdigit():
+            if code.startswith(("4", "8")):
+                return f"{code}.BJ"
+            if code.startswith(("0", "2", "3")):
+                return f"{code}.SZ"
+            return f"{code}.SH"
+
+        return upper
     
     def execute_buy(
         self,
@@ -200,30 +230,37 @@ class BacktestEngine:
         pre_close: float = 0,
         symbol: str = "",
         name: Optional[str] = None,
-        volume: int = 0,
+        volume: Optional[int] = None,
         avg_daily_volume: float = 0,
     ) -> Optional[TradeRecord]:
         """执行买入"""
         if shares <= 0:
             return None
-        
-        if pre_close > 0 and not self._check_limit_constraint(price, pre_close, "BUY", symbol, name):
-            logger.debug(f"涨停无法买入: {timestamp}")
+
+        if volume is not None and volume <= 0:
+            logger.debug(f"停牌无法买入: {timestamp}")
             return None
-        
-        exec_price = self._calculate_slippage(price, is_buy=True, volume=shares, avg_daily_volume=avg_daily_volume)
+
+        fill = self.matching.fill_buy(
+            prices=np.array([price], dtype=np.float64),
+            shares_requested=np.array([shares], dtype=np.int64),
+            cash_available=np.array([self.cash], dtype=np.float64),
+            pre_closes=np.array([pre_close], dtype=np.float64),
+            symbols=np.array([self._matching_symbol(symbol)], dtype=object),
+            timestamps=np.array([pd.Timestamp(timestamp)], dtype=object),
+            volumes=np.array([shares], dtype=np.float64),
+            avg_daily_volumes=np.array([avg_daily_volume], dtype=np.float64),
+            names=np.array([name or ""], dtype=object),
+        )
+        if fill.rejected_mask[0] or fill.executed_shares[0] <= 0:
+            return None
+
+        shares = int(fill.executed_shares[0])
+        exec_price = float(fill.exec_prices[0])
         value = exec_price * shares
-        commission = self._calculate_commission(value, timestamp=timestamp, is_sell=False)
+        commission = float(fill.commissions[0] + fill.transfer_fees[0])
         total_cost = value + commission
-        
-        if total_cost > self.cash:
-            shares = int((self.cash - commission) / exec_price)
-            if shares <= 0:
-                return None
-            value = exec_price * shares
-            commission = self._calculate_commission(value, timestamp=timestamp, is_sell=False)
-            total_cost = value + commission
-        
+
         self.cash -= total_cost
         avg_cost = (self.position_cost * self.position + value) / (self.position + shares)
         self.position += shares
@@ -235,7 +272,7 @@ class BacktestEngine:
             price=exec_price,
             shares=shares,
             commission=commission,
-            slippage=exec_price - price,
+            slippage=float(fill.slippages[0]),
             reason=reason,
         )
         self.trades.append(trade)
@@ -253,26 +290,41 @@ class BacktestEngine:
         symbol: str = "",
         name: Optional[str] = None,
         buy_date: Optional[datetime] = None,
-        volume: int = 0,
+        volume: Optional[int] = None,
         avg_daily_volume: float = 0,
     ) -> Optional[TradeRecord]:
         """执行卖出"""
         if shares <= 0 or self.position <= 0:
             return None
-        
-        if buy_date and not self._check_t1_constraint(buy_date, timestamp):
-            logger.debug(f"T+1约束无法卖出: {timestamp}")
+
+        if volume is not None and volume <= 0:
+            logger.debug(f"停牌无法卖出: {timestamp}")
             return None
-        
-        if pre_close > 0 and not self._check_limit_constraint(price, pre_close, "SELL", symbol, name):
-            logger.debug(f"跌停无法卖出: {timestamp}")
-            return None
-        
+
         shares = min(shares, self.position)
-        exec_price = self._calculate_slippage(price, is_buy=False, volume=shares, avg_daily_volume=avg_daily_volume)
+        fill = self.matching.fill_sell(
+            prices=np.array([price], dtype=np.float64),
+            shares_requested=np.array([shares], dtype=np.int64),
+            positions_held=np.array([self.position], dtype=np.int64),
+            position_costs=np.array([self.position_cost], dtype=np.float64),
+            pre_closes=np.array([pre_close], dtype=np.float64),
+            symbols=np.array([self._matching_symbol(symbol)], dtype=object),
+            timestamps=np.array([pd.Timestamp(timestamp)], dtype=object),
+            buy_dates=np.array([pd.Timestamp(buy_date) if buy_date else None], dtype=object),
+            volumes=np.array([shares], dtype=np.float64),
+            avg_daily_volumes=np.array([avg_daily_volume], dtype=np.float64),
+            names=np.array([name or ""], dtype=object),
+        )
+        if fill.rejected_mask[0] or fill.executed_shares[0] <= 0:
+            return None
+
+        shares = int(fill.executed_shares[0])
+        exec_price = float(fill.exec_prices[0])
         value = exec_price * shares
-        commission = self._calculate_commission(value, timestamp=timestamp, is_sell=True)
-        
+        commission = float(
+            fill.commissions[0] + fill.stamp_duties[0] + fill.transfer_fees[0]
+        )
+
         cost = self.position_cost * shares
         pnl = value - cost - commission
         pnl_pct = pnl / cost if cost > 0 else 0
@@ -288,7 +340,7 @@ class BacktestEngine:
             price=exec_price,
             shares=shares,
             commission=commission,
-            slippage=price - exec_price,
+            slippage=float(fill.slippages[0]),
             pnl=pnl,
             pnl_pct=pnl_pct,
             reason=reason,
@@ -357,8 +409,6 @@ class BacktestEngine:
         
         dates_arr = pd.to_datetime(df["date"]).values
         opens_arr = df["open"].values.astype(np.float64)
-        highs_arr = df["high"].values.astype(np.float64)
-        lows_arr = df["low"].values.astype(np.float64)
         closes_arr = df["close"].values.astype(np.float64)
         volumes_arr = df["volume"].values.astype(np.float64)
         pre_close_arr = df["pre_close"].values.astype(np.float64)
@@ -479,7 +529,11 @@ class BacktestEngine:
                         "num_observations": n_obs,
                     }
                 if n_obs >= 10:
-                    mc = MonteCarloSimulator(n_simulations=200)
+                    mc = MonteCarloSimulator(
+                        n_simulations=200,
+                        seed=self.monte_carlo_seed,
+                    )
+                    result.metadata["monte_carlo_seed"] = self.monte_carlo_seed
                     result.metadata["monte_carlo_shuffle"] = mc.run_shuffle(
                         pd.Series(self.daily_returns)
                     )
@@ -506,6 +560,7 @@ class BacktestEngine:
         position_size: int = 100,
         train_window: int = 252,
         test_window: int = 63,
+        name: Optional[str] = None,
     ) -> List[BacktestResult]:
         """
         滚动窗口回测
@@ -517,6 +572,7 @@ class BacktestEngine:
             position_size: 每次交易股数
             train_window: 训练窗口 (天)
             test_window: 测试窗口 (天)
+            name: 股票名称
             
         Returns:
             List[BacktestResult]: 每个窗口的回测结果
@@ -536,6 +592,7 @@ class BacktestEngine:
                 df=test_df,
                 signal_generator=signal_generator,
                 symbol=symbol,
+                name=name,
                 position_size=position_size,
             )
             results.append(result)
@@ -556,6 +613,7 @@ class BacktestEngine:
         position_size: int = 100,
         train_window: int = 252,
         test_window: int = 63,
+        name: Optional[str] = None,
     ) -> List[BacktestResult]:
         """
         Walk-forward 验证
@@ -567,6 +625,7 @@ class BacktestEngine:
             position_size: 每次交易股数
             train_window: 训练窗口 (天)
             test_window: 测试窗口 (天)
+            name: 股票名称
             
         Returns:
             List[BacktestResult]: 每个窗口的回测结果
@@ -589,6 +648,7 @@ class BacktestEngine:
                 df=test_df,
                 signal_generator=signal_generator,
                 symbol=symbol,
+                name=name,
                 position_size=position_size,
             )
             results.append(result)
@@ -617,6 +677,7 @@ class BacktestEngine:
         symbol: str = "",
         position_size: int = 100,
         scenarios: Optional[List[str]] = None,
+        name: Optional[str] = None,
     ) -> Dict[str, BacktestResult]:
         """
         压力测试回测
@@ -627,6 +688,7 @@ class BacktestEngine:
             symbol: 股票代码
             position_size: 每次交易股数
             scenarios: 压力场景列表
+            name: 股票名称
             
         Returns:
             Dict[str, BacktestResult]: 各场景的回测结果
@@ -652,6 +714,7 @@ class BacktestEngine:
                 df=stressed_df,
                 signal_generator=signal_generator,
                 symbol=symbol,
+                name=name,
                 position_size=position_size,
             )
             results[scenario] = result
@@ -665,6 +728,7 @@ class BacktestEngine:
         historical_returns: np.ndarray,
         symbol: str = "",
         position_size: int = 100,
+        name: Optional[str] = None,
     ) -> BacktestResult:
         crash_len = min(len(historical_returns), len(df))
         crash_df = df.iloc[:crash_len].copy()
@@ -678,4 +742,4 @@ class BacktestEngine:
         if "pre_close" in crash_df.columns:
             crash_df["pre_close"] = crash_df["close"].shift(1).fillna(crash_df["close"].iloc[0])
         self.reset()
-        return self.run_backtest(crash_df, signal_generator, symbol, position_size)
+        return self.run_backtest(crash_df, signal_generator, symbol, name, position_size)

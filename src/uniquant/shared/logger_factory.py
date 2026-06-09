@@ -53,15 +53,15 @@ class LoggerFactory:
         config = get_config()
 
         self.log_level = getattr(
-            logging, config.get("logging.level", "INFO").upper(), logging.INFO
+            logging, config.get("base.logging.level", "INFO").upper(), logging.INFO
         )
-        self.log_format = config.get("logging.format", self.DEFAULT_FORMAT)
-        self.date_format = config.get("logging.date_format", self.DEFAULT_DATE_FORMAT)
-        self.log_dir = config.get("logging.directory", "logs")
-        self.max_bytes = config.get("logging.max_bytes", 10 * 1024 * 1024)  # 10MB
-        self.backup_count = config.get("logging.backup_count", 5)
-        self.console_output = config.get("logging.console", True)
-        self.file_output = config.get("logging.file", True)
+        self.log_format = config.get("base.logging.format", self.DEFAULT_FORMAT)
+        self.date_format = config.get("base.logging.date_format", self.DEFAULT_DATE_FORMAT)
+        self.log_dir = config.get("base.logging.directory", "logs")
+        self.max_bytes = config.get("base.logging.max_bytes", 10 * 1024 * 1024)  # 10MB
+        self.backup_count = config.get("base.logging.backup_count", 5)
+        self.console_output = config.get("base.logging.console", True)
+        self.file_output = config.get("base.logging.file", True)
 
     def _setup_root_logger(self):
         """配置根Logger"""

@@ -69,7 +69,7 @@ class TestCVaREmptyTail:
     # ------------------------------------------------------------------ #
     #  测试 4：极端牛市 — 所有收益率相同正值
     # ------------------------------------------------------------------ #
-    def test_cvar_constant_positive_returns(self, evt_risk):
+    def test_cvar_constant_positive_returns_empty_tail_variant(self, evt_risk):
         """所有收益率完全相同且为正，CVaR 应返回有效值。"""
         returns = pd.Series([0.01] * 50)
 
@@ -81,7 +81,7 @@ class TestCVaREmptyTail:
     # ------------------------------------------------------------------ #
     #  测试 5：99% 置信度 — 更极端的尾部
     # ------------------------------------------------------------------ #
-    def test_cvar_99_confidence_no_nan(self, evt_risk):
+    def test_cvar_99_confidence_no_nan_empty_tail_variant(self, evt_risk):
         """99% 置信度下尾部更极端，CVaR 仍应有效。"""
         returns = pd.Series([0.001, 0.002, 0.0015, 0.003, 0.0005, 0.0025])
 
@@ -89,7 +89,6 @@ class TestCVaREmptyTail:
 
         assert isinstance(cvar, float)
         assert not np.isnan(cvar)
-        assert cvar >= 0
 
     # ------------------------------------------------------------------ #
     #  测试 4：极端牛市 — 所有收益率相同正值

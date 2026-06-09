@@ -353,7 +353,6 @@ class TestBacktestIntegration:
             
             ma20 = df["close"].iloc[idx-20:idx].mean()
             ma60 = df["close"].iloc[idx-60:idx].mean()
-            price = df["close"].iloc[idx]
             
             if ma20 > ma60 and state["position"] == 0:
                 return {"action": "BUY", "reason": "MA金叉"}

@@ -20,6 +20,7 @@ import pandas as pd
 from joblib import Parallel, delayed
 from scipy.optimize import differential_evolution, minimize
 
+from ...brain.lppl.calculator import lppl_func
 from uniquant.shared.constants import RANDOM_SEED, W_BOUNDS, M_BOUNDS
 
 from ...shared.constants import LPPLConstants
@@ -118,9 +119,6 @@ def classify_top_phase(days_left: float, r2: float, config: LPPLConfig) -> str:
 # ============================================================================
 # 辅助函数 (原为外部导入, 现内联定义)
 # ============================================================================
-
-
-from ...brain.lppl.calculator import lppl_func
 
 
 def cost_function(params: Tuple, t_data: np.ndarray, log_price: np.ndarray) -> float:

@@ -3,7 +3,6 @@ Task-1.4: 涨跌停检查缺失修复测试
 验证A股特有微观结构防御功能
 """
 
-import pytest
 
 from uniquant.shared.limit_checker import (
     check_limit_status,

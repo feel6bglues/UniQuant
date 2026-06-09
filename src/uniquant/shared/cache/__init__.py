@@ -5,7 +5,6 @@ Unified Cache Management Module
 
 import functools
 import hashlib
-import json
 from typing import Callable
 
 import pandas as pd

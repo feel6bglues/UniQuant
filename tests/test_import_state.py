@@ -1,5 +1,4 @@
 import json
-from pathlib import Path
 
 from uniquant.shared.import_state import ImportStateManager, ThreadSafeImportCounter
 

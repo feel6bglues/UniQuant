@@ -7,6 +7,7 @@ future release.
 """
 
 import warnings
+from typing import Any
 
 try:
     from ..services.service_container import ServiceContainer
@@ -20,6 +21,22 @@ warnings.warn(
     stacklevel=2,
 )
 
+
+class _LazyContainerProxy:
+    """Backward-compatible container proxy without import-time singleton creation."""
+
+    def _target(self) -> Any:
+        if ServiceContainer is None:
+            raise RuntimeError("ServiceContainer is unavailable")
+        return ServiceContainer.instance()
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self._target(), name)
+
+    def __repr__(self) -> str:
+        return "<LazyServiceContainerProxy>"
+
+
 # Backward compatibility alias
 DIContainer = ServiceContainer
-container = ServiceContainer.instance()
+container = _LazyContainerProxy()

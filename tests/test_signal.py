@@ -4,7 +4,6 @@ import pytest
 from datetime import datetime, timedelta
 
 from uniquant.signal.models import (
-    AggregatedSignal,
     Signal,
     SignalBatch,
     SignalConsensus,
@@ -28,7 +27,6 @@ from uniquant.signal.aggregator import (
 )
 from uniquant.signal.quality import (
     SignalQualityAssessor,
-    SignalQualityMetrics,
     SignalQualityTracker,
 )
 

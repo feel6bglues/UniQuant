@@ -132,7 +132,6 @@ class TestLPPLCalculatorDefense:
         result = calc.lppl_func(t, tc, m=0.5, w=8.0, a=10.0, b=-1.0, c=0.5, phi=0.0)
 
         # tc < t 的点，tau 被 clamp 到 1e-8，返回有限值
-        after_tc = t[t > tc]
         result_after = result[t > tc]
         assert np.all(np.isfinite(result_after)), (
             "lppl_func should return finite values for t > tc (tau clamped to 1e-8)"

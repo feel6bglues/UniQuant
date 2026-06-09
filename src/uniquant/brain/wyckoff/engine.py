@@ -273,8 +273,8 @@ class WyckoffEngine:
         price_high = float(recent_60["high"].max())
         price_low = float(recent_60["low"].min())
         current_price = float(df.iloc[-1]["close"])
-        ma5 = float(df.tail(5)["close"].mean())
-        ma20 = float(df.tail(20)["close"].mean())
+        ma5 = float(df.shift(1).tail(5)["close"].mean())
+        ma20 = float(df.shift(1).tail(20)["close"].mean())
         total_range_pct = (price_high - price_low) / price_low if price_low > 0 else 1.0
         relative_position = (
             (current_price - price_low) / (price_high - price_low)
@@ -284,10 +284,10 @@ class WyckoffEngine:
 
         # 近 20 日 vs 前 20 日均价变化
         if len(df) >= 40:
-            recent_mean = float(df.tail(20)["close"].mean())
+            recent_mean = float(df.shift(1).tail(20)["close"].mean())
             prev_mean = float(df.iloc[-40:-20]["close"].mean())
         else:
-            recent_mean = float(df.tail(10)["close"].mean())
+            recent_mean = float(df.shift(1).tail(10)["close"].mean())
             prev_mean = float(df.head(10)["close"].mean())
         short_trend_pct = (recent_mean - prev_mean) / prev_mean if prev_mean > 0 else 0.0
 
@@ -431,7 +431,7 @@ class WyckoffEngine:
             # Generalized Selling Climax (SC) / Selling Climax Candidate rules:
             # Must have non-trivial daily volatility to represent climax panic (amplitude >= 2.0%)
             amplitude = (high_val - low_val) / max(low_val, 0.01)
-            is_new_low = (low_val == df.iloc[-10:]["low"].min())
+            is_new_low = (low_val == df.iloc[-11:-1]["low"].min())
             wick_ratio = lower_wick_val / max(body_val, 0.01)
             rebound_ratio = (close_val - low_val) / max(low_val, 0.01)
 

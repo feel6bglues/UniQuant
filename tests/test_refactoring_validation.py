@@ -11,7 +11,6 @@ from uniquant.data.pipeline.data_aligner import DataAligner
 from uniquant.brain.factors.analyzer import (
     check_lookahead_leakage,
     LookaheadBiasError,
-    FactorAnalyzer,
 )
 
 

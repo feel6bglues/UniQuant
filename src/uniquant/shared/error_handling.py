@@ -19,6 +19,8 @@ from .logger_factory import get_logger
 _error_logger = logging.getLogger("alpha_tactician.errors")
 logger = get_logger("ErrorHandling")
 
+# NON_RESEARCH_RANDOMNESS: retry jitter is network backoff noise, not research RNG.
+
 # 错误统计 - 线程安全实现
 _error_stats: Dict[str, Dict[str, int]] = {}
 _error_stats_lock = threading.Lock()

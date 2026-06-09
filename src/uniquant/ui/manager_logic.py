@@ -4,7 +4,7 @@ from typing import Any, Dict, List, Optional
 
 import pandas as pd
 
-from ..services.analysis_service_legacy import AnalysisService
+from ..services.analysis_service_v2 import AnalysisService
 
 # Import New Services
 from ..services.data_service import DataService
@@ -44,7 +44,7 @@ class AssetManager:
     def __init__(self):
         # Initialize Services
         self.data_service = DataService()
-        self.analysis_service = AnalysisService(self.data_service)
+        self.analysis_service = AnalysisService(data_service=self.data_service)
         self.portfolio_service = PortfolioService()
         self.portfolio_analytics_service = ManagerPortfolioAnalyticsService(self)
         self.report_service = ManagerReportService(read_report=self.read_report)
@@ -66,7 +66,8 @@ class AssetManager:
 
     @property
     def report_root(self) -> Any:
-        return self.analysis_service.report_root
+        from ..shared.config_loader import get_config
+        return get_config().ROOT_DIR / ResultsConstants.HANDS_DIR_NAME / ResultsConstants.REPORTS_DIR_NAME
 
     # --- Compatibility Properties for V9.0 ---
     @property
@@ -106,8 +107,7 @@ class AssetManager:
             if df_raw.empty:
                 return pd.DataFrame()
 
-            # Delegate to AnalysisService to ensure proper encapsulation and avoid logic leakage
-            return self.analysis_service.enrich_lake_data(df_raw)
+            return self.enrich_lake_data(df_raw)
         except (ValueError, TypeError) as e:
             logger.error("Invalid input or data format: %s", e)
             return pd.DataFrame()
@@ -123,19 +123,79 @@ class AssetManager:
         return self.portfolio_service.get_structural_risks()
 
     def get_macro_returns(self, window: int = TimeWindows.MACRO_WINDOW) -> pd.Series:
-        return self.analysis_service.get_macro_returns(window)
+        return self.analysis_service.macro_engine.get_macro_returns(window=window)
 
     def scan_etfs(self) -> pd.DataFrame:
-        return self.analysis_service.scan_etfs()
+        try:
+            etfs = self.data_service.etf_list
+            if not etfs:
+                return pd.DataFrame()
+            etf_data = []
+            for etf in etfs:
+                df = self.data_service.get_real_kline_data(etf, "20240101", "20241231")
+                if df is not None and not df.empty:
+                    etf_data.append({"code": etf, "close": df.iloc[-1]["close"], "volume": df.iloc[-1]["volume"], "date": str(df.iloc[-1]["date"])})
+            return pd.DataFrame(etf_data)
+        except Exception as e:
+            logger.error(f"ETF扫描失败: {e}")
+            return pd.DataFrame()
+
+    def enrich_lake_data(self, df_raw: pd.DataFrame) -> pd.DataFrame:
+        if df_raw is None or df_raw.empty:
+            return pd.DataFrame()
+        df = df_raw.copy()
+        import numpy as np
+        if "code" not in df.columns and "symbol" in df.columns:
+            df["code"] = df["symbol"]
+        if "code" in df.columns:
+            df["name"] = df["code"].apply(lambda c: self.data_service.get_stock_name(c))
+        else:
+            df["name"] = "未知"
+        if "close" in df.columns and "open" in df.columns:
+            df["signal"] = np.where(df["close"] > df["open"], "BUY", "WAIT")
+        else:
+            df["signal"] = "UNKNOWN"
+        if "pct_change" in df.columns:
+            df["strength"] = (df["pct_change"] / 100.0).round(4)
+        elif "close" in df.columns and "open" in df.columns:
+            df["strength"] = ((df["close"] - df["open"]) / df["open"].replace(0, np.nan)).round(4)
+        else:
+            df["strength"] = 0.0
+        if "close" in df.columns and "high" in df.columns:
+            df["czsc_stat"] = np.where(df["close"] > df["high"] * 0.9, "3rd_BUY", "None")
+        else:
+            df["czsc_stat"] = "None"
+        required = ["code", "name", "signal", "strength", "czsc_stat", "close", "volume", "date"]
+        available = [c for c in required if c in df.columns]
+        if not available:
+            return pd.DataFrame()
+        final = df[available]
+        rename = {"code": "Code", "name": "Name", "signal": "Signal", "strength": "Strength", "czsc_stat": "CZSC", "close": "Price", "volume": "Volume", "date": "Date"}
+        final_rename = {k: v for k, v in rename.items() if k in final.columns}
+        return final.rename(columns=final_rename)
+
+    def _get_report_engine(self):
+        if hasattr(self.analysis_service, '_factory') and self.analysis_service._factory is not None:
+            return self.analysis_service._factory.report
+        return None
 
     def list_reports(self) -> List[Dict[str, Any]]:
-        return self.analysis_service.list_reports()
+        engine = self._get_report_engine()
+        if engine:
+            return engine.list_reports()
+        return []
 
     def read_report(self, file_path: str) -> str:
-        return self.analysis_service.read_report(file_path)
+        engine = self._get_report_engine()
+        if engine:
+            return engine.read_report(file_path=file_path)
+        return ""
 
     def generate_report(self, ticker: str, data: Dict[str, Any] = None) -> bool:
-        return self.analysis_service.generate_report(ticker, data)
+        engine = self._get_report_engine()
+        if engine:
+            return engine.generate_report(ticker=ticker, data=data)
+        return False
 
     # --- Portfolio Methods ---
     def calculate_position_size(

@@ -122,7 +122,7 @@ class TestNTFEngineEdgeCases:
         })
         
         result = engine.detect_intervention(df)
-        assert result["detected"] == False
+        assert not result["detected"]
 
     def test_custom_threshold(self):
         """Test with custom volume ratio threshold"""

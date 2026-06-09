@@ -39,8 +39,6 @@ def compute_czsc_signal_score(df: pd.DataFrame, mode: str = "backtest") -> pd.Se
     from uniquant.brain.czsc.czsc_engine import CZSCEngine
 
     engine = CZSCEngine()
-    # reset engine state
-    raw_scores = np.zeros(len(df))
 
     # CZSC engine is incremental — feed rows one at a time
     # df already has a 'date' column added by the harness, so no reset needed
@@ -59,7 +57,6 @@ def compute_czsc_signal_score(df: pd.DataFrame, mode: str = "backtest") -> pd.Se
             logger.warning("CZSC signal score failed at row %d", pos, exc_info=True)
 
     bi_series = pd.Series(bi_counts, index=df.index)
-    buy_series = pd.Series(is_3rd_buy, index=df.index)
 
     # Normalise bi_count into a z-score over rolling 60-bar window
     bi_z = (bi_series - bi_series.rolling(60, min_periods=20).mean()) / (

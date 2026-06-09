@@ -2,10 +2,12 @@
 因子合成器 - 现在从 FactorRegistry 读取所有因子
 """
 
+from copy import deepcopy
+from typing import Any, Dict, List, Optional
+
 import pandas as pd
 import numpy as np
 from scipy import linalg
-from typing import Any, Dict, List, Optional, Tuple
 
 from ...shared.logger_factory import get_logger
 from .registry import FactorRegistry
@@ -28,6 +30,40 @@ class FactorComposer:
         self.registry = FactorRegistry()
         self.analyzer = FactorAnalyzer()
         self.orthogonalize = orthogonalize
+        self.last_diagnostics = self._new_diagnostics()
+
+    def _new_diagnostics(self) -> Dict[str, Any]:
+        return {
+            "requested_factors": [],
+            "computed_factors": [],
+            "used_factors": [],
+            "missing_requested_factors": [],
+            "failed_factors": {},
+            "orthogonalization_attempted": False,
+            "orthogonalization_failed": False,
+            "orthogonalization_error": None,
+            "composite_status": "NOT_STARTED",
+            "composite_usable": False,
+        }
+
+    def get_last_diagnostics(self) -> Dict[str, Any]:
+        """Return a copy of the last factor composition diagnostics."""
+        return deepcopy(self.last_diagnostics)
+
+    def _mark_composite_status(self) -> None:
+        diagnostics = self.last_diagnostics
+        if not diagnostics["used_factors"]:
+            diagnostics["composite_status"] = "UNAVAILABLE"
+            diagnostics["composite_usable"] = False
+            return
+
+        degraded = (
+            bool(diagnostics["failed_factors"])
+            or bool(diagnostics["missing_requested_factors"])
+            or bool(diagnostics["orthogonalization_failed"])
+        )
+        diagnostics["composite_status"] = "DEGRADED" if degraded else "OK"
+        diagnostics["composite_usable"] = True
 
     def _iter_groups(self, df: pd.DataFrame):
         """按股票代码分组；如果没有 code 列则返回单组。"""
@@ -43,18 +79,31 @@ class FactorComposer:
             return df.sort_values("date")
         return df
 
-    def compute_all_factors(self, df: pd.DataFrame, mode: str = "backtest") -> pd.DataFrame:
+    def compute_all_factors(
+        self,
+        df: pd.DataFrame,
+        mode: str = "backtest",
+        return_diagnostics: bool = False,
+    ):
         """
         一次性计算所有已注册的因子
         """
+        self.last_diagnostics = self._new_diagnostics()
+        enabled_factors = list(self.registry.get_enabled())
+        self.last_diagnostics["requested_factors"] = [
+            factor.name for factor in enabled_factors
+        ]
+
         if df.empty:
-            return pd.DataFrame()
+            result = pd.DataFrame()
+            return (result, self.get_last_diagnostics()) if return_diagnostics else result
 
         factor_values = pd.DataFrame(index=df.index)
 
-        for factor in self.registry.get_enabled():
+        for factor in enabled_factors:
             try:
                 factor_series = pd.Series(index=df.index, dtype=float)
+                factor_error = None
                 for group in self._iter_groups(df):
                     group_df = self._sort_group(group.copy())
                     try:
@@ -62,17 +111,29 @@ class FactorComposer:
                     except TypeError:
                         series = factor.compute_func(group_df.copy())
                     if len(series) != len(group_df):
+                        factor_error = (
+                            f"length mismatch: expected {len(group_df)}, got {len(series)}"
+                        )
                         logger.warning(f"因子 {factor.name} 返回长度不匹配")
                         continue
 
                     series = pd.Series(np.asarray(series, dtype=float), index=group_df.index)
                     factor_series.loc[group_df.index] = series.to_numpy()
 
+                if factor_error and not factor_series.notna().any():
+                    self.last_diagnostics["failed_factors"][factor.name] = factor_error
+                    continue
+
                 factor_values[factor.name] = factor_series
+                self.last_diagnostics["computed_factors"].append(factor.name)
             except Exception as e:
                 logger.error(f"因子 {factor.name} 计算失败: {e}")
+                self.last_diagnostics["failed_factors"][factor.name] = str(e)
 
-        return factor_values
+        return (
+            factor_values,
+            self.get_last_diagnostics(),
+        ) if return_diagnostics else factor_values
 
     def _resolve_ic_result(self, value: Any) -> Optional[FactorICResult]:
         """从各种兼容输入中提取单个 IC 结果。"""
@@ -187,6 +248,8 @@ class FactorComposer:
         """
         if factor_df.empty or factor_df.shape[1] < 2:
             return factor_df
+
+        self.last_diagnostics["orthogonalization_attempted"] = True
         
         F = factor_df.values
         n, k = F.shape
@@ -214,6 +277,8 @@ class FactorComposer:
             
         except linalg.LinAlgError as e:
             logger.warning(f"对称正交化失败，使用原始因子: {e}")
+            self.last_diagnostics["orthogonalization_failed"] = True
+            self.last_diagnostics["orthogonalization_error"] = str(e)
             return factor_df
 
     def compose_scores(
@@ -226,7 +291,8 @@ class FactorComposer:
         log_market_cap: Optional[pd.Series] = None,
         neutralize: bool = False,
         mode: str = "backtest",
-    ) -> pd.DataFrame:
+        return_diagnostics: bool = False,
+    ):
         """
         合成 composite_score
         
@@ -242,19 +308,28 @@ class FactorComposer:
         """
         factor_df = self.compute_all_factors(df, mode=mode)
         if factor_df.empty:
-            return pd.DataFrame()
+            result = pd.DataFrame()
+            self._mark_composite_status()
+            return (result, self.get_last_diagnostics()) if return_diagnostics else result
 
         if factor_cols is not None:
             available_cols = [col for col in factor_cols if col in factor_df.columns]
+            self.last_diagnostics["missing_requested_factors"] = [
+                col for col in factor_cols if col not in factor_df.columns
+            ]
             factor_df = factor_df[available_cols]
 
         if factor_df.empty:
-            return pd.DataFrame(index=df.index)
+            result = pd.DataFrame(index=df.index)
+            self._mark_composite_status()
+            return (result, self.get_last_diagnostics()) if return_diagnostics else result
 
         if ic_weights is None:
             ic_weights = self._resolve_weights(list(factor_df.columns))
         else:
             ic_weights = {col: float(ic_weights[col]) for col in factor_df.columns if col in ic_weights}
+
+        self.last_diagnostics["used_factors"] = list(factor_df.columns)
 
         result = self._build_composite_frame(
             df,
@@ -271,7 +346,8 @@ class FactorComposer:
                 result["composite_score"], industry_dummies, log_market_cap
             )
 
-        return result
+        self._mark_composite_status()
+        return (result, self.get_last_diagnostics()) if return_diagnostics else result
 
     def process(
         self,
@@ -280,21 +356,31 @@ class FactorComposer:
         ic_results: Optional[Dict[str, Any]] = None,
         date_col: str = "date",
         mode: str = "backtest",
-    ) -> Tuple[pd.DataFrame, Dict[str, float]]:
+        return_diagnostics: bool = False,
+    ):
         """
         兼容性入口：计算因子、生成权重并输出 composite_score。
         """
         factor_df = self.compute_all_factors(df, mode=mode)
         if factor_cols is not None:
+            requested_factor_cols = list(factor_cols)
             factor_cols = [col for col in factor_cols if col in factor_df.columns]
+            self.last_diagnostics["missing_requested_factors"] = [
+                col for col in requested_factor_cols if col not in factor_df.columns
+            ]
             factor_df = factor_df[factor_cols]
         else:
             factor_cols = list(factor_df.columns)
 
         if factor_df.empty:
-            return df.copy(), {}
+            result_df = df.copy()
+            self._mark_composite_status()
+            if return_diagnostics:
+                return result_df, {}, self.get_last_diagnostics()
+            return result_df, {}
 
         weights = self._resolve_weights(factor_cols, ic_results=ic_results)
+        self.last_diagnostics["used_factors"] = list(factor_df.columns)
         scored_factors = self._build_composite_frame(
             df,
             factor_df,
@@ -309,4 +395,7 @@ class FactorComposer:
             result_df[col] = factor_df[col]
         result_df["composite_score"] = scored_factors["composite_score"]
 
+        self._mark_composite_status()
+        if return_diagnostics:
+            return result_df, weights, self.get_last_diagnostics()
         return result_df, weights

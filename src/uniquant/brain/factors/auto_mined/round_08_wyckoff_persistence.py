@@ -32,7 +32,6 @@ def compute_wyckoff_persistence(df: pd.DataFrame, mode: str = "backtest") -> pd.
 
     engine = WyckoffEngine(lookback_days=120)
     n = len(df)
-    phase_seq = []   # (direction, confidence) per sampled bar
 
     sample_indices = list(range(119, n, 5))
     raw_phases = []

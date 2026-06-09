@@ -10,7 +10,7 @@ DrawdownAnalyzer 测试：
 import numpy as np
 import pytest
 
-from src.uniquant.risk.drawdown_analyzer import DrawdownAnalyzer, DrawdownMetrics, TailRiskMetrics
+from uniquant.risk.drawdown_analyzer import DrawdownAnalyzer
 
 
 def test_monotonic_up():

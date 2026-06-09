@@ -14,7 +14,7 @@ class StructuralRiskManager:
 
     def __init__(self):
         # Load index names from config, with fallback to defaults
-        self.index_names = config.get(
+        raw = config.get(
             "markets.indices",
             {
                 "000300.SH": "沪深300",
@@ -23,6 +23,10 @@ class StructuralRiskManager:
                 "000016.SH": "上证50",
             },
         )
+        if isinstance(raw, list):
+            self.index_names = {item["id"]: item["name"] for item in raw}
+        else:
+            self.index_names = raw
 
     def get_macro_conclusion(self, overall_risk: str) -> str:
         """

@@ -44,10 +44,12 @@ class MacroAnalysisEngine:
         },
         log_level=logging.ERROR,
     )
-    def analyze_macro_health(self, mock: bool = False):
+    def analyze_macro_health(self, mock: bool = False, seed: int = 42):
         """Calculate EVT metrics for macro health."""
         # 生成缓存键
-        cache_key = self.orchestrator._generate_cache_key("macro_health", mock=mock)
+        cache_key = self.orchestrator._generate_cache_key(
+            "macro_health", mock=mock, seed=seed if mock else None
+        )
 
         # 尝试从缓存获取结果
         cached_result = self.orchestrator._get_cached_result(cache_key, use_disk=True)
@@ -56,9 +58,25 @@ class MacroAnalysisEngine:
 
         returns = self.get_macro_returns()
         if returns.empty:
-            # Fallback
+            if not mock:
+                result = {
+                    "status": "failed",
+                    "error": "DATA_UNAVAILABLE",
+                    "regime": "UNKNOWN",
+                    "ntf_signal": "未知",
+                    "summary": "宏观收益数据不可用，未生成随机替代数据",
+                }
+                self.orchestrator._set_cached_result(
+                    cache_key,
+                    result,
+                    use_disk=True,
+                    ttl=AnalysisServiceConstants.CACHE_TTL_1HOUR,
+                )
+                return result
+
+            rng = np.random.default_rng(seed)
             returns = pd.Series(
-                np.random.normal(
+                rng.normal(
                     0,
                     AnalysisServiceConstants.RANDOM_DATA_STD,
                     AnalysisServiceConstants.RANDOM_DATA_LENGTH,

@@ -859,9 +859,10 @@ class AnalysisService:
                     return
 
             from ..brain.ntf.ntf_engine import NTFEngine
-            from ..data.data_fetcher import DataFetcher
 
-            fetcher = DataFetcher()
+            fetcher = getattr(self.data_service, "fetcher", None)
+            if fetcher is None:
+                raise DataFetchError("Legacy NTF detection requires injected DataService.fetcher")
             end_date = pd.Timestamp.now().strftime("%Y-%m-%d")
             start_date = (pd.Timestamp.now() - pd.DateOffset(days=TimeConstants.DAYS_MONTH * 3)).strftime("%Y-%m-%d")
 
@@ -923,14 +924,17 @@ class AnalysisService:
         """
         try:
             from ..brain.alpha_decoupler.alpha_decoupler import AlphaDecoupler
-            from ..data.lake.storage_manager import StorageManager
 
             stock_df = data_pack.get("stock")
             if stock_df is None or stock_df.empty:
                 data_pack["alpha_score"] = 0.0
                 return
 
-            storage = StorageManager()
+            storage = getattr(self.data_service, "lake", None) or getattr(
+                self.data_service, "storage_manager", None
+            )
+            if storage is None:
+                raise DataFetchError("Legacy alpha analysis requires injected data lake")
             
             bench_df = storage.read_data("000300.SH", "index")
             if bench_df is None or bench_df.empty:

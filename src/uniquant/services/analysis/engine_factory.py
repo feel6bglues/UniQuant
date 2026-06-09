@@ -17,6 +17,19 @@ class AnalysisEngineFactory:
         self._engines: Dict[str, Any] = {}
         self._lock = threading.RLock()
 
+    def bind_orchestrator(self, orchestrator) -> None:
+        """Bind engines to the current AnalysisService orchestrator.
+
+        The container creates the factory before AnalysisService exists. Once the
+        service is constructed, adapters must use that service contract instead
+        of the lower-level DataService.
+        """
+        with self._lock:
+            if self._orchestrator is orchestrator:
+                return
+            self._orchestrator = orchestrator
+            self._engines.clear()
+
     def _lazy_init(self, name: str, module_path: str, class_name: str, **kwargs) -> Any:
         if name not in self._engines:
             with self._lock:
@@ -28,8 +41,10 @@ class AnalysisEngineFactory:
                         self._engines[name] = cls(orchestrator=self._orchestrator, **kwargs)
                         logger.debug(f"Lazy-initialized {name}")
                     except Exception as e:
-                        logger.warning(f"Failed to init {name}: {e}")
-                        return None
+                        logger.error(f"Failed to init {name}: {e}")
+                        raise RuntimeError(
+                            f"Failed to initialize analysis engine {name}"
+                        ) from e
         return self._engines[name]
 
     @property
@@ -70,8 +85,10 @@ class AnalysisEngineFactory:
                         self._engines["brain"] = DecisionBrain()
                         logger.debug("Lazy-initialized brain")
                     except Exception as e:
-                        logger.warning(f"Failed to init brain: {e}")
-                        return None
+                        logger.error(f"Failed to init brain: {e}")
+                        raise RuntimeError(
+                            "Failed to initialize analysis engine brain"
+                        ) from e
         return self._engines["brain"]
 
     @property

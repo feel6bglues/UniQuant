@@ -95,6 +95,7 @@ class ServiceContainer:
 
         engine_factory = AnalysisEngineFactory(orchestrator=data_svc)
         market_cache = MarketLevelCache()
+        data_svc.attach_market_cache(market_cache)
         self.register("engine_factory", engine_factory)
         self.register("market_cache", market_cache)
 

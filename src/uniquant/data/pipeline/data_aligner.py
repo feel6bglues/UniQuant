@@ -74,13 +74,13 @@ class DataAligner:
         else:
             merged["code"] = symbol
 
-        # Suspensions pricing fill logic: ffill from previous bar close
+        # Suspensions pricing fill logic: only ffill from previous bars.
+        # Do not bfill leading gaps; that would leak future prices into earlier
+        # suspended days when the requested window starts during a suspension.
         price_cols = ["open", "high", "low", "close"]
         for col in price_cols:
             if col in merged.columns:
                 merged[col] = merged[col].ffill()
-                # If first row has NaN (suspended from first day of period), bfill it
-                merged[col] = merged[col].bfill()
 
         # Suspensions volume/amount fill logic: set to zero
         vol_cols = ["volume", "amount"]
@@ -93,6 +93,6 @@ class DataAligner:
         exclude = ["date", "code"] + price_cols + vol_cols
         for col in all_cols:
             if col not in exclude:
-                merged[col] = merged[col].ffill().fillna(method="bfill")
+                merged[col] = merged[col].ffill()
 
         return merged.sort_values("date").reset_index(drop=True)

@@ -1,68 +1,114 @@
 # UniQuant 项目状态仪表盘
 
-> 最后更新: 2026-06-21 | 代码版本: 263 文件 (58,231 LOC) | 重构进度: Phase 0-4 已完成 (v0.6.x) | 文档: 124 文件 (122 .md + 2 其他)
+> **历史快照**: 本文件记录 2026-05-26 迁移早期状态，已不代表当前源码。当前 2026-06-08 实测状态请优先读取根目录 `AGENTS.md`、`MASTER_REMEDIATION_PLAN.md` 和 [受控状态机日志索引](reshaping_logs/README.md)。
+>
+> 原始快照: 最后更新: 2026-05-26 | 代码版本: 44 文件 | 重构进度: Phase 0 未执行 | 文档: 34 文件 (4 可信, 10 不可信)
 
 ---
 
 ## 总览
 
 ```
-完成度: ████████████████████ 100% 源码就绪 (263/263 .py 文件, 58.2K LOC)
-测试数: ████████████████████ 76 测试文件 (951 通过, 12 失败, 7 跳过, 2 收集错误)
-重构:   ████████████████████ Phase 0-4 已完成 (v0.6.x)
-文档:   █████░░░░░░░░░░░░░░░ 124 文件 (大部分需更新以同步代码)
+完成度: ██████░░░░░░░░░░░░░░ ~28% 源码就绪 (44/160 文件, ~12.6K LOC)
+测试数: █░░░░░░░░░░░░░░░░░░░ 10/65+ 测试文件 (仅 1 个可运行)
+重构:   ░░░░░░░░░░░░░░░░░░░░ Phase 0 未开始
+文档可信度: ████░░░░░░░░░░░░ 25% 可信 (4/23 文档完全可信)
 ```
 
 ---
 
 ## 模块状态
 
-### ✅ 完整（全部 8 个声明层均已就位）
+### ✅ 已就绪
 
-| 包 | 文件数 | LOC | 说明 |
-|----|:------:|:---:|------|
-| `brain/` | 73 | 15,743 | 11 子包: CZSC、FSM、LPPL、NTF、Regime、Wyckoff、Factors(含 27 auto_mined)、Indicators、Screener、Alpha Decoupler |
-| `data/` | 65 | 15,426 | 11 数据源(baostock/eastmoney/mootdx/sina/tdx/tencent/ths)、管道(pipeline)、湖(lake)、管理器(managers) |
-| `services/` | 31 | 8,485 | DAG 容器、13 分析引擎、14 懒加载服务 |
-| `shared/` | 37 | 5,716 | 5 Protocol 接口、常量子包(7 模块)、缓存、异常、配置、成本/滑点/限价笼 |
-| `hands/` | 34 | 6,087 | 回测(统一引擎/撮合引擎/投资组合引擎)、策略框架(6 策略)、参数调优 |
-| `signal/` | 7 | 2,075 | 信号模型、归一化、聚合、质量评估、adapters |
-| `risk/` | 7 | 1,450 | 回撤分析、EVT、历史风险、组合优化、仓位管理、结构风险 |
-| `ui/` | 8 | 3,248 | Streamlit dashboard、health_check、LPPL 可视化、4 个 manager_* |
+| 包 | 文件 | 说明 |
+|----|------|------|
+| `shared/` | 23 | constants, exceptions, config_loader, logger_factory, interfaces, retry_decorator, cost_model, slippage_model, limit_checker, env_config, error_handling, errors, limits, analysis_result, di_container, import_state, optimal_params, utils, cache/ (4 files) |
 
-> 配置: `config/` 含 4 个 YAML (config.yaml, trading.yaml, factors.yaml, optimal_params.yaml)
+### ⚠️ 部分就绪
+
+| 包 | 文件 | 缺失模块 |
+|----|------|---------|
+| `services/` | 11 | data_service, validation_service, cache_coordinator, stock_query_service, scan_service, portfolio_service, data_access_service, data_quality_service, health_service, analysis/fsm_analysis_engine, analysis/lppl_analysis_engine, analysis/macro_analysis_engine, analysis/signal_service, analysis/wyckoff_analysis_engine |
+| `brain/` | 5 | indicators, alpha_decoupler, ntf/, regime/, factors/, screener/, wyckoff/, lppl/ (7 of 9 submodules) |
+| `ui/` | 2 | components, lppl_visualizer, manager_logic, manager_report_service, manager_portfolio_analytics_service |
+| `risk/` | 1 | evt_risk, historical_risk, portfolio_optimizer, sizer, structural |
+| `tests/` | 11 | 55+ 测试文件待迁移 |
+
+### 🔴 待迁移
+
+| 包 | 说明 | 迁移阶段 |
+|----|------|---------|
+| `data/` | 整个数据层 (40+ 文件) | Phase 1B |
+| `signal/` | 整个信号层 (6 文件) | 需新建 |
+| `hands/backtest/` | 回测引擎 (8+ 文件) | Phase 1E |
+| `hands/strategies/` | 策略库 (7+ 文件) | Phase 1E |
+
+---
+
+## 重构进度
+
+| Phase | 名称 | 状态 | 预计时间 |
+|-------|------|------|---------|
+| 0 | 紧急修复 (导入链恢复) | ⬜ 未开始 | 0.5h |
+| 1A | Shared 基础层迁移 | ⬜ 未开始 | 0.5h |
+| 1B | Data 全层迁移 | ⬜ 未开始 | 1.5h |
+| 1C | Services 层迁移 | ⬜ 未开始 | 0.5h |
+| 1D | Brain LPPL + Factor | ⬜ 未开始 | 0.5h |
+| 1E | Hands + 回测 | ⬜ 未开始 | 0.3h |
+| 1F | UI 层迁移 | ⬜ 未开始 | 0.3h |
+| 2 | mootdx 适配 | ⬜ 未开始 | 2.5h |
+| 3 | 验证 + 修复 | ⬜ 未开始 | 1.5h |
+| 4 | 清理 | ⬜ 未开始 | 0.5h |
 
 ---
 
 ## 测试状态
 
-| 指标 | 数值 |
-|------|:----:|
-| 测试文件数 | 76 |
-| 测试用例数 | 966 |
-| ✅ 通过 | 951 |
-| ❌ 失败 | 12 |
-| ⏭️ 跳过 | 7 |
-| ⚠️ 收集错误 | 2 |
+| 类别 | 文件数 | 通过 | 失败 | 说明 |
+|------|--------|------|------|------|
+| brain 引擎 | 5 | ~40 | ~5 | czsc, fsm, ntf, regime |
+| services | 4 | ~30 | ~3 | engine_factory, regressions |
+| shared | 2 | ~15 | ~2 | error_handling, retry |
+| **总计** | **11** | **~85** | **~10** | |
 
-> 剩余阻塞: 详见 AGENTS.md 阻塞问题清单。P0 收集错误来自 `test_drawdown_analyzer.py` 和 `test_portfolio_engine_v2.py` 的 `from src.uniquant...` 导入风格。
+> 测试文件: `tests/` 目录下 11 个文件
+
+---
+
+## 阻塞问题
+
+| # | 问题 | 影响 | 阻塞的 Phase |
+|---|------|------|-------------|
+| 1 | `import uniquant` 因幽灵导入崩溃 | 所有下游模块无法使用 | Phase 0 |
+| 2 | `data/` 包完全不存在 | services/data_service 无法运行 | Phase 1B |
+| 3 | `signal/` 包完全不存在 | 信号聚合流程不可用 | 需新建 |
+| 4 | `hands/backtest/` 不存在 | 回测能力不可用 | Phase 1E |
+| 5 | TDX 源码完整性未验证 | 所有迁移依赖 TDX | Phase 1 |
 
 ---
 
 ## 文档状态
 
-| 类别 | 状态 | 说明 |
-|------|:----:|------|
-| 总文件数 | 124 | 122 .md + 1 pyproject.toml + 1 .gitignore |
-| 子目录 | 17 | audit_logs(27), packages(8), guides(6), reference(4), whitepaper(3), development(2), research(2) |
-| 与代码同步 | 🔴 大部分过时 | 入口文档 index.md 已修复，STATUS.md 已更新，其余需跟进 |
-| AGENTS.md 同步 | 🔴 需更新 | 声称 67 文件（实际 124），测试数需更新 |
+| 文档 | 状态 | 说明 |
+|------|------|------|
+| README.md | ✅ 已更新 | 项目入口 |
+| STATUS.md | ✅ 本文件 | 状态仪表盘 |
+| EVALUATION_REPORT.md | ✅ 新建 | 全景差异分析 (docs vs 代码) |
+| VERIFICATION_REPORT.md | ✅ 新建 | 4 Agent 独立核实，修正 7 项数据差异 |
+| architecture.md | ⚠️ 需更新 | 描述目标架构，非当前状态 |
+| packages/*.md | ⚠️ 需标注 | 描述目标 API，非当前可用 |
+| guides/*.md | ❌ 不可用 | 引用不存在的模块，代码示例无法运行 |
+| reference/*.md | ✅ 可用 | 基于 constants.py，准确 |
+| development/*.md | ⚠️ 需更新 | 测试数和文件清单严重不符 |
+| DOC_MANAGEMENT_PLAN.md | ✅ 已更新 | 文档管理规范 |
 
-### P0 已修复项
+### 文档可信度分布
 
-| 项 | 状态 |
-|---|:----:|
-| index.md 模块状态表（data/hands/signal 标注为"待迁移"） | ✅ 已修正 |
-| STATUS.md 全量数据（44→263 文件, 10→951 测试） | ✅ 已修正 |
-| docs/pyproject.toml 误导性副本 | ⏳ 待删除 |
-| constants.py 过时引用 | ✅ 已修复 (6 个文件, 含 architecture.md/project_structure.md 等) |
+```
+完全可信 (4):  reference/constants, exceptions, a_share_constraints, packages/shared
+部分可信 (9):  architecture, packages/brain/services/risk/ui, STATUS, RESTRUCTURE_PLAN, guides/configuration, index
+不可信 (10):   packages/data/hands/signal, guides/quickstart/backtest/factors/strategies/data_sources, development/testing/project_structure
+```
+
+详细差异分析请参阅 [EVALUATION_REPORT.md](EVALUATION_REPORT.md)。

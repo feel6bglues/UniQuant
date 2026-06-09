@@ -47,7 +47,6 @@ class FactorRegistry:
     def _ensure_loaded(cls):
         """Lazy-load custom factors on first query for deterministic registration."""
         if not cls._loaded:
-            from . import custom_factors
             with cls._lock:
                 cls._loaded = True
 
@@ -61,7 +60,9 @@ class FactorRegistry:
         Checks factors.yaml config for enabled/weight/category overrides.
         If the factor is disabled in config, skip registration entirely.
         """
-        # Apply factors.yaml overrides if available
+        # Apply factors.yaml overrides if available. Configuration failures must
+        # be visible; silently falling back to default factor weights can change
+        # strategy behavior without any audit trail.
         try:
             from ...shared.config_loader import get_config
             cfg = get_config()
@@ -74,8 +75,11 @@ class FactorRegistry:
                     default_weight = factor_cfg["weight"]
                 if "category" in factor_cfg:
                     category = factor_cfg["category"]
-        except Exception:
-            pass  # If config not available, proceed with defaults
+        except ImportError as e:
+            logger.warning("因子配置加载器不可用，使用默认注册参数: %s", e)
+        except (AttributeError, KeyError, TypeError, ValueError, RuntimeError) as e:
+            logger.error("因子 %s 配置读取失败: %s", name, e)
+            raise
 
         with cls._lock:
             if name in cls._factors:

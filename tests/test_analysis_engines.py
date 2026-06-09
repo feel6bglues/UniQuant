@@ -5,8 +5,7 @@ Tests for analysis engines: CzscAnalysisEngine and FsmAnalysisEngine
 import pytest
 import pandas as pd
 import numpy as np
-from unittest.mock import Mock, MagicMock, patch
-from datetime import datetime, timedelta
+from unittest.mock import Mock
 
 
 @pytest.fixture

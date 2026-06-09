@@ -11,7 +11,6 @@
 
 import numpy as np
 import pandas as pd
-import pytest
 
 from uniquant.brain.factors.custom_factors import (
     compute_ma_ratio_5_20,

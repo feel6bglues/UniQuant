@@ -4,46 +4,69 @@
 brain 层产出原始信号 → signal 归一化为标准 Signal → 聚合为共识 → 评估质量 → 持久化存储。
 """
 
-from .aggregator import (
-    SignalAggregationMethod,
-    SignalAggregator,
-    SourceWeightManager,
-    TimeWindowAggregator,
-)
-from .models import (
-    AggregatedSignal,
-    Signal,
-    SignalBatch,
-    SignalConsensus,
-    SignalSource,
-    SignalStrength,
-    SignalType,
-)
-from .normalizer import (
-    CZSCSignalNormalizer,
-    IndicatorSignalNormalizer,
-    LPPLSignalNormalizer,
-    SignalNormalizer,
-    SignalNormalizerRegistry,
-    WyckoffSignalNormalizer,
-    create_default_registry,
-)
-from .quality import (
-    SignalQualityAssessor,
-    SignalQualityMetrics,
-    SignalQualityTracker,
-)
-from .adapters import (
-    AdapterRegistry,
-    CZSCAdapter,
-    EngineAdapter,
-    FSMAdapter,
-    LPPLAdapter,
-    RegimeAdapter,
-    TradingSignalCollector,
-    WyckoffAdapter,
-    create_default_registry as create_default_adapter_registry,
-)
+import logging
+
+_logger = logging.getLogger(__name__)
+
+try:
+    from .aggregator import (
+        SignalAggregationMethod,
+        SignalAggregator,
+        SourceWeightManager,
+        TimeWindowAggregator,
+    )
+except ImportError:
+    _logger.warning("signal.aggregator 导入失败")
+
+try:
+    from .models import (
+        AggregatedSignal,
+        Signal,
+        SignalBatch,
+        SignalConsensus,
+        SignalSource,
+        SignalStrength,
+        SignalType,
+    )
+except ImportError:
+    _logger.warning("signal.models 导入失败")
+
+try:
+    from .normalizer import (
+        CZSCSignalNormalizer,
+        IndicatorSignalNormalizer,
+        LPPLSignalNormalizer,
+        SignalNormalizer,
+        SignalNormalizerRegistry,
+        WyckoffSignalNormalizer,
+        create_default_registry,
+    )
+except ImportError:
+    _logger.warning("signal.normalizer 导入失败")
+
+try:
+    from .quality import (
+        SignalQualityAssessor,
+        SignalQualityMetrics,
+        SignalQualityTracker,
+    )
+except ImportError:
+    _logger.warning("signal.quality 导入失败")
+
+try:
+    from .adapters import (
+        AdapterRegistry,
+        CZSCAdapter,
+        EngineAdapter,
+        FSMAdapter,
+        LPPLAdapter,
+        RegimeAdapter,
+        TradingSignalCollector,
+        WyckoffAdapter,
+        create_default_registry as create_default_adapter_registry,
+    )
+except ImportError:
+    _logger.warning("signal.adapters 导入失败")
 
 __all__ = [
     # models

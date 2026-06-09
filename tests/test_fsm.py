@@ -238,7 +238,7 @@ class TestDecisionBrain:
         result = brain.make_decision(data_packet)
 
         # alpha_score 触发卖出条件
-        assert result["action"] in ["EXECUTE_SELL", "HOLD"]
+        assert result["action"] == "SELL"
 
     def test_make_decision_circuit_break(self, brain):
         """测试熔断机制：当日跌幅超过阈值触发 CIRCUIT_BREAK"""

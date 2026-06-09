@@ -11,7 +11,6 @@ from datetime import datetime
 
 import pandas as pd
 import numpy as np
-import pytest
 
 from uniquant.hands.backtest.unified_matching_engine import UnifiedMatchingEngine
 

@@ -5,7 +5,6 @@ Task-1.3: 线程安全漏洞修复测试
 
 import threading
 import time
-import pytest
 
 from uniquant.shared.error_handling import (
     _update_error_stats,
@@ -106,7 +105,7 @@ class TestThreadSafety:
         def get_stats():
             barrier.wait()
             time.sleep(0.02)  # 稍微延迟
-            stats = get_error_stats()
+            get_error_stats()
             results["get"] = True
         
         threads = [

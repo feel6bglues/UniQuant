@@ -11,10 +11,6 @@ from typing import Dict, List, Optional
 
 import yaml
 
-from uniquant.shared.logger_factory import get_logger
-
-logger = get_logger(__name__)
-
 from uniquant.shared.constants import (
     BC_LOOKBACK_WINDOW,
     MIN_RR_RATIO,
@@ -22,6 +18,9 @@ from uniquant.shared.constants import (
     SPRING_FREEZE_DAYS,
     WYCKOFF_OUTPUT_DIR,
 )
+from uniquant.shared.logger_factory import get_logger
+
+logger = get_logger(__name__)
 
 
 @dataclass

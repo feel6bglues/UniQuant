@@ -554,6 +554,9 @@ class StorageManager:
     ) -> pd.DataFrame:
         """从对应目录读取数据"""
         file_path = self._get_file_path(symbol, data_type)
+        if not file_path.exists():
+            logger.warning(f"数据文件不存在: {file_path}")
+            return pd.DataFrame()
         return self.read_parquet(str(file_path))
 
     def write_data(

@@ -9,7 +9,6 @@ Verifies compliance with A-stock trading rules:
 """
 
 from datetime import datetime
-from unittest.mock import patch
 
 import numpy as np
 import pandas as pd
@@ -17,7 +16,6 @@ import pytest
 
 from uniquant.hands.backtest.engine import BacktestEngine
 from uniquant.hands.backtest.unified_matching_engine import UnifiedMatchingEngine
-from uniquant.shared.constants import BacktestConstants
 from uniquant.shared.cost_model import (
     COMMISSION_PCT,
     MIN_COMMISSION,
@@ -334,7 +332,7 @@ class TestAsymmetricCosts:
         """Verify sell commission = max(value * 0.03%, 5) + value * 0.05% + transfer_fee."""
         _mock_trade_calendar(engine, [datetime(2024, 1, 15), datetime(2024, 1, 16)])
 
-        buy = engine.execute_buy(
+        engine.execute_buy(
             price=10.0, shares=1000, timestamp=datetime(2024, 1, 15),
             pre_close=10.0, symbol="000001.SZ",
         )

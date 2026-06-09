@@ -1,6 +1,7 @@
 import pytest
-import pandas as pd
-from uniquant.brain.factors.registry import FactorRegistry, FactorInfo
+
+from uniquant.brain.factors.registry import FactorRegistry
+
 
 def dummy_factor1(df):
     return df['close'] * 2

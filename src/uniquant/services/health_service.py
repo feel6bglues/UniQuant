@@ -7,7 +7,7 @@ import pandas as pd
 from ..shared.config_loader import get_config
 from ..shared.logger_factory import get_logger
 from .data_service import DataService
-from .analysis_service_legacy import AnalysisService
+from .analysis_service_v2 import AnalysisService
 from ..brain.fsm import DecisionBrain
 from ..risk.evt_risk import HistoricalSimulationRisk as EVTRisk
 from ..risk.sizer import PositionSizer
@@ -38,7 +38,7 @@ class HealthService:
         """
         self.config = get_config()
         self.data_service = DataService()
-        self.analysis_service = AnalysisService(self.data_service)
+        self.analysis_service = AnalysisService(data_service=self.data_service)
         self.evt_risk = EVTRisk()
         self.sizer = PositionSizer()
         self.brain = DecisionBrain(evt_risk=self.evt_risk, sizer=self.sizer)

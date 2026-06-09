@@ -5,16 +5,9 @@
 新版引擎支持 List[TradingSignal] 强类型输入，实时现金扣减，T+1 铁律。
 """
 
-import warnings
-warnings.warn(
-    "PortfolioEngine is deprecated. Use UnifiedBacktestEngine from "
-    "uniquant.hands.backtest.unified_engine instead.",
-    DeprecationWarning,
-    stacklevel=2,
-)
-
 from __future__ import annotations
 
+import warnings
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
@@ -28,6 +21,13 @@ from ...data.managers.trade_calendar_manager import TradeCalendarManager
 from .unified_matching_engine import UnifiedMatchingEngine
 
 logger = get_logger(__name__)
+
+warnings.warn(
+    "PortfolioEngine is deprecated. Use UnifiedBacktestEngine from "
+    "uniquant.hands.backtest.unified_engine instead.",
+    DeprecationWarning,
+    stacklevel=2,
+)
 
 
 @dataclass

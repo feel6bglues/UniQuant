@@ -1,4 +1,6 @@
 import pandas as pd
+from typing import Optional
+
 from .pipeline.data_cleaner import DataCleaner
 from .pipeline.data_validator import DataValidator
 from .pipeline.data_adjuster import DataAdjuster
@@ -9,10 +11,17 @@ logger = get_logger(__name__)
 
 
 class DataPipelineService:
-    def __init__(self, data_dir: str = "./data"):
+    def __init__(
+        self,
+        data_dir: str = "./data",
+        storage_manager: Optional[StorageManager] = None,
+    ):
+        self.storage_manager = (
+            storage_manager if storage_manager is not None else StorageManager(data_dir)
+        )
         self.cleaner = DataCleaner()
         self.validator = DataValidator()
-        self.adjuster = DataAdjuster(StorageManager(data_dir))
+        self.adjuster = DataAdjuster(self.storage_manager)
 
     def process(self, df: pd.DataFrame, symbol: str, adjust: str = "qfq") -> pd.DataFrame:
         df = self.cleaner.clean_stock_daily(df)

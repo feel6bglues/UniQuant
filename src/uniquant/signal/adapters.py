@@ -17,7 +17,6 @@ from __future__ import annotations
 
 import datetime
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
 from ..shared.interfaces import TradingSignal
@@ -278,6 +277,112 @@ class RegimeAdapter(EngineAdapter):
 
 
 # ══════════════════════════════════════════════════════════════
+# NTF 引擎适配器
+# ══════════════════════════════════════════════════════════════
+
+class NTFAdapter(EngineAdapter):
+    """NTF (日内趋势跟随) 引擎输出适配器
+
+    输入 keys: ntf_side, ntf_intensity, ntf_action
+    输出: BUY (LONG+高intensity) / SELL (SHORT+高intensity) / HOLD
+    """
+
+    def adapt(
+        self,
+        raw_output: Dict[str, Any],
+        symbol: str,
+        timestamp: Optional[datetime.datetime] = None,
+        default_shares: int = 100,
+    ) -> Optional[TradingSignal]:
+        side = raw_output.get("ntf_side", "NONE")
+        intensity = float(raw_output.get("ntf_intensity", 0.0))
+        if side == "NONE" or intensity < 0.3:
+            return None
+        action = "BUY" if side == "LONG" else "SELL" if side == "SHORT" else "HOLD"
+        return TradingSignal(
+            action=action,
+            reason=f"NTF side={side} intensity={intensity:.2f}",
+            confidence=min(intensity, 0.9),
+            shares=default_shares if action != "HOLD" else 0,
+            symbol=symbol,
+            price=float(raw_output.get("price", 0.0)),
+            timestamp=timestamp,
+        )
+
+
+# ══════════════════════════════════════════════════════════════
+# AlphaScore 引擎适配器
+# ══════════════════════════════════════════════════════════════
+
+class AlphaScoreAdapter(EngineAdapter):
+    """AlphaScore 评分引擎输出适配器
+
+    输入 keys: alpha_score
+    输出: BUY (> 0.6) / SELL (< 0.3) / None
+    """
+
+    def adapt(
+        self,
+        raw_output: Dict[str, Any],
+        symbol: str,
+        timestamp: Optional[datetime.datetime] = None,
+        default_shares: int = 100,
+    ) -> Optional[TradingSignal]:
+        score = float(raw_output.get("alpha_score", 0.5))
+        if score > 0.6:
+            action = "BUY"
+        elif score < 0.3:
+            action = "SELL"
+        else:
+            return None
+        return TradingSignal(
+            action=action,
+            reason=f"AlphaScore={score:.2f}",
+            confidence=abs(score - 0.5) * 2,
+            shares=default_shares if action != "HOLD" else 0,
+            symbol=symbol,
+            price=float(raw_output.get("price", 0.0)),
+            timestamp=timestamp,
+        )
+
+
+# ══════════════════════════════════════════════════════════════
+# MA Status 引擎适配器
+# ══════════════════════════════════════════════════════════════
+
+class MAStatusAdapter(EngineAdapter):
+    """均线状态引擎输出适配器
+
+    输入 keys: ma_status
+    输出: BUY ("MA20 > MA60") / SELL ("MA20 <= MA60") / None
+    """
+
+    def adapt(
+        self,
+        raw_output: Dict[str, Any],
+        symbol: str,
+        timestamp: Optional[datetime.datetime] = None,
+        default_shares: int = 100,
+    ) -> Optional[TradingSignal]:
+        ma_status = raw_output.get("ma_status", "")
+        if ">" in ma_status:
+            action = "BUY"
+        elif "<=" in ma_status:
+            action = "SELL"
+        else:
+            return None
+        return TradingSignal(
+            action=action,
+            reason=f"MA status={ma_status}",
+            confidence=0.3,
+            shares=default_shares if action != "HOLD" else 0,
+            symbol=symbol,
+            price=float(raw_output.get("price", 0.0)),
+            timestamp=timestamp,
+        )
+
+
+# ══════════════════════════════════════════════════════════════
 # 适配器注册表
 # ══════════════════════════════════════════════════════════════
 
@@ -305,6 +410,9 @@ def create_default_registry() -> AdapterRegistry:
     registry.register("wyckoff", WyckoffAdapter())
     registry.register("fsm", FSMAdapter())
     registry.register("regime", RegimeAdapter())
+    registry.register("ntf", NTFAdapter())
+    registry.register("alpha_score", AlphaScoreAdapter())
+    registry.register("ma_status", MAStatusAdapter())
     return registry
 
 
@@ -387,6 +495,30 @@ class TradingSignalCollector:
                     timestamp,
                     default_shares,
                 )
+                if s:
+                    signals.append(s)
+
+        # NTF
+        if "ntf_side" in data_pack and data_pack.get("ntf_side") != "NONE":
+            adapter = self._registry.get("ntf")
+            if adapter:
+                s = adapter.adapt(data_pack, symbol, timestamp, default_shares)
+                if s:
+                    signals.append(s)
+
+        # AlphaScore
+        if "alpha_score" in data_pack:
+            adapter = self._registry.get("alpha_score")
+            if adapter:
+                s = adapter.adapt(data_pack, symbol, timestamp, default_shares)
+                if s:
+                    signals.append(s)
+
+        # MA Status
+        if "ma_status" in data_pack:
+            adapter = self._registry.get("ma_status")
+            if adapter:
+                s = adapter.adapt(data_pack, symbol, timestamp, default_shares)
                 if s:
                     signals.append(s)
 

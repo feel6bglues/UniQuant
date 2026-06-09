@@ -111,8 +111,9 @@ class FSM:
         # Calculate indicators using analysis data
         if Indicators is None:
             raise ImportError("Indicators module not available")
-        ma20 = Indicators.calc_ma(analysis_df, self.ma_short)
-        ma60 = Indicators.calc_ma(analysis_df, self.ma_long)
+        shifted_df = analysis_df.shift(1) if len(analysis_df) > 1 else analysis_df
+        ma20 = Indicators.calc_ma(shifted_df, self.ma_short)
+        ma60 = Indicators.calc_ma(shifted_df, self.ma_long)
 
         prev_price = analysis_df["close"].iloc[-1]
 
@@ -248,15 +249,64 @@ class DecisionBrain:
             "alpha_score": ctx.alpha_score,
             "final_decision": action,
             "final_score": score,
+            "engine_status": ctx.engine_status,
+            "engine_errors": ctx.engine_errors,
         }
         response.update(kwargs)
         return response
+
+    @staticmethod
+    def _risk_engine_blockers(ctx: MarketSignalContext) -> list[str]:
+        """Return blockers for unavailable critical risk engines."""
+        blockers: list[str] = []
+        failed_statuses = {"ENGINE_FAILED", "DATA_UNAVAILABLE", "UNKNOWN", "FAILED"}
+        critical_engines = {"regime", "lppl", "macro"}
+
+        if ctx.regime.value == "UNKNOWN":
+            blockers.append("REGIME_UNKNOWN")
+
+        if str(ctx.risk).upper() in failed_statuses:
+            blockers.append("RISK_ENGINE_FAILED")
+
+        for engine, status in ctx.engine_status.items():
+            if engine in critical_engines and str(status).upper() in failed_statuses:
+                if engine == "regime" and "REGIME_UNKNOWN" not in blockers:
+                    blockers.append("REGIME_UNKNOWN")
+                elif engine in {"lppl", "macro"} and "RISK_ENGINE_FAILED" not in blockers:
+                    blockers.append("RISK_ENGINE_FAILED")
+
+        return blockers
+
+    @staticmethod
+    def _stop_loss_blockers(ctx: MarketSignalContext) -> list[str]:
+        """Return passive risk blockers for missing or non-survivable stops."""
+        if ctx.price <= 0:
+            return ["PRICE_MISSING"]
+        if ctx.atr_stop <= 0:
+            return ["STOP_LOSS_MISSING"]
+        if ctx.atr_stop >= ctx.price:
+            return ["STOP_LOSS_INVALID"]
+
+        max_stop_loss_pct = get_config().get("brain.fsm.max_stop_loss_pct", 0.15)
+        loss_pct = (ctx.price - ctx.atr_stop) / ctx.price
+        if loss_pct > max_stop_loss_pct:
+            return ["STOP_LOSS_TOO_WIDE"]
+        return []
 
     def _check_veto_conditions(self, ctx: MarketSignalContext) -> Optional[Dict[str, Any]]:
         """检查否决条件，返回则表示被否决"""
         if ctx.regime.value == "FROZEN":
             return self._build_response(
                 "FORCE_WAIT", "市场处于冻结状态", ctx, final_decision="FORCE_WAIT"
+            )
+        risk_blockers = self._risk_engine_blockers(ctx)
+        if risk_blockers:
+            return self._build_response(
+                "FORCE_WAIT",
+                f"关键风险引擎不可用: {', '.join(risk_blockers)}",
+                ctx,
+                final_decision="FORCE_WAIT",
+                buy_blockers=risk_blockers,
             )
         if ctx.risk == "Danger" and ctx.ntf_side.value != "SUPPORT":
             return self._build_response(
@@ -342,6 +392,8 @@ class DecisionBrain:
             buy_blockers.append("LPPL_DANGER")
         if ctx.regime.value == "FROZEN":
             buy_blockers.append("MARKET_FROZEN")
+        buy_blockers.extend(self._risk_engine_blockers(ctx))
+        buy_blockers.extend(self._stop_loss_blockers(ctx))
         buy_block_threshold = get_config().get("brain.fsm.buy_block_threshold", -0.3)
         if ctx.alpha_score < buy_block_threshold:
             buy_blockers.append("ALPHA_TOO_WEAK")

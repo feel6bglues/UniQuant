@@ -1,6 +1,4 @@
 # -*- coding: utf-8 -*-
-from __future__ import annotations
-
 """
 LPPL 底层数值核心
 
@@ -11,12 +9,18 @@ LPPL 底层数值核心
 - src.lppl_engine 是本模块的调用方（策略级入口）
 """
 
+from __future__ import annotations
+
 from typing import Dict, Literal, Optional, Tuple
 
+import numpy as np
 import pandas as pd
 
+from uniquant.brain.lppl.calculator import lppl_func
 from uniquant.shared.constants import ENABLE_NUMBA_JIT, REQUIRED_COLUMNS, W_BOUNDS, M_BOUNDS
 from uniquant.shared.logger_factory import get_logger
+
+logger = get_logger(__name__)
 
 LPPL_RMSE_THRESHOLD = 10.0
 
@@ -38,11 +42,6 @@ def track_fit_failure(
     if stats is not None:
         stats[reason] = stats.get(reason, 0) + 1
     logger.debug(f"LPPL fit failure [{reason}]{' - ' + context if context else ''}")
-
-
-import numpy as np
-
-logger = get_logger(__name__)
 
 NUMBA_AVAILABLE = False
 try:
@@ -66,9 +65,6 @@ def precheck_fit_input(close_prices: np.ndarray, window_size: int) -> Optional[F
     if np.ptp(subset) < 1e-10:
         return "constant_price"
     return None
-
-
-from uniquant.brain.lppl.calculator import lppl_func
 
 
 def cost_function(params: Tuple, t: np.ndarray, log_prices: np.ndarray) -> float:
@@ -122,8 +118,13 @@ if NUMBA_AVAILABLE:
 
     @njit(cache=True, fastmath=True)
     def _fused_cost_numba(params: np.ndarray, t: np.ndarray, log_prices: np.ndarray) -> float:
-        tc = params[0]; m = params[1]; w = params[2]
-        a  = params[3]; b = params[4]; c = params[5]; phi = params[6]
+        tc = params[0]
+        m = params[1]
+        w = params[2]
+        a = params[3]
+        b = params[4]
+        c = params[5]
+        phi = params[6]
         sse = 0.0
         n = len(t)
         for i in range(n):

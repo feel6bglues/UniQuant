@@ -395,6 +395,71 @@ class PortfolioService:
         # Placeholder implementation
         return {"total_return": 0.12, "annual_return": 0.08, "alpha": 0.02, "beta": 0.9}
 
+    def calculate_evt_risk_metrics(self, portfolio_returns: pd.Series) -> Dict[str, Any]:
+        """
+        Calculate EVT-style portfolio risk metrics from a return series.
+
+        UI callers should delegate risk calculations here instead of importing
+        risk engines directly, keeping service boundaries explicit.
+        """
+        from ..risk.evt_risk import EVTRisk
+
+        if not isinstance(portfolio_returns, pd.Series):
+            raise TypeError("portfolio_returns must be a pandas Series")
+        if portfolio_returns.empty:
+            raise ValueError("portfolio_returns cannot be empty")
+
+        return EVTRisk().calculate_metrics(portfolio_returns)
+
+    def optimize_returns_portfolio(
+        self, returns_df: pd.DataFrame, method: str = "risk_parity"
+    ) -> Dict[str, Any]:
+        """
+        Optimize a portfolio from aligned asset return columns.
+        """
+        from ..risk.portfolio_optimizer import OptimizerConfig, PortfolioOptimizer
+
+        if not isinstance(returns_df, pd.DataFrame):
+            raise TypeError("returns_df must be a pandas DataFrame")
+        if returns_df.empty or len(returns_df.columns) < 2:
+            return {"error": "需要至少2只股票进行优化"}
+
+        optimizer = PortfolioOptimizer(OptimizerConfig(max_weight=0.4, min_weight=0.0))
+        if method == "risk_parity":
+            result = optimizer.optimize_risk_parity(returns_df)
+        elif method == "mean_variance":
+            result = optimizer.optimize_mean_variance(returns_df, target="max_sharpe")
+        else:
+            return {"error": f"未知的优化方法: {method}"}
+
+        if result is None:
+            return {"error": "优化失败"}
+
+        return {
+            "status": "success",
+            "method": method,
+            "weights": result.get("weights", {}),
+            "expected_return": result.get("expected_return", 0),
+            "expected_volatility": result.get("expected_volatility", 0),
+            "sharpe_ratio": result.get("sharpe_ratio", 0),
+            "risk_contributions": result.get("risk_contributions", {}),
+        }
+
+    def run_evt_stress_test(
+        self, portfolio_returns: pd.Series, scenarios: List[str]
+    ) -> Dict[str, float]:
+        """
+        Run EVT stress scenarios from a portfolio return series.
+        """
+        from ..risk.evt_risk import EVTRisk
+
+        if not isinstance(portfolio_returns, pd.Series):
+            raise TypeError("portfolio_returns must be a pandas Series")
+        if portfolio_returns.empty:
+            raise ValueError("portfolio_returns cannot be empty")
+
+        return EVTRisk().calculate_stress_test(portfolio_returns, scenarios)
+
     @handle_errors(
         PortfolioServiceError, ValueError, TypeError, default_return={}, log_level=logging.ERROR
     )

@@ -20,7 +20,6 @@ UniQuant 统一回测引擎 TDD 防线测试套件
 
 from __future__ import annotations
 
-import datetime
 from typing import List, Optional
 
 import numpy as np
@@ -28,20 +27,12 @@ import pandas as pd
 import pytest
 
 from uniquant.hands.backtest.unified_engine import (
-    BacktestResult,
-    TradeRecord,
     UnifiedBacktestEngine,
 )
 from uniquant.shared.interfaces import TradingSignal
 from uniquant.shared.cost_model import (
-    COMMISSION_PCT,
     MIN_COMMISSION,
-    STAMP_TAX_PCT,
-    TRANSFER_FEE_PCT,
-    SLIPPAGE_PCT,
-    get_stamp_tax_pct,
 )
-from uniquant.shared.constants import MarketConstants
 
 # ──────────────────────────────────────────────────────────────
 # 测试工具: 构造极端 K 线数据
@@ -220,11 +211,6 @@ class TestDefenseB_LimitUpDown:
         result1 = engine.run(df, buy_signals, symbol="000001.SZ")
         assert len(result1.trades) == 1, "第1天应成功买入"
 
-        # 再在第2天卖出 (跌停)
-        sell_signals = [
-            TradingSignal(action="SELL", symbol="000001.SZ", shares=100,
-                          timestamp=pd.Timestamp("2025-01-02")),
-        ]
         engine2 = make_engine(initial_capital=50_000)
         # 手动设置持仓状态
         engine2_run = engine2.run(df, [

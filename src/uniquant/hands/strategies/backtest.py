@@ -8,20 +8,11 @@
   - A 股防线: T+1/涨跌停/停牌/资金不透支
 """
 
-import warnings
-warnings.warn(
-    "hands.strategies.backtest is deprecated. Use UnifiedResearchPipeline from "
-    "uniquant.services.research_pipeline instead.",
-    DeprecationWarning,
-    stacklevel=2,
-)
-
 import csv
 import functools
 import math
-
-from uniquant.shared.logger_factory import get_logger
 import random
+import warnings
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
@@ -29,17 +20,13 @@ from typing import Dict, List, Optional, Tuple
 import numpy as np
 import pandas as pd
 
-from uniquant.shared.constants import RANDOM_SEED
-TDX_DATA_DIR = Path(__file__).resolve().parents[3] / "data"
 from uniquant.data.manager import DataManager
 from uniquant.data.tdx_loader import load_tdx_data
-from uniquant.shared.parallel import get_optimal_workers, worker_init
 from uniquant.hands.strategies.registry import STRATEGY_MAP
 from uniquant.shared.backtest_utils import filter_suspended
+from uniquant.shared.constants import RANDOM_SEED
+from uniquant.shared.logger_factory import get_logger
 from uniquant.shared.limits import is_limit_down, is_limit_up
-
-logger = get_logger("backtest")
-
 from uniquant.shared.cost_model import (
     COMMISSION_PCT,
     COST_BUY,
@@ -48,7 +35,18 @@ from uniquant.shared.cost_model import (
     STAMP_TAX_PCT_OLD,
     TRANSFER_FEE_PCT,
 )
+from uniquant.shared.parallel import get_optimal_workers, worker_init
 from uniquant.shared.risk_constants import RISK_FREE_RATE
+
+warnings.warn(
+    "hands.strategies.backtest is deprecated. Use UnifiedResearchPipeline from "
+    "uniquant.services.research_pipeline instead.",
+    DeprecationWarning,
+    stacklevel=2,
+)
+
+logger = get_logger("backtest")
+TDX_DATA_DIR = Path(__file__).resolve().parents[3] / "data"
 
 # Stamp tax rate change date: 2023-08-28
 # Before this date: 0.1% (千1), on/after: 0.05% (万5)
@@ -223,11 +221,16 @@ def ann_sharpe(rets: np.ndarray, avg_days: float, rf: float = RISK_FREE_RATE) ->
     return float(excess / np.std(rets) * math.sqrt(252.0 / avg_days))
 
 
-def _block_bootstrap(rets: np.ndarray, block_size: int = 20) -> np.ndarray:
+def _block_bootstrap(
+    rets: np.ndarray,
+    block_size: int = 20,
+    rng: Optional[np.random.Generator] = None,
+) -> np.ndarray:
     n = len(rets)
     n_blocks = int(np.ceil(n / block_size))
     blocks = [rets[i:i+block_size] for i in range(0, n, block_size)]
-    sampled = np.random.choice(len(blocks), size=n_blocks, replace=True)
+    rng = rng or np.random.default_rng(RANDOM_SEED)
+    sampled = rng.choice(len(blocks), size=n_blocks, replace=True)
     result = np.concatenate([blocks[i] for i in sampled])[:n]
     return result
 
@@ -462,7 +465,8 @@ def run_backtest(strategies: List[str], n_windows: int = 20,
             continue
         rets = sub["ret"].values
         ad = float(np.mean(sub["days"]))
-        sims = [ann_sharpe(_block_bootstrap(rets), ad)
+        rng = np.random.default_rng(RANDOM_SEED)
+        sims = [ann_sharpe(_block_bootstrap(rets, rng=rng), ad)
                 for _ in range(MC_SIMS)]
         mc[sn] = {
             "mean": round(float(np.mean(sims)), 3),

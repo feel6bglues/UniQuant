@@ -22,6 +22,8 @@ from ...shared.logger_factory import get_logger
 
 logger = get_logger("RealtimeBridge")
 
+# NON_RESEARCH_RANDOMNESS: MockDataSource ticks are demo/runtime simulation only.
+
 
 class ConnectionState(Enum):
     """连接状态"""

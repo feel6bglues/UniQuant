@@ -19,6 +19,8 @@ from .base import DataSource
 
 logger = get_logger(__name__)
 
+# NON_RESEARCH_RANDOMNESS: User-Agent rotation is anti-throttle network behavior.
+
 
 class TencentSource(DataSource):
     def __init__(self):

@@ -61,10 +61,18 @@ class DataFetcher:
     根据 datapipeline.md 架构设计实现
     """
 
-    def __init__(self, data_dir: str = "./data"):
+    def __init__(
+        self,
+        data_dir: str = "./data",
+        storage_manager: Optional[StorageManager] = None,
+        pipeline: Optional[DataPipelineService] = None,
+    ):
         logger.info("初始化 DataFetcher - 系统的大脑和总指挥")
 
-        self.storage_manager = StorageManager(data_dir)
+        self.storage_manager = (
+            storage_manager if storage_manager is not None else StorageManager(data_dir)
+        )
+        data_dir = str(self.storage_manager.data_dir)
 
         # 容错初始化数据源：单个失败不影响其他源
         source_classes = [TdxSource, BaostockSource, SinaSource, ThsSource, TencentSource]
@@ -91,7 +99,11 @@ class DataFetcher:
         self.stock_updater = StockDataUpdater(self)
 
         self.ingestion = DataIngestionService(data_dir)
-        self.pipeline = DataPipelineService(data_dir)
+        self.pipeline = (
+            pipeline
+            if pipeline is not None
+            else DataPipelineService(data_dir, storage_manager=self.storage_manager)
+        )
 
         self._price_cache: OrderedDict = OrderedDict()
         self._max_cache_size = 5000
@@ -126,6 +138,25 @@ class DataFetcher:
         self._price_cache[key] = df.copy()
         while len(self._price_cache) > self._max_cache_size:
             self._price_cache.popitem(last=False)
+
+    def clear_price_cache(
+        self,
+        symbol: Optional[str] = None,
+        adjust: Optional[str] = None,
+    ) -> int:
+        """Clear in-memory price cache entries by symbol and optional adjust."""
+        if symbol is None:
+            count = len(self._price_cache)
+            self._price_cache.clear()
+            return count
+
+        keys_to_delete = [
+            key for key in self._price_cache
+            if key[0] == symbol and (adjust is None or key[1] == adjust)
+        ]
+        for key in keys_to_delete:
+            del self._price_cache[key]
+        return len(keys_to_delete)
 
     def _needs_update(self, df: pd.DataFrame) -> bool:
         return self.stock_updater.needs_update(df)

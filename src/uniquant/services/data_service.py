@@ -61,9 +61,20 @@ class DataService:
             storage_manager: StorageManager实例
             cleaner: DataCleaner实例
         """
-        self.fetcher = fetcher if fetcher is not None else DataFetcher()
-        self.storage_manager = (
-            storage_manager if storage_manager is not None else StorageManager()
+        if storage_manager is not None:
+            self.storage_manager = storage_manager
+        elif fetcher is not None and hasattr(fetcher, "storage_manager"):
+            self.storage_manager = fetcher.storage_manager
+        else:
+            self.storage_manager = StorageManager()
+
+        self.fetcher = (
+            fetcher
+            if fetcher is not None
+            else DataFetcher(
+                data_dir=str(self.storage_manager.data_dir),
+                storage_manager=self.storage_manager,
+            )
         )
         self.cleaner = cleaner if cleaner is not None else DataCleaner()
         
@@ -73,6 +84,7 @@ class DataService:
         self._quality_service = DataQualityService()
         self._stock_query = StockQueryService(fetcher=self.fetcher)
         self.access_service = DataAccessService(self)
+        self._market_cache = None
         
         self.cache_manager = self._cache_coordinator.cache_manager
 
@@ -96,6 +108,14 @@ class DataService:
     def _get_cache_key(self, prefix: str, *args, namespace: str = "default") -> str:
         """生成缓存键"""
         return self._cache_coordinator.generate_cache_key(prefix, *args, namespace=namespace)
+
+    def _generate_cache_key(self, prefix: str, **kwargs) -> str:
+        """生成缓存键，兼容 AnalysisEngineFactory 的缓存需求"""
+        parts = [prefix]
+        for k, v in sorted(kwargs.items()):
+            if v is not None:
+                parts.append(f"{k}={v}")
+        return ":".join(parts)
 
     def _get_access_service(self) -> DataAccessService:
         if not hasattr(self, "access_service") or self.access_service is None:
@@ -126,6 +146,45 @@ class DataService:
         """清除所有缓存"""
         self._cache_coordinator.clear()
 
+    def attach_market_cache(self, market_cache: Any) -> None:
+        """Attach market-level cache for invalidation broadcasts."""
+        self._market_cache = market_cache
+
+    def _clear_fetcher_price_cache(
+        self,
+        symbol: Optional[str] = None,
+        adjust: Optional[str] = None,
+    ) -> int:
+        if hasattr(self.fetcher, "clear_price_cache"):
+            return self.fetcher.clear_price_cache(symbol=symbol, adjust=adjust)
+        return 0
+
+    def invalidate_symbol_cache(
+        self,
+        symbol: str,
+        data_type: str = "stock",
+        market: str = "cn",
+    ) -> Dict[str, Any]:
+        """Invalidate all known service/fetcher caches touched by a symbol update."""
+        removed_price_entries = self._clear_fetcher_price_cache(symbol)
+        cache_key = self._get_cache_key(data_type, symbol, market, namespace="datalake")
+        service_cache_deleted = False
+        if hasattr(self.cache_manager, "delete"):
+            service_cache_deleted = bool(self.cache_manager.delete(cache_key))
+
+        market_cache_cleared = False
+        if data_type == "index" and self._market_cache is not None:
+            self._market_cache.clear()
+            market_cache_cleared = True
+
+        return {
+            "symbol": symbol,
+            "data_type": data_type,
+            "removed_price_entries": removed_price_entries,
+            "service_cache_deleted": service_cache_deleted,
+            "market_cache_cleared": market_cache_cleared,
+        }
+
     @handle_errors(CacheError, default_return=False, log_level=logging.ERROR)
     def cache_data(
         self, key: str, data: Any, ttl: Optional[int] = None, data_type: str = "general"
@@ -154,6 +213,8 @@ class DataService:
         self, symbol: str, data_type: str = "stock", market: str = "cn"
     ) -> bool:
         """重建缓存"""
+        self._clear_fetcher_price_cache(symbol)
+
         if data_type in ["stock", "etf"]:
             source_data = self.fetcher.get_price(symbol)
         elif data_type == "index":
@@ -174,6 +235,7 @@ class DataService:
 
         self.lake.write_data(symbol, cleaned_data, data_type, market=market, overwrite=True)
 
+        self.invalidate_symbol_cache(symbol, data_type=data_type, market=market)
         cache_key = self._get_cache_key(data_type, symbol, market, namespace="datalake")
         self._set_cache(cache_key, cleaned_data, data_type=data_type)
 
