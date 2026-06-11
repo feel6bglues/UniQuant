@@ -50,21 +50,28 @@
 
 **文件**: `src/uniquant/shared/time_provider.py`
 
-一旦协议扩展完成，`FrozenTimeProvider` 实现这些方法即可控制全库时间行为。
+`FrozenTimeProvider` 实现这些方法即可控制全库时间行为。
+
+#### 步骤 1: 扩展 TimeProvider (已完成)
+
+- 向协议新增 `epoch() -> float` 和 `epoch_ms() -> int`
+- 添加模块级 `get_time_provider()` / `set_time_provider()` 支持可切换默认提供者
+- `RealTimeProvider` 和 `FrozenTimeProvider` 均实现新方法
+- 文件: `src/uniquant/shared/time_provider.py`
 
 #### 步骤 2-7: 按层级逐个适配
 
 按依赖风险从小到大排列：
 
-| 步骤 | 层级 | 文件数 | 调用数 | 风险 | 估算 |
-|---|---|---|---|---|---|
-| 2 | **risk/** | 0 | 0 | 无 | — (已验证干净) |
-| 3 | **shared/** (不含 time_provider.py) | 3 | 8 | 低 | 0.5天 |
-| 4 | **hands/** | 3 | 7 | 低 | 0.5天 |
-| 5 | **signal/** | 4 | 10 | 中 | 1天 |
-| 6 | **brain/** | 4 | 11 | 中-高 | 1.5天 |
-| 7 | **services/** | 8 | 38 | 高 | 2天 |
-| 8 | **data/** | 15 | 23 | **最高** | 2天 |
+| 步骤 | 层级 | 文件数 | 调用数 | 状态 | 估算 |
+|---|---|---|---|---|---|---|
+| 2 | **risk/** | 0 | 0 | ✅ 已验证干净 | — |
+| 3 | **shared/** | 4 | 10 | ✅ **完成** | 0.5天 |
+| 4 | **hands/** | 3 | 7 | ⏳ 待做 | 0.5天 |
+| 5 | **signal/** | 4 | 10 | ⏳ 待做 | 1天 |
+| 6 | **brain/** | 4 | 11 | ⏳ 待做 | 1.5天 |
+| 7 | **services/** | 8 | 38 | ⏳ 待做 (需 DI 线程化) | 2天 |
+| 8 | **data/** | 15 | 23 | ⏳ 待做 (最大难度) | 2天 |
 | 9 | **ui/** | 3 | 10 | 低 | 0.5天 |
 
 #### 步骤 10: 验证
@@ -324,34 +331,31 @@ else:
 
 ---
 
-## 执行计划
+## 执行进展 (2026-06-11)
 
-| 缺口 | 优先级 | 工作量 | 依赖 | 并行 |
+| 缺口 | 优先级 | 状态 | 工作量 | 完成情况 |
 |---|---|---|---|---|
-| **G-3** (Phase 0 提交) | **P0** | 0.5h | 无 | 可独立执行 |
-| **G-2** (FactorRegistry) | **P1** | 1 天 | G-3 可选 | 可独立执行 |
-| **G-4** (Async EventBus) | **P2** | 1 天 | 无 | 与 G-2、G-1 并行 |
-| **G-1** (TimeProvider) | **P2** | 8 天 | 无 | 可与 G-2、G-4 并行 |
+| **G-3** (Phase 0 提交) | **P0** | **✅ 完成** | 0.5h | 2 次提交, 代码+基线均入库 |
+| **G-2** (FactorRegistry) | **P1** | **✅ 完成** | 1 天 | brain 版增强准入; shared 版废弃 |
+| **G-4** (Async EventBus) | **P2** | **✅ 完成** | 1 天 | AsyncEventBus + 9 测试 |
+| **G-1** (TimeProvider) | **P2** | **🔄 进行中** | ~7 天 | 协议扩展 + shared/ 层完成 (10/120 调用) |
 
-### 建议执行顺序
+### G-1 剩余工作量
 
-```
-周 1:
-  ├── G-3 (Phase 0 提交)       ─ 0.5h, 立刻交付
-  ├── G-2 (FactorRegistry)     ─ 1 天, 清理死代码
-  └── G-4 (Async EventBus)     ─ 1 天, 低风险新功能
+| 层级 | 待替换调用数 | 建议优先级 |
+|---|---|---|
+| signal/ | 10 | 低难度, 自包含 |
+| hands/ | 7 | 低难度 |
+| brain/ | 11 | 中难度, 有 `perf_section` 等 |
+| services/ | 38 | **高难度**, 需 DI 线程化 |
+| data/ | 23 | **高难度**, 15 个文件 |
+| ui/ | 10 | 低难度 |
 
-周 2-3:
-  └── G-1 (TimeProvider)       ─ 8 天, 逐层替换
-        ├── 周 2: shared/ + hands/ + signal/ + brain/
-        └── 周 3: services/ + data/ + ui/ + 验证
-```
-
-### 出口标准
+### 出口标准跟踪
 
 1. ✅ G-3: `git log` 中包含 Phase 0 提交；`capture_baseline.py && compare_baseline.py` 可运行
 2. ✅ G-2: `shared/factor_governance.py` 标记废弃；`brain/factors/registry.py` 包含 `check_access()`；16 个导入点指向统一版本
-3. ✅ G-4: `AsyncEventBus` 类存在；feature flag 默认关闭；测试覆盖并行调度和错误隔离
-4. ✅ G-1: 全库 `datetime.now()` / `pd.Timestamp.now()` / `datetime.date.today()` 时钟依赖调用清零
-5. ✅ 全量回归: `pytest tests/ -q` → 1,085+ 通过，0 失败
+3. ✅ G-4: `AsyncEventBus` 类存在；feature flag 默认关闭；9 测试覆盖并行调度和错误隔离
+4. 🔄 G-1: 协议已扩展 + shared/ 层修复完成 (10/120); 剩余 signal/hands/brain/services/data/ui 待继续
+5. ✅ 全量回归: `pytest tests/ -q` → 1,094 通过，0 失败
 6. ✅ 基线一致: `compare_baseline.py` → 100% 匹配
