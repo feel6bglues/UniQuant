@@ -8,6 +8,7 @@ from ...shared.config_loader import config
 from ...shared.constants import RegimeConstants
 from ...shared.error_handling import handle_errors
 from ...shared.exceptions import AnalysisError
+from ...shared.interfaces import RegimeOutput
 from ...shared.logger_factory import get_logger
 
 from ..indicators.indicators import Indicators
@@ -270,3 +271,13 @@ class RegimeDetector:
         summary = self.get_summary(df)
 
         return summary
+
+    def get_typed_summary(self, df: pd.DataFrame) -> RegimeOutput:
+        """类型化的 get_summary, 返回 RegimeOutput 替代 Dict."""
+        result = self.get_summary(df)
+        return RegimeOutput(
+            regime=result.get("regime", "UNKNOWN"),
+            entropy=float(result.get("entropy", 0.0)),
+            turnover_z=float(result.get("turnover_z", 0.0)),
+            is_safe=bool(result.get("is_safe", True)),
+        )

@@ -1,6 +1,7 @@
 import datetime
 import json
-from typing import Dict, List, Any
+import time
+from typing import Dict, List, Any, Optional
 
 import pandas as pd
 
@@ -46,54 +47,95 @@ class HealthService:
         self.health_check_history = []
         self.max_history_size = 100
 
-    def get_system_health(self) -> Dict[str, Any]:
-        """
-        Get comprehensive system health status
+        # Data source tracking for Task 5.2.2
+        self._cache_hit_count: int = 0
+        self._cache_miss_count: int = 0
+        self._last_fetch_time: Dict[str, float] = {}
+        self._last_fetch_success: Dict[str, bool] = {}
 
-        Returns:
-            Dict[str, Any]: System health status
+    # ── Three-layer health checks (Task 5.2.1) ──
+
+    def liveness(self) -> Dict[str, Any]:
+        """Lightweight liveness check — process + config only.
+
+        Returns immediately without external dependencies.
+        Suitable for orchestrator keep-alive probes.
         """
         try:
-            health_status: Dict[str, Any] = {
-                "timestamp": datetime.datetime.now().isoformat(),
-                "overall_status": "healthy",
-                "components": {
-                    "config": self._check_config_health(),
-                    "data_service": self._check_data_service_health(),
-                    "analysis_service": self._check_analysis_service_health(),
-                    "brain": self._check_brain_health(),
-                    "risk": self._check_risk_health(),
-                    "cache": self._check_cache_health(),
-                    "data_lake": self._check_data_lake_health(),
-                    "system": self._check_system_health(),
-                },
-                "metrics": self._get_system_metrics(),
-                "recommendations": self._get_health_recommendations(),
-            }
-
-            # Determine overall status
-            components: Dict[str, Any] = health_status["components"]
-            for component, status in components.items():
-                if status["status"] != "healthy":
-                    health_status["overall_status"] = "unhealthy"
-                    break
-
-            # Add to history
-            self._add_to_history(health_status)
-
-            logger.info(
-                f"System health check completed with status: {health_status['overall_status']}"
-            )
-            return health_status
-        except RECOVERABLE_ERRORS as e:
-            logger.error(f"Error getting system health: {e}")
+            config_sections = list(self.config._config.keys())
             return {
+                "status": "alive",
                 "timestamp": datetime.datetime.now().isoformat(),
-                "overall_status": "error",
-                "error": str(e),
+                "config_loaded": len(config_sections) > 0,
+                "config_sections": config_sections,
             }
+        except Exception as e:
+            return {"status": "dead", "timestamp": datetime.datetime.now().isoformat(), "error": str(e)}
 
-    def _check_config_health(self) -> Dict[str, Any]:
+    def readiness(self) -> Dict[str, Any]:
+        """Readiness check — data + cache paths must be available.
+
+        Returns True only when the service can accept work.
+        """
+        issues: List[str] = []
+        try:
+            lake_dir = self.config.LAKE_DIR
+            if not lake_dir.exists():
+                issues.append(f"Data lake path not found: {lake_dir}")
+        except Exception as e:
+            issues.append(f"Data lake check failed: {e}")
+
+        try:
+            cache_dir = self.config.CACHE_DIR
+            if not cache_dir.exists():
+                issues.append(f"Cache path not found: {cache_dir}")
+        except Exception as e:
+            issues.append(f"Cache check failed: {e}")
+
+        try:
+            config_valid = self.config.validate_config()
+            if not config_valid:
+                issues.append("Config validation failed")
+        except Exception as e:
+            issues.append(f"Config validation error: {e}")
+
+        ready = len(issues) == 0
+        return {
+            "status": "ready" if ready else "not_ready",
+            "timestamp": datetime.datetime.now().isoformat(),
+            "issues": issues,
+            "cache_hit_ratio": self._cache_hit_ratio(),
+            "last_fetch_times": dict(self._last_fetch_time),
+        }
+
+    def diagnostics(self) -> Dict[str, Any]:
+        """Full diagnostics — complete end-to-end health check.
+
+        Equivalent to the original get_system_health().
+        """
+        return self.get_system_health()
+
+    def _cache_hit_ratio(self) -> float:
+        total = self._cache_hit_count + self._cache_miss_count
+        if total == 0:
+            return 0.0
+        return self._cache_hit_count / total
+
+    # ── Data source tracking (Task 5.2.2) ──
+
+    def record_cache_hit(self, source: str = "") -> None:
+        self._cache_hit_count += 1
+
+    def record_cache_miss(self, source: str = "") -> None:
+        self._cache_miss_count += 1
+
+    def record_fetch(self, source: str, success: bool) -> None:
+        self._last_fetch_time[source] = time.time()
+        self._last_fetch_success[source] = success
+
+    # ── Original interface ──
+
+    def get_system_health(self) -> Dict[str, Any]:
         """
         Check configuration health
         """
@@ -292,15 +334,31 @@ class HealthService:
         Get system metrics
         """
         try:
-            return {
+            metrics: Dict[str, Any] = {
                 "timestamp": datetime.datetime.now().isoformat(),
                 "uptime": self._get_uptime(),
                 "health_check_history": len(self.health_check_history),
                 "config_count": len(self.config._config),
-                "cache_size": self.data_service.cache_manager.get_stats().get(
-                    "total_items", 0
-                ),
             }
+
+            try:
+                cache_stats = self.data_service.cache_manager.get_stats()
+                metrics["cache_size"] = cache_stats.get("total_items", 0)
+                metrics["cache_hit_ratio"] = self._cache_hit_ratio()
+            except Exception:
+                metrics["cache_size"] = 0
+                metrics["cache_hit_ratio"] = 0.0
+
+            metrics["data_freshness"] = {
+                source: {
+                    "last_fetch_ts": ts,
+                    "last_success": self._last_fetch_success.get(source, False),
+                    "age_seconds": time.time() - ts,
+                }
+                for source, ts in self._last_fetch_time.items()
+            }
+
+            return metrics
         except RECOVERABLE_ERRORS as e:
             logger.error(f"Error getting system metrics: {e}")
             return {"error": str(e)}

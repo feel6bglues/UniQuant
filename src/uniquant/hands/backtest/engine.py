@@ -613,6 +613,7 @@ class BacktestEngine:
         position_size: int = 100,
         train_window: int = 252,
         test_window: int = 63,
+        embargo: int = 5,
         name: Optional[str] = None,
     ) -> List[BacktestResult]:
         """
@@ -625,6 +626,7 @@ class BacktestEngine:
             position_size: 每次交易股数
             train_window: 训练窗口 (天)
             test_window: 测试窗口 (天)
+            embargo: 训练集与测试集之间的隔离带 (天), 防止自相关跨界污染
             name: 股票名称
             
         Returns:
@@ -633,13 +635,13 @@ class BacktestEngine:
         results: List[BacktestResult] = []
         n = len(df)
         
-        if n < train_window + test_window:
-            logger.warning(f"数据不足，无法进行Walk-forward验证: {n} < {train_window + test_window}")
+        if n < train_window + embargo + test_window:
+            logger.warning(f"数据不足，无法进行Walk-forward验证: {n} < {train_window} + {embargo} + {test_window}")
             return results
         
-        for start in range(0, n - train_window - test_window, test_window):
+        for start in range(0, n - train_window - embargo - test_window, test_window):
             train_df = df.iloc[start:start + train_window]
-            test_df = df.iloc[start + train_window:start + train_window + test_window]
+            test_df = df.iloc[start + train_window + embargo:start + train_window + embargo + test_window]
             
             signal_generator = signal_generator_factory(train_df)
             

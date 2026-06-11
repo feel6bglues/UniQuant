@@ -28,8 +28,13 @@ from ..shared.constants import (
 )
 from ..shared.error_handling import handle_errors
 from ..shared.exceptions import AnalysisError, DataFetchError, ServiceError
-from ..shared.interfaces import TradingSignal
+from ..shared.interfaces import (
+    AlphaOutput, CZSCOutput, DecisionOutput, LPPLOutput,
+    MarketSignalContext, NtfOutput, RegimeOutput, TradingSignal,
+    WyckoffOutput,
+)
 from ..shared.logger_factory import get_logger
+from ..shared.observability import perf_section
 from .analysis.engine_factory import AnalysisEngineFactory
 from .data_service import DataService
 from .market_cache import MarketLevelCache
@@ -308,13 +313,20 @@ class AnalysisService:
     def _run_engines(self, ticker: str, data_pack: Dict[str, Any]) -> bool:
         """运行所有 Brain 引擎"""
         try:
-            self._run_regime(ticker, data_pack)
-            self._run_lppl(data_pack)
-            self._run_ntf(ticker, data_pack)
-            self._run_czsc(ticker, data_pack)
-            self._run_wyckoff(ticker, data_pack)
-            self._run_alpha(data_pack)
-            self._calculate_derived(data_pack)
+            with perf_section("engine.regime"):
+                self._run_regime(ticker, data_pack)
+            with perf_section("engine.lppl"):
+                self._run_lppl(data_pack)
+            with perf_section("engine.ntf"):
+                self._run_ntf(ticker, data_pack)
+            with perf_section("engine.czsc"):
+                self._run_czsc(ticker, data_pack)
+            with perf_section("engine.wyckoff"):
+                self._run_wyckoff(ticker, data_pack)
+            with perf_section("engine.alpha"):
+                self._run_alpha(data_pack)
+            with perf_section("engine.derived"):
+                self._calculate_derived(data_pack)
 
             data_pack["symbol"] = ticker
             data_pack["market"] = "CN"
@@ -328,11 +340,16 @@ class AnalysisService:
         try:
             cached = self._market_cache.get_regime()
             if cached is not None:
-                data_pack["regime"] = cached
-                details = self._market_cache.get_regime_details()
-                if details:
-                    data_pack["entropy"] = details.get("entropy", 0.0)
-                    data_pack["turnover_z"] = details.get("turnover_z", 0.0)
+                details = self._market_cache.get_regime_details() or {}
+                output = RegimeOutput(
+                    regime=str(cached),
+                    entropy=float(details.get("entropy", 0.0)),
+                    turnover_z=float(details.get("turnover_z", 0.0)),
+                )
+                data_pack["regime_output"] = output
+                data_pack["regime"] = output.regime
+                data_pack["entropy"] = output.entropy
+                data_pack["turnover_z"] = output.turnover_z
                 self._mark_engine_status(data_pack, "regime", "OK")
                 return
 
@@ -342,11 +359,13 @@ class AnalysisService:
                 MarketConstants.INDEX_HS300, data_type="index", market="cn",
             )
             if df is not None and not df.empty:
-                result = detector.get_summary(df)
+                result = detector.get_typed_summary(df)
             else:
-                data_pack["regime"] = "UNKNOWN"
-                data_pack["entropy"] = 0.0
-                data_pack["turnover_z"] = 0.0
+                output = RegimeOutput(regime="UNKNOWN")
+                data_pack["regime_output"] = output
+                data_pack["regime"] = output.regime
+                data_pack["entropy"] = output.entropy
+                data_pack["turnover_z"] = output.turnover_z
                 self._mark_engine_status(
                     data_pack,
                     "regime",
@@ -355,17 +374,19 @@ class AnalysisService:
                 )
                 return
 
-            regime = result.get("regime") or "UNKNOWN"
-            self._market_cache.set_regime(regime, result)
-            data_pack["regime"] = regime
-            data_pack["entropy"] = result.get("entropy", 0.0)
-            data_pack["turnover_z"] = result.get("turnover_z", 0.0)
+            self._market_cache.set_regime(result.regime, result.to_dict())
+            data_pack["regime_output"] = result
+            data_pack["regime"] = result.regime
+            data_pack["entropy"] = result.entropy
+            data_pack["turnover_z"] = result.turnover_z
             self._mark_engine_status(data_pack, "regime", "OK")
         except RECOVERABLE_ERRORS as e:
             logger.warning(f"Regime 检测失败: {e}")
-            data_pack["regime"] = "UNKNOWN"
-            data_pack["entropy"] = 0.0
-            data_pack["turnover_z"] = 0.0
+            output = RegimeOutput(regime="UNKNOWN")
+            data_pack["regime_output"] = output
+            data_pack["regime"] = output.regime
+            data_pack["entropy"] = output.entropy
+            data_pack["turnover_z"] = output.turnover_z
             self._mark_engine_status(data_pack, "regime", "ENGINE_FAILED", str(e))
 
     def _run_lppl(self, data_pack: Dict[str, Any]) -> None:
@@ -376,8 +397,10 @@ class AnalysisService:
                 symbol=symbol, df=data_pack.get("stock"),
             )
             if result.get("status") != "success" or "risk_level" not in result:
-                data_pack["risk"] = "ENGINE_FAILED"
-                data_pack["bubble_confidence"] = 1.0
+                output = LPPLOutput(risk_level="ENGINE_FAILED", confidence=1.0)
+                data_pack["lppl_output"] = output
+                data_pack["risk"] = output.risk_level
+                data_pack["bubble_confidence"] = output.confidence
                 self._mark_engine_status(
                     data_pack,
                     "lppl",
@@ -386,13 +409,22 @@ class AnalysisService:
                 )
                 return
 
-            data_pack["risk"] = result["risk_level"]
-            data_pack["bubble_confidence"] = result.get("confidence", 0.0)
+            output = LPPLOutput(
+                risk_level=result["risk_level"],
+                confidence=result.get("confidence", 0.0),
+                days_to_tc=result.get("days_to_tc"),
+                price=result.get("price", 0.0),
+            )
+            data_pack["lppl_output"] = output
+            data_pack["risk"] = output.risk_level
+            data_pack["bubble_confidence"] = output.confidence
             self._mark_engine_status(data_pack, "lppl", "OK")
         except RECOVERABLE_ERRORS as e:
             logger.warning(f"LPPL 检测失败: {e}")
-            data_pack["risk"] = "ENGINE_FAILED"
-            data_pack["bubble_confidence"] = 1.0
+            output = LPPLOutput(risk_level="ENGINE_FAILED", confidence=1.0)
+            data_pack["lppl_output"] = output
+            data_pack["risk"] = output.risk_level
+            data_pack["bubble_confidence"] = output.confidence
             self._mark_engine_status(data_pack, "lppl", "ENGINE_FAILED", str(e))
 
     def _run_ntf(self, ticker: str, data_pack: Dict[str, Any]) -> None:
@@ -400,8 +432,13 @@ class AnalysisService:
         try:
             cached = self._market_cache.get_ntf()
             if cached is not None:
-                data_pack["ntf_side"] = cached.get("side", "NONE")
-                data_pack["ntf_intensity"] = cached.get("intensity", 0.0)
+                output = NtfOutput(
+                    side=str(cached.get("side", "NONE")),
+                    intensity=float(cached.get("intensity", 0.0)),
+                )
+                data_pack["ntf_output"] = output
+                data_pack["ntf_side"] = output.side
+                data_pack["ntf_intensity"] = output.intensity
                 data_pack["ntf_action"] = cached.get("action", "")
                 return
 
@@ -418,14 +455,21 @@ class AnalysisService:
                 fetcher, "510300.SH", start_date, end_date,
             )
 
+            output = NtfOutput(
+                side=str(result.get("side", "NONE")),
+                intensity=float(result.get("intensity", 0.0)),
+            )
             self._market_cache.set_ntf(result)
-            data_pack["ntf_side"] = result.get("side", "NONE")
-            data_pack["ntf_intensity"] = result.get("intensity", 0.0)
+            data_pack["ntf_output"] = output
+            data_pack["ntf_side"] = output.side
+            data_pack["ntf_intensity"] = output.intensity
             data_pack["ntf_action"] = result.get("action", "")
         except RECOVERABLE_ERRORS as e:
             logger.warning(f"NTF 检测失败: {e}")
-            data_pack["ntf_side"] = "NONE"
-            data_pack["ntf_intensity"] = 0.0
+            output = NtfOutput(side="NONE")
+            data_pack["ntf_output"] = output
+            data_pack["ntf_side"] = output.side
+            data_pack["ntf_intensity"] = output.intensity
 
     def _run_czsc(self, ticker: str, data_pack: Dict[str, Any]) -> None:
         """CZSC 缠论分析"""
@@ -433,12 +477,21 @@ class AnalysisService:
             result = self.czsc_engine.run_czsc_analysis(
                 symbol=ticker, df=data_pack.get("stock"),
             )
-            data_pack["is_3rd_buy"] = result.get("is_3rd_buy", False)
-            data_pack["bi_count"] = result.get("bi_count", 0)
+            output = CZSCOutput(
+                is_3rd_buy=bool(result.get("is_3rd_buy", False)),
+                bi_count=int(result.get("bi_count", 0)),
+                price=float(result.get("price", 0.0)),
+                bottom=result.get("czsc_bottom"),
+            )
+            data_pack["czsc_output"] = output
+            data_pack["is_3rd_buy"] = output.is_3rd_buy
+            data_pack["bi_count"] = output.bi_count
         except RECOVERABLE_ERRORS as e:
             logger.warning(f"CZSC 分析失败: {e}")
-            data_pack["is_3rd_buy"] = False
-            data_pack["bi_count"] = 0
+            output = CZSCOutput()
+            data_pack["czsc_output"] = output
+            data_pack["is_3rd_buy"] = output.is_3rd_buy
+            data_pack["bi_count"] = output.bi_count
 
     def _run_wyckoff(self, ticker: str, data_pack: Dict[str, Any]) -> None:
         """Wyckoff 分析"""
@@ -446,14 +499,24 @@ class AnalysisService:
             result = self.wyckoff_engine.run_wyckoff_analysis(
                 symbol=ticker, df=data_pack.get("stock"),
             )
-            data_pack["wyckoff_phase"] = result.get("phase", "unknown")
-            data_pack["wyckoff_confidence"] = result.get("confidence", 0.0)
-            data_pack["wyckoff_spring"] = result.get("spring_detected", False)
-            data_pack["wyckoff_utad"] = result.get("utad_detected", False)
+            output = WyckoffOutput(
+                phase=str(result.get("phase", "unknown")),
+                confidence=float(result.get("confidence", 0.0)),
+                spring=bool(result.get("spring_detected", False)),
+                utad=bool(result.get("utad_detected", False)),
+                price=float(result.get("price", 0.0)),
+            )
+            data_pack["wyckoff_output"] = output
+            data_pack["wyckoff_phase"] = output.phase
+            data_pack["wyckoff_confidence"] = output.confidence
+            data_pack["wyckoff_spring"] = output.spring
+            data_pack["wyckoff_utad"] = output.utad
         except RECOVERABLE_ERRORS as e:
             logger.warning(f"Wyckoff 分析失败: {e}")
-            data_pack["wyckoff_phase"] = "unknown"
-            data_pack["wyckoff_confidence"] = 0.0
+            output = WyckoffOutput()
+            data_pack["wyckoff_output"] = output
+            data_pack["wyckoff_phase"] = output.phase
+            data_pack["wyckoff_confidence"] = output.confidence
 
     def _run_alpha(self, data_pack: Dict[str, Any]) -> None:
         """Alpha 分离度分析"""
@@ -461,7 +524,9 @@ class AnalysisService:
             from ..brain.alpha_decoupler.alpha_decoupler import AlphaDecoupler
             stock_df = data_pack.get("stock")
             if stock_df is None or stock_df.empty:
-                data_pack["alpha_score"] = 0.0
+                output = AlphaOutput(score=0.0)
+                data_pack["alpha_output"] = output
+                data_pack["alpha_score"] = output.score
                 return
 
             storage = self.data_service.lake
@@ -469,15 +534,22 @@ class AnalysisService:
             sector = storage.read_data("000905.SH", "index")
 
             if bench is None or bench.empty:
-                data_pack["alpha_score"] = 0.0
+                output = AlphaOutput(score=0.0)
+                data_pack["alpha_output"] = output
+                data_pack["alpha_score"] = output.score
                 return
 
-            data_pack["alpha_score"] = AlphaDecoupler.get_alpha_score(
+            score = float(AlphaDecoupler.get_alpha_score(
                 stock_df, bench, sector,
-            )
+            ))
+            output = AlphaOutput(score=score)
+            data_pack["alpha_output"] = output
+            data_pack["alpha_score"] = output.score
         except RECOVERABLE_ERRORS as e:
             logger.warning(f"Alpha 分析失败: {e}")
-            data_pack["alpha_score"] = 0.0
+            output = AlphaOutput(score=0.0)
+            data_pack["alpha_output"] = output
+            data_pack["alpha_score"] = output.score
 
     def _calculate_derived(self, data_pack: Dict[str, Any]) -> None:
         """计算衍生指标 (MA状态, 价格, ATR止损)"""
@@ -518,9 +590,15 @@ class AnalysisService:
     def _make_decision(
         self, ticker: str, data_pack: Dict[str, Any],
     ) -> Optional[Dict[str, Any]]:
-        """调用 DecisionBrain 做出决策"""
+        """调用 DecisionBrain 做出决策 (传入 MarketSignalContext)"""
         try:
-            return self.brain.make_decision(data_pack)
+            with perf_section("engine.decision"):
+                ctx = MarketSignalContext.from_dict(data_pack)
+                raw = self.brain.make_decision(ctx)
+                if raw:
+                    decision_output = DecisionOutput.from_dict(raw)
+                    raw["decision_output"] = decision_output
+            return raw
         except RECOVERABLE_ERRORS as e:
             logger.error(f"{ticker} 决策失败: {e}")
             return None

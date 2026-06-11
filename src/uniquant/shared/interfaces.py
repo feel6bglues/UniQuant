@@ -169,6 +169,209 @@ class TradingSignal:
         )
 
 
+@dataclass
+class ResearchDataPack:
+    """Brain 引擎分析输出的类型化数据包
+
+    替代无类型的 Dict[str, Any] data_pack，提供编译时类型检查。
+    """
+    symbol: str
+    stock_df: Optional[pd.DataFrame] = None
+    index_df: Optional[pd.DataFrame] = None
+    regime: Optional[Any] = None
+    lppl: Optional[Dict[str, Any]] = None
+    ntf: Optional[Dict[str, Any]] = None
+    czsc: Optional[Dict[str, Any]] = None
+    wyckoff: Optional[Dict[str, Any]] = None
+    alpha: Optional[Dict[str, Any]] = None
+    factors: Optional[Dict[str, float]] = None
+    metadata: Dict[str, Any] = field(default_factory=dict)
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any], symbol: str = "") -> "ResearchDataPack":
+        return cls(
+            symbol=symbol or data.get("symbol", ""),
+            stock_df=data.get("stock"),
+            index_df=data.get("index"),
+            regime=data.get("regime"),
+            lppl=data.get("lppl"),
+            ntf=data.get("ntf"),
+            czsc=data.get("czsc"),
+            wyckoff=data.get("wyckoff"),
+            alpha=data.get("alpha"),
+            factors=data.get("factors"),
+            metadata=data.get("metadata", {}),
+        )
+
+
+@dataclass
+class DecisionOutput:
+    """DecisionBrain 输出的类型化决策结果
+
+    替代无类型的 Dict[str, Any] decision，提供编译时类型检查。
+    """
+    action: str = "HOLD"
+    reason: str = ""
+    confidence: float = 0.0
+    shares: int = 0
+    price: float = 0.0
+    regime: str = "UNKNOWN"
+    score: float = 0.0
+    engine_status: Dict[str, str] = field(default_factory=dict)
+    metadata: Dict[str, Any] = field(default_factory=dict)
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "DecisionOutput":
+        return cls(
+            action=data.get("action", "HOLD"),
+            reason=data.get("reason", ""),
+            confidence=data.get("confidence", 0.0),
+            shares=data.get("shares", 0),
+            price=data.get("price", 0.0),
+            regime=data.get("regime", "UNKNOWN"),
+            score=data.get("score") or data.get("final_score", 0.0),
+            engine_status=data.get("engine_status", {}),
+            metadata=data.get("metadata", {}),
+        )
+
+
+# ── 引擎输出类型 ──
+
+@dataclass
+class RegimeOutput:
+    regime: str = "UNKNOWN"
+    entropy: float = 0.0
+    turnover_z: float = 0.0
+    is_safe: bool = True
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "regime": self.regime,
+            "entropy": self.entropy,
+            "turnover_z": self.turnover_z,
+            "is_safe": self.is_safe,
+        }
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "RegimeOutput":
+        return cls(
+            regime=str(data.get("regime", "UNKNOWN")),
+            entropy=float(data.get("entropy", 0.0)),
+            turnover_z=float(data.get("turnover_z", 0.0)),
+            is_safe=bool(data.get("is_safe", True)),
+        )
+
+
+@dataclass
+class LPPLOutput:
+    risk_level: str = "Safe"
+    confidence: float = 0.0
+    days_to_tc: Optional[float] = None
+    price: float = 0.0
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "risk_level": self.risk_level,
+            "bubble_confidence": self.confidence,
+            "lppl_days_to_tc": self.days_to_tc,
+            "price": self.price,
+        }
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "LPPLOutput":
+        return cls(
+            risk_level=str(data.get("risk_level", "Safe")),
+            confidence=float(data.get("bubble_confidence", data.get("confidence", 0.0))),
+            days_to_tc=data.get("lppl_days_to_tc"),
+            price=float(data.get("price", 0.0)),
+        )
+
+
+@dataclass
+class CZSCOutput:
+    is_3rd_buy: bool = False
+    bi_count: int = 0
+    price: float = 0.0
+    bottom: Optional[float] = None
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "is_3rd_buy": self.is_3rd_buy,
+            "bi_count": self.bi_count,
+            "price": self.price,
+            "czsc_bottom": self.bottom,
+        }
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "CZSCOutput":
+        return cls(
+            is_3rd_buy=bool(data.get("is_3rd_buy", False)),
+            bi_count=int(data.get("bi_count", 0)),
+            price=float(data.get("price", 0.0)),
+            bottom=data.get("czsc_bottom"),
+        )
+
+
+@dataclass
+class NtfOutput:
+    side: str = "NONE"
+    intensity: float = 0.0
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {"ntf_side": self.side, "ntf_intensity": self.intensity}
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "NtfOutput":
+        return cls(
+            side=str(data.get("ntf_side", "NONE")),
+            intensity=float(data.get("ntf_intensity", 0.0)),
+        )
+
+
+@dataclass
+class WyckoffOutput:
+    phase: str = "unknown"
+    confidence: float = 0.0
+    spring: bool = False
+    utad: bool = False
+    price: float = 0.0
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "wyckoff_phase": self.phase,
+            "wyckoff_confidence": self.confidence,
+            "wyckoff_spring": self.spring,
+            "wyckoff_utad": self.utad,
+            "price": self.price,
+        }
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "WyckoffOutput":
+        return cls(
+            phase=str(data.get("wyckoff_phase", "unknown")),
+            confidence=float(data.get("wyckoff_confidence", 0.0)),
+            spring=bool(data.get("wyckoff_spring", False)),
+            utad=bool(data.get("wyckoff_utad", False)),
+            price=float(data.get("price", 0.0)),
+        )
+
+
+@dataclass
+class AlphaOutput:
+    score: float = 0.0
+    factors: Dict[str, float] = field(default_factory=dict)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {"alpha_score": self.score, "scores": self.factors}
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "AlphaOutput":
+        return cls(
+            score=float(data.get("alpha_score", 0.0)),
+            factors=dict(data.get("scores", {})),
+        )
+
+
 @runtime_checkable
 class DataFetcherProtocol(Protocol):
     """

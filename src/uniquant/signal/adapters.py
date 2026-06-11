@@ -21,6 +21,7 @@ from typing import Any, Dict, List, Optional
 
 from ..shared.interfaces import TradingSignal
 from ..shared.logger_factory import get_logger
+from ..shared.observability import perf_section
 
 logger = get_logger(__name__)
 
@@ -447,80 +448,81 @@ class TradingSignalCollector:
         Returns:
             标准化的 TradingSignal 列表
         """
-        signals: List[TradingSignal] = []
-        symbol = data_pack.get("symbol", "")
+        with perf_section("adapter.collect"):
+            signals: List[TradingSignal] = []
+            symbol = data_pack.get("symbol", "")
 
-        # LPPL
-        lppl_out = self._extract_lppl(data_pack)
-        if lppl_out:
-            adapter = self._registry.get("lppl")
-            if adapter:
-                s = adapter.adapt(lppl_out, symbol, timestamp, default_shares)
-                if s:
-                    signals.append(s)
+            # LPPL
+            lppl_out = self._extract_lppl(data_pack)
+            if lppl_out:
+                adapter = self._registry.get("lppl")
+                if adapter:
+                    s = adapter.adapt(lppl_out, symbol, timestamp, default_shares)
+                    if s:
+                        signals.append(s)
 
-        # CZSC
-        czsc_out = self._extract_czsc(data_pack)
-        if czsc_out:
-            adapter = self._registry.get("czsc")
-            if adapter:
-                s = adapter.adapt(czsc_out, symbol, timestamp, default_shares)
-                if s:
-                    signals.append(s)
+            # CZSC
+            czsc_out = self._extract_czsc(data_pack)
+            if czsc_out:
+                adapter = self._registry.get("czsc")
+                if adapter:
+                    s = adapter.adapt(czsc_out, symbol, timestamp, default_shares)
+                    if s:
+                        signals.append(s)
 
-        # Wyckoff
-        wyckoff_out = self._extract_wyckoff(data_pack)
-        if wyckoff_out:
-            adapter = self._registry.get("wyckoff")
-            if adapter:
-                s = adapter.adapt(wyckoff_out, symbol, timestamp, default_shares)
-                if s:
-                    signals.append(s)
+            # Wyckoff
+            wyckoff_out = self._extract_wyckoff(data_pack)
+            if wyckoff_out:
+                adapter = self._registry.get("wyckoff")
+                if adapter:
+                    s = adapter.adapt(wyckoff_out, symbol, timestamp, default_shares)
+                    if s:
+                        signals.append(s)
 
-        # FSM/DecisionBrain
-        if "action" in data_pack or "final_decision" in data_pack:
-            adapter = self._registry.get("fsm")
-            if adapter:
-                s = adapter.adapt(data_pack, symbol, timestamp, default_shares)
-                if s:
-                    signals.append(s)
+            # FSM/DecisionBrain
+            if "action" in data_pack or "final_decision" in data_pack:
+                adapter = self._registry.get("fsm")
+                if adapter:
+                    s = adapter.adapt(data_pack, symbol, timestamp, default_shares)
+                    if s:
+                        signals.append(s)
 
-        # Regime
-        if "regime" in data_pack:
-            adapter = self._registry.get("regime")
-            if adapter:
-                s = adapter.adapt(
-                    {"regime": data_pack["regime"]},
-                    symbol,
-                    timestamp,
-                    default_shares,
-                )
-                if s:
-                    signals.append(s)
+            # Regime
+            if "regime" in data_pack:
+                adapter = self._registry.get("regime")
+                if adapter:
+                    s = adapter.adapt(
+                        {"regime": data_pack["regime"]},
+                        symbol,
+                        timestamp,
+                        default_shares,
+                    )
+                    if s:
+                        signals.append(s)
 
-        # NTF
-        if "ntf_side" in data_pack and data_pack.get("ntf_side") != "NONE":
-            adapter = self._registry.get("ntf")
-            if adapter:
-                s = adapter.adapt(data_pack, symbol, timestamp, default_shares)
-                if s:
-                    signals.append(s)
+            # NTF
+            if "ntf_side" in data_pack and data_pack.get("ntf_side") != "NONE":
+                adapter = self._registry.get("ntf")
+                if adapter:
+                    s = adapter.adapt(data_pack, symbol, timestamp, default_shares)
+                    if s:
+                        signals.append(s)
 
-        # AlphaScore
-        if "alpha_score" in data_pack:
-            adapter = self._registry.get("alpha_score")
-            if adapter:
-                s = adapter.adapt(data_pack, symbol, timestamp, default_shares)
-                if s:
-                    signals.append(s)
+            # AlphaScore
+            if "alpha_score" in data_pack:
+                adapter = self._registry.get("alpha_score")
+                if adapter:
+                    s = adapter.adapt(data_pack, symbol, timestamp, default_shares)
+                    if s:
+                        signals.append(s)
 
-        # MA Status
-        if "ma_status" in data_pack:
-            adapter = self._registry.get("ma_status")
-            if adapter:
-                s = adapter.adapt(data_pack, symbol, timestamp, default_shares)
-                if s:
-                    signals.append(s)
+            # MA Status
+            if "ma_status" in data_pack:
+                adapter = self._registry.get("ma_status")
+                if adapter:
+                    s = adapter.adapt(data_pack, symbol, timestamp, default_shares)
+                    if s:
+                        signals.append(s)
 
         return signals
 

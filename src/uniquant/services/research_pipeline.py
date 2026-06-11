@@ -22,9 +22,21 @@ from typing import Any, Dict, List, Optional
 import pandas as pd
 
 from ..hands.backtest.unified_engine import BacktestResult, UnifiedBacktestEngine
+from ..shared.event_bus import EventBus
+from ..shared.event_types import (
+    BacktestCompleted as BacktestCompletedEvent,
+    DataLoaded,
+    DecisionProduced,
+    RunCompleted,
+    RunStarted,
+    SignalsCollected,
+)
 from ..shared.interfaces import TradingSignal
 from ..shared.logger_factory import get_logger
+from ..shared.observability import InMemoryMetricsRecorder, perf_section
 from ..signal.adapters import TradingSignalCollector, create_default_registry
+from ..signal.arbitrator import SignalArbitrator
+from ..shared.time_provider import RealTimeProvider, TimeProvider
 from .analysis_service_v2 import AnalysisService
 
 logger = get_logger(__name__)
@@ -48,6 +60,7 @@ class PipelineResult:
     success: bool = True
     error: Optional[str] = None
     trace_id: Optional[str] = None
+    metrics: Optional[InMemoryMetricsRecorder] = None
 
     @property
     def total_signals(self) -> int:
@@ -85,12 +98,20 @@ class UnifiedResearchPipeline:
         analysis_service: AnalysisService,
         backtest_engine: Optional[UnifiedBacktestEngine] = None,
         signal_collector: Optional[TradingSignalCollector] = None,
+        arbitrator: Optional[SignalArbitrator] = None,
+        time_provider: Optional[TimeProvider] = None,
+        event_bus: Optional[EventBus] = None,
+        metrics: Optional[InMemoryMetricsRecorder] = None,
     ):
         self._analysis = analysis_service
         self._engine = backtest_engine or UnifiedBacktestEngine()
         self._collector = signal_collector or TradingSignalCollector(
             create_default_registry(),
         )
+        self._arbitrator = arbitrator
+        self._time_provider = time_provider or RealTimeProvider()
+        self._event_bus = event_bus
+        self._metrics = metrics or InMemoryMetricsRecorder()
 
     def run(
         self,
@@ -111,66 +132,134 @@ class UnifiedResearchPipeline:
         """
         trace_id = trace_id or uuid.uuid4().hex
 
-        # Step 1-2: 运行 Brain 引擎分析
-        analysis = self._analysis.run_ticker_analysis(symbol, trace_id=trace_id)
-        if not analysis.success:
-            return PipelineResult(
-                symbol=symbol,
-                data_pack=analysis.data_pack,
-                decision=analysis.decision,
-                signals=[],
-                backtest=BacktestResult(),
-                success=False,
-                error=analysis.error,
-                trace_id=trace_id,
+        bus = self._event_bus
+        metrics = self._metrics
+
+        with perf_section("pipeline.total", recorder=metrics):
+            if bus is not None:
+                bus.publish(RunStarted(symbol=symbol, trace_id=trace_id))
+
+            # Step 1-2: 运行 Brain 引擎分析
+            with perf_section("pipeline.analysis", recorder=metrics):
+                analysis = self._analysis.run_ticker_analysis(
+                    symbol, trace_id=trace_id,
+                )
+
+            if bus is not None:
+                data_ok = bool(
+                    analysis.success and analysis.data_pack.get("stock") is not None
+                )
+                rows = len(analysis.data_pack.get("stock")) if data_ok else 0
+                bus.publish(DataLoaded(symbol=symbol, success=data_ok, rows=rows))
+
+            if not analysis.success:
+                bus_result = PipelineResult(
+                    symbol=symbol,
+                    data_pack=analysis.data_pack,
+                    decision=analysis.decision,
+                    signals=[],
+                    backtest=BacktestResult(),
+                    success=False,
+                    error=analysis.error,
+                    trace_id=trace_id,
+                    metrics=metrics,
+                )
+                if bus is not None:
+                    bus.publish(RunCompleted(symbol=symbol, success=False))
+                return bus_result
+
+            # Step 3: 收集信号
+            data_pack = analysis.data_pack
+            with perf_section("pipeline.collect", recorder=metrics):
+                collector_pack = self._merge_decision_for_collection(
+                    data_pack, analysis.decision,
+                )
+                timestamp = self._time_provider.now()
+                signals = self._collector.collect(
+                    collector_pack,
+                    timestamp=timestamp,
+                    default_shares=default_shares,
+                )
+
+            if bus is not None:
+                bus.publish(DecisionProduced(
+                    symbol=symbol,
+                    action=analysis.decision.get("action", "HOLD"),
+                    confidence=float(analysis.decision.get("confidence", 0.0)),
+                ))
+
+            # Step 3b: 信号仲裁 (特性开关控制)
+            with perf_section("pipeline.arbitrate", recorder=metrics):
+                if self._arbitrator is not None:
+                    signals = self._arbitrator.arbitrate(signals, symbol=symbol)
+                    if signals:
+                        logger.debug(
+                            "仲裁完成: %s -> %s (%s)",
+                            symbol, signals[0].action, signals[0].reason,
+                        )
+
+            if bus is not None:
+                bus.publish(SignalsCollected(symbol=symbol, count=len(signals)))
+
+            # Step 4: 回测撮合
+            stock_df = data_pack.get("stock")
+            if stock_df is None or stock_df.empty:
+                bus_result = PipelineResult(
+                    symbol=symbol,
+                    data_pack=data_pack,
+                    decision=analysis.decision,
+                    signals=signals,
+                    backtest=BacktestResult(),
+                    success=False,
+                    error="K线数据为空",
+                    trace_id=trace_id,
+                    metrics=metrics,
+                )
+                if bus is not None:
+                    bus.publish(RunCompleted(symbol=symbol, success=False))
+                return bus_result
+
+            with perf_section("pipeline.backtest", recorder=metrics):
+                backtest_result = self._engine.run(
+                    df=stock_df,
+                    signals=signals,
+                    symbol=symbol,
+                    name=name,
+                )
+
+            if bus is not None:
+                bus.publish(BacktestCompletedEvent(
+                    symbol=symbol,
+                    trades=backtest_result.total_trades,
+                    total_return=backtest_result.total_return,
+                ))
+
+            logger.info(
+                f"Pipeline 完成: trace_id={trace_id} | {symbol} | "
+                f"信号={len(signals)} | 成交={backtest_result.total_trades} | "
+                f"收益={backtest_result.total_return:.2%}"
             )
 
-        # Step 3: 收集信号
-        data_pack = analysis.data_pack
-        collector_pack = self._merge_decision_for_collection(
-            data_pack, analysis.decision,
-        )
-        timestamp = pd.Timestamp.now()
-        signals = self._collector.collect(
-            collector_pack, timestamp=timestamp, default_shares=default_shares,
-        )
-
-        # Step 4: 回测撮合
-        stock_df = data_pack.get("stock")
-        if stock_df is None or stock_df.empty:
-            return PipelineResult(
+            result = PipelineResult(
                 symbol=symbol,
                 data_pack=data_pack,
                 decision=analysis.decision,
                 signals=signals,
-                backtest=BacktestResult(),
-                success=False,
-                error="K线数据为空",
+                backtest=backtest_result,
+                success=True,
                 trace_id=trace_id,
+                metrics=metrics,
             )
 
-        backtest_result = self._engine.run(
-            df=stock_df,
-            signals=signals,
-            symbol=symbol,
-            name=name,
-        )
+        if bus is not None:
+            bus.publish(RunCompleted(
+                symbol=symbol,
+                success=True,
+                total_return=backtest_result.total_return,
+                total_trades=backtest_result.total_trades,
+            ))
 
-        logger.info(
-            f"Pipeline 完成: trace_id={trace_id} | {symbol} | "
-            f"信号={len(signals)} | 成交={backtest_result.total_trades} | "
-            f"收益={backtest_result.total_return:.2%}"
-        )
-
-        return PipelineResult(
-            symbol=symbol,
-            data_pack=data_pack,
-            decision=analysis.decision,
-            signals=signals,
-            backtest=backtest_result,
-            success=True,
-            trace_id=trace_id,
-        )
+        return result
 
     def run_batch(
         self,

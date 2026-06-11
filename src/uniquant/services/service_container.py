@@ -21,6 +21,7 @@ import threading
 
 from ..data.lake.storage_manager import StorageManager
 from ..data.managers.trade_calendar_manager import TradeCalendarManager
+from ..shared.config_validator import ConfigValidator
 from ..shared.logger_factory import get_logger
 
 logger = get_logger(__name__)
@@ -75,8 +76,21 @@ class ServiceContainer:
         if self._initialized:
             return
 
+        from ..shared.config_loader import get_config
+        from ..shared.time_provider import FrozenTimeProvider, RealTimeProvider
+
         from .data_service import DataService
         from .cache_coordinator import CacheCoordinator
+
+        config = get_config()
+        validator = ConfigValidator(config)
+        validation_errors = validator.validate_all()
+        if validation_errors:
+            logger.warning(
+                "Config validation found %d issue(s):\n  - %s",
+                len(validation_errors),
+                "\n  - ".join(validation_errors),
+            )
 
         storage = StorageManager()
         calendar = TradeCalendarManager()
@@ -89,6 +103,10 @@ class ServiceContainer:
         self.register("calendar", calendar)
         self.register("cache", cache)
         self.register("data_service", data_svc)
+
+        # 注入 TimeProvider (生产环境使用 RealTimeProvider)
+        time_provider = RealTimeProvider()
+        self.register("time_provider", time_provider)
 
         from .analysis.engine_factory import AnalysisEngineFactory
         from .market_cache import MarketLevelCache
@@ -116,10 +134,25 @@ class ServiceContainer:
         self.register("backtest_engine", backtest_engine)
         self.register("signal_collector", signal_collector)
 
+        # 信号仲裁器 (特性开关控制)
+        arbitrator = None
+        try:
+            from ..shared.config_models import RefactoringConfig
+            ref_config = RefactoringConfig.from_dict(None)
+            if ref_config.feature_flags.signal_arbitration:
+                from ..signal.arbitrator import SignalArbitrator
+                arbitrator = SignalArbitrator()
+                logger.info("信号仲裁器已启用")
+        except Exception:
+            pass
+        self.register("arbitrator", arbitrator)
+
         pipeline = UnifiedResearchPipeline(
             analysis_service=analysis_svc,
             backtest_engine=backtest_engine,
             signal_collector=signal_collector,
+            arbitrator=arbitrator,
+            time_provider=time_provider,
         )
         self.register("research_pipeline", pipeline)
 

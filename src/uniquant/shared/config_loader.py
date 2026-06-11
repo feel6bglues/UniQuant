@@ -1,11 +1,81 @@
 import logging
+import os
 import threading
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, List, Optional
 
 import yaml
 
 logger = logging.getLogger("ConfigLoader")
+
+_ENV_PREFIX = "UNIQUANT_"
+_ENV_ALIASES: Dict[str, str] = {
+    "TDX_PATH": "base.tdx.path",
+    "DATA_LAKE_PATH": "base.data_lake.path",
+    "LOG_LEVEL": "base.logging.level",
+    "CACHE_PATH": "cache.global.path",
+    "CACHE_ENABLED": "cache.global.enabled",
+    "DEFAULT_RISK_PCT": "risk.default_risk_pct",
+    "EVENT_BUS": "refactoring.feature_flags.event_bus",
+    "OBSERVABILITY": "refactoring.feature_flags.observability",
+    "STRICT_TIMESTAMPS": "refactoring.feature_flags.strict_timestamps",
+    "FACTOR_GATE": "refactoring.feature_flags.factor_gate",
+}
+
+
+def _parse_env_key(env_name: str) -> Optional[str]:
+    """Parse a UNIQUANT_ env var name into a config key path.
+
+    Priority:
+    1. Alias match in _ENV_ALIASES
+    2. Double-underscore separator: UNIQUANT_BASE__TDX__PATH -> base.tdx.path
+    """
+    if not env_name.startswith(_ENV_PREFIX):
+        return None
+    suffix = env_name[len(_ENV_PREFIX):]
+    if suffix in _ENV_ALIASES:
+        return _ENV_ALIASES[suffix]
+    parts = suffix.lower().split("__")
+    return ".".join(parts)
+
+
+def _cast_env_value(value: str) -> Any:
+    """Cast environment variable string to appropriate Python type."""
+    lower = value.lower().strip()
+    if lower in ("true", "yes", "1"):
+        return True
+    if lower in ("false", "no", "0"):
+        return False
+    try:
+        return int(value)
+    except ValueError:
+        pass
+    try:
+        return float(value)
+    except ValueError:
+        pass
+    return value
+
+
+def _apply_env_overrides(config: Dict[str, Any]) -> Dict[str, Any]:
+    """Apply UNIQUANT_ environment variable overrides to config dict."""
+    overridden: List[str] = []
+    for env_name, env_value in os.environ.items():
+        key_path = _parse_env_key(env_name)
+        if key_path is None:
+            continue
+        keys = key_path.split(".")
+        target = config
+        for k in keys[:-1]:
+            if k not in target or not isinstance(target[k], dict):
+                target[k] = {}
+            target = target[k]
+        target[keys[-1]] = _cast_env_value(env_value)
+        overridden.append(f"{key_path}={env_value}")
+    if overridden:
+        logger.info("Env overrides applied: %s", ", ".join(overridden))
+    return config
+
 
 class GlobalConfig:
     """
@@ -86,6 +156,8 @@ class GlobalConfig:
 
         # Always load factors.yaml separately (individual or standalone)
         self._load_factors_config(config_dir)
+
+        _apply_env_overrides(self._config)
 
         logger.info("Global Configuration Loaded.")
         self.validate_config()
