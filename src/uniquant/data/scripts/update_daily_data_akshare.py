@@ -8,6 +8,8 @@ import time
 import random
 from datetime import datetime
 from pathlib import Path
+
+from ...shared.time_provider import get_time_provider
 from typing import Optional, List, Tuple
 
 import pandas as pd
@@ -80,7 +82,7 @@ def save_progress(completed: set):
     import json
     try:
         with open(PROGRESS_FILE, 'w') as f:
-            json.dump({'completed': list(completed), 'last_update': datetime.now().isoformat()}, f)
+            json.dump({'completed': list(completed), 'last_update': get_time_provider().now().isoformat()}, f)
     except Exception as e:
         logger.warning(f"保存进度失败: {e}")
 
@@ -89,7 +91,7 @@ def fetch_data(code: str) -> Optional[dict]:
     """获取三种复权类型的数据"""
     import akshare as ak
     
-    end_date = datetime.now().strftime('%Y%m%d')
+    end_date = get_time_provider().now().strftime('%Y%m%d')
     start_date = '19900101'
     
     result = {}

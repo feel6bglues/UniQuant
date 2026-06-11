@@ -7,6 +7,7 @@ import logging
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
+from ..shared.time_provider import get_time_provider
 from typing import Dict, List, Optional, Any
 
 import pandas as pd
@@ -313,7 +314,7 @@ class ScanPipeline:
         output_path = Path(output_dir)
         output_path.mkdir(parents=True, exist_ok=True)
         
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        timestamp = get_time_provider().now().strftime("%Y%m%d_%H%M%S")
         
         top_df, bottom_df = self.screener.generate_top_bottom(self.combined_df)
         
@@ -328,7 +329,7 @@ class ScanPipeline:
         top_file = output_path / f"top_stocks_{timestamp}.md"
         with open(top_file, "w", encoding="utf-8") as f:
             f.write(f"# Top {self.config.top_n} Stocks\n\n")
-            f.write(f"Generated at: {datetime.now().isoformat()}\n\n")
+            f.write(f"Generated at: {get_time_provider().now().isoformat()}\n\n")
             f.write(top_table)
         files["top_stocks"] = str(top_file)
         
@@ -336,7 +337,7 @@ class ScanPipeline:
         bottom_file = output_path / f"bottom_stocks_{timestamp}.md"
         with open(bottom_file, "w", encoding="utf-8") as f:
             f.write(f"# Bottom {self.config.bottom_n} Stocks\n\n")
-            f.write(f"Generated at: {datetime.now().isoformat()}\n\n")
+            f.write(f"Generated at: {get_time_provider().now().isoformat()}\n\n")
             f.write(bottom_table)
         files["bottom_stocks"] = str(bottom_file)
         
@@ -344,7 +345,7 @@ class ScanPipeline:
         risk_file = output_path / f"market_risk_{timestamp}.md"
         with open(risk_file, "w", encoding="utf-8") as f:
             f.write("# Market Risk Summary\n\n")
-            f.write(f"Generated at: {datetime.now().isoformat()}\n\n")
+            f.write(f"Generated at: {get_time_provider().now().isoformat()}\n\n")
             f.write(risk_table)
         files["market_risk"] = str(risk_file)
         
@@ -353,7 +354,7 @@ class ScanPipeline:
             sector_file = output_path / f"sector_top_{timestamp}.md"
             with open(sector_file, "w", encoding="utf-8") as f:
                 f.write("# Sector Top Stocks\n\n")
-                f.write(f"Generated at: {datetime.now().isoformat()}\n\n")
+                f.write(f"Generated at: {get_time_provider().now().isoformat()}\n\n")
                 
                 for sector in sector_top_df["sector"].unique() if "sector" in sector_top_df.columns else []:
                     sector_data = sector_top_df[sector_top_df["sector"] == sector]
@@ -370,7 +371,7 @@ class ScanPipeline:
             factor_file = output_path / f"factor_analysis_{timestamp}.md"
             with open(factor_file, "w", encoding="utf-8") as f:
                 f.write("# Factor Analysis Report\n\n")
-                f.write(f"Generated at: {datetime.now().isoformat()}\n\n")
+                f.write(f"Generated at: {get_time_provider().now().isoformat()}\n\n")
                 
                 if "summary" in factor_report:
                     f.write("## Summary\n\n")
@@ -390,7 +391,7 @@ class ScanPipeline:
         tech_signals_file = output_path / f"tech_signals_top20_{timestamp}.md"
         with open(tech_signals_file, "w", encoding="utf-8") as f:
             f.write("# TOP 20 Technical Signals Report\n\n")
-            f.write(f"Generated at: {datetime.now().isoformat()}\n\n")
+            f.write(f"Generated at: {get_time_provider().now().isoformat()}\n\n")
             f.write("> **独立技术信号扫描表** - 便于人工执行参考\n\n")
 
             # Cache top 20 to avoid repeated iterations
@@ -479,7 +480,7 @@ class ScanPipeline:
         Returns:
             执行结果字典
         """
-        start_time = datetime.now()
+        start_time = get_time_provider().now()
         
         logger.info("=" * 60)
         logger.info("Starting Market Scan Pipeline")
@@ -495,7 +496,7 @@ class ScanPipeline:
         
         files = self.generate_report(output_dir)
         
-        end_time = datetime.now()
+        end_time = get_time_provider().now()
         duration = (end_time - start_time).total_seconds()
         
         result = {

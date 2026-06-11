@@ -11,6 +11,7 @@ from datetime import datetime
 from typing import Any, Dict, List
 
 from .models import Signal, SignalSource, SignalStrength, SignalType
+from ..shared.time_provider import get_time_provider
 
 
 # ───────────────────────── 归一化基类 ─────────────────────────
@@ -91,7 +92,7 @@ class LPPLSignalNormalizer(SignalNormalizer):
             direction=direction,
             strength=strength,
             confidence=confidence,
-            timestamp=raw_signal.get("timestamp", datetime.now()),
+            timestamp=raw_signal.get("timestamp", get_time_provider().now()),
             price=raw_signal.get("price", 0.0),
             value=raw_signal.get("value", 0.0),
             metadata={k: v for k, v in raw_signal.items() if k not in ("type", "signal_type", "confidence", "symbol", "timestamp", "price", "value")},
@@ -135,7 +136,7 @@ class WyckoffSignalNormalizer(SignalNormalizer):
             direction=direction,
             strength=strength,
             confidence=confidence,
-            timestamp=raw_signal.get("timestamp", datetime.now()),
+            timestamp=raw_signal.get("timestamp", get_time_provider().now()),
             price=raw_signal.get("price", 0.0),
             value=raw_signal.get("value", 0.0),
             metadata={k: v for k, v in raw_signal.items() if k not in ("type", "signal_type", "confidence", "symbol", "timestamp", "price", "value")},
@@ -189,7 +190,7 @@ class IndicatorSignalNormalizer(SignalNormalizer):
             direction=direction,
             strength=strength,
             confidence=confidence,
-            timestamp=raw_signal.get("timestamp", datetime.now()),
+            timestamp=raw_signal.get("timestamp", get_time_provider().now()),
             price=raw_signal.get("price", 0.0),
             value=raw_signal.get("value", 0.0),
             metadata={k: v for k, v in raw_signal.items() if k not in ("type", "signal_type", "confidence", "symbol", "timestamp", "price", "value", "direction")},
@@ -221,7 +222,7 @@ class CZSCSignalNormalizer(SignalNormalizer):
             direction=direction,
             strength=strength,
             confidence=confidence,
-            timestamp=raw_signal.get("timestamp", datetime.now()),
+            timestamp=raw_signal.get("timestamp", get_time_provider().now()),
             price=raw_signal.get("price", 0.0),
             value=raw_signal.get("value", 0.0),
             metadata={k: v for k, v in raw_signal.items() if k not in ("type", "signal_type", "confidence", "symbol", "timestamp", "price", "value", "direction")},
@@ -278,7 +279,7 @@ class SignalNormalizerRegistry:
             direction=raw_signal.get("direction", 0),
             strength=SignalNormalizer._compute_strength(confidence),
             confidence=confidence,
-            timestamp=raw_signal.get("timestamp", datetime.now()),
+            timestamp=raw_signal.get("timestamp", get_time_provider().now()),
             price=raw_signal.get("price", 0.0),
             value=raw_signal.get("value", 0.0),
             metadata={"raw_signal": raw_signal},

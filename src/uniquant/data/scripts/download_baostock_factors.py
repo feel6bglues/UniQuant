@@ -3,6 +3,8 @@ import pandas as pd
 import os
 import datetime
 from tqdm import tqdm
+
+from ...shared.time_provider import get_time_provider
 from uniquant.shared.logger_factory import get_logger
 
 # ================= 配置区域 =================
@@ -11,7 +13,7 @@ OUTPUT_DIR = "data/baostock_factors"
 # 起始日期 (A股早期)
 START_DATE = "1990-01-01"
 # 结束日期 (默认为今天)
-END_DATE = datetime.datetime.now().strftime("%Y-%m-%d")
+END_DATE = get_time_provider().now().strftime("%Y-%m-%d")
 # ===========================================
 
 logger = get_logger(__name__)

@@ -10,6 +10,7 @@ from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 
 from .models import Signal, SignalBatch, SignalSource, SignalStrength, SignalType
+from ..shared.time_provider import get_time_provider
 
 
 # 延迟导入 SQLAlchemy，允许在未安装时优雅降级
@@ -250,7 +251,7 @@ class SignalDatabase:
         Returns:
             信号列表
         """
-        cutoff = datetime.now() - timedelta(minutes=minutes)
+        cutoff = get_time_provider().now() - timedelta(minutes=minutes)
         with self._get_session() as session:
             records = (
                 session.query(SignalRecord)

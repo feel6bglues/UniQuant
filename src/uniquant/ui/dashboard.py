@@ -6,6 +6,8 @@ import numpy as np
 import pandas as pd
 import streamlit as st
 
+from ..shared.time_provider import get_time_provider
+
 # Make streamlit extensions optional dependencies
 try:
     from st_aggrid import AgGrid, GridOptionsBuilder
@@ -162,9 +164,9 @@ with st.sidebar.expander("🔄 自动刷新设置", expanded=False):
 
         # 显示最后更新时间
         if "last_refresh_time" not in st.session_state:
-            st.session_state["last_refresh_time"] = datetime.now()
+            st.session_state["last_refresh_time"] = get_time_provider().now()
 
-        time_since_refresh = (datetime.now() - st.session_state["last_refresh_time"]).total_seconds()
+        time_since_refresh = (get_time_provider().now() - st.session_state["last_refresh_time"]).total_seconds()
         st.sidebar.caption(f"⏱️ 上次更新: {int(time_since_refresh)}秒前")
 
         # 执行自动刷新逻辑
@@ -177,7 +179,7 @@ with st.sidebar.expander("🔄 自动刷新设置", expanded=False):
 
             if should_refresh:
                 st_autorefresh(interval=refresh_interval * 1000, limit=None, key="data_refresh")
-                st.session_state["last_refresh_time"] = datetime.now()
+                st.session_state["last_refresh_time"] = get_time_provider().now()
             else:
                 st.sidebar.info("⏸️ 当前非交易时间，已暂停自动刷新")
         else:
@@ -566,7 +568,7 @@ with tabs[2]:
                 st.error(f"❌ {e}")
     with col_dates:
         start_date = st.date_input("Start Date", datetime(2024, 1, 1), key="czsc_start_date")
-        end_date = st.date_input("End Date", datetime.now(), key="czsc_end_date")
+        end_date = st.date_input("End Date", get_time_provider().now(), key="czsc_end_date")
 
         # 验证日期范围
         try:
@@ -1424,7 +1426,7 @@ with tabs[7]:
             risk_scores = {}
             for symbol in selected_symbols:
                 try:
-                    end_date = datetime.now()
+                    end_date = get_time_provider().now()
                     start_date = end_date - timedelta(days=252)
                     df = asset_mgr.get_real_kline_data(
                         symbol,
@@ -1456,7 +1458,7 @@ with tabs[7]:
         else:
             # Build portfolio equity curve from selected symbols
             def _build_portfolio_equity():
-                end = datetime.now()
+                end = get_time_provider().now()
                 start = end - timedelta(days=504)
                 all_rets = []
                 for sym in selected_symbols:

@@ -27,6 +27,8 @@ from pathlib import Path
 from typing import Optional, Tuple, Dict, List
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor, as_completed
+
+from ...shared.time_provider import get_time_provider
 from collections import defaultdict
 import threading
 
@@ -97,7 +99,7 @@ class FinancialFingerprint:
                 'size': filepath.stat().st_size,
                 'records': record_count,
                 'status': 'success' if success else 'failed',
-                'updated_at': datetime.now().isoformat(),
+                'updated_at': get_time_provider().now().isoformat(),
             }
         except OSError:
             logger.exception("获取文件状态失败，跳过")

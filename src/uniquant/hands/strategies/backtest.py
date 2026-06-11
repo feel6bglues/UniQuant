@@ -26,6 +26,7 @@ from uniquant.hands.strategies.registry import STRATEGY_MAP
 from uniquant.shared.backtest_utils import filter_suspended
 from uniquant.shared.constants import RANDOM_SEED
 from uniquant.shared.logger_factory import get_logger
+from uniquant.shared.time_provider import get_time_provider
 from uniquant.shared.limits import is_limit_down, is_limit_up
 from uniquant.shared.cost_model import (
     COMMISSION_PCT,
@@ -332,12 +333,11 @@ def process_stock(args: Tuple) -> List[Dict]:
                         # Survivorship bias risk: using today's stock list excludes delisted stocks
                         try:
                             last_date = df["date"].max()
-                            is_delisted = last_date < pd.Timestamp.now() - pd.DateOffset(years=1)
+                            is_delisted = last_date < pd.Timestamp(get_time_provider().now()) - pd.DateOffset(years=1)
                         except Exception:
                             is_delisted = False
                         if is_delisted:
-                            # Apply survivorship bias penalty: delisted stocks get additional -20% annualized
-                            now = pd.Timestamp.now()
+                            now = pd.Timestamp(get_time_provider().now())
                             days_since_last = (now - last_date).days
                             if days_since_last > 0:
                                 penalty = -0.20 * days_since_last / 365.0

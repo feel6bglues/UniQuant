@@ -6,6 +6,7 @@ from typing import Any, Dict, List
 
 import pandas as pd
 
+from ..shared.time_provider import get_time_provider
 from ..shared.constants import DataServiceConstants
 from ..shared.logger_factory import get_logger
 
@@ -54,7 +55,7 @@ class DataQualityService:
                 "quality_score": 0.0,
                 "status": "no_data",
                 "metrics": {},
-                "timestamp": pd.Timestamp.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "timestamp": pd.Timestamp(get_time_provider().now()).strftime("%Y-%m-%d %H:%M:%S"),
             }
         
         metrics = {
@@ -82,7 +83,7 @@ class DataQualityService:
             "quality_score": round(quality_score, 2),
             "status": status,
             "metrics": metrics,
-            "timestamp": pd.Timestamp.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "timestamp": pd.Timestamp(get_time_provider().now()).strftime("%Y-%m-%d %H:%M:%S"),
         }
         
         logger.info("Data quality for %s: %s", symbol, result)
@@ -135,7 +136,7 @@ class DataQualityService:
         
         if isinstance(df.index, pd.DatetimeIndex):
             latest_date = df.index.max()
-            today = pd.Timestamp.now().normalize()
+            today = pd.Timestamp(get_time_provider().now()).normalize()
             days_diff = (today - latest_date).days
             
             if days_diff == 0:
@@ -245,8 +246,8 @@ class DataQualityService:
                 problem_data = []
             
             report = {
-                "report_id": pd.Timestamp.now().strftime("%Y%m%d_%H%M%S"),
-                "timestamp": pd.Timestamp.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "report_id": pd.Timestamp(get_time_provider().now()).strftime("%Y%m%d_%H%M%S"),
+                "timestamp": pd.Timestamp(get_time_provider().now()).strftime("%Y-%m-%d %H:%M:%S"),
                 "total_items": len(data_items),
                 "analyzed_items": len(health_results),
                 "average_quality_score": round(avg_score, 2),
@@ -262,7 +263,7 @@ class DataQualityService:
             logger.error("Failed to generate data quality report: %s", e)
             return {
                 "error": str(e),
-                "timestamp": pd.Timestamp.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "timestamp": pd.Timestamp(get_time_provider().now()).strftime("%Y-%m-%d %H:%M:%S"),
             }
     
     def _generate_recommendations(
@@ -330,14 +331,14 @@ class DataQualityService:
             quality_score = result.get("quality_score", 0)
             if quality_score < threshold:
                 alert = {
-                    "alert_id": f"{result.get('symbol')}_{pd.Timestamp.now().strftime('%Y%m%d_%H%M%S')}",
+                    "alert_id": f"{result.get('symbol')}_{pd.Timestamp(get_time_provider().now()).strftime('%Y%m%d_%H%M%S')}",
                     "symbol": result.get("symbol"),
                     "data_type": result.get("data_type"),
                     "quality_score": quality_score,
                     "status": result.get("status"),
                     "threshold": threshold,
                     "severity": "high" if quality_score < 50 else "medium",
-                    "timestamp": pd.Timestamp.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    "timestamp": pd.Timestamp(get_time_provider().now()).strftime("%Y-%m-%d %H:%M:%S"),
                     "message": f"Data quality alert for {result.get('symbol')}: {quality_score:.2f} < {threshold}",
                 }
                 alerts.append(alert)

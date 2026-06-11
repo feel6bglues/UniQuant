@@ -14,6 +14,8 @@ from typing import List, Optional
 
 import pandas as pd
 
+from ...shared.time_provider import get_time_provider
+
 from uniquant.brain.wyckoff.models import (
     AnalysisResult,
     AnalysisState,
@@ -264,7 +266,7 @@ class WyckoffReportGenerator:
     </div>
     
     <footer style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #ddd; color: #7f8c8d; font-size: 0.9em;">
-        生成时间：{datetime.now().strftime("%Y-%m-%d %H:%M:%S")} | 威科夫多模态分析系统 v1.0
+        生成时间：{get_time_provider().now().strftime("%Y-%m-%d %H:%M:%S")} | 威科夫多模态分析系统 v1.0
     </footer>
 </body>
 </html>"""

@@ -6,6 +6,7 @@ from typing import Any, Dict, List, Optional
 import numpy as np
 import pandas as pd
 
+from ..shared.time_provider import get_time_provider
 from ..shared.cache.cache_factory import CacheFactory
 from ..shared.config_loader import get_config
 from ..shared.constants import (
@@ -792,7 +793,7 @@ class AnalysisService:
         市场状态是全市场共享的，只需计算一次
         """
         try:
-            today = pd.Timestamp.now().strftime("%Y-%m-%d")
+            today = pd.Timestamp(get_time_provider().now()).strftime("%Y-%m-%d")
             
             with self._cache_lock:
                 if self._market_cache_date == today and self._market_regime is not None:
@@ -849,7 +850,7 @@ class AnalysisService:
         国家队干预信号是全市场共享的，只需计算一次
         """
         try:
-            today = pd.Timestamp.now().strftime("%Y-%m-%d")
+            today = pd.Timestamp(get_time_provider().now()).strftime("%Y-%m-%d")
             
             with self._cache_lock:
                 if self._market_cache_date == today and self._ntf_signals is not None:
@@ -863,8 +864,8 @@ class AnalysisService:
             fetcher = getattr(self.data_service, "fetcher", None)
             if fetcher is None:
                 raise DataFetchError("Legacy NTF detection requires injected DataService.fetcher")
-            end_date = pd.Timestamp.now().strftime("%Y-%m-%d")
-            start_date = (pd.Timestamp.now() - pd.DateOffset(days=TimeConstants.DAYS_MONTH * 3)).strftime("%Y-%m-%d")
+            end_date = pd.Timestamp(get_time_provider().now()).strftime("%Y-%m-%d")
+            start_date = (pd.Timestamp(get_time_provider().now()) - pd.DateOffset(days=TimeConstants.DAYS_MONTH * 3)).strftime("%Y-%m-%d")
 
             ntf_engine = NTFEngine()
             
@@ -1075,14 +1076,14 @@ class AnalysisService:
         try:
             import json
 
-            date_str = pd.Timestamp.now().strftime(ResultsConstants.DATE_FOLDER_FORMAT)
+            date_str = pd.Timestamp(get_time_provider().now()).strftime(ResultsConstants.DATE_FOLDER_FORMAT)
             
             if ResultsConstants.USE_DATE_FOLDERS:
                 result_dir = get_config().ROOT_DIR / ResultsConstants.HANDS_DIR_NAME / ResultsConstants.RESULTS_DIR_NAME / date_str
                 filename = f"{ticker}{ResultsConstants.RESULTS_FILE_SUFFIX}"
             else:
                 result_dir = get_config().ROOT_DIR / ResultsConstants.HANDS_DIR_NAME / ResultsConstants.RESULTS_DIR_NAME
-                date_suffix = pd.Timestamp.now().strftime(ResultsConstants.RESULTS_DATE_FORMAT)
+                date_suffix = pd.Timestamp(get_time_provider().now()).strftime(ResultsConstants.RESULTS_DATE_FORMAT)
                 filename = f"{ticker}_{date_suffix}{ResultsConstants.RESULTS_FILE_SUFFIX}"
             
             result_dir.mkdir(parents=True, exist_ok=True)
@@ -1090,7 +1091,7 @@ class AnalysisService:
 
             result_data = {
                 "symbol": ticker,
-                "date": pd.Timestamp.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "date": pd.Timestamp(get_time_provider().now()).strftime("%Y-%m-%d %H:%M:%S"),
                 "decision_result": decision_result,
                 "indicators": data_pack.get("indicators", {}),
                 "data_pack": {

@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 import pandas as pd
 
 from ...shared.logger_factory import get_logger
+from ...shared.time_provider import get_time_provider
 from ..utils.normalizer import normalize_column_names as _normalize_columns
 
 logger = get_logger(__name__)
@@ -25,9 +26,7 @@ class StandardAdapter(DataSourceAdapter):
     def fetch(self, symbol: str, start_date: str) -> pd.DataFrame:
         """获取并标准化数据"""
         # 调用具体数据源获取原始数据
-        from datetime import datetime
-
-        end_date = datetime.now().strftime("%Y%m%d")
+        end_date = get_time_provider().now().strftime("%Y%m%d")
 
         try:
             raw_data = self.data_source.fetch_daily(symbol, start_date, end_date)

@@ -11,6 +11,8 @@ import time
 import traceback
 from datetime import datetime, timedelta
 from enum import Enum
+
+from ...shared.time_provider import get_time_provider
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
@@ -95,7 +97,7 @@ class IncrementalUpdater:
                 json.dump(
                     {
                         "stocks": self.progress,
-                        "last_update": datetime.now().isoformat(),
+                        "last_update": get_time_provider().now().isoformat(),
                         "stats": self.stats,
                     },
                     f,
@@ -173,7 +175,7 @@ class IncrementalUpdater:
             return True
 
         try:
-            backup_path = BACKUP_DIR / f"{symbol}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.parquet"
+            backup_path = BACKUP_DIR / f"{symbol}_{get_time_provider().now().strftime('%Y%m%d_%H%M%S')}.parquet"
             shutil.copy2(file_path, backup_path)
             logger.debug(f"备份文件: {backup_path}")
             return True
@@ -373,7 +375,7 @@ class IncrementalUpdater:
         if local_latest is None:
             return UpdateMode.FULL, None
 
-        today = datetime.now()
+        today = get_time_provider().now()
         days_diff = (today - local_latest).days
 
         if days_diff <= 0:
@@ -392,7 +394,7 @@ class IncrementalUpdater:
             logger.debug(f"{symbol} 数据已是最新，跳过")
             return UpdateResult.SKIPPED
 
-        today = datetime.now()
+        today = get_time_provider().now()
         end_date = today.strftime("%Y%m%d")
 
         if mode == UpdateMode.FULL:
@@ -436,7 +438,7 @@ class IncrementalUpdater:
 
         if self._save_data_atomic(final_df, symbol):
             self.progress[symbol] = {
-                "last_update": datetime.now().isoformat(),
+                "last_update": get_time_provider().now().isoformat(),
                 "record_count": len(final_df),
                 "latest_date": final_df["date"].max().strftime("%Y-%m-%d"),
                 "mode": mode.value,

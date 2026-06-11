@@ -14,6 +14,7 @@ from scipy import stats
 
 from ...shared.error_handling import handle_errors
 from ...shared.logger_factory import get_logger
+from ...shared.time_provider import get_time_provider
 
 logger = get_logger("FactorAnalyzer")
 
@@ -169,7 +170,7 @@ class FactorAnalyzer:
 
         if "date" in df.columns:
             max_date = pd.to_datetime(df["date"]).max()
-            if max_date > pd.Timestamp.now():
+            if max_date > pd.Timestamp(get_time_provider().now()):
                 raise ValueError(
                     f"Future timestamp detected in data: {max_date}. "
                     "Data contains future dates beyond current time. "

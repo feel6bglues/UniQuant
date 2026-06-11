@@ -10,6 +10,8 @@ import argparse
 import json
 from datetime import datetime
 from pathlib import Path
+
+from ...shared.time_provider import get_time_provider
 from typing import Dict, List, Optional
 
 import pandas as pd
@@ -64,7 +66,7 @@ def load_progress() -> dict:
 
 def save_progress(progress: dict):
     try:
-        progress["last_update"] = datetime.now().isoformat()
+        progress["last_update"] = get_time_provider().now().isoformat()
         with open(PROGRESS_FILE, "w") as f:
             json.dump(progress, f, ensure_ascii=False, indent=2)
     except Exception as e:

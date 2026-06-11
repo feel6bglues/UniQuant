@@ -11,6 +11,7 @@ from datetime import datetime, timedelta
 from enum import Enum
 from typing import Dict, List, Optional
 
+from ..shared.time_provider import get_time_provider
 from .models import (
     AggregatedSignal,
     Signal,
@@ -347,7 +348,7 @@ class TimeWindowAggregator:
         Returns:
             聚合结果列表（每种信号类型一个）
         """
-        now = datetime.now()
+        now = get_time_provider().now()
         cutoff = now - self.window
 
         # 清除过期信号

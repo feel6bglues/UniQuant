@@ -5,6 +5,7 @@ from typing import Any, Dict, List, Optional
 import pandas as pd
 
 from ..services.analysis_service_v2 import AnalysisService
+from ..shared.time_provider import get_time_provider
 
 # Import New Services
 from ..services.data_service import DataService
@@ -313,8 +314,8 @@ class AssetManager:
             from ...brain.fsm import FSM
 
             # 获取股票数据
-            end_date = datetime.datetime.now().strftime("%Y-%m-%d")
-            start_date = (datetime.datetime.now() - datetime.timedelta(days=120)).strftime("%Y-%m-%d")
+            end_date = get_time_provider().now().strftime("%Y-%m-%d")
+            start_date = (get_time_provider().now() - datetime.timedelta(days=120)).strftime("%Y-%m-%d")
             df = self.get_real_kline_data(ticker, start_date, end_date)
 
             if df is None or df.empty:
@@ -330,7 +331,7 @@ class AssetManager:
                 state_desc=state_result.get("state_desc", ""),
                 transition_reason=state_result.get("transition_reason", ""),
                 ma_status=state_result.get("ma_status", "N/A"),
-                timestamp=datetime.datetime.now()
+                timestamp=get_time_provider().now()
             )
 
         except (ValueError, TypeError) as e:

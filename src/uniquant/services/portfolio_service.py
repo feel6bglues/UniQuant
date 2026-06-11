@@ -4,6 +4,7 @@ from typing import Any, Dict, List, Optional
 
 import pandas as pd
 
+from ..shared.time_provider import get_time_provider
 from ..shared.error_handling import handle_errors
 from ..shared.exceptions import (
     AnalysisError,
@@ -218,7 +219,7 @@ class PortfolioService:
             "strategy": strategy,
             "symbols": symbols,
             "weights": self.calculate_weights(strategy, symbols),
-            "created_at": pd.Timestamp.now().isoformat(),
+            "created_at": pd.Timestamp(get_time_provider().now()).isoformat(),
         }
         return portfolio
 
@@ -366,7 +367,7 @@ class PortfolioService:
         analysis = {
             "risk_metrics": self.calculate_risk_metrics(portfolio),
             "performance_metrics": self.calculate_performance_metrics(portfolio),
-            "analysis_date": pd.Timestamp.now().isoformat(),
+            "analysis_date": pd.Timestamp(get_time_provider().now()).isoformat(),
         }
         return analysis
 
@@ -548,7 +549,7 @@ class PortfolioService:
 
             rebalanced = portfolio.copy()
             rebalanced["weights"] = {k: float(v) for k, v in target_weights.items()}
-            rebalanced["rebalanced_at"] = pd.Timestamp.now().isoformat()
+            rebalanced["rebalanced_at"] = pd.Timestamp(get_time_provider().now()).isoformat()
             rebalanced["trades"] = trades
 
             logger.info(f"再平衡完成: {len(trades)} 笔交易")
@@ -579,7 +580,7 @@ class PortfolioService:
 
             rebalanced = portfolio.copy()
             rebalanced["weights"] = target_weights
-            rebalanced["rebalanced_at"] = pd.Timestamp.now().isoformat()
+            rebalanced["rebalanced_at"] = pd.Timestamp(get_time_provider().now()).isoformat()
             return rebalanced
         except DataValidationError as e:
             logger.error(f"Failed to rebalance portfolio: {e}")

@@ -7,6 +7,7 @@ import pandas as pd
 from ..services.portfolio_service import PortfolioService
 from ..shared.constants import RiskCalculationConstants
 from ..shared.logger_factory import get_logger
+from ..shared.time_provider import get_time_provider
 
 logger = get_logger(__name__)
 
@@ -121,7 +122,7 @@ class ManagerPortfolioAnalyticsService:
         symbol_limit: int,
     ) -> Dict[str, pd.Series]:
         returns_data: Dict[str, pd.Series] = {}
-        end_date = datetime.datetime.now()
+        end_date = get_time_provider().now()
         start_date = end_date - datetime.timedelta(days=lookback_days * 2)
 
         for symbol in symbols[:symbol_limit]:

@@ -7,6 +7,7 @@ import pandas as pd
 import plotly.graph_objects as go
 
 from ..shared.logger_factory import get_logger
+from ..shared.time_provider import get_time_provider
 
 logger = get_logger("LPPLVisualizer")
 
@@ -180,7 +181,7 @@ class LPPLVisualizer:
         # 如果仍然找不到日期列，使用当前日期
         if last_real_date is None:
             logger.warning("无法找到日期列，使用当前日期")
-            last_real_date = datetime.now()
+            last_real_date = get_time_provider().now()
 
         # 生成对应的日期列表
         plot_dates = []

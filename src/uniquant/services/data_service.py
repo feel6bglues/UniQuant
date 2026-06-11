@@ -5,6 +5,7 @@
 import logging
 import multiprocessing
 import os
+from ..shared.time_provider import get_time_provider
 from functools import partial
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -427,8 +428,8 @@ class DataService:
         self, sector_name: str, days: int = TimeConstants.DATA_WINDOW_30DAYS
     ) -> Optional[pd.DataFrame]:
         """获取板块表现数据"""
-        end_date = pd.Timestamp.now().strftime("%Y-%m-%d")
-        start_date = (pd.Timestamp.now() - pd.DateOffset(days=days)).strftime("%Y-%m-%d")
+        end_date = pd.Timestamp(get_time_provider().now()).strftime("%Y-%m-%d")
+        start_date = (pd.Timestamp(get_time_provider().now()) - pd.DateOffset(days=days)).strftime("%Y-%m-%d")
         df = self.fetcher.fetch_sector_daily(sector_name, start_date, end_date)
         if df.empty:
             logger.warning("No sector data for %s", sector_name)
@@ -517,9 +518,9 @@ class DataService:
     )
     def download_stock(self, symbol: str) -> bool:
         """下载股票数据"""
-        end_date = pd.Timestamp.now().strftime("%Y-%m-%d")
+        end_date = pd.Timestamp(get_time_provider().now()).strftime("%Y-%m-%d")
         start_date = (
-            pd.Timestamp.now() - pd.DateOffset(days=TimeConstants.DATA_WINDOW_365DAYS)
+            pd.Timestamp(get_time_provider().now()) - pd.DateOffset(days=TimeConstants.DATA_WINDOW_365DAYS)
         ).strftime("%Y-%m-%d")
 
         result = self.fetch_and_save_stock(symbol, start_date, end_date)
@@ -529,9 +530,9 @@ class DataService:
         """下载ETF板块数据"""
         try:
             etfs = ["510300", "510500", "510050", "513050"]
-            end_date = pd.Timestamp.now().strftime("%Y-%m-%d")
+            end_date = pd.Timestamp(get_time_provider().now()).strftime("%Y-%m-%d")
             start_date = (
-                pd.Timestamp.now() - pd.DateOffset(days=TimeConstants.DATA_WINDOW_365DAYS)
+                pd.Timestamp(get_time_provider().now()) - pd.DateOffset(days=TimeConstants.DATA_WINDOW_365DAYS)
             ).strftime("%Y-%m-%d")
 
             results = self.batch_process_stocks(etfs, start_date, end_date)

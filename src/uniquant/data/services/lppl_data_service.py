@@ -1,6 +1,8 @@
 from datetime import datetime, timedelta
 from typing import Dict
 
+from ...shared.time_provider import get_time_provider
+
 import pandas as pd
 
 from ..data_fetcher import DataFetcher
@@ -43,8 +45,8 @@ class LPPLDataService:
         Returns:
             指数数据DataFrame
         """
-        end_date = datetime.now().strftime("%Y-%m-%d")
-        start_date = (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%d")
+        end_date = get_time_provider().now().strftime("%Y-%m-%d")
+        start_date = (get_time_provider().now() - timedelta(days=days)).strftime("%Y-%m-%d")
 
         # 优先从数据湖读取
         df = self.data_lake.read_data(symbol, data_type="index", market="cn")
@@ -54,7 +56,7 @@ class LPPLDataService:
             last_date = df.index.max() if hasattr(df.index, "max") else None
             if last_date:
                 days_since_last_update = (
-                    datetime.now() - pd.to_datetime(last_date)
+                    get_time_provider().now() - pd.to_datetime(last_date)
                 ).days
                 if days_since_last_update <= 1:
                     logger.info(f"从数据湖读取指数 {symbol} 数据，共 {len(df)} 条记录")

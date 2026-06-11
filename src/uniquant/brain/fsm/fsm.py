@@ -13,6 +13,7 @@ from ...shared.config_loader import get_config
 from ...shared.constants import IndicatorThresholds
 from ...shared.error_handling import handle_errors
 from ...shared.exceptions import AnalysisError
+from ...shared.time_provider import get_time_provider
 from ...shared.interfaces import MarketSignalContext, PositionSizerProtocol, RiskAssessmentProtocol
 from ...shared.limit_checker import check_limit_status
 from ...shared.logger_factory import get_logger
@@ -705,7 +706,7 @@ class DecisionBrain:
                 "state": self.state.value if isinstance(self.state, FSMState) else str(self.state),
                 "previous_state": self._previous_state.value if isinstance(self._previous_state, FSMState) else str(self._previous_state),
                 "state_history": self._state_history[-100:],  # 只保存最近100条记录
-                "timestamp": pd.Timestamp.now().isoformat(),
+                "timestamp": pd.Timestamp(get_time_provider().now()).isoformat(),
             }
             
             state_file = self._get_state_file_path()

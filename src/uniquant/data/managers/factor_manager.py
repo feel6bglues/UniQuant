@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Optional, Dict, List, Any
 
 from ...shared.logger_factory import get_logger
+from ...shared.time_provider import get_time_provider
 from ...data.lake.storage_manager import StorageManager
 from ...data.utils.smart_factor_calculator import SmartFactorCalculator
 
@@ -441,7 +442,7 @@ class FactorManager:
             stats = {
                 'total_factors': total_factors,
                 'factors_dir': str(self.factors_dir.absolute()),
-                'last_updated': pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')
+                'last_updated': pd.Timestamp(get_time_provider().now()).strftime('%Y-%m-%d %H:%M:%S')
             }
             
             logger.info(f"复权因子统计: {stats}")

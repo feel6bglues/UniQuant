@@ -17,6 +17,7 @@ from __future__ import annotations
 import logging
 import uuid
 from dataclasses import dataclass
+from ..shared.time_provider import get_time_provider
 from typing import Any, Dict, List, Optional
 
 import pandas as pd
@@ -445,9 +446,9 @@ class AnalysisService:
             from ..brain.ntf.ntf_engine import NTFEngine
 
             fetcher = self.data_service.fetcher
-            end_date = pd.Timestamp.now().strftime("%Y-%m-%d")
+            end_date = pd.Timestamp(get_time_provider().now()).strftime("%Y-%m-%d")
             start_date = (
-                pd.Timestamp.now() - pd.DateOffset(months=3)
+                pd.Timestamp(get_time_provider().now()) - pd.DateOffset(months=3)
             ).strftime("%Y-%m-%d")
 
             ntf = NTFEngine()

@@ -8,8 +8,8 @@ MacroAnalysisService: 宏观分析服务
 - 宏观健康分析
 """
 
-import datetime
 import logging
+from ...shared.time_provider import get_time_provider
 from typing import Any, Dict, Optional
 
 import numpy as np
@@ -209,9 +209,9 @@ class MacroAnalysisService:
     )
     def get_macro_returns(self, window: int = 200) -> pd.Series:
         """Fetch real returns for Macro Cockpit (HS300)."""
-        end_date = datetime.datetime.now().strftime("%Y%m%d")
+        end_date = get_time_provider().now().strftime("%Y%m%d")
         start_date = (
-            datetime.datetime.now() - datetime.timedelta(days=window * 2)
+            get_time_provider().now() - datetime.timedelta(days=window * 2)
         ).strftime("%Y%m%d")
 
         if self.data_service is None:
@@ -358,7 +358,7 @@ class MacroAnalysisService:
     def detect_market_regime(self, data_pack: Dict[str, Any]) -> None:
         """Detect market regime with caching."""
         try:
-            today = pd.Timestamp.now().strftime("%Y-%m-%d")
+            today = pd.Timestamp(get_time_provider().now()).strftime("%Y-%m-%d")
             
             if self._market_cache_date == today and self._market_regime is not None:
                 data_pack["regime"] = self._market_regime
@@ -416,7 +416,7 @@ class MacroAnalysisService:
     def detect_ntf_signals(self, data_pack: Dict[str, Any]) -> None:
         """Detect NTF signals with caching."""
         try:
-            today = pd.Timestamp.now().strftime("%Y-%m-%d")
+            today = pd.Timestamp(get_time_provider().now()).strftime("%Y-%m-%d")
             
             if self._market_cache_date == today and self._ntf_signals is not None:
                 data_pack["ntf_side"] = self._ntf_signals.get("side", "NONE")
@@ -430,8 +430,8 @@ class MacroAnalysisService:
             if fetcher is None:
                 raise DataFetchError("NTF detection requires an injected DataFetcher")
 
-            end_date = pd.Timestamp.now().strftime("%Y-%m-%d")
-            start_date = (pd.Timestamp.now() - pd.DateOffset(days=TimeConstants.DAYS_MONTH * 3)).strftime("%Y-%m-%d")
+            end_date = pd.Timestamp(get_time_provider().now()).strftime("%Y-%m-%d")
+            start_date = (pd.Timestamp(get_time_provider().now()) - pd.DateOffset(days=TimeConstants.DAYS_MONTH * 3)).strftime("%Y-%m-%d")
             
             ntf_engine = NTFEngine()
             primary_etf = "510300.SH"

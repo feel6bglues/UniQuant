@@ -13,6 +13,8 @@ from datetime import datetime
 from enum import Enum, IntEnum
 from typing import Any, Dict, List, Optional
 
+from ..shared.time_provider import get_time_provider
+
 
 # ───────────────────────── 信号类型枚举 (27 种, 9 大类) ─────────────────────────
 
@@ -119,7 +121,7 @@ class Signal:
     direction: int = 0
     strength: SignalStrength = SignalStrength.MODERATE
     confidence: float = 0.5
-    timestamp: datetime = field(default_factory=datetime.now)
+    timestamp: datetime = field(default_factory=lambda: get_time_provider().now())
     expiration: Optional[datetime] = None
     price: float = 0.0
     value: float = 0.0
@@ -130,7 +132,7 @@ class Signal:
         """信号是否已过期"""
         if self.expiration is None:
             return False
-        return datetime.now() > self.expiration
+        return get_time_provider().now() > self.expiration
 
     def is_bullish(self) -> bool:
         """是否看多信号"""
@@ -169,7 +171,7 @@ class Signal:
             direction=data.get("direction", 0),
             strength=SignalStrength(data["strength"]) if "strength" in data else SignalStrength.MODERATE,
             confidence=data.get("confidence", 0.5),
-            timestamp=datetime.fromisoformat(data["timestamp"]) if "timestamp" in data else datetime.now(),
+            timestamp=datetime.fromisoformat(data["timestamp"]) if "timestamp" in data else get_time_provider().now(),
             expiration=datetime.fromisoformat(data["expiration"]) if data.get("expiration") else None,
             price=data.get("price", 0.0),
             value=data.get("value", 0.0),

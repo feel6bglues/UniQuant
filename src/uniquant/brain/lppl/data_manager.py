@@ -7,6 +7,7 @@ import pandas as pd
 from ...shared.error_handling import handle_errors
 from ...shared.exceptions import DataError, DataFetchError
 from ...shared.logger_factory import get_logger
+from ...shared.time_provider import get_time_provider
 
 try:
     from ...data.services.lppl_data_service import LPPLDataService
@@ -75,8 +76,8 @@ class LPPLDataManager:
             fetcher = DataFetcher()
 
             # 使用DataFetcher获取股票数据
-            end_date = pd.Timestamp.now().strftime("%Y-%m-%d")
-            start_date = (pd.Timestamp.now() - pd.Timedelta(days=365)).strftime(
+            end_date = pd.Timestamp(get_time_provider().now()).strftime("%Y-%m-%d")
+            start_date = (pd.Timestamp(get_time_provider().now()) - pd.Timedelta(days=365)).strftime(
                 "%Y-%m-%d"
             )
 

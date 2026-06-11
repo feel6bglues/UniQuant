@@ -8,6 +8,8 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from uniquant.shared.time_provider import get_time_provider
+
 
 from uniquant.shared.constants import ResultsConstants
 from uniquant.shared.logger_factory import get_logger
@@ -64,7 +66,7 @@ class ResultsManager:
         if not self.use_date_folders:
             return self.results_dir
         
-        folder_date = date_str or datetime.now().strftime(ResultsConstants.DATE_FOLDER_FORMAT)
+        folder_date = date_str or get_time_provider().now().strftime(ResultsConstants.DATE_FOLDER_FORMAT)
         target_dir = self.results_dir / folder_date
         target_dir.mkdir(parents=True, exist_ok=True)
         return target_dir
@@ -112,7 +114,7 @@ class ResultsManager:
 
     def _report_exists(self, symbol: str, date_str: Optional[str]) -> bool:
         """兼容新旧报告目录与命名协议。"""
-        normalized_date = self._normalize_result_date(date_str) or datetime.now().strftime("%Y-%m-%d")
+        normalized_date = self._normalize_result_date(date_str) or get_time_provider().now().strftime("%Y-%m-%d")
         date_folder_report = (
             self.reports_dir
             / normalized_date
@@ -320,7 +322,7 @@ class ResultsManager:
         if days is None:
             days = ResultsConstants.CLEANUP_THRESHOLD_DAYS
         
-        threshold = datetime.now() - timedelta(days=days)
+        threshold = get_time_provider().now() - timedelta(days=days)
         deleted_count = 0
         
         if not self.results_dir.exists():

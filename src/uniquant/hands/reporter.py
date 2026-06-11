@@ -5,6 +5,7 @@ from typing import Any, Dict, Optional
 
 from uniquant.shared.constants import ResultsConstants
 from uniquant.shared.logger_factory import get_logger
+from uniquant.shared.time_provider import get_time_provider
 
 logger = get_logger("Reporter")
 
@@ -28,7 +29,7 @@ class Reporter:
     def _get_output_dir(self, date_str: str | None = None) -> Path:
         """获取输出目录，支持按日期分类"""
         if self.use_date_folders:
-            date_folder = date_str or datetime.datetime.now().strftime("%Y-%m-%d")
+            date_folder = date_str or get_time_provider().now().strftime("%Y-%m-%d")
             output_dir = self.output_root / date_folder
             output_dir.mkdir(parents=True, exist_ok=True)
             return output_dir
@@ -121,7 +122,7 @@ class Reporter:
 
         name = self.stock_name_map.get(symbol, symbol)
         lines.append(f"# {name} ({symbol}) 个股分析报告\n")
-        lines.append(f"**生成时间**: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+        lines.append(f"**生成时间**: {get_time_provider().now().strftime('%Y-%m-%d %H:%M:%S')}\n")
         lines.append("---\n")
 
         if "price" in data:

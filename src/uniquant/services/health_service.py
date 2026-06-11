@@ -1,6 +1,7 @@
 import datetime
 import json
 import time
+from ..shared.time_provider import get_time_provider
 from typing import Dict, List, Any, Optional
 
 import pandas as pd
@@ -65,12 +66,12 @@ class HealthService:
             config_sections = list(self.config._config.keys())
             return {
                 "status": "alive",
-                "timestamp": datetime.datetime.now().isoformat(),
+                "timestamp": get_time_provider().now().isoformat(),
                 "config_loaded": len(config_sections) > 0,
                 "config_sections": config_sections,
             }
         except Exception as e:
-            return {"status": "dead", "timestamp": datetime.datetime.now().isoformat(), "error": str(e)}
+            return {"status": "dead", "timestamp": get_time_provider().now().isoformat(), "error": str(e)}
 
     def readiness(self) -> Dict[str, Any]:
         """Readiness check — data + cache paths must be available.
@@ -102,7 +103,7 @@ class HealthService:
         ready = len(issues) == 0
         return {
             "status": "ready" if ready else "not_ready",
-            "timestamp": datetime.datetime.now().isoformat(),
+            "timestamp": get_time_provider().now().isoformat(),
             "issues": issues,
             "cache_hit_ratio": self._cache_hit_ratio(),
             "last_fetch_times": dict(self._last_fetch_time),
@@ -335,7 +336,7 @@ class HealthService:
         """
         try:
             metrics: Dict[str, Any] = {
-                "timestamp": datetime.datetime.now().isoformat(),
+                "timestamp": get_time_provider().now().isoformat(),
                 "uptime": self._get_uptime(),
                 "health_check_history": len(self.health_check_history),
                 "config_count": len(self.config._config),
@@ -371,7 +372,7 @@ class HealthService:
             import psutil
 
             boot_time = psutil.boot_time()
-            uptime_seconds = datetime.datetime.now().timestamp() - boot_time
+            uptime_seconds = get_time_provider().now().timestamp() - boot_time
             uptime_hours = uptime_seconds / 3600
             return f"{uptime_hours:.2f} hours"
         except (ImportError, OSError):

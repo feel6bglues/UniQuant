@@ -12,6 +12,7 @@ import pandas as pd
 from ..shared.error_handling import handle_errors
 from ..shared.exceptions import DataFetchError, DataValidationError
 from ..shared.logger_factory import get_logger
+from ..shared.time_provider import get_time_provider
 
 from .lake.storage_manager import StorageManager
 from .managers.standard_adapter import StandardAdapter
@@ -249,7 +250,7 @@ class DataFetcher:
         return {
             "stock": stock_data,
             "symbol": symbol,
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": get_time_provider().now().isoformat(),
         }
 
     # ---- 委托给 StockMetadataManager 的方法 ----

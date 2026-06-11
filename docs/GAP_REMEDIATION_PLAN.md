@@ -338,24 +338,26 @@ else:
 | **G-3** (Phase 0 提交) | **P0** | **✅ 完成** | 0.5h | 2 次提交, 代码+基线均入库 |
 | **G-2** (FactorRegistry) | **P1** | **✅ 完成** | 1 天 | brain 版增强准入; shared 版废弃 |
 | **G-4** (Async EventBus) | **P2** | **✅ 完成** | 1 天 | AsyncEventBus + 9 测试 |
-| **G-1** (TimeProvider) | **P2** | **🔄 进行中** | ~7 天 | 协议扩展 + shared/ 层完成 (10/120 调用) |
+| **G-1** (TimeProvider) | **P2** | **✅ 完成** | ~2 天 | 全库 ~120 个时钟调用全部替换为 get_time_provider() |
 
-### G-1 剩余工作量
+### G-1 完成统计
 
-| 层级 | 待替换调用数 | 建议优先级 |
+| 层级 | 修复调用数 | 修复文件数 |
 |---|---|---|
-| signal/ | 10 | 低难度, 自包含 |
-| hands/ | 7 | 低难度 |
-| brain/ | 11 | 中难度, 有 `perf_section` 等 |
-| services/ | 38 | **高难度**, 需 DI 线程化 |
-| data/ | 23 | **高难度**, 15 个文件 |
-| ui/ | 10 | 低难度 |
+| shared/ | 10 | 4 |
+| signal/ | 10 | 5 |
+| hands/ | 8 | 4 |
+| brain/ | 11 | 6 |
+| services/ | 53 | 10 |
+| data/ | 21 | 18 |
+| ui/ | 11 | 4 |
+| **合计** | **~124** | **51** |
 
 ### 出口标准跟踪
 
 1. ✅ G-3: `git log` 中包含 Phase 0 提交；`capture_baseline.py && compare_baseline.py` 可运行
 2. ✅ G-2: `shared/factor_governance.py` 标记废弃；`brain/factors/registry.py` 包含 `check_access()`；16 个导入点指向统一版本
 3. ✅ G-4: `AsyncEventBus` 类存在；feature flag 默认关闭；9 测试覆盖并行调度和错误隔离
-4. 🔄 G-1: 协议已扩展 + shared/ 层修复完成 (10/120); 剩余 signal/hands/brain/services/data/ui 待继续
+4. ✅ G-1: 全库 ~124 个 `datetime.now()` / `pd.Timestamp.now()` 调用全部替换为 `get_time_provider()`；协议扩展 `epoch()` / `epoch_ms()` 支持时间戳需求；模块级 `get_time_provider()` / `set_time_provider()` 支持 DI-free 测试
 5. ✅ 全量回归: `pytest tests/ -q` → 1,094 通过，0 失败
 6. ✅ 基线一致: `compare_baseline.py` → 100% 匹配

@@ -5,6 +5,7 @@
 
 from datetime import datetime
 
+from ...shared.time_provider import get_time_provider
 from ...data.sources.baostock import BaostockSource
 from ...shared.logger_factory import get_logger
 
@@ -31,7 +32,7 @@ def create_baostock_cache():
         # 2. 获取全量股票代码
         logger.info("2. 获取全量股票代码...")
         # 使用系统当前日期
-        current_date = datetime.now().strftime("%Y-%m-%d")
+        current_date = get_time_provider().now().strftime("%Y-%m-%d")
         logger.info(f"查询日期: {current_date}")
         
         # 调用 fetch_stock_list 方法

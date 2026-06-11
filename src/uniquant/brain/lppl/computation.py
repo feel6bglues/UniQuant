@@ -13,6 +13,7 @@ import numpy as np
 import pandas as pd
 
 from uniquant.shared.constants import ENABLE_JOBLIB_PARALLEL, OUTPUT_DIR, WINDOW_CONFIG
+from uniquant.shared.time_provider import get_time_provider
 from uniquant.brain.lppl.core import (
     calculate_bottom_signal_strength,
     detect_negative_bubble,
@@ -306,13 +307,13 @@ class LPPLComputation:
             return None
 
         if data_date is None:
-            data_date = datetime.now().strftime("%Y%m%d")
+            data_date = get_time_provider().now().strftime("%Y%m%d")
 
         filename = f"lppl_report_{data_date}.md"
         file_path = os.path.join(self.output_dir, filename)
 
         markdown_content = (
-            f"# LPPL模型扫描报告\n\n**生成时间**: {datetime.now()}\n\n**数据日期**: {data_date}\n\n"
+            f"# LPPL模型扫描报告\n\n**生成时间**: {get_time_provider().now()}\n\n**数据日期**: {data_date}\n\n"
         )
         markdown_content += "| 指数名称 | 指数代码 | 时间跨度 | 窗口(天) | RMSE | m | w | 距离崩盘 | 崩盘日期 | 风险等级 | 抄底信号 | 信号强度 |\n"
         markdown_content += "|---|---|---|---|---|---|---|---|---|---|---|---|\n"
@@ -368,14 +369,14 @@ class LPPLComputation:
         import json
 
         if data_date is None:
-            data_date = datetime.now().strftime("%Y%m%d")
+            data_date = get_time_provider().now().strftime("%Y%m%d")
 
         filename = f"lppl_params_{data_date}.json"
         file_path = os.path.join(self.output_dir, filename)
 
         json_data = {
             "data_date": data_date,
-            "generated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "generated_at": get_time_provider().now().strftime("%Y-%m-%d %H:%M:%S"),
             "parameters": params_data,
         }
 

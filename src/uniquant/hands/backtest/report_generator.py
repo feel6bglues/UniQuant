@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 
 from ...shared.logger_factory import get_logger
+from ...shared.time_provider import get_time_provider
 
 if TYPE_CHECKING:
     from .result import BacktestResult
@@ -97,7 +98,7 @@ tr:hover {{ background: #f1f1f1; }}
 </head>
 <body>
 <h1>回测报告</h1>
-<p>生成时间: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}</p>"""
+<p>生成时间: {get_time_provider().now().strftime("%Y-%m-%d %H:%M:%S")}</p>"""
 
     def _create_performance_section(self, metrics: Dict[str, Any]) -> str:
         """创建绩效指标部分"""

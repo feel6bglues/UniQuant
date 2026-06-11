@@ -6,6 +6,7 @@ from typing import Any, Dict, Optional
 
 import pandas as pd
 
+from ..shared.time_provider import get_time_provider
 from ..shared.cache import CacheFactory
 from ..shared.constants import DataServiceConstants
 from ..shared.logger_factory import get_logger
@@ -142,7 +143,7 @@ class CacheCoordinator:
                 "miss_rate": stats.get("miss_rate", 0.0),
                 "cache_size": stats.get("cache_size", 0),
                 "status": "healthy" if stats.get("total_items", 0) > 0 else "empty",
-                "last_check": pd.Timestamp.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "last_check": pd.Timestamp(get_time_provider().now()).strftime("%Y-%m-%d %H:%M:%S"),
             }
             
             logger.info("Cache health check: %s", health_status)
@@ -152,7 +153,7 @@ class CacheCoordinator:
             return {
                 "status": "error",
                 "error": str(e),
-                "last_check": pd.Timestamp.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "last_check": pd.Timestamp(get_time_provider().now()).strftime("%Y-%m-%d %H:%M:%S"),
             }
     
     def check_consistency(

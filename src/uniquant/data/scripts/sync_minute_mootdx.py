@@ -10,6 +10,8 @@ import argparse
 import json
 from datetime import datetime
 from pathlib import Path
+
+from ...shared.time_provider import get_time_provider
 from typing import List, Optional
 
 from uniquant.shared.logger_factory import get_logger
@@ -70,7 +72,7 @@ def load_progress() -> dict:
 
 def save_progress(progress: dict):
     try:
-        progress["last_update"] = datetime.now().isoformat()
+        progress["last_update"] = get_time_provider().now().isoformat()
         with open(PROGRESS_FILE, "w") as f:
             json.dump(progress, f)
     except Exception as e:

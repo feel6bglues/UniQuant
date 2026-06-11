@@ -2,6 +2,8 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta
 import pandas as pd
 
+from ...shared.time_provider import get_time_provider
+
 from ...shared.constants import DateConstants
 from ...shared.logger_factory import get_logger
 
@@ -40,7 +42,7 @@ class StockDataUpdater:
             logger.error(f"解析日期失败: {e}")
             return True
 
-        now = datetime.now()
+        now = get_time_provider().now()
         today = now.date()
 
         if last_date >= today:
@@ -52,7 +54,7 @@ class StockDataUpdater:
                 logger.info("盘中保护：16:00前不更新当天数据")
                 return False
 
-        if not self.data_fetcher.is_trading_day(datetime.now()):
+        if not self.data_fetcher.is_trading_day(get_time_provider().now()):
             logger.info("非交易日保护：非交易日不更新数据")
             return False
 

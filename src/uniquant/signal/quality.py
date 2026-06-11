@@ -11,6 +11,7 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from .models import Signal, SignalSource, SignalType
+from ..shared.time_provider import get_time_provider
 
 
 # ───────────────────────── 质量指标数据类 ─────────────────────────
@@ -195,7 +196,7 @@ class _OutcomeRecord:
     outcome: bool
     source: SignalSource
     signal_type: SignalType
-    timestamp: datetime = field(default_factory=datetime.now)
+    timestamp: datetime = field(default_factory=lambda: get_time_provider().now())
 
 
 class SignalQualityTracker:

@@ -16,6 +16,8 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
+
+from ...shared.time_provider import get_time_provider
 from typing import Any, Callable, Dict, List, Optional
 
 from ...shared.logger_factory import get_logger
@@ -162,7 +164,7 @@ class MockDataSource(DataSourceAdapter):
         import random
         return TickData(
             symbol=symbol,
-            timestamp=datetime.now(),
+            timestamp=get_time_provider().now(),
             price=10.0 + random.random(),
             volume=random.randint(1000, 10000),
             turnover=random.random() * 100000,

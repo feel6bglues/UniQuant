@@ -4,6 +4,7 @@ from typing import Set
 
 import pandas as pd
 
+from ...shared.time_provider import get_time_provider
 from ...data.sources.baostock import BaostockSource
 from ...shared.constants import DateConstants
 from ...shared.logger_factory import get_logger
@@ -71,7 +72,7 @@ class TradeCalendarManager:
                 return
             
             start_date = DateConstants.DEFAULT_START_DATE
-            end_date = datetime.datetime.now().strftime("%Y-%m-%d")
+            end_date = get_time_provider().now().strftime("%Y-%m-%d")
             
             calendar = baostock.fetch_calendar(start_date=start_date, end_date=end_date)
             

@@ -10,10 +10,11 @@ import pandas as pd
 import numpy as np
 
 from ...shared.logger_factory import get_logger
+from ...shared.time_provider import get_time_provider
 
 logger = get_logger("SmartFactorV15")
 
-REAL_TODAY = pd.Timestamp.now().normalize()
+REAL_TODAY = pd.Timestamp(get_time_provider().now()).normalize()
 
 
 class GBBQProcessorV15:

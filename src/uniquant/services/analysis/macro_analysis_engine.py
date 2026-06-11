@@ -1,5 +1,6 @@
 import logging
 import datetime
+from ...shared.time_provider import get_time_provider
 import numpy as np
 import pandas as pd
 from ...shared.logger_factory import get_logger
@@ -186,9 +187,9 @@ class MacroAnalysisEngine:
         """
         Fetch real returns for Macro Cockpit (HS300).
         """
-        end_date = datetime.datetime.now().strftime("%Y%m%d")
+        end_date = get_time_provider().now().strftime("%Y%m%d")
         start_date = (
-            datetime.datetime.now() - datetime.timedelta(days=window * 2)
+            get_time_provider().now() - datetime.timedelta(days=window * 2)
         ).strftime("%Y%m%d")
 
         df = self.orchestrator.data_service.fetcher.fetch_index_daily(
