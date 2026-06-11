@@ -4,6 +4,7 @@ import datetime
 from typing import Optional, Set
 
 from uniquant.shared.logger_factory import get_logger
+from uniquant.shared.time_provider import get_time_provider
 
 
 class DateConstants:
@@ -224,7 +225,7 @@ class MarketHours:
             bool: 市场是否开放
         """
         if dt is None:
-            dt = datetime.datetime.now()
+            dt = get_time_provider().now()
 
         # 检查是否为交易日（考虑节假日和调休）
         if not cls.is_trading_day(dt.date() if isinstance(dt, datetime.datetime) else dt):
@@ -258,7 +259,7 @@ class MarketHours:
             datetime.datetime: 下一个市场开放时间
         """
         if dt is None:
-            dt = datetime.datetime.now()
+            dt = get_time_provider().now()
 
         # 如果是交易日且还没到下午收盘，可能是当天
         if cls.is_trading_day(dt.date() if isinstance(dt, datetime.datetime) else dt):
@@ -296,7 +297,7 @@ class MarketHours:
             str: 市场状态描述
         """
         if dt is None:
-            dt = datetime.datetime.now()
+            dt = get_time_provider().now()
 
         if cls.is_market_open(dt):
             return "交易中"
@@ -329,7 +330,7 @@ class MarketHours:
         cls._ensure_holidays_loaded()
 
         if dt is None:
-            dt = datetime.date.today()
+            dt = get_time_provider().today()
 
         if isinstance(dt, datetime.datetime):
             dt = dt.date()
@@ -365,7 +366,7 @@ class MarketHours:
             bool: 是否在集合竞价时段
         """
         if dt is None:
-            dt = datetime.datetime.now()
+            dt = get_time_provider().now()
 
         if not cls.is_trading_day(dt):
             return False

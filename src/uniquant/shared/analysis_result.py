@@ -8,6 +8,8 @@ from datetime import datetime
 from enum import Enum
 from typing import Any, Dict, List, Optional
 
+from .time_provider import get_time_provider
+
 
 class AnalysisStatus(Enum):
     """分析状态枚举"""
@@ -40,7 +42,7 @@ class AnalysisResult:
     warnings: List[str] = field(default_factory=list)
 
     # 时间戳
-    timestamp: datetime = field(default_factory=datetime.now)
+    timestamp: datetime = field(default_factory=lambda: get_time_provider().now())
     processing_time_ms: Optional[float] = None
 
     def to_dict(self) -> Dict[str, Any]:

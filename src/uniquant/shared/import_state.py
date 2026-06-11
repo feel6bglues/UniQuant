@@ -16,6 +16,7 @@ from typing import Dict, Optional, Tuple
 from datetime import datetime
 
 from uniquant.shared.logger_factory import get_logger
+from uniquant.shared.time_provider import get_time_provider
 
 logger = get_logger('import_state')
 
@@ -134,7 +135,7 @@ class ImportStateManager:
                     'records': record_count,
                     'last_data': last_data,
                     'status': status,
-                    'updated_at': datetime.now().isoformat(),
+                    'updated_at': get_time_provider().now().isoformat(),
                 }
                 self._save_state()
             except OSError as e:

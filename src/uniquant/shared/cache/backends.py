@@ -13,6 +13,7 @@ from typing import Any, Dict, Optional
 import joblib
 
 from ..logger_factory import get_logger
+from ..time_provider import get_time_provider
 from .cache_interface import CacheInterface
 
 logger = get_logger(__name__)
@@ -226,7 +227,7 @@ class DiskCacheBackend(CacheInterface):
 
             # 检查是否过期
             cache_time = datetime.fromtimestamp(cache_content["timestamp"])
-            if (datetime.now() - cache_time).days > self.max_cache_age:
+            if (get_time_provider().now() - cache_time).days > self.max_cache_age:
                 os.remove(cache_path)
                 self.misses += 1
                 logger.debug(f"Cache expired for key: {key}")
@@ -276,7 +277,7 @@ class DiskCacheBackend(CacheInterface):
             
             cache_content = {
                 "data": value,
-                "timestamp": datetime.now().timestamp(),
+                "timestamp": get_time_provider().now().timestamp(),
                 "key": key,
                 "ttl": ttl,
             }
@@ -358,7 +359,7 @@ class DiskCacheBackend(CacheInterface):
 
     def cleanup(self) -> int:
         """清理过期缓存和超大缓存"""
-        current_time = datetime.now()
+        current_time = get_time_provider().now()
         cache_files = list(self.cache_dir.glob("*.joblib"))
         cleaned_count = 0
 
