@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import datetime
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 import numpy as np
 import pandas as pd
@@ -69,6 +69,7 @@ class BacktestResult:
     daily_returns: List[float] = field(default_factory=list)
     initial_capital: float = 0.0
     final_cash: float = 0.0
+    metadata: Dict[str, Any] = field(default_factory=dict)
 
     @property
     def total_trades(self) -> int:
@@ -239,20 +240,21 @@ class UnifiedBacktestEngine:
             prev_equity = equity
 
             # ── Step 3: 收集当日信号, 生成挂单 ──
+            # 规则: SELL 优先于 BUY (LPPL SELL 不可被同日 BUY 覆盖)
             day_signals = signal_map.get(date_key, [])
             for sig in day_signals:
-                if sig.action == "BUY" and position == 0 and pending_order is None:
+                if sig.action == "SELL" and position > 0 and pending_order is None:
+                    pending_order = {
+                        "action": "SELL",
+                        "shares": position,
+                        "reason": sig.reason,
+                    }
+                    break
+                elif sig.action == "BUY" and position == 0 and pending_order is None:
                     shares = sig.shares if sig.shares > 0 else 100
                     pending_order = {
                         "action": "BUY",
                         "shares": shares,
-                        "reason": sig.reason,
-                    }
-                    break  # 一次只处理一个信号
-                elif sig.action == "SELL" and position > 0 and pending_order is None:
-                    pending_order = {
-                        "action": "SELL",
-                        "shares": position,
                         "reason": sig.reason,
                     }
                     break
