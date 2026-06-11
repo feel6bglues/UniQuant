@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Callable, Dict, List, Optional
 
 from .event_types import Event
@@ -47,3 +48,42 @@ class EventBus:
 
     def clear(self) -> None:
         self._subscribers.clear()
+
+
+class AsyncEventBus(EventBus):
+    """异步 EventBus: 使用线程池执行 handler，不阻塞 publish()"""
+
+    def __init__(self, max_workers: int = 4, isolate_errors: bool = True):
+        super().__init__(isolate_errors)
+        self._executor = ThreadPoolExecutor(
+            max_workers=max_workers,
+            thread_name_prefix="eventbus",
+        )
+        self._pending_futures: list[Any] = []
+
+    def publish(self, event: Event) -> None:
+        handlers = self._subscribers.get(event.topic, [])
+        for handler in handlers:
+            fut = self._executor.submit(self._safe_dispatch, handler, event)
+            self._pending_futures.append(fut)
+
+    def shutdown(self, wait: bool = True) -> None:
+        if wait:
+            for fut in self._pending_futures:
+                try:
+                    fut.result()
+                except Exception:
+                    if not self._isolate_errors:
+                        raise
+        self._executor.shutdown(wait=wait)
+
+    def _safe_dispatch(self, handler: EventHandler, event: Event) -> None:
+        if self._isolate_errors:
+            try:
+                handler(event)
+            except Exception as e:
+                logger.error(
+                    "Async event handler failed for %s: %s", event.topic, e,
+                )
+        else:
+            handler(event)

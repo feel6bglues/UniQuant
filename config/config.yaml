@@ -424,6 +424,7 @@ refactoring:
       wyckoff: false
       decision: false
     event_bus: false
+    async_event_bus: false
     observability: false
   time:
     provider: "real"

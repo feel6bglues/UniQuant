@@ -13,6 +13,7 @@ class FeatureFlags:
     engine_migration: Dict[str, bool] = field(default_factory=dict)
     event_bus: bool = False
     observability: bool = False
+    async_event_bus: bool = False
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> FeatureFlags:
@@ -25,6 +26,7 @@ class FeatureFlags:
             engine_migration={k: bool(v) for k, v in engine_migration.items()},
             event_bus=bool(flags.get("event_bus", False)),
             observability=bool(flags.get("observability", False)),
+            async_event_bus=bool(flags.get("async_event_bus", False)),
         )
 
 
