@@ -1,16 +1,19 @@
 from __future__ import annotations
 
-import datetime
+import warnings
 from dataclasses import dataclass, field
-from enum import Enum
 from typing import Any, Dict, List, Optional
 
+from ..brain.factors.registry import FactorAccessLevel, FactorRegistry
 
-class FactorAccessLevel(Enum):
-    """因子访问级别"""
-    FREE = "free"
-    WARN = "warn"
-    BLOCK = "block"
+__all__ = ["FactorAccessLevel", "FactorManifest", "FactorRegistry", "global_factor_registry"]
+
+warnings.warn(
+    "uniquant.shared.factor_governance is deprecated. "
+    "Use uniquant.brain.factors.registry.FactorRegistry directly instead.",
+    DeprecationWarning,
+    stacklevel=2,
+)
 
 
 @dataclass
@@ -29,49 +32,5 @@ class FactorManifest:
     metadata: Dict[str, Any] = field(default_factory=dict)
 
 
-class FactorRegistry:
-    """因子注册中心
-
-    管理所有因子的注册、查找和访问控制。
-    支持 warn 模式（仅记录日志）和 block 模式（抛出异常）。
-    """
-
-    def __init__(self, mode: FactorAccessLevel = FactorAccessLevel.WARN):
-        self._mode = mode
-        self._factors: Dict[str, FactorManifest] = {}
-
-    @property
-    def mode(self) -> FactorAccessLevel:
-        return self._mode
-
-    def set_mode(self, mode: FactorAccessLevel) -> None:
-        self._mode = mode
-
-    def register(self, manifest: FactorManifest) -> None:
-        self._factors[manifest.name] = manifest
-
-    def get(self, name: str) -> Optional[FactorManifest]:
-        return self._factors.get(name)
-
-    def has(self, name: str) -> bool:
-        return name in self._factors
-
-    def list_factors(self) -> List[str]:
-        return list(self._factors.keys())
-
-    def check_access(self, name: str) -> bool:
-        if name in self._factors:
-            return True
-        if self._mode == FactorAccessLevel.WARN:
-            import logging
-            logging.getLogger(__name__).warning(
-                "未注册因子访问: %s (mode=warn)", name,
-            )
-            return True
-        if self._mode == FactorAccessLevel.BLOCK:
-            raise ValueError(f"未注册因子被拦截: {name}")
-        return True
-
-
-# 全局因子注册中心
+# 全局因子注册中心 — 引用 brain 的统一单例
 global_factor_registry = FactorRegistry()

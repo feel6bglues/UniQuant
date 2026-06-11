@@ -5,12 +5,20 @@
 
 import threading
 from dataclasses import dataclass
+from enum import Enum
 from typing import Callable, Dict, List, Optional
 import pandas as pd
 
 from ...shared.logger_factory import get_logger
 
 logger = get_logger("FactorRegistry")
+
+
+class FactorAccessLevel(Enum):
+    """因子访问级别"""
+    FREE = "free"
+    WARN = "warn"
+    BLOCK = "block"
 
 
 @dataclass
@@ -30,11 +38,13 @@ class FactorRegistry:
     全局因子注册中心（单例模式 + 线程安全）
     
     Thread-safe implementation with lock-protected dictionary.
+    Also provides access control gate (WARN/BLOCK mode).
     """
     _factors: Dict[str, FactorInfo] = {}
     _instance = None
     _lock = threading.Lock()
     _loaded: bool = False
+    _mode: FactorAccessLevel = FactorAccessLevel.WARN
 
     def __new__(cls):
         if cls._instance is None:
@@ -137,3 +147,34 @@ class FactorRegistry:
         cls._ensure_loaded()
         with cls._lock:
             return {f.name: f.description for f in cls._factors.values()}
+
+    @classmethod
+    def set_mode(cls, mode: FactorAccessLevel) -> None:
+        """设置访问控制模式 - Thread-safe"""
+        with cls._lock:
+            cls._mode = mode
+
+    @classmethod
+    def get_mode(cls) -> FactorAccessLevel:
+        """获取当前访问控制模式 - Thread-safe"""
+        with cls._lock:
+            return cls._mode
+
+    @classmethod
+    def has(cls, name: str) -> bool:
+        """检查因子是否已注册 - Thread-safe"""
+        cls._ensure_loaded()
+        with cls._lock:
+            return name in cls._factors
+
+    @classmethod
+    def check_access(cls, name: str) -> bool:
+        """准入检查: 在 WARN/BLOCK 模式下拦截未注册因子的访问 - Thread-safe"""
+        with cls._lock:
+            if name in cls._factors:
+                return True
+            if cls._mode == FactorAccessLevel.BLOCK:
+                raise ValueError(f"未注册因子被拦截: {name}")
+            if cls._mode == FactorAccessLevel.WARN:
+                logger.warning("未注册因子访问: %s (mode=warn)", name)
+            return True
