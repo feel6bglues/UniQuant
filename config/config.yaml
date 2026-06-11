@@ -408,6 +408,26 @@ risk:
   default_risk_pct: 0.1
   circuit_break_pct: 0.15
 
+# 重构控制配置
+refactoring:
+  enabled: false
+  feature_flags:
+    signal_arbitration: false
+    typed_contracts: false
+    factor_gate: "off"
+    engine_migration:
+      regime: false
+      ntf: false
+      lppl: false
+      czsc: false
+      alpha: false
+      wyckoff: false
+      decision: false
+    event_bus: false
+    observability: false
+  time:
+    provider: "real"
+
 # 核心逻辑配置
 brain:
   alpha_decoupler:

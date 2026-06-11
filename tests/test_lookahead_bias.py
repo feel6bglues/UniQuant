@@ -166,7 +166,55 @@ class TestLookaheadBiasPrevention:
         assert fwd_ret.isna().all()
 
     # ------------------------------------------------------------------ #
-    #  测试 8：极端行情 — 一字板（价格完全相同）
+    #  测试 8：UnifiedBacktestEngine — SELL 优先于 BUY (LPPL lookahead)
+    # ------------------------------------------------------------------ #
+    def test_sell_priority_over_buy(self):
+        """
+        验证同一天同时存在 BUY 和 SELL 信号时, SELL 优先处理。
+        这是为了防止 LPPL 等引擎的 SELL 信号被同日 BUY 信号覆盖 (lookahead bias)。
+        """
+        import pandas as pd
+
+        from uniquant.hands.backtest.unified_engine import UnifiedBacktestEngine
+        from uniquant.shared.interfaces import TradingSignal
+
+        dates = pd.date_range("2024-01-02", periods=10, freq="B")
+        df = pd.DataFrame({
+            "date": dates,
+            "open": [10.0] * 10,
+            "high": [11.0] * 10,
+            "low": [9.0] * 10,
+            "close": [10.0] * 10,
+            "volume": [100000] * 10,
+        })
+
+        # day 0: BUY 信号 → day 1 open 成交建仓
+        # day 2: 同时发 BUY 和 SELL, SELL 应优先
+        entry = TradingSignal(
+            action="BUY", symbol="000001.SZ", price=10.0, shares=1000,
+            reason="test_entry", timestamp=dates[0],
+        )
+        day2_sell = TradingSignal(
+            action="SELL", symbol="000001.SZ", price=10.0, shares=1000,
+            reason="lppl_exit", timestamp=dates[2],
+        )
+        day2_buy = TradingSignal(
+            action="BUY", symbol="000001.SZ", price=10.0, shares=1000,
+            reason="other_entry", timestamp=dates[2],
+        )
+
+        # BUY 信号放在 SELL 前面, 测试 SELL 是否优先
+        engine = UnifiedBacktestEngine(initial_capital=100000)
+        result = engine.run(
+            df, [entry, day2_buy, day2_sell], symbol="000001.SZ",
+        )
+        assert len(result.trades) == 2
+        assert result.trades[0].action == "BUY"
+        assert result.trades[1].action == "SELL"
+        assert result.trades[1].reason == "lppl_exit"
+
+    # ------------------------------------------------------------------ #
+    #  测试 9：极端行情 — 一字板（价格完全相同）
     # ------------------------------------------------------------------ #
     def test_forward_returns_constant_prices(self, analyzer):
         """价格完全相同时（一字板），未来收益率应全为 0。"""
