@@ -9,6 +9,8 @@
 >
 > **最终总计：53 项问题 / 9 阶段重构计划**
 > 版本: v3.0
+>
+> **v3.1 完成记录 (2026-06-11)**：Phases 0-3（类型化合约迁移、SignalArbitrator、6引擎输出迁移）已完成。详见 `AGENTS.md`#Phase-0-3-Completion-Status。全量测试 1034 passed，基线 100% 一致。
 
 ---
 
@@ -254,6 +256,14 @@
   3. 启动时验证关键依赖
 - **验收**: 非核心依赖缺失时不影响核心功能
 
+### Task 0.5: LPPL SELL 优先级修正
+
+- **状态**: ✅ **v3.1 已完成**
+- **修复**: `unified_engine.py` Step 3 中 SELL 信号先于 BUY 检查，消除 LPPL 前瞻偏差
+- **文件**: `src/uniquant/hands/backtest/unified_engine.py`
+- **测试**: `tests/test_lookahead_bias.py` (9 个测试)
+- **基线**: `scripts/capture_baseline.py` + `scripts/compare_baseline.py` + `golden_20.txt` / `golden_100.txt`
+
 ### Task 0.4: 旧导入路径兼容 Shim（P0-01 补充）
 
 - **修复**: 添加向前兼容 shim 模块（`from .czsc.czsc_engine import *`）+ `DeprecationWarning`
@@ -390,7 +400,13 @@
 
 ### Task 2a.1: 统一信号表示（P0-11 巩固）
 
+- **状态**: ✅ **v3.1 部分完成**
 - **文件**: `shared/interfaces.py`, `signal/models.py`
+- **已交付**:
+  1. ✅ 定义 6 引擎类型化输出：`RegimeOutput`, `LPPLOutput`, `NtfOutput`, `CZSCOutput`, `WyckoffOutput`, `AlphaOutput` + `DecisionOutput`
+  2. ✅ `MarketSignalContext` 通过 `from_dict(data_pack)` 统一构建
+  3. ✅ 统一键名 `is_3rd_buy`（已有代码中已修复）
+  4. ⬜ `Signal` 协议统一（`engine_type`, `direction`, `confidence`）待完成
 - **修复**:
   1. 定义统一 `Signal` 协议：`engine_type`, `direction`, `confidence[0,1]`, `weights`, `raw_metrics`
   2. `MarketSignalContext` 从统一 `Signal` 派生
@@ -398,6 +414,13 @@
 
 ### Task 2a.2: 统一生产决策与回测路径（P1-14 巩固）
 
+- **状态**: ⚠️ **v3.1 部分完成**
+- **已交付**:
+  1. ✅ `SignalArbitrator` 实现（sell-priority、confidence-based、engine-priority rules）
+  2. ✅ 7 个仲裁器测试
+  3. ✅ `ArbitratorConfig` 在 `config.yaml` 中配置
+  4. ✅ Pipeline 集成（`research_pipeline.py` 中仲裁后排序）
+  5. ⬜ `DecisionBrain._calculate_score()` → `SignalAggregator.aggregate()` 替换待完成
 - **文件**: `brain/fsm/fsm.py`, `signal/aggregator.py`, `hands/backtest/signal_integrator.py`
 - **核实**: ✅ 生产用加分，回测用加权平均/多数投票，路径不一致
 - **修复**:
@@ -818,6 +841,20 @@
 | `src/uniquant/data/scripts/download_baostock_pro.py` | 修改 | 1b.6 |
 | `src/uniquant/data/utils/smart_factor_calculator.py` | 修改 | 1b.6 |
 | `src/uniquant/brain/wyckoff/trading.py` | 修改 | 1b.6 |
+| `src/uniquant/shared/time_provider.py` | 新增 | v3.1 Phase 1.2 |
+| `src/uniquant/shared/event_types.py` | 新增 | v3.1 Phase 1.2 |
+| `src/uniquant/shared/factor_governance.py` | 新增 | v3.1 Phase 1.2 |
+| `src/uniquant/shared/config_models.py` | 新增 | v3.1 Phase 1.4 |
+| `src/uniquant/signal/arbitrator.py` | 新增 | v3.1 Phase 2 |
+| `src/uniquant/services/analysis_service_v2.py` | 修改（加入6引擎类型化输出） | v3.1 Phase 3 |
+| `src/uniquant/brain/regime/regime_detector.py` | 修改（加入 get_typed_summary） | v3.1 Phase 3 |
+| `src/uniquant/shared/interfaces.py` | 修改（加入 6 引擎输出 + DecisionOutput） | v3.1 Phase 3 |
+| `tests/signal/test_arbitrator.py` | 新增 | v3.1 Phase 2 |
+| `tests/test_lookahead_bias.py` | 新增 | v3.1 Phase 0 |
+| `tests/benchmark/golden_20.txt` | 新增 | v3.1 Phase 0 |
+| `tests/benchmark/golden_100.txt` | 新增 | v3.1 Phase 0 |
+| `scripts/capture_baseline.py` | 新增 | v3.1 Phase 0 |
+| `scripts/compare_baseline.py` | 新增 | v3.1 Phase 0 |
 
 ---
 
@@ -876,3 +913,12 @@
 | Task 2b.1 | 单次 `temporal_split` | **扩展窗口滚动** | A 股因子时变特性显著，单次分割不够严谨 |
 | Task 6.3 | 从零实现板块差异 | **验证已有实现 + 补充新股规则** | `UME` 已含板块差异涨跌停 |
 | 总问题数 | 50 | **53** | 新增 3 项经代码实证确认的问题 |
+| **v3.1 (2026-06-11)** | | **类型化合约迁移 + 6引擎输出** | **Phases 0-3 全部完成，1034 tests passed, baseline 100%** |
+| LPPL SELL 优先级 | 未处理 | **已修复** | `unified_engine.py` Step 3 SELL 先于 BUY |
+| 类型化跨层合约 | 未处理 | **已实现** | RegimeOutput, LPPLOutput, NtfOutput, CZSCOutput, WyckoffOutput, AlphaOutput, DecisionOutput |
+| MarketSignalContext | 未处理 | **已迁移** | `analysis_service_v2.py` 直接传入 `make_decision(ctx)` |
+| SignalArbitrator | 未处理 | **已实现** | sell-priority, confidence-based, engine-priority, 7 个测试 |
+| TimeProvider | 未处理 | **已实现** | RealTimeProvider + FrozenTimeProvider |
+| FactorRegistry | 未处理 | **已实现** | FactorManifest + FactorAdmissionGate (warn/block) |
+| RefactoringConfig | 未处理 | **已实现** | FeatureFlags + `config.yaml` refactoring 节 |
+| 向后兼容 | 未处理 | **已保证** | 类型化输出与旧 Dict 键共存，feature flags 默认 OFF |

@@ -8,6 +8,10 @@
 
 本文件是本轮受控状态机修复后的最终交付摘要。
 
+提交后完整总报告见:
+
+- `docs/RESHAPING_REMEDIATION_REPORT_20260609.md`
+
 ## 修复范围
 
 本轮覆盖:
@@ -56,25 +60,15 @@
 - `docs/reshaping_logs/07_1_lint_debt_cleanup.md`
 - `docs/reshaping_logs/08_final_handoff.md`
 
-## 注意事项
+## 提交状态
 
-- 工作区仍包含大量已修改和未跟踪文件，这是本轮修复链的累计结果。
-- 本阶段未执行 `git add`、`git commit` 或 `git push`。
-- 若准备提交，建议先审阅 `git diff --stat`，再按修复阶段分批提交，避免单个提交过大。
-
-## 建议提交拆分
-
-建议拆为以下提交:
-
-1. P0/P1 remediation core fixes and tests。
-2. P2 trace/UI/docs/randomness fixes。
-3. Full-repo ruff cleanup。
-4. Reshaping logs and final handoff docs。
+- 已提交: `91c2b06 remediate architecture risks and clear lint debt`。
+- 提交后已确认工作区干净。
 
 ## 下一步
 
 等待用户指定:
 
-- 生成提交级摘要。
-- 执行分批 `git add` / `git commit`。
-- 继续审查非 lint 剩余风险。
+- 推送提交。
+- 继续处理剩余架构拆分风险。
+- 将因子 diagnostics 接入 scan/report 输出链路。

@@ -41,6 +41,7 @@
 | `06_5_p2_final_closure.md` | 完成 | P2 收口与最终回归 |
 | `07_1_lint_debt_cleanup.md` | 完成 | 全仓 ruff 历史债清理 |
 | `08_final_handoff.md` | 完成 | 最终交付摘要 |
+| `../RESHAPING_REMEDIATION_REPORT_20260609.md` | 完成 | 提交后总报告 |
 
 ## 当前事实基线
 
@@ -48,6 +49,7 @@
 - `data/`、`signal/`、`hands/` 等 8 个声明层均已存在。
 - 原 `shared/constants.py` 已拆为 `src/uniquant/shared/constants/` 子包，并由 `__init__.py` 聚合导出。
 - P0/P1 全量回归基线见 `05_8_full_regression.md`: `1020 passed, 7 skipped, 12 warnings, 0 failed`。
+- 提交后最终基线见 `../RESHAPING_REMEDIATION_REPORT_20260609.md`: `1026 passed, 7 skipped, 12 warnings`，全仓 `ruff` 通过。
 
 ## 历史文档处理规则
 

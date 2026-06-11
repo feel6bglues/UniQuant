@@ -1,127 +1,160 @@
-# UniQuant — 统一量化交易平台
+# UniQuant Documentation Index
 
-> Unified Quantitative Trading Platform
-
-UniQuant 是一套面向 A 股市场的量化交易系统，基于 Python 3.12+ 构建。系统划分为 **8 大模块**，覆盖从数据接入、信号生成、因子分析、风险管理到回测撮合的完整量化工作流。
-
-> **当前状态提示**: 本页下方大量导航保留了历史迁移期标记，可能不反映 2026-06-08 的实测源码状态。当前事实源优先级为: 根目录 `AGENTS.md`、`MASTER_REMEDIATION_PLAN.md`、[受控状态机日志索引](reshaping_logs/README.md)。历史文档只作背景材料。
-
-| 模块 | 职责 | 状态 |
-|------|------|------|
-| **brain** | 信号生成引擎 -- CZSC、FSM、LPPL 等多引擎并行 | ⚠️ 部分可用 |
-| **data** | 数据层 -- 多源数据获取、存储、管道、缓存 | 🔴 待迁移 |
-| **hands** | 回测与策略 -- 向量化撮合回测引擎、策略框架 | 🔴 待迁移 |
-| **services** | 服务层 -- DI 容器、分析引擎工厂、业务服务编排 | ⚠️ 部分可用 |
-| **shared** | 公共基础设施 -- 常量、异常、缓存、配置、成本/滑点模型 | ✅ 基本完整 |
-| **signal** | 信号系统 -- 信号模型、归一化、聚合、质量评估 | 🔴 待迁移 |
-| **risk** | 风险管理 -- 组合优化、仓位管理、回撤分析 | ⚠️ 部分可用 |
-| **ui** | 用户界面 -- Streamlit 仪表盘、Plotly 可视化 | ⚠️ 部分可用 |
+> Unified Quantitative Trading Platform for China A-share research, backtesting, and trading workflows.
+>
+> Updated: 2026-06-11. Phases 0-3 completion recorded in AGENTS.md. This page is a documentation state boundary. Prefer current source code and control documents over historical migration notes.
 
 ---
 
-## 文档导航
+## Current Truth Sources
 
-### 架构
+Read these first when starting analysis or implementation:
 
-| 文档 | 状态 | 说明 |
-|------|------|------|
-| [系统架构总览](architecture.md) | ⚠️ | 整体架构设计（描述目标架构） |
-| [项目状态仪表盘](STATUS.md) | ✅ | 实时进度与模块可用性 |
-| [文档与代码差异评估](EVALUATION_REPORT.md) | ✅ | 全景差异分析：docs 承诺 vs 代码现实 |
-| [评估报告核实报告](VERIFICATION_REPORT.md) | ✅ | 4 Agent 独立核实，修正 7 项数据差异 |
+| Document | Status | Purpose |
+|---|---|---|
+| [Root AGENTS.md](../AGENTS.md) | Current | First project control context for agents. |
+| [Analysis Prompt Playbook](ANALYSIS_PROMPT_PLAYBOOK.md) | Current | Direct-call staged prompts for system analysis, checkpoints, artifacts, and validation. |
+| [Reshaping Remediation Report 2026-06-09](RESHAPING_REMEDIATION_REPORT_20260609.md) | Current | Recent remediation, verification, and remaining risks. |
+| [Reshaping Logs Index](reshaping_logs/README.md) | Current | Controlled state-machine logs and audit sequence. |
+| [Status](STATUS.md) | Check before relying | Project status page; may trail source changes. |
 
-### 包文档
-
-| 文档 | 状态 | 说明 |
-|------|------|------|
-| [brain -- 信号生成引擎](packages/brain.md) | ⚠️ | 仅 czsc/fsm/lppl 可用，其余待迁移 |
-| [data -- 数据层](packages/data.md) | 🎯 | 目标状态，当前不存在 |
-| [hands -- 回测与策略](packages/hands.md) | 🎯 | 目标状态，当前仅空壳 |
-| [services -- 服务层](packages/services.md) | ⚠️ | 部分可用 (11/24 文件) |
-| [shared -- 公共基础设施](packages/shared.md) | ✅ | 基本完整 (23/29 文件) |
-| [signal -- 信号系统](packages/signal.md) | 🎯 | 目标状态，当前不存在 |
-| [risk -- 风险管理](packages/risk.md) | ⚠️ | 仅 drawdown_analyzer 可用 |
-| [ui -- 用户界面](packages/ui.md) | ⚠️ | 仅 dashboard/health_check 可用 |
-
-### 使用指南
-
-| 文档 | 状态 | 前置条件 |
-|------|------|---------|
-| [快速上手](guides/quickstart.md) | 🎯 | 需要 data 层迁移完成 |
-| [回测指南](guides/backtest.md) | 🎯 | 需要 hands 层迁移完成 |
-| [因子系统指南](guides/factors.md) | 🎯 | 需要 brain/factors 迁移完成 |
-| [策略开发指南](guides/strategies.md) | 🎯 | 需要 hands/strategies 迁移完成 |
-| [数据源接入指南](guides/data_sources.md) | 🎯 | 需要 data 层迁移完成 |
-| [配置指南](guides/configuration.md) | ✅ | shared/config_loader 已就绪 |
-
-### 参考手册
-
-| 文档 | 状态 | 说明 |
-|------|------|------|
-| [A 股约束详解](reference/a_share_constraints.md) | ✅ | 涨跌停、T+1、印花税等规则 |
-| [信号类型参考](reference/signal_types.md) | 🎯 | 目标状态 (signal 层待迁移) |
-| [异常体系参考](reference/exceptions.md) | ✅ | 完整异常层次 |
-| [常量参考](reference/constants.md) | ✅ | 所有常量类完整参考 |
-
-### 研究报告
-
-| 文档 | 状态 | 说明 |
-|------|------|------|
-| [Alpha 挖掘综合报告 2026-06-02](research/ALPHA_MINING_REPORT_20260602.md) | ✅ | 5 个 Session、36 轮因子挖掘全记录，9 因子通过 ICIR≥0.4 |
-| [Auto-Mined 因子技术手册 2026-06-02](research/FACTOR_CATALOG_20260602.md) | ✅ | 9 个已注册 am_* 因子的接口、参数、使用指南 |
-
-### 开发
-
-| 文档 | 状态 | 说明 |
-|------|------|------|
-| [测试指南](development/testing.md) | ⚠️ | 需更新为实际测试数 (11 文件) |
-| [项目结构](development/project_structure.md) | ⚠️ | 需更新为实际文件清单 |
-| [文档管理计划](DOC_MANAGEMENT_PLAN.md) | ✅ | 文档规范与维护流程 |
+Historical docs in this folder are still useful, but many describe target architecture or pre-remediation gaps. If a package page says `data`, `signal`, or `hands` are missing, that statement is stale.
 
 ---
 
-## 系统要求
+## Runtime Modules
 
-- **Python** >= 3.12
-- 操作系统：Linux / macOS / Windows (WSL)
+Current source layout under `src/uniquant/`:
 
-### 核心依赖
+| Module | Current state | Responsibility |
+|---|---|---|
+| `shared` | Present | Protocols, constants, config, exceptions, cache, A-share rules, costs, slippage, logging. |
+| `data` | Present | Multi-source data ingestion, data lake, managers, parsers, cleaning, validation, adjustment. |
+| `brain` | Present | FSM, CZSC, LPPL, NTF, Regime, Wyckoff, indicators, factors, screener, alpha decoupler. |
+| `signal` | Present | Adapters, normalization, aggregation, quality, typed signal conversion. |
+| `hands` | Present | Backtest engines, vectorized matching, portfolio engine, strategy framework, reports. |
+| `risk` | Present | Position sizing, drawdown, EVT, historical risk, structural risk, portfolio optimization. |
+| `services` | Present | Service container, analysis service, data service, research pipeline, reports, scans, health. |
+| `ui` | Present | Streamlit dashboard, health checks, manager logic, LPPL visualization. |
 
-| 类别 | 包 | 版本要求 |
-|------|-----|---------|
-| 数值计算 | numpy | >= 2.0 |
-| | pandas | >= 2.0, < 3.0 |
-| | scipy | >= 1.10, < 2.0 |
-| | numba | >= 0.58, < 1.0 |
-| 数据格式 | pyarrow | >= 14.0, < 20.0 |
-| | duckdb | >= 0.9 |
-| 数据源 | akshare | >= 1.12, < 2.0 |
-| | mootdx | >= 0.11.7, < 1.0 |
-| 可视化 | streamlit | >= 1.20 |
-| | plotly | >= 5.0 |
-| 基础设施 | loguru | >= 0.7 |
-| | PyYAML | >= 6.0, < 7.0 |
+Core flow:
+
+`data -> brain/risk/signal -> hands -> services -> ui`
+
+Primary runtime chain:
+
+`DataService.fetch_for_brain()` -> `AnalysisService.run_ticker_analysis()` -> `TradingSignalCollector.collect()` -> `UnifiedBacktestEngine.run()` -> `PipelineResult`
 
 ---
 
-## 安装
+## Direct-Call Analysis Workflow
+
+Use [Analysis Prompt Playbook](ANALYSIS_PROMPT_PLAYBOOK.md) to run staged analysis:
+
+| Stage | Topic | Artifact |
+|---|---|---|
+| 0 | Global architecture | `docs/analysis/00_architecture_map.md` |
+| 1 | Services orchestration | `docs/analysis/01_services_orchestration.md` |
+| 2 | Data system | `docs/analysis/02_data_system.md` |
+| 3 | Brain engines | `docs/analysis/03_brain_engines.md` |
+| 4 | Factor system | `docs/analysis/04_factor_system.md` |
+| 5 | Signal system | `docs/analysis/05_signal_system.md` |
+| 6 | Backtest and matching | `docs/analysis/06_backtest_matching.md` |
+| 7 | Risk and live-readiness | `docs/analysis/07_risk_live_readiness.md` |
+
+Each stage includes:
+
+- plan before execution
+- concrete reading list
+- required artifact
+- checkpoint context for resuming after interruption
+- validation checklist
+
+---
+
+## Key Source Files
+
+| Concern | File |
+|---|---|
+| Package metadata | `../pyproject.toml` |
+| Main config | `../config/config.yaml` |
+| Cross-layer contracts | `../src/uniquant/shared/interfaces.py` |
+| Service DAG | `../src/uniquant/services/service_container.py` |
+| Analysis orchestrator | `../src/uniquant/services/analysis_service_v2.py` |
+| Research pipeline | `../src/uniquant/services/research_pipeline.py` |
+| Engine factory | `../src/uniquant/services/analysis/engine_factory.py` |
+| Data fetcher | `../src/uniquant/data/data_fetcher.py` |
+| Signal adapters | `../src/uniquant/signal/adapters.py` |
+| Signal arbitrator | `../src/uniquant/signal/arbitrator.py` |
+| Factor governance | `../src/uniquant/shared/factor_governance.py` |
+| Feature flags | `../src/uniquant/shared/config_models.py` |
+| Time provider | `../src/uniquant/shared/time_provider.py` |
+| Typed backtest engine | `../src/uniquant/hands/backtest/unified_engine.py` |
+| Vectorized matching engine | `../src/uniquant/hands/backtest/unified_matching_engine.py` |
+| Position sizing | `../src/uniquant/risk/sizer.py` |
+| Dashboard | `../src/uniquant/ui/dashboard.py` |
+
+---
+
+## Documentation Navigation
+
+### Architecture And State
+
+| Document | Status | Notes |
+|---|---|---|
+| [Architecture](architecture.md) | Historical/current mixed | Validate against source before citing. |
+| [Architecture Topology](ARCHITECTURE_TOPOLOGY.md) | Historical/current mixed | Useful for dependency discussions. |
+| [Project Status](STATUS.md) | Check before relying | May lag current working tree. |
+| [Evaluation Report](EVALUATION_REPORT.md) | Historical audit | Useful for doc/code drift background. |
+| [Verification Report](VERIFICATION_REPORT.md) | Historical audit | Independent verification notes. |
+| [Reshaping Remediation Report 2026-06-09](RESHAPING_REMEDIATION_REPORT_20260609.md) | Current recent audit | Latest remediation context. |
+
+### Package Pages
+
+These pages may contain stale migration-phase statements. Use as background only:
+
+| Document | Notes |
+|---|---|
+| [brain](packages/brain.md) | Validate engine list against `src/uniquant/brain/`. |
+| [data](packages/data.md) | Stale if it says data layer is missing. |
+| [hands](packages/hands.md) | Stale if it says hands layer is empty. |
+| [services](packages/services.md) | Validate against current service files. |
+| [shared](packages/shared.md) | Mostly useful, still validate constants layout. |
+| [signal](packages/signal.md) | Stale if it says signal layer is missing. |
+| [risk](packages/risk.md) | Validate against current risk files. |
+| [ui](packages/ui.md) | Validate against current dashboard files. |
+
+### Guides
+
+| Guide | Notes |
+|---|---|
+| [Quickstart](guides/quickstart.md) | Validate commands against `pyproject.toml`. |
+| [Backtest](guides/backtest.md) | Validate against unified engines. |
+| [Factors](guides/factors.md) | Validate against current factors package and experiments. |
+| [Strategies](guides/strategies.md) | Validate against `hands/strategies`. |
+| [Data Sources](guides/data_sources.md) | Validate against current sources and managers. |
+| [Configuration](guides/configuration.md) | Validate against current config loader and YAML files. |
+
+### References
+
+| Reference | Notes |
+|---|---|
+| [A-share Constraints](reference/a_share_constraints.md) | Cross-check with `shared/market_rules.py`, `limit_checker.py`, matching engines. |
+| [Signal Types](reference/signal_types.md) | Cross-check with `shared/interfaces.py` and `signal/adapters.py`. |
+| [Exceptions](reference/exceptions.md) | Cross-check with `shared/exceptions.py`. |
+| [Constants](reference/constants.md) | Cross-check with `shared/constants/`. |
+
+---
+
+## Install And Verification
 
 ```bash
-git clone git@github.com:feel6bglues/UniQuant.git
-cd UniQuant
-python3.12 -m venv .venv
-source .venv/bin/activate
 pip install -e ".[all]"
-```
-
----
-
-## 快速验证
-
-```bash
-# 运行测试
-pytest tests/ -v
-
-# 启动仪表盘
+pytest tests/ -q
+python3 -c "import uniquant.shared, uniquant.brain, uniquant.data, uniquant.signal, uniquant.services, uniquant.risk, uniquant.hands, uniquant.ui; print('imports OK')"
+python3 -c "from uniquant.services import ServiceContainer; c = ServiceContainer(); c.initialize(); print('container ready')"
+ruff check src/uniquant/
 streamlit run src/uniquant/ui/dashboard.py
 ```
+
+Do not report these as passing unless they were run in the current working tree.
