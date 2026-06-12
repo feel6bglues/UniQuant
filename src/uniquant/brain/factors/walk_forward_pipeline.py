@@ -120,8 +120,23 @@ class WalkForwardFactorPipeline:
 
         df = df.sort_values([code_col, date_col]).reset_index(drop=True)
 
-        if factor_cols is None:
-            factor_cols = [c for c in df.columns if c not in (date_col, code_col, price_col)]
+        # 如果传入了 factor_func，先展开列
+        if factor_func is not None:
+            df_with_factors = factor_func(df.copy())
+            # 展开后重新发现 factor_cols（如果未指定）
+            if factor_cols is None:
+                factor_cols = [
+                    c for c in df_with_factors.columns
+                    if c not in (date_col, code_col, price_col)
+                ]
+            if not factor_cols:
+                raise ValueError("factor_func produced no new columns")
+        else:
+            df_with_factors = df
+            if factor_cols is None:
+                factor_cols = [
+                    c for c in df.columns if c not in (date_col, code_col, price_col)
+                ]
 
         # 前视偏差检测：在使用 factor_func 之前检查
         if factor_func is not None:
@@ -133,13 +148,12 @@ class WalkForwardFactorPipeline:
 
         if factor_func is not None:
             self.analyzer.compute_ic_ir(
-                df,
+                df_with_factors,
                 factor_cols=factor_cols,
                 date_col=date_col,
                 code_col=code_col,
                 price_col=price_col,
                 mode=AnalysisMode.BACKTEST,
-                factor_func=factor_func,
             )
 
         windows = self._temporal_split(df, date_col)
@@ -153,6 +167,10 @@ class WalkForwardFactorPipeline:
         for ts, te, ss, se in windows:
             train_df = df[(pd.to_datetime(df[date_col]) >= ts) & (pd.to_datetime(df[date_col]) <= te)].copy()
             test_df = df[(pd.to_datetime(df[date_col]) >= ss) & (pd.to_datetime(df[date_col]) <= se)].copy()
+
+            if factor_func is not None:
+                train_df = factor_func(train_df.copy())
+                test_df = factor_func(test_df.copy())
 
             if len(train_df) < self.min_train_days:
                 raise ValueError(f"Train window too short: {len(train_df)} < {self.min_train_days}")
