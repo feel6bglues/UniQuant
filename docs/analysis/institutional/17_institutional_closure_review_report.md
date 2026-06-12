@@ -2,21 +2,36 @@
 
 生成日期：2026-06-12
 源码基线：master @ b370f8db (18 commits ahead of origin)
-验证摘要：R0-R1 完成，P0 关闭矩阵判定下
+验证摘要：R0-R2 完成，P0 + P1 关闭矩阵判定下
 
 ---
 
 ## Executive Summary
 
-本复审对原机构审计 5 个 P0 发现进行代码级状态复核。结论如下：
+本复审对原机构审计 5 个 P0 + 8 个 P1 发现进行代码级状态复核。结论如下：
+
+### P0 状态
 
 | P0 | 原状态 | 当前状态 | 判定依据 |
 |:---|:---|:---|---:|
 | P0-1 | Design complete, implementation pending | **Open** | ResearchDataPack 已定义但 0 处运行时接入；data_pack: Dict[str, Any] 470 处 |
-| P0-2 | Design complete, implementation pending | **Partially closed** | TimeProvider 已注入关键路径（pipeline line 177, container line 108）；剩余 38 处低风险时钟调用 |
-| P0-3 | Design complete, implementation pending | **Closed** | SELL 优先 + metadata + survivorship + baseline + bias/survivorship 测试全部通过 |
-| P0-4 | Design complete, implementation pending | **Closed** | SignalArbitrator 已接入 research_pipeline（line 200）；arbitrate_candidates 新增 WS14 链；15 测试通过 |
-| P0-5 | Design complete, implementation pending | **Partially closed** | FactorAdmissionGate + FactorManifest 已定义；但双 registry（G-2）未治理，factor_gate=off |
+| P0-2 | Design complete, implementation pending | **Partially closed** | TimeProvider 已注入关键路径；剩余 38 处低风险时钟调用 |
+| P0-3 | Design complete, implementation pending | **Closed** | SELL 优先 + metadata + survivorship + baseline + 偏差测试全部通过 |
+| P0-4 | Design complete, implementation pending | **Closed** | SignalArbitrator 已接入 pipeline；arbitrate_candidates 新增 WS14 链；15 测试通过 |
+| P0-5 | Design complete, implementation pending | **Partially closed** | FactorAdmissionGate + FactorManifest 已定义；但双 registry 未治理，gate=off |
+
+### P1 状态
+
+| P1 | 原状态 | 当前状态 | 判定依据 |
+|:---|:---|:---|---:|
+| P1-1 | Design complete, implementation pending | **Open** | Wyckoff 12 文件 5158 LOC，仍无缓存/性能优化，0 性能基准 |
+| P1-2 | Design complete, implementation pending | **Open** | ScanService 仍单线程执行，无并发/checkpoint |
+| P1-3 | Design complete, implementation pending | **Partially closed** | PortfolioEngine 已废弃且 services 层不引用；但残留 List[Dict] 未清理 |
+| P1-4 | Design complete, implementation pending | **Closed** | limit_checker + market_rules + price_collar 完备；30 测试通过 |
+| P1-5 | Design complete, implementation pending | **Open** | 仅 baseline 脚本有 checkpoint，services/experiments 无任何恢复机制 |
+| P1-6 | Design complete, implementation pending | **Closed** | MarketSignalContext 充分集成（analysis_service → fsm → arbitrator） |
+| P1-7 | Design complete, implementation pending | **Open** | 两套 retry 实现重叠（retry_decorator.py + error_handling.py） |
+| P1-8 | Design complete, implementation pending | **Partially closed** | 无静态 Token；env overlay 已实现；但 secrets 管理未形成测试 |
 
 ---
 
@@ -154,6 +169,175 @@ pytest tests/shared/test_config_validator_factor.py -q  # 2 passed
 
 ---
 
+## P1 Closure Matrix
+
+### P1-1 — Wyckoff 分析器 CPU 瓶颈
+
+**Status:** Open (unchanged since audit)
+**Evidence:**
+- Wyckoff 包：12 文件，**5158 LOC**（原审计 1457 行，当前仅 engine.py 就达 1457 行）
+- 无任何缓存/性能优化（零处 `lru_cache`、`cache`、`functools`）
+- 测试文件：仅 `test_wyckoff.py`（37 passed），无性能基准
+
+**Verification:**
+```bash
+pytest tests/test_wyckoff.py -q     # 37 passed
+grep -rn "lru_cache\|@cache\|functools" src/uniquant/brain/wyckoff/ --include="*.py" | wc -l  # 0
+```
+
+**Residual risk:** 高。Wyckoff 代码仍在增长但无任何性能控制，是全仓最大 CPU 热点。
+
+**Next action:** 制定基准性能基线，识别热点函数；引入缓存策略或计算边界控制。
+
+---
+
+### P1-2 — ScanService 单线程/无扩展
+
+**Status:** Open (unchanged since audit)
+**Evidence:**
+- `src/uniquant/services/scan_service.py`：`batch_size=500` 存在但仍是逐周期单线程执行
+- 无 `ThreadPoolExecutor`、`ProcessPoolExecutor`、`asyncio` 或并发机制
+- 无 checkpoint/restart 机制
+- 无扩展性测试
+
+**Verification:**
+```bash
+grep -c "ThreadPool\|ProcessPool\|asyncio" src/uniquant/services/scan_service.py  # 0
+```
+
+**Residual risk:** 中-高。长周期扫描仍为 2 小时级阻塞操作，无中间产物保证。
+
+**Next action:** 添加并发执行层 + 分批结果持久化；或确认当前实际使用频率以评估优先级。
+
+---
+
+### P1-3 — 旧 PortfolioEngine/未类型交易记录
+
+**Status:** Partially closed
+**Evidence:**
+- `PortfolioEngine` 已标记废弃（`__init__.py` deprecation warning + `portfolio_engine.py:26`）
+- Services 层 **不引用** `PortfolioEngine`（grep 0 结果），不再影响服务调用方
+- 但 `portfolio_engine.py` 中仍保留 `self.trades: List[Dict[str, Any]]`（line 70）和 `_pending_signals: List[Dict]`（line 71）
+- `results_manager.py`、`strategies/backtest.py` 仍有 `List[Dict[str, Any]]` 用法的残留
+
+**Verification:**
+```bash
+grep -rn "PortfolioEngine" src/uniquant/services/ --include="*.py"  # 无输出（已隔离）
+grep -rn "List\[Dict.*Any" src/uniquant/hands/ --include="*.py"     # 仍存残留
+```
+
+**Residual risk:** 低。`PortfolioEngine` 已不阻塞服务层；但残留代码可清理。
+
+**Next action:** 清理 `portfolio_engine.py` 和 `results_manager.py` 中残存的 `List[Dict]` 类型；删除未使用的 `PortfolioEngine` 废弃代码（或推迟至独立清理任务）。
+
+---
+
+### P1-4 — A-share 规则治理不足
+
+**Status:** Closed
+**Evidence:**
+- `limit_checker.py`（308 LOC）覆盖主/创/科/北/ST 板涨跌停 + suspension 检测
+- `market_rules.py`（63 LOC）lot size、trading calendar
+- `price_collar.py`、`slippage_model.py`、`cost_model.py` 完备
+- A-share 规则测试 30 passed（`test_limit_checker.py`）
+- 全测试仓 310 处 A-share 规则引用
+
+**Verification:**
+```bash
+pytest tests/test_limit_checker.py -q   # 30 passed
+```
+
+**Residual risk:** 低。如新增板（如科创板做市）需同步更新。
+
+**Next action:** 维护；如有新交易规则需添加测试。
+
+---
+
+### P1-5 — 长任务无 checkpoint/restart
+
+**Status:** Open (unchanged since audit)
+**Evidence:**
+- 唯一 checkpoint 机制：`scripts/capture_baseline.py` 的 `_save_intermediate()`
+- Services 层和 experiments/ 无 checkpoint/restart/partial 持久化
+- 长任务（scan、walk-forward、full-market backtest）中断后丢失所有中间结果
+
+**Verification:**
+```bash
+grep -rn "checkpoint\|resume\|partial_result\|restart" src/uniquant/services/ --include="*.py"
+# 仅 functools.partial（不相关）
+```
+
+**Residual risk:** 中。研究流程中 scan 和 walk-forward 运行数小时，无中断恢复能力。
+
+**Next action:** 为 scan_service.py 添加分批结果持久化 + resume 能力；或记录为已知限制留待后续。
+
+---
+
+### P1-6 — MarketSignalContext orphaned
+
+**Status:** Closed
+**Evidence:**
+- `MarketSignalContext` 已充分集成：
+  - `analysis_service_v2.py:622`：`ctx = MarketSignalContext.from_dict(data_pack)`
+  - `brain/fsm/fsm.py:549`：`make_decision()` 接受 `Union[dict, MarketSignalContext]`
+  - `fsm.py` 内 10+ 处直接使用 `MarketSignalContext` 字段
+  - `signal/arbitrator.py:206`：`arbitrate_candidates()` 接受 `MarketSignalContext`
+- 向下兼容：`make_decision()` 对旧 dict 路径自动执行 `MarketSignalContext.from_dict()`
+
+**Verification:**
+```bash
+grep -c "MarketSignalContext" src/uniquant/brain/fsm/fsm.py           # 10+ 处
+python3 -c "from uniquant.shared.interfaces import MarketSignalContext; print('OK')"
+```
+
+**Residual risk:** 低。旧 dict 路径仍受支持但不影响类型化路径的采用。
+
+**Next action:** 无。可考虑逐步废弃 `make_decision()` 的 dict 参数重载。
+
+---
+
+### P1-7 — retry/error handling 重叠
+
+**Status:** Open (unchanged since audit)
+**Evidence:**
+- `retry_decorator.py`（181 LOC）：`retry()`、`retry_with_fallback()`、`RetryConfig`
+- `error_handling.py`（477 LOC）：`handle_errors()`、`retry_on_exception()`、领域专用处理器（`handle_network_errors`、`handle_file_errors`、`handle_data_errors`、`handle_api_errors`）
+- 两套 retry 机制重叠：`retry()` vs `retry_on_exception()` 提供相似功能
+- 3 测试文件 21 passed
+
+**Verification:**
+```bash
+pytest tests/test_error_handling.py tests/test_retry_and_utils.py -q  # 21 passed
+```
+
+**Residual risk:** 中。双实现增加维护成本，新代码可能选择错误的 retry 路径。
+
+**Next action:** 定义统一 retry taxonomy（单次 vs 退避 vs 熔断），将 `error_handling.py` 的 `retry_on_exception()` 委托到 `retry_decorator.py` 的核心实现。
+
+---
+
+### P1-8 — Config/secrets 边界弱
+
+**Status:** Partially closed
+**Evidence:**
+- `config/config.yaml`：**无静态 Token/密码**（grep token/api_key/password/secret 无输出）
+- Config loader：`UNIQUANT_` 前缀环境变量覆盖 + env alias 映射
+- Config validator 测试 11+2=13 passed
+- 但无专门 secrets 注入测试（env overlay 测试未独立覆盖）
+
+**Verification:**
+```bash
+pytest tests/shared/test_config_validator.py -q           # 11 passed
+pytest tests/shared/test_config_validator_factor.py -q     # 2 passed
+grep -n "api_key\|token\|password\|secret" config/config.yaml  # 无输出
+```
+
+**Residual risk:** 低。无已发现的静态凭据泄露；但 secrets 管理策略未形成测试。
+
+**Next action:** 为 env overlay 路径添加显式测试；记录 secrets 管理策略。
+
+---
+
 ## Verification Log
 
 ### 最小验证集（§11.1）
@@ -232,7 +416,7 @@ pytest tests/shared/test_config_validator_factor.py -q  # 2 passed
 
 | 文件 | 状态 | 备注 |
 |:---|---|:---|
-| `FINDINGS_INDEX.md` | ❌ 需更新 | P0-3 → Closed, P0-4 → Closed, P0-1/P0-2/P0-5 状态需更新 |
+| `FINDINGS_INDEX.md` | ❌ 需更新 | P0-3 → Closed, P0-4 → Closed, P0-1/P0-2/P0-5 + P1-1~P1-8 状态需更新 |
 | `99_final_institutional_audit_report.md` | ✅ 保留历史 | 按计划不修改 |
 | `docs/GAP_REMEDIATION_PLAN.md` | ❌ 需更新 | G-3 可移除，G-1 计数需修正 |
 | `docs/index.md` | ❌ 需更新 | 添加 closure review 入口 |
@@ -242,13 +426,17 @@ pytest tests/shared/test_config_validator_factor.py -q  # 2 passed
 
 ## Recommended Next Implementation Slice
 
-按研究可信度风险排序：
+按研究可信度风险排序（含新 P1 任务）：
 
-| 优先级 | 任务 | 关联 P0/Gap | 预估工作量 |
+| 优先级 | 任务 | 关联 | 预估工作量 |
 |:---:|:---|---:|
-| 1 | **P0-1: ResearchDataPack 运行时接入** — 先加合约测试 → DataService 返回 typed pack → migration adapter | P0-1 | 3-5 天 |
-| 2 | **G-2: FactorRegistry 统一** — reverse-merge shared→brain, 删除死代码 | P0-5, G-2 | 1 天 |
-| 3 | **G-2 (续): factor_gate 切至 warn** — 观察准入日志，确认无误报 | P0-5 | 0.5 天 |
-| 4 | **P0-2: 剩余时钟调用替换** — 优先 brain/ 层 2 处 datetime.now() | P0-2, G-1 | 0.5 天 |
-| 5 | **P0-4: pipeline 升级** — arbitrate() → arbitrate_candidates() + PositionSizer 接入 | P0-4 | 1 天 |
-| 6 | **G-4: AsyncEventBus 接入** — 确认代码状态并补测试 | G-4 | 1 天 |
+| 1 | **P0-1: ResearchDataPack 运行时接入** | P0-1 | 3-5 天 |
+| 2 | **P1-1: Wyckoff 性能基线 + 热点缓存** | P1-1 | 2 天 |
+| 3 | **G-2: FactorRegistry 统一** → factor_gate warn | P0-5, G-2 | 1.5 天 |
+| 4 | **P1-7: Retry 统一** — error_handling.py 委托 retry_decorator.py 核心 | P1-7 | 1 天 |
+| 5 | **P0-2: 剩余时钟调用替换** — 优先 brain/ 层 | P0-2, G-1 | 0.5 天 |
+| 6 | **P1-2: ScanService 分批并发 + checkpoint** | P1-2 | 2 天 |
+| 7 | **P1-5: 长任务 checkpoint/restart** — 优先 walk-forward pipeline | P1-5 | 1 天 |
+| 8 | **P0-4: pipeline 升级** — arbitrate_candidates() + PositionSizer | P0-4 | 1 天 |
+| 9 | **P1-3: PortfolioEngine 残留清理** | P1-3 | 0.5 天 |
+| 10 | **P1-8: Secrets 管理测试** | P1-8 | 0.5 天 |

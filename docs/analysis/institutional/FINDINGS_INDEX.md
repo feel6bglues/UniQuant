@@ -42,15 +42,15 @@ Status meanings:
 These are the final report's eight P1 items, mapped to the workstream findings that provide evidence or design context.
 
 | Consolidated ID | Theme | Underlying findings | Target phase | Status | Closure evidence required |
-|---|---|---|---|---|---|
-| P1-1 | Wyckoff analyzer is the largest CPU hotspot | WS8-001 | Phase 2 | Design complete, implementation pending | before/after benchmark; output equivalence on representative symbols; performance budget met |
-| P1-2 | `ScanService` batch execution lacks scalable parallel/checkpoint behavior | WS8-009, WS13-005, WS10-007, WS10-008 | Phase 2 | Design complete, implementation pending | benchmark; checkpoint/restart test; point-in-time universe warning or guard |
-| P1-3 | Deprecated `PortfolioEngine`/simulation portfolio path still carries untyped trade records | WS2-007, WS2-009, WS3-016, WS5-007, WS10-006 | Phase 3 | Design complete, implementation pending | canonical `TradeRecord` use; portfolio/backtest regression tests |
-| P1-4 | A-share limit/tradability rule surface needs stronger testable governance | WS3-007, WS3-008, WS3-011, WS3-012 | Phase 2 | Design complete, implementation pending | limit-up/down, suspension, lot-size, and price-collar tests |
-| P1-5 | Long batch jobs have no robust checkpoint/restart semantics | WS13-005, WS12-006 | Phase 2/4 | Design complete, implementation pending | restart-from-checkpoint simulation; partial result persistence |
-| P1-6 | `MarketSignalContext` is typed but orphaned; `make_decision()` still accepts raw dicts | WS2-010, WS5-008, WS5-009 | Phase 3 | Design complete, implementation pending | `MarketSignalContext` adoption tests; DecisionBrain contract tests |
-| P1-7 | Retry/error-handling patterns overlap and are not governed as one failure taxonomy | WS11-009, WS13-003, WS13-004 | Phase 5 | Design complete, implementation pending | error taxonomy tests; retry policy audit; failure classification in logs |
-| P1-8 | Config/secrets boundary is absent or weak | WS9-003, WS9-004, WS9-005, WS9-006, WS9-010 | Phase 5 | Design complete, implementation pending | typed config validation; env overlay tests; no static secret values in committed config |
+|---|---|---|---|---|---|---|
+| P1-1 | Wyckoff analyzer is the largest CPU hotspot | WS8-001 | Phase 2 | Open (12 files, 5158 LOC, no caching/perf work) | before/after benchmark; output equivalence on representative symbols; performance budget met |
+| P1-2 | `ScanService` batch execution lacks scalable parallel/checkpoint behavior | WS8-009, WS13-005, WS10-007, WS10-008 | Phase 2 | Open (single-threaded, no concurrency/checkpoint) | benchmark; checkpoint/restart test; point-in-time universe warning or guard |
+| P1-3 | Deprecated `PortfolioEngine`/simulation portfolio path still carries untyped trade records | WS2-007, WS2-009, WS3-016, WS5-007, WS10-006 | Phase 3 | Partially closed (deprecated + services isolated; List[Dict] residuals remain) | canonical `TradeRecord` use; portfolio/backtest regression tests |
+| P1-4 | A-share limit/tradability rule surface needs stronger testable governance | WS3-007, WS3-008, WS3-011, WS3-012 | Phase 2 | Closed (limit_checker 30 tests pass; price_collar + cost + slippage + market_rules all exist) | limit-up/down, suspension, lot-size, and price-collar tests |
+| P1-5 | Long batch jobs have no robust checkpoint/restart semantics | WS13-005, WS12-006 | Phase 2/4 | Open (only baseline scripts have _save_intermediate; no services/experiments support) | restart-from-checkpoint simulation; partial result persistence |
+| P1-6 | `MarketSignalContext` is typed but orphaned; `make_decision()` still accepts raw dicts | WS2-010, WS5-008, WS5-009 | Phase 3 | Closed (fully integrated: analysis_service → fsm → arbitrator; dict path is backward compat) | `MarketSignalContext` adoption tests; DecisionBrain contract tests |
+| P1-7 | Retry/error-handling patterns overlap and are not governed as one failure taxonomy | WS11-009, WS13-003, WS13-004 | Phase 5 | Open (retry_decorator.py + error_handling.py have duplicate retry_on_exception/retry) | error taxonomy tests; retry policy audit; failure classification in logs |
+| P1-8 | Config/secrets boundary is absent or weak | WS9-003, WS9-004, WS9-005, WS9-006, WS9-010 | Phase 5 | Partially closed (no static token; UNIQUANT_ env prefix works; no dedicated secrets test) | typed config validation; env overlay tests; no static secret values in committed config |
 
 ## 4. Raw Workstream Inventory
 
