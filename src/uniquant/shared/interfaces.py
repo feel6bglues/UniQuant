@@ -38,6 +38,24 @@ class RegimeType(enum.Enum):
     UNKNOWN = "unknown"
 
 
+@dataclass(frozen=True)
+class CandidateSignal:
+    """候选信号 — 引擎输出到仲裁器的类型化输入
+
+    将 per-engine 的 Dict[str, Any] 输出转换为结构化字段，
+    使 SignalArbitrator 可以基于置信度、方向和强度进行仲裁。
+    """
+    source: str
+    action: str
+    confidence: float
+    direction: int
+    strength: float
+    price_target: Optional[float] = None
+    stop_loss: Optional[float] = None
+    time_horizon: Optional[str] = None
+    metadata: Dict[str, Any] = field(default_factory=dict)
+
+
 @dataclass
 class MarketSignalContext:
     """

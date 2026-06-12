@@ -19,6 +19,8 @@ import datetime
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional
 
+from ..shared.event_bus import EventBus
+from ..shared.event_types import SignalGenerated
 from ..shared.interfaces import TradingSignal
 from ..shared.logger_factory import get_logger
 from ..shared.observability import perf_section
@@ -285,7 +287,7 @@ class NTFAdapter(EngineAdapter):
     """NTF (日内趋势跟随) 引擎输出适配器
 
     输入 keys: ntf_side, ntf_intensity, ntf_action
-    输出: BUY (LONG+高intensity) / SELL (SHORT+高intensity) / HOLD
+    输出: SELL (RESISTANCE+高强度) / HOLD (SUPPORT, bullish context) / None
     """
 
     def adapt(
@@ -297,18 +299,32 @@ class NTFAdapter(EngineAdapter):
     ) -> Optional[TradingSignal]:
         side = raw_output.get("ntf_side", "NONE")
         intensity = float(raw_output.get("ntf_intensity", 0.0))
-        if side == "NONE" or intensity < 0.3:
+
+        if side == "NONE":
             return None
-        action = "BUY" if side == "LONG" else "SELL" if side == "SHORT" else "HOLD"
-        return TradingSignal(
-            action=action,
-            reason=f"NTF side={side} intensity={intensity:.2f}",
-            confidence=min(intensity, 0.9),
-            shares=default_shares if action != "HOLD" else 0,
-            symbol=symbol,
-            price=float(raw_output.get("price", 0.0)),
-            timestamp=timestamp,
-        )
+        if side == "SUPPORT":
+            return TradingSignal(
+                action="HOLD",
+                reason=f"NTF SUPPORT intensity={intensity:.2f} (bullish context, no auto-trade)",
+                confidence=intensity * 0.5,
+                shares=0,
+                symbol=symbol,
+                price=float(raw_output.get("price", 0.0)),
+                timestamp=timestamp,
+            )
+        if side == "RESISTANCE":
+            if intensity >= 0.6:
+                return TradingSignal(
+                    action="SELL",
+                    reason=f"NTF RESISTANCE intensity={intensity:.2f}",
+                    confidence=min(intensity, 0.9),
+                    shares=default_shares,
+                    symbol=symbol,
+                    price=float(raw_output.get("price", 0.0)),
+                    timestamp=timestamp,
+                )
+            return None
+        return None
 
 
 # ══════════════════════════════════════════════════════════════
@@ -429,25 +445,33 @@ class TradingSignalCollector:
         signals = collector.collect(data_pack)
     """
 
-    def __init__(self, registry: Optional[AdapterRegistry] = None) -> None:
+    def __init__(
+        self,
+        registry: Optional[AdapterRegistry] = None,
+        event_bus: Optional[EventBus] = None,
+    ) -> None:
         self._registry = registry or create_default_registry()
+        self._event_bus = event_bus
 
     def collect(
         self,
         data_pack: Dict[str, Any],
         timestamp: Optional[datetime.datetime] = None,
+        bar_date: Optional[datetime.datetime] = None,
         default_shares: int = 100,
     ) -> List[TradingSignal]:
         """从 data_pack 中收集所有信号
 
         Args:
             data_pack: AnalysisService._run_engine_analysis() 的输出
-            timestamp: 信号时间戳
+            timestamp: 信号时间戳 (wall clock, 仅当 bar_date 为 None 时使用)
+            bar_date: K-line bar 日期 (preferred over timestamp for backtest)
             default_shares: 默认股数
 
         Returns:
             标准化的 TradingSignal 列表
         """
+        ts = bar_date if bar_date is not None else timestamp
         with perf_section("adapter.collect"):
             signals: List[TradingSignal] = []
             symbol = data_pack.get("symbol", "")
@@ -457,7 +481,7 @@ class TradingSignalCollector:
             if lppl_out:
                 adapter = self._registry.get("lppl")
                 if adapter:
-                    s = adapter.adapt(lppl_out, symbol, timestamp, default_shares)
+                    s = adapter.adapt(lppl_out, symbol, ts, default_shares)
                     if s:
                         signals.append(s)
 
@@ -466,7 +490,7 @@ class TradingSignalCollector:
             if czsc_out:
                 adapter = self._registry.get("czsc")
                 if adapter:
-                    s = adapter.adapt(czsc_out, symbol, timestamp, default_shares)
+                    s = adapter.adapt(czsc_out, symbol, ts, default_shares)
                     if s:
                         signals.append(s)
 
@@ -475,7 +499,7 @@ class TradingSignalCollector:
             if wyckoff_out:
                 adapter = self._registry.get("wyckoff")
                 if adapter:
-                    s = adapter.adapt(wyckoff_out, symbol, timestamp, default_shares)
+                    s = adapter.adapt(wyckoff_out, symbol, ts, default_shares)
                     if s:
                         signals.append(s)
 
@@ -483,7 +507,7 @@ class TradingSignalCollector:
             if "action" in data_pack or "final_decision" in data_pack:
                 adapter = self._registry.get("fsm")
                 if adapter:
-                    s = adapter.adapt(data_pack, symbol, timestamp, default_shares)
+                    s = adapter.adapt(data_pack, symbol, ts, default_shares)
                     if s:
                         signals.append(s)
 
@@ -494,7 +518,7 @@ class TradingSignalCollector:
                     s = adapter.adapt(
                         {"regime": data_pack["regime"]},
                         symbol,
-                        timestamp,
+                        ts,
                         default_shares,
                     )
                     if s:
@@ -504,7 +528,7 @@ class TradingSignalCollector:
             if "ntf_side" in data_pack and data_pack.get("ntf_side") != "NONE":
                 adapter = self._registry.get("ntf")
                 if adapter:
-                    s = adapter.adapt(data_pack, symbol, timestamp, default_shares)
+                    s = adapter.adapt(data_pack, symbol, ts, default_shares)
                     if s:
                         signals.append(s)
 
@@ -512,7 +536,7 @@ class TradingSignalCollector:
             if "alpha_score" in data_pack:
                 adapter = self._registry.get("alpha_score")
                 if adapter:
-                    s = adapter.adapt(data_pack, symbol, timestamp, default_shares)
+                    s = adapter.adapt(data_pack, symbol, ts, default_shares)
                     if s:
                         signals.append(s)
 
@@ -520,9 +544,16 @@ class TradingSignalCollector:
             if "ma_status" in data_pack:
                 adapter = self._registry.get("ma_status")
                 if adapter:
-                    s = adapter.adapt(data_pack, symbol, timestamp, default_shares)
+                    s = adapter.adapt(data_pack, symbol, ts, default_shares)
                     if s:
                         signals.append(s)
+
+        if self._event_bus is not None and signals:
+            for s in signals:
+                self._event_bus.publish(SignalGenerated(
+                    symbol=symbol,
+                    signal={"action": s.action, "reason": s.reason, "confidence": s.confidence},
+                ))
 
         return signals
 

@@ -14,7 +14,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
+
+from ..shared.interfaces import CandidateSignal, DecisionOutput, MarketSignalContext, PositionSizerProtocol
 
 from ..shared.interfaces import TradingSignal
 from ..shared.logger_factory import get_logger
@@ -47,12 +49,26 @@ class ArbitrationLog:
     rejection_reasons: List[str] = field(default_factory=list)
 
 
+@dataclass
+class ArbitrationReport:
+    """仲裁报告 — 记录仲裁决策过程和拒绝链"""
+    symbol: str
+    date: str
+    candidates_count: int
+    final_action: str = "HOLD"
+    final_reason: str = ""
+    final_confidence: float = 0.0
+    veto_chain: List[str] = field(default_factory=list)
+    rejected: List[str] = field(default_factory=list)
+
+
 class SignalArbitrator:
     """信号仲裁器
 
     用法:
         arbitrator = SignalArbitrator()
         final_signals = arbitrator.arbitrate(all_signals)
+        final_signals, report = arbitrator.arbitrate_candidates(candidates, ...)
     """
 
     def __init__(
@@ -182,6 +198,151 @@ class SignalArbitrator:
             if engine in reason_lower:
                 return priority
         return 99
+
+    def arbitrate_candidates(
+        self,
+        candidates: List[CandidateSignal],
+        decision_output: Optional[DecisionOutput] = None,
+        context: Optional[MarketSignalContext] = None,
+        sizer: Optional[PositionSizerProtocol] = None,
+        symbol: str = "",
+    ) -> Tuple[List[TradingSignal], ArbitrationReport]:
+        """仲裁候选信号列表, 返回最终要执行的信号 + 仲裁报告
+
+        Args:
+            candidates: 来自所有引擎的候选信号列表
+            decision_output: DecisionBrain 的类型化输出
+            context: 市场信号上下文
+            sizer: 仓位计算器 (非 FSM BUY 需要)
+            symbol: 证券代码
+
+        Returns:
+            (最终信号列表, 仲裁报告)
+        """
+        if not candidates:
+            return [], ArbitrationReport(
+                symbol=symbol, date="", candidates_count=0,
+                final_action="HOLD", final_reason="no candidates",
+            )
+
+        report = ArbitrationReport(
+            symbol=symbol,
+            date="",
+            candidates_count=len(candidates),
+        )
+
+        # Priority 1: DecisionOutput hard constraints
+        if decision_output is not None:
+            if decision_output.action in ("FORCE_WAIT", "CIRCUIT_BREAK"):
+                report.final_action = "HOLD"
+                report.final_reason = "risk_veto"
+                report.veto_chain.append(f"decision_output={decision_output.action}")
+                return [], report
+
+            if decision_output.action == "FORCE_EXIT":
+                report.final_action = "SELL"
+                report.final_reason = "force_exit"
+                report.veto_chain.append("decision_output=FORCE_EXIT")
+                return [
+                    TradingSignal(action="SELL", reason="FORCE_EXIT", confidence=1.0, symbol=symbol)
+                ], report
+
+            if decision_output.action == "BUY" and decision_output.shares > 0:
+                report.final_action = "BUY"
+                report.final_reason = "decision_brain"
+                report.final_confidence = decision_output.confidence
+                report.veto_chain.append(f"decision_output=BUY shares={decision_output.shares}")
+                return [
+                    TradingSignal(
+                        action="BUY",
+                        reason="decision_brain",
+                        confidence=decision_output.confidence,
+                        shares=decision_output.shares,
+                        symbol=symbol,
+                    )
+                ], report
+
+        # Priority 2: SELL over BUY (from existing arbitrate logic)
+        sell_candidates = [c for c in candidates if c.action == "SELL"]
+        if sell_candidates:
+            best_sell = max(sell_candidates, key=lambda c: c.confidence)
+            report.final_action = "SELL"
+            report.final_reason = f"arbitrated: {best_sell.source} SELL"
+            report.final_confidence = best_sell.confidence
+            report.veto_chain.append(f"sell_priority: {best_sell.source}")
+            for c in candidates:
+                if c.action != "SELL":
+                    report.rejected.append(f"{c.source} {c.action} (overridden by SELL priority)")
+            return [
+                TradingSignal(
+                    action="SELL",
+                    reason=f"arbitrated: {best_sell.source} confidence={best_sell.confidence:.2f}",
+                    confidence=best_sell.confidence,
+                    symbol=symbol,
+                )
+            ], report
+
+        # Priority 3: Non-FSM BUY candidates need PositionSizer
+        buy_candidates = [c for c in candidates if c.action == "BUY"]
+        non_fsm_buys = [c for c in buy_candidates if c.source != "fsm"]
+        fsm_buys = [c for c in buy_candidates if c.source == "fsm"]
+
+        # FSM buys pass through
+        if fsm_buys:
+            best_fsm = max(fsm_buys, key=lambda c: c.confidence)
+            report.final_action = "BUY"
+            report.final_reason = f"fsm: {best_fsm.source}"
+            report.final_confidence = best_fsm.confidence
+            report.veto_chain.append("fsm_buy")
+            return [
+                TradingSignal(
+                    action="BUY",
+                    reason=f"fsm: {best_fsm.source}",
+                    confidence=best_fsm.confidence,
+                    symbol=symbol,
+                )
+            ], report
+
+        # Non-FSM buys need sizer
+        if non_fsm_buys:
+            if sizer is None:
+                for c in non_fsm_buys:
+                    report.rejected.append(f"{c.source} BUY (no sizer available)")
+                report.final_action = "HOLD"
+                report.final_reason = f"non-fsm buys require sizer: {[c.source for c in non_fsm_buys]}"
+                report.veto_chain.append("non_fsm_needs_sizer")
+                return [], report
+            else:
+                best_non_fsm = max(non_fsm_buys, key=lambda c: c.confidence)
+                try:
+                    sized = sizer.calculate_shares(
+                        price=best_non_fsm.price_target or 0.0,
+                        stop_loss=best_non_fsm.stop_loss or 0.0,
+                        czsc_bottom=None,
+                        market="CN",
+                        symbol=symbol,
+                    )
+                    sized_shares = int(sized.get("suggested_shares", 100))
+                except Exception:
+                    sized_shares = 100
+                report.final_action = "BUY"
+                report.final_reason = f"sizer approved: {best_non_fsm.source}"
+                report.final_confidence = best_non_fsm.confidence
+                report.veto_chain.append(f"non_fsm_sizer_approved:{best_non_fsm.source}")
+                return [
+                    TradingSignal(
+                        action="BUY",
+                        reason=f"sizer approved: {best_non_fsm.source}",
+                        confidence=best_non_fsm.confidence,
+                        shares=sized_shares,
+                        symbol=symbol,
+                    )
+                ], report
+
+        # Priority 4: HOLD by default
+        report.final_action = "HOLD"
+        report.final_reason = "default_no_trade"
+        return [], report
 
     def clear_logs(self) -> None:
         self._logs.clear()

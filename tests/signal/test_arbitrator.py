@@ -1,8 +1,12 @@
 """信号仲裁器测试"""
 import datetime
+from unittest.mock import MagicMock
 
 from uniquant.shared.interfaces import TradingSignal
 from uniquant.signal.arbitrator import SignalArbitrator
+
+
+from uniquant.shared.interfaces import CandidateSignal, DecisionOutput
 
 
 def _sig(action: str, reason: str = "", confidence: float = 0.5) -> TradingSignal:
@@ -74,3 +78,74 @@ class TestSignalArbitrator:
         assert len(result) == 1
         # Without sell_priority, highest confidence wins
         assert result[0].confidence == 0.8
+
+
+class TestSignalArbitratorCandidateSignals:
+    def test_empty_candidates(self):
+        arb = SignalArbitrator()
+        signals, report = arb.arbitrate_candidates([], symbol="000001.SZ")
+        assert signals == []
+        assert report.candidates_count == 0
+
+    def test_force_wait_veto(self):
+        arb = SignalArbitrator()
+        candidates = [CandidateSignal(source="czsc", action="BUY", confidence=0.8, direction=1, strength=0.7)]
+        decision = DecisionOutput(action="FORCE_WAIT", reason="market frozen", confidence=1.0)
+        signals, report = arb.arbitrate_candidates(candidates, decision_output=decision, symbol="000001.SZ")
+        assert signals == []
+        assert "risk_veto" in report.final_reason or "FORCE_WAIT" in report.veto_chain[0]
+
+    def test_force_exit(self):
+        arb = SignalArbitrator()
+        candidates = [CandidateSignal(source="czsc", action="BUY", confidence=0.8, direction=1, strength=0.7)]
+        decision = DecisionOutput(action="FORCE_EXIT", reason="danger", confidence=1.0)
+        signals, report = arb.arbitrate_candidates(candidates, decision_output=decision, symbol="000001.SZ")
+        assert len(signals) == 1
+        assert signals[0].action == "SELL"
+
+    def test_decision_buy_authoritative(self):
+        arb = SignalArbitrator()
+        candidates = [CandidateSignal(source="czsc", action="BUY", confidence=0.8, direction=1, strength=0.7)]
+        decision = DecisionOutput(action="BUY", shares=200, confidence=0.9)
+        signals, report = arb.arbitrate_candidates(candidates, decision_output=decision, symbol="000001.SZ")
+        assert len(signals) == 1
+        assert signals[0].action == "BUY"
+
+    def test_non_fsm_needs_sizer(self):
+        arb = SignalArbitrator()
+        candidates = [CandidateSignal(source="wyckoff", action="BUY", confidence=0.8, direction=1, strength=0.7)]
+        signals, report = arb.arbitrate_candidates(candidates, symbol="000001.SZ")
+        assert signals == []
+        assert "sizer" in report.final_reason
+
+    def test_non_fsm_sizer_approves(self):
+        arb = SignalArbitrator()
+        candidates = [CandidateSignal(source="wyckoff", action="BUY", confidence=0.8, direction=1, strength=0.7)]
+        mock_sizer = MagicMock()
+        mock_sizer.calculate_shares.return_value = {"suggested_shares": 300}
+        signals, report = arb.arbitrate_candidates(candidates, sizer=mock_sizer, symbol="000001.SZ")
+        assert len(signals) == 1
+        assert signals[0].action == "BUY"
+        assert signals[0].shares == 300, f"Expected 300, got {signals[0].shares}"
+        mock_sizer.calculate_shares.assert_called_once()
+
+    def test_sell_priority(self):
+        arb = SignalArbitrator()
+        candidates = [
+            CandidateSignal(source="lppl", action="SELL", confidence=0.9, direction=-1, strength=0.9),
+            CandidateSignal(source="czsc", action="BUY", confidence=0.8, direction=1, strength=0.7),
+        ]
+        signals, report = arb.arbitrate_candidates(candidates, symbol="000001.SZ")
+        assert len(signals) == 1
+        assert signals[0].action == "SELL"
+
+    def test_report_metadata(self):
+        arb = SignalArbitrator()
+        candidates = [
+            CandidateSignal(source="lppl", action="SELL", confidence=0.9, direction=-1, strength=0.9),
+            CandidateSignal(source="czsc", action="BUY", confidence=0.8, direction=1, strength=0.7),
+        ]
+        signals, report = arb.arbitrate_candidates(candidates, symbol="000001.SZ")
+        assert report.symbol == "000001.SZ"
+        assert report.candidates_count == 2
+        assert len(report.rejected) > 0
