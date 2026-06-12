@@ -2,7 +2,7 @@
 
 > Unified Quantitative Trading Platform for China A-share research, backtesting, and trading workflows.
 >
-> Updated: 2026-06-11. Phases 0-3 completion recorded in AGENTS.md. This page is a documentation state boundary. Prefer current source code and control documents over historical migration notes.
+> Updated: 2026-06-12. Phases 0-5 completion, Phase 6 gaps closed, institutional closure review completed. See [Closure Review Report](analysis/institutional/17_institutional_closure_review_report.md) for P0/P1 status matrix. This page is a documentation state boundary. Prefer current source code and control documents over historical migration notes.
 
 ---
 
@@ -107,6 +107,7 @@ Each stage includes:
 | [Project Status](STATUS.md) | Check before relying | May lag current working tree. |
 | [Evaluation Report](EVALUATION_REPORT.md) | Historical audit | Useful for doc/code drift background. |
 | [Verification Report](VERIFICATION_REPORT.md) | Historical audit | Independent verification notes. |
+| [Closure Review Report (2026-06-12)](analysis/institutional/17_institutional_closure_review_report.md) | Current | Institutional audit closure review — P0/P1/P6 status matrix, verification log. |
 | [Reshaping Remediation Report 2026-06-09](RESHAPING_REMEDIATION_REPORT_20260609.md) | Current recent audit | Latest remediation context. |
 
 ### Package Pages

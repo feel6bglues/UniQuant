@@ -2,7 +2,7 @@
 
 > UniQuant: A-share quantitative research and trading platform.
 >
-> Generated: 2026-06-11. This file is the first local context source for Codex-style agents working in this repository.
+> Generated: 2026-06-12. Institutional closure review completed — P0-3/P0-4 Closed, P0-2/P0-5 Partially closed, P0-1 Open. See `docs/analysis/institutional/17_institutional_closure_review_report.md` for full status matrix. This file is the first local context source for Codex-style agents working in this repository.
 
 ---
 
@@ -14,7 +14,7 @@ The repository is past the historical "migration target" phase. The eight declar
 
 `shared -> data -> brain/risk/signal -> hands -> services -> ui`
 
-Current worktree snapshot from 2026-06-11 (post-institutional-audit, post-Phase-0~3):
+Current worktree snapshot from 2026-06-12 (post-institutional-audit, post-Phase-0~3):
 
 | Metric | Current value |
 |---|---:|
