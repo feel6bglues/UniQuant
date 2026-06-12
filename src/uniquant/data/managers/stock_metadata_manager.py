@@ -5,6 +5,7 @@
 
 from dataclasses import dataclass
 from datetime import date
+from ...shared.time_provider import get_time_provider
 from pathlib import Path
 from typing import Dict, List, Optional
 
@@ -256,7 +257,7 @@ class StockMetadataManager:
         if not info or not info.delist_date:
             return False
         
-        check_date = as_of or date.today()
+        check_date = as_of or get_time_provider().today()
         return info.delist_date <= check_date
     
     def is_ipo(self, code: str, as_of: Optional[date] = None) -> bool:
@@ -274,7 +275,7 @@ class StockMetadataManager:
         if not info or not info.ipo_date:
             return True
         
-        check_date = as_of or date.today()
+        check_date = as_of or get_time_provider().today()
         return info.ipo_date <= check_date
     
     def get_all_codes(self) -> List[str]:
@@ -314,7 +315,7 @@ class StockMetadataManager:
         if not self._loaded:
             self.load()
         
-        check_date = as_of or date.today()
+        check_date = as_of or get_time_provider().today()
         
         return [
             code for code, meta in self._metadata_cache.items()

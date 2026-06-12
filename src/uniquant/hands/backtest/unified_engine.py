@@ -240,24 +240,62 @@ class UnifiedBacktestEngine:
             prev_equity = equity
 
             # ── Step 3: 收集当日信号, 生成挂单 ──
-            # 规则: SELL 优先于 BUY (LPPL SELL 不可被同日 BUY 覆盖)
+            # 规则: LPPL SELL > BUY > 非LPPL SELL
             day_signals = signal_map.get(date_key, [])
             for sig in day_signals:
-                if sig.action == "SELL" and position > 0 and pending_order is None:
+                if (sig.action == "SELL" and position > 0 and pending_order is None
+                        and sig.reason and "lppl" in sig.reason.lower()):
                     pending_order = {
                         "action": "SELL",
                         "shares": position,
                         "reason": sig.reason,
                     }
                     break
-                elif sig.action == "BUY" and position == 0 and pending_order is None:
-                    shares = sig.shares if sig.shares > 0 else 100
-                    pending_order = {
-                        "action": "BUY",
-                        "shares": shares,
-                        "reason": sig.reason,
-                    }
-                    break
+            if pending_order is None:
+                for sig in day_signals:
+                    if sig.action == "BUY" and position == 0:
+                        shares = sig.shares if sig.shares > 0 else 100
+                        pending_order = {
+                            "action": "BUY",
+                            "shares": shares,
+                            "reason": sig.reason,
+                        }
+                        break
+            if pending_order is None:
+                for sig in day_signals:
+                    if sig.action == "SELL" and position > 0:
+                        pending_order = {
+                            "action": "SELL",
+                            "shares": position,
+                            "reason": sig.reason,
+                        }
+                        break
+
+        # Survivorship bias check (conditional — only if delist data available)
+        survivorship_warning = ""
+        try:
+            from ...data.managers.stock_metadata_manager import StockMetadataManager
+            mgr = StockMetadataManager()
+            delist_date = mgr.get_delist_date(symbol) if hasattr(mgr, 'get_delist_date') else None
+            if delist_date is not None:
+                last_bar = pd.to_datetime(df["date"].iloc[-1]) if len(df) else None
+                if last_bar is not None and pd.to_datetime(delist_date) <= last_bar:
+                    survivorship_warning = (
+                        f"Symbol delisted {delist_date}; "
+                        f"backtest extends to {last_bar.date()}"
+                    )
+        except Exception:
+            pass
+
+        metadata: Dict[str, Any] = {
+            "symbol": symbol if symbol else "",
+            "engine": "unified",
+            "start_date": str(pd.to_datetime(df["date"].iloc[0]).date()) if len(df) else "",
+            "end_date": str(pd.to_datetime(df["date"].iloc[-1]).date()) if len(df) else "",
+            "signal_count": len(signals),
+        }
+        if survivorship_warning:
+            metadata["survivorship_warning"] = survivorship_warning
 
         return BacktestResult(
             trades=trades,
@@ -265,6 +303,7 @@ class UnifiedBacktestEngine:
             daily_returns=daily_returns,
             initial_capital=self.initial_capital,
             final_cash=cash,
+            metadata=metadata,
         )
 
     # ──────────────────────────────────────────────────────────
