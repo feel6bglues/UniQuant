@@ -2,6 +2,8 @@
 
 Generated: 2026-06-10 (All Workstreams Complete — Sprints 0–4 Finished)
 
+Update 2026-06-12: A closure-review work plan has been added for post-implementation status reconciliation. Use `16_institutional_closure_review_plan.md` before rerunning any full institutional audit.
+
 Basis: `docs/ANALYSIS_PROMPT_PLAYBOOK.md`, `docs/analysis/09_institutional_research_audit_workbreakdown.md`, and the user's UniQuant Institutional Refactoring Protocol v3.0.
 
 ## Mission
@@ -64,7 +66,18 @@ The current goal is not live automated trading. Therefore:
 | WS13 Production Readiness Report | `13_production_readiness_report.md` | Completed |
 | WS14 TDD Refactoring Design | `14_tdd_refactoring_design.md` | Completed |
 | WS15 Refactoring Roadmap | `15_refactoring_roadmap.md` | Completed |
+| Closure Review Plan | `16_institutional_closure_review_plan.md` | Created |
+| Closure Review Report | `17_institutional_closure_review_report.md` | Completed — P0-3/P0-4 Closed, P0-2/P0-5 Partially closed, P0-1 Open |
 | Final Consolidated Report | `99_final_institutional_audit_report.md` | Completed |
+
+## Post-Implementation Closure Review
+
+After Phase 0-5 implementation work, do not repeat WS1-WS15 by default. First run the closure-review process:
+
+1. Use `16_institutional_closure_review_plan.md` to reconcile source code, tests, baselines, `FINDINGS_INDEX.md`, and `docs/GAP_REMEDIATION_PLAN.md`.
+2. Consult `17_institutional_closure_review_report.md` for the current P0/P1 closure status and verification evidence (completed 2026-06-12).
+3. Update `FINDINGS_INDEX.md` only for status changes and closure evidence. Do not renumber historical findings.
+4. Keep live-trading findings as `Deferred live` unless Broker/OMS/order-state implementation becomes scope.
 
 ## Execution Order
 

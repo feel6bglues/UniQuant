@@ -30,12 +30,12 @@ Status meanings:
 - `Deferred live`: relevant only if live automated trading becomes scope.
 
 | Consolidated ID | Theme | Underlying findings | Target phase | Status | Closure evidence required |
-|---|---|---|---|---|---|
-| P0-1 | `data_pack: Dict[str, Any]` crosses data, brain, signal, and hands layers | WS1-002, WS2-001, WS2-002, WS5-002 | Phase 2 | Design complete, implementation pending | `ResearchDataPack` contract tests; DataService typed-pack integration; engine regression suite; grep budget for `Dict[str, Any]` |
-| P0-2 | Runtime timestamp injection blocks reproducible historical signal series | WS1-003, WS2-004, WS3-002, WS4 blueprint, WS5-009 | Phase 2 | Design complete, implementation pending | frozen/as-of timestamp utility; historical signal tests; `pd.Timestamp.now(` + `datetime.now(` combined count < 10 |
-| P0-3 | Backtest integrity still depends on manual controls for survivorship/selection and engine divergence | WS3-003, WS3-008, WS3-015, WS10-007, WS10-008 | Phase 2 | Design complete, implementation pending | bias-prevention tests; suspension/tradability regression tests; unified engine behavior comparison |
-| P0-4 | Signal collection is not arbitration; first non-HOLD behavior can control result | WS1-004, WS1-005, WS1-009, WS6-001, WS6-003, WS6-006, WS10-001 | Phase 2 | Design complete, implementation pending | `SignalArbitrator` unit tests; risk veto tests; old-vs-new backtest comparison under feature flag |
-| P0-5 | Factor admission is not governed by IC/OOS/PBO/cost-aware gates | WS7-001, WS7-005, WS7-007, WS7-008, WS7-009, WS7-010, WS9-011 | Phase 2 | Design complete, implementation pending | `FactorAdmissionGate` tests; factor manifest validation; warn/block mode rollout; admission logs |
+|---|---|---|---|---|---|---|
+| P0-1 | `data_pack: Dict[str, Any]` crosses data, brain, signal, and hands layers | WS1-002, WS2-001, WS2-002, WS5-002 | Phase 2 | Open (no runtime wiring) | `ResearchDataPack` contract tests; DataService typed-pack integration; engine regression suite; grep budget for `Dict[str, Any]` |
+| P0-2 | Runtime timestamp injection blocks reproducible historical signal series | WS1-003, WS2-004, WS3-002, WS4 blueprint, WS5-009 | Phase 2 | Partially closed (TimeProvider injected in key paths; 38 remaining low-risk calls) | frozen/as-of timestamp utility; historical signal tests; `pd.Timestamp.now(` + `datetime.now(` combined count < 10 |
+| P0-3 | Backtest integrity still depends on manual controls for survivorship/selection and engine divergence | WS3-003, WS3-008, WS3-015, WS10-007, WS10-008 | Phase 2 | Closed | SELL priority fix; `BacktestResult.metadata`; survivorship warning; baseline scripts; bias-prevention tests (9 pass); survivorship tests (3 pass) |
+| P0-4 | Signal collection is not arbitration; first non-HOLD behavior can control result | WS1-004, WS1-005, WS1-009, WS6-001, WS6-003, WS6-006, WS10-001 | Phase 2 | Closed | `SignalArbitrator` in pipeline (arbitrate line 200); `arbitrate_candidates()` with WS14 chain; 15 unit tests pass; risk veto/force exit tested |
+| P0-5 | Factor admission is not governed by IC/OOS/PBO/cost-aware gates | WS7-001, WS7-005, WS7-007, WS7-008, WS7-009, WS7-010, WS9-011 | Phase 2 | Partially closed (gate defined but off; dual registry G-2 still open) | `FactorAdmissionGate` tests; factor manifest validation; warn/block mode rollout; admission logs |
 
 ## 3. P1 Execution Board
 
