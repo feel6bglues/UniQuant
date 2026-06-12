@@ -28,6 +28,8 @@ from ..shared.constants import (
     PrecisionConstants,
 )
 from ..shared.error_handling import handle_errors
+from ..shared.event_bus import EventBus
+from ..shared.event_types import EngineCompleted
 from ..shared.exceptions import AnalysisError, DataFetchError, ServiceError
 from ..shared.interfaces import (
     AlphaOutput, CZSCOutput, DecisionOutput, LPPLOutput,
@@ -89,9 +91,11 @@ class AnalysisService:
         data_service: DataService,
         engine_factory: Optional[AnalysisEngineFactory] = None,
         market_cache: Optional[MarketLevelCache] = None,
+        event_bus: Optional[EventBus] = None,
     ):
         self.data_service = data_service
         self._market_cache = market_cache or MarketLevelCache()
+        self._event_bus = event_bus
         self.evt_risk = None
         self.sizer = None
 
@@ -314,20 +318,41 @@ class AnalysisService:
     def _run_engines(self, ticker: str, data_pack: Dict[str, Any]) -> bool:
         """运行所有 Brain 引擎"""
         try:
+            bus = self._event_bus
             with perf_section("engine.regime"):
                 self._run_regime(ticker, data_pack)
+            if bus is not None:
+                bus.publish(EngineCompleted("regime", ticker, "OK"))
+
             with perf_section("engine.lppl"):
                 self._run_lppl(data_pack)
+            if bus is not None:
+                bus.publish(EngineCompleted("lppl", ticker, "OK"))
+
             with perf_section("engine.ntf"):
                 self._run_ntf(ticker, data_pack)
+            if bus is not None:
+                bus.publish(EngineCompleted("ntf", ticker, "OK"))
+
             with perf_section("engine.czsc"):
                 self._run_czsc(ticker, data_pack)
+            if bus is not None:
+                bus.publish(EngineCompleted("czsc", ticker, "OK"))
+
             with perf_section("engine.wyckoff"):
                 self._run_wyckoff(ticker, data_pack)
+            if bus is not None:
+                bus.publish(EngineCompleted("wyckoff", ticker, "OK"))
+
             with perf_section("engine.alpha"):
                 self._run_alpha(data_pack)
+            if bus is not None:
+                bus.publish(EngineCompleted("alpha", ticker, "OK"))
+
             with perf_section("engine.derived"):
                 self._calculate_derived(data_pack)
+            if bus is not None:
+                bus.publish(EngineCompleted("derived", ticker, "OK"))
 
             data_pack["symbol"] = ticker
             data_pack["market"] = "CN"

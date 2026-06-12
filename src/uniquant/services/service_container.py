@@ -77,7 +77,7 @@ class ServiceContainer:
             return
 
         from ..shared.config_loader import get_config
-        from ..shared.time_provider import FrozenTimeProvider, RealTimeProvider
+        from ..shared.time_provider import RealTimeProvider
 
         from .data_service import DataService
         from .cache_coordinator import CacheCoordinator
@@ -137,8 +137,8 @@ class ServiceContainer:
         # 信号仲裁器 (特性开关控制)
         arbitrator = None
         try:
-            from ..shared.config_models import RefactoringConfig
-            ref_config = RefactoringConfig.from_dict(None)
+            from ..shared.config_models import load_refactoring_config
+            ref_config = load_refactoring_config()
             if ref_config.feature_flags.signal_arbitration:
                 from ..signal.arbitrator import SignalArbitrator
                 arbitrator = SignalArbitrator()

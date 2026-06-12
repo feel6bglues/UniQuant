@@ -175,9 +175,15 @@ class UnifiedResearchPipeline:
                     data_pack, analysis.decision,
                 )
                 timestamp = self._time_provider.now()
+                stock_df = data_pack.get("stock") if isinstance(data_pack, dict) else None
+                bar_date = None
+                if stock_df is not None and not stock_df.empty:
+                    last_date = pd.to_datetime(stock_df["date"].iloc[-1])
+                    bar_date = last_date.to_pydatetime()
                 signals = self._collector.collect(
                     collector_pack,
                     timestamp=timestamp,
+                    bar_date=bar_date,
                     default_shares=default_shares,
                 )
 

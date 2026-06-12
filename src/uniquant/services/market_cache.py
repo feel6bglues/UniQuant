@@ -9,7 +9,7 @@
 from __future__ import annotations
 
 import threading
-from datetime import date
+from ..shared.time_provider import get_time_provider
 from typing import Any, Dict, Optional
 
 import pandas as pd
@@ -99,4 +99,4 @@ class MarketLevelCache:
 
     @staticmethod
     def _today() -> str:
-        return date.today().isoformat()
+        return get_time_provider().today().isoformat()

@@ -412,7 +412,7 @@ risk:
 refactoring:
   enabled: false
   feature_flags:
-    signal_arbitration: false
+    signal_arbitration: true
     typed_contracts: false
     factor_gate: "off"
     engine_migration:
@@ -423,7 +423,7 @@ refactoring:
       alpha: false
       wyckoff: false
       decision: false
-    event_bus: false
+    event_bus: true
     async_event_bus: false
     observability: false
   time:
