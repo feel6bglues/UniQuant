@@ -4,7 +4,6 @@ Tests for ConfigValidator and env-var override support.
 
 from __future__ import annotations
 
-import os
 from unittest.mock import MagicMock
 
 import pytest

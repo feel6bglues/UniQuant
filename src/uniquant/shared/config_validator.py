@@ -3,7 +3,7 @@ from __future__ import annotations
 import importlib
 import logging
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, List
 
 logger = logging.getLogger(__name__)
 
@@ -24,6 +24,7 @@ class ConfigValidator:
         errors.extend(self._validate_paths())
         errors.extend(self._validate_data_source_classes())
         errors.extend(self._validate_refactoring_config())
+        errors.extend(self._validate_factor_registry())
         return errors
 
     def assert_valid(self) -> None:
@@ -101,5 +102,37 @@ class ConfigValidator:
                 f"Invalid factor_gate value: {factor_gate} "
                 "(expected off|warn|block)"
             )
+
+        return errors
+
+    def _validate_factor_registry(self) -> List[str]:
+        """Validate that all config-enabled factors exist in FactorRegistry.
+
+        WS7-002: Config enabled factors must be registered in FactorRegistry,
+        otherwise research reports overstate factor coverage.
+        """
+        errors: List[str] = []
+        try:
+            from ..brain.factors.registry import FactorRegistry
+            registry = FactorRegistry()
+
+            factors_config = self._config.get("factors", {})
+            if not isinstance(factors_config, dict):
+                return errors
+
+            enabled = factors_config.get("enabled", [])
+            if not isinstance(enabled, list):
+                return errors
+
+            for factor_name in enabled:
+                if not registry.has(factor_name):
+                    errors.append(
+                        f"Factor '{factor_name}' is enabled in config "
+                        f"but not registered in FactorRegistry"
+                    )
+        except ImportError:
+            logger.warning("FactorRegistry not available, skipping factor config validation")
+        except Exception as e:
+            logger.warning(f"Factor config validation failed: {e}")
 
         return errors
