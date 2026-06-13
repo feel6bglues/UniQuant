@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 
 @dataclass
@@ -14,6 +14,7 @@ class FeatureFlags:
     event_bus: bool = False
     observability: bool = False
     async_event_bus: bool = False
+    use_research_data_pack: bool = False
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> FeatureFlags:
@@ -27,6 +28,7 @@ class FeatureFlags:
             event_bus=bool(flags.get("event_bus", False)),
             observability=bool(flags.get("observability", False)),
             async_event_bus=bool(flags.get("async_event_bus", False)),
+            use_research_data_pack=bool(flags.get("use_research_data_pack", False)),
         )
 
 

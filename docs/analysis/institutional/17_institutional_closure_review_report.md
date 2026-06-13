@@ -14,7 +14,7 @@
 
 | P0 | 原状态 | 当前状态 | 判定依据 |
 |:---|:---|:---|---:|
-| P0-1 | Design complete, implementation pending | **Open** | ResearchDataPack 已定义但 0 处运行时接入；data_pack: Dict[str, Any] 470 处 |
+| P0-1 | Design complete, implementation pending | **Partially closed** | ResearchDataPack 已定义并新增 DataService typed 入口；主运行链路仍走 dict path |
 | P0-2 | Design complete, implementation pending | **Partially closed** | TimeProvider 已注入关键路径；剩余 38 处低风险时钟调用 |
 | P0-3 | Design complete, implementation pending | **Closed** | SELL 优先 + metadata + survivorship + baseline + 偏差测试全部通过 |
 | P0-4 | Design complete, implementation pending | **Closed** | SignalArbitrator 已接入 pipeline；arbitrate_candidates 新增 WS14 链；15 测试通过 |
@@ -48,27 +48,27 @@
 
 ### P0-1 — `data_pack: Dict[str, Any]` 跨层隐式键
 
-**Status:** Open
+**Status:** Partially closed
 **Evidence:**
-- `ResearchDataPack` 类定义于 `src/uniquant/shared/interfaces.py:191`，含 `from_dict()` 构造器
-- 运行时接入：**零处**。data 层 65 文件无任何引用，`analysis_service_v2.py` 全程使用 `Dict[str, Any]`，`research_pipeline.py` 无引用
+- `ResearchDataPack` 类定义于 `src/uniquant/shared/interfaces.py:191`，含 `from_dict()` 与 `to_dict()` 构造/兼容方法
+- `DataService.fetch_research_pack()` 已新增，返回类型化 `ResearchDataPack`
+- `FeatureFlags.use_research_data_pack` 与 `config/config.yaml` 配置项已新增，默认 `false`，保持旧路径兼容
+- `tests/shared/test_research_data_pack.py` 覆盖 `to_dict()`、round-trip、feature flag 和 DataService typed 入口
+- 主运行链路仍未切换：`analysis_service_v2.py` 与 `research_pipeline.py` 仍以 dict path 为主
 - `Dict[str, Any]`/`dict[str, Any]` 全仓 **470 处**
 
 **Verification:**
 ```bash
-# 证明可导入
-python3 -c "from uniquant.shared.interfaces import ResearchDataPack; print('OK')"  # OK
-
-# 证明运行时零使用
-grep -rn ResearchDataPack src/uniquant/ --include="*.py" | grep -v class | grep -v from_dict | grep -v interfaces
-# → 无输出
+ruff check src/uniquant/services/data_service.py src/uniquant/shared/config_models.py src/uniquant/shared/interfaces.py tests/shared/test_research_data_pack.py  # All checks passed
+pytest tests/shared/test_research_data_pack.py -q  # 12 passed
+pytest tests/ -q  # 1166 passed, 8 skipped, 13 warnings
 ```
 
 **Residual risk:**
-- 高。研究平台核心数据路径仍完全基于 untyped dict，跨层静默损坏风险未缓解
-- P0-1 是原审计 5 个 P0 中最严重且进展最少的发现
+- 中-高。类型化入口已存在，但研究平台核心运行链仍主要基于 untyped dict，跨层静默损坏风险尚未完全消除
+- 特性开关默认关闭，降低回归风险，但也意味着 typed path 仍需后续显式接入
 
-**Next action:** 按原设计推进 `DataService.fetch_for_brain()` 返回 `ResearchDataPack`，先加合约测试 + feature flag，再逐个迁移调用方
+**Next action:** 在 feature flag 保护下让 `AnalysisService` / `ResearchPipeline` 消费 `fetch_research_pack()` 或兼容适配器，再逐个迁移 engine 调用方；P0-1 暂不标记为 Closed
 
 ---
 
@@ -372,8 +372,8 @@ grep -n "api_key\|token\|password\|secret" config/config.yaml  # 无输出
 
 | 验证项 | 结果 |
 |:---|---:|
-| P0-1 ResearchDataPack 可导入 | OK |
-| P0-1 ResearchDataPack 运行时使用 | **0 处**（open） |
+| P0-1 ResearchDataPack typed 入口 | `DataService.fetch_research_pack()` 已新增 |
+| P0-1 ResearchDataPack tests | 12 passed |
 | P0-2 剩余 `pd.Timestamp.now()` + `datetime.now()` | **2 处**（wyckoff guarded fallbacks） |
 | P0-2 剩余 `time.time()` | 36 处（rate limiting/缓存） |
 | P0-3 SELL 优先代码存在 | 2 处引用 |
@@ -471,7 +471,7 @@ grep -n "api_key\|token\|password\|secret" config/config.yaml  # 无输出
 
 | 优先级 | 任务 | 关联 | 预估工作量 |
 |:---:|:---|---:|
-| 1 | **P0-1: ResearchDataPack 运行时接入** | P0-1 | 3-5 天 |
+| 1 | **P0-1: ResearchDataPack 主链路接入** — AnalysisService / ResearchPipeline 消费 typed path | P0-1 | 2-4 天 |
 | 2 | **P1-1: Wyckoff 性能基线 + 热点缓存** | P1-1 | 2 天 |
 | 3 | **G-2: FactorRegistry 统一** → factor_gate warn | P0-5, G-2 | 1.5 天 |
 | 4 | **P1-7: Retry 统一** — error_handling.py 委托 retry_decorator.py 核心 | P1-7 | 1 天 |

@@ -240,7 +240,7 @@ Each stage requires a plan, concrete artifacts, checkpoint context, and verifica
 
 | If working on... | Read this first | And be aware of |
 |---|---|---|
-| Time-dependent code | `shared/time_provider.py` + GAP_REMEDIATION_PLAN.md §G-1 | Layers still use raw `datetime.now()` |
-| Factor registration/access | `brain/factors/registry.py` (actual) NOT `shared/factor_governance.py` (dead code) | GAP_REMEDIATION_PLAN.md §G-2 — governance is being merged into brain/ |
-| Baseline/regression testing | `scripts/capture_baseline.py` + `compare_baseline.py` | GAP_REMEDIATION_PLAN.md §G-3 — Phase 0 is uncommitted |
-| Event-driven features | `shared/event_bus.py` (sync) | GAP_REMEDIATION_PLAN.md §G-4 — async variant pending |
+| Time-dependent code | `shared/time_provider.py` + GAP_REMEDIATION_PLAN.md §G-1 | 2 guarded `datetime.now()` remain in Wyckoff fallback |
+| Factor registration/access | `brain/factors/registry.py` (actual) NOT `shared/factor_governance.py` (dead code) | GAP_REMEDIATION_PLAN.md §G-2 — shared/ deprecated with warning |
+| Baseline/regression testing | `scripts/capture_baseline.py` + `compare_baseline.py` | GAP_REMEDIATION_PLAN.md §G-3 — Phase 0 all committed |
+| Event-driven features | `shared/event_bus.py` (sync) + `shared/event_bus.py` (async) | GAP_REMEDIATION_PLAN.md §G-4 — AsyncEventBus deployed with 9 tests |

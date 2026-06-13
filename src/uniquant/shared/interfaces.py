@@ -221,6 +221,21 @@ class ResearchDataPack:
             metadata=data.get("metadata", {}),
         )
 
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "symbol": self.symbol,
+            "stock": self.stock_df,
+            "index": self.index_df,
+            "regime": self.regime,
+            "lppl": self.lppl,
+            "ntf": self.ntf,
+            "czsc": self.czsc,
+            "wyckoff": self.wyckoff,
+            "alpha": self.alpha,
+            "factors": self.factors,
+            "metadata": self.metadata,
+        }
+
 
 @dataclass
 class DecisionOutput:

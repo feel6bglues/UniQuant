@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import pytest
 import pandas as pd
 
 from uniquant.shared.interfaces import ResearchDataPack
@@ -53,3 +52,92 @@ def test_default_fields():
     assert pack.alpha is None
     assert pack.factors is None
     assert pack.metadata == {}
+
+
+def test_to_dict():
+    df = pd.DataFrame({"date": ["2025-01-01"], "close": [10.0]})
+    pack = ResearchDataPack(
+        symbol="000001.SZ",
+        stock_df=df,
+        regime="NORMAL",
+        lppl={"risk_level": "Safe"},
+        metadata={"source": "test"},
+    )
+    d = pack.to_dict()
+    assert d["symbol"] == "000001.SZ"
+    assert d["regime"] == "NORMAL"
+    assert d["lppl"]["risk_level"] == "Safe"
+    assert d["metadata"]["source"] == "test"
+    assert d["stock"] is df
+
+
+def test_round_trip():
+    data = {
+        "symbol": "000001.SZ",
+        "stock": pd.DataFrame({"date": ["2025-01-01"], "close": [10.0]}),
+        "regime": "NORMAL",
+        "lppl": {"risk_level": "Danger"},
+        "metadata": {"source": "test"},
+    }
+    pack = ResearchDataPack.from_dict(data)
+    d = pack.to_dict()
+    assert d["symbol"] == data["symbol"]
+    assert d["regime"] == data["regime"]
+    assert d["lppl"]["risk_level"] == data["lppl"]["risk_level"]
+    assert d["metadata"]["source"] == data["metadata"]["source"]
+
+
+def test_to_dict_all_none():
+    pack = ResearchDataPack(symbol="600000.SH")
+    d = pack.to_dict()
+    assert d["symbol"] == "600000.SH"
+    assert d["stock"] is None
+    assert d["index"] is None
+    assert d["regime"] is None
+    assert d["metadata"] == {}
+
+
+def test_feature_flag_exists():
+    from uniquant.shared.config_models import FeatureFlags
+    flags = FeatureFlags()
+    assert hasattr(flags, "use_research_data_pack")
+    assert flags.use_research_data_pack is False
+
+
+def test_config_yaml_has_flag():
+    from uniquant.shared.config_loader import get_config
+    cfg = get_config()
+    ff = cfg.get("refactoring", {}).get("feature_flags", {})
+    assert "use_research_data_pack" in ff
+    assert ff["use_research_data_pack"] is False
+
+
+def test_fetch_research_pack_returns_typed():
+    import pandas as pd
+    from uniquant.services.data_service import DataService
+
+    service = DataService()
+    mock_stock = pd.DataFrame({"date": ["2025-01-01"], "close": [10.0]})
+    mock_bench = pd.DataFrame({"date": ["2025-01-01"], "close": [4000.0]})
+    mock_etf = pd.DataFrame({"date": ["2025-01-01"], "close": [3.5]})
+
+    service.fetch_for_brain = lambda sym: {
+        "stock": mock_stock,
+        "bench": mock_bench,
+        "etf": mock_etf,
+    }
+    pack = service.fetch_research_pack("000001.SZ")
+    assert isinstance(pack, ResearchDataPack)
+    assert pack.symbol == "000001.SZ"
+    assert pack.stock_df is mock_stock
+    assert pack.index_df is None  # "bench" key not mapped by from_dict
+
+
+def test_fetch_research_pack_returns_from_dict():
+    from uniquant.services.data_service import DataService
+
+    service = DataService()
+    service.fetch_for_brain = lambda sym: {"stock": None, "bench": None, "etf": None}
+    pack = service.fetch_research_pack("600000.SH")
+    assert pack.symbol == "600000.SH"
+    assert pack.stock_df is None

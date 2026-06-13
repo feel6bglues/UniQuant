@@ -25,6 +25,8 @@ from ..shared.exceptions import (
 )
 from ..shared.logger_factory import get_logger
 
+from ..shared.interfaces import ResearchDataPack
+
 from .cache_coordinator import CacheCoordinator
 from .data_access_service import DataAccessService
 from .data_quality_service import DataQualityService
@@ -406,6 +408,11 @@ class DataService:
         )
         data_pack["etf"] = self._load_etf_data()
         return data_pack
+
+    def fetch_research_pack(self, symbol: str) -> ResearchDataPack:
+        """返回类型化的 ResearchDataPack，兼容旧 dict 路径"""
+        raw = self.fetch_for_brain(symbol)
+        return ResearchDataPack.from_dict(raw, symbol=symbol)
 
     def _load_data_with_fallback(self, symbol: str, data_type: str, description: str) -> pd.DataFrame:
         """加载数据，失败时回退到数据源"""
