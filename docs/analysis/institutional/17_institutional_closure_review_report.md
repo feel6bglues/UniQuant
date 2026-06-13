@@ -1,7 +1,7 @@
 # 机构审计关闭复审报告
 
 生成日期：2026-06-12
-源码基线：master @ b370f8db (18 commits ahead of origin)
+源码基线：master @ a5fac32 (22 commits ahead of origin)
 验证摘要：R0-R4 完成，P0 + P1 关闭矩阵 + Phase 6 缺口复核全部完成
 
 ---

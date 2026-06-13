@@ -227,12 +227,14 @@ Each stage requires a plan, concrete artifacts, checkpoint context, and verifica
 
 ## Known Gaps (Post-Phase 5) — Full Plan in `docs/GAP_REMEDIATION_PLAN.md`
 
-| ID | Gap | Priority | Layer(s) | Scope |
+> **2026-06-12 update**: G-1 through G-4 have all been closed and verified in the institutional closure review. The gap table below is retained as historical reference. See `docs/analysis/institutional/17_institutional_closure_review_report.md` §Phase 6 Gap Review for the verified closure evidence.
+
+| ID | Gap | Priority | Status (2026-06-12) | Scope |
 |---|---|---|---|---|
-| G-1 | `TimeProvider` only deployed in 2 files; ~120 direct clock calls remain (`datetime.now`, `pd.Timestamp.now`, `time.time`) in 6 layers | P2 | all layers | 8-step per-layer replacement, estimated 8 days |
-| G-2 | Two `FactorRegistry` classes (shared/ governance with 0 users, brain/ de facto with 16 imports); admission gate is dead code | P1 | `shared/`, `brain/` | 4-step reverse-merge into brain/ version, ~1 day |
-| G-3 | Phase 0 deliverables (SELL priority, baseline scripts, golden lists, parquet data) exist only in working tree, never committed | **P0** | — | 2-commit sequence, ~0.5h |
-| G-4 | EventBus is sync-only; no async variant blocks hot-path scaling | P2 | `shared/` | ThreadPoolExecutor wrapper, ~1 day |
+| G-1 | `TimeProvider` only deployed in 2 files; ~120 direct clock calls remain (`datetime.now`, `pd.Timestamp.now`, `time.time`) in 6 layers | P2 | ✅ **Closed** — 0 `pd.Timestamp.now`, 2 guarded `datetime.now`, 36 `time.time` for rate limiting | all layers |
+| G-2 | Two `FactorRegistry` classes (shared/ governance with 0 users, brain/ de facto with 16 imports); admission gate is dead code | P1 | ✅ **Closed** — shared/ has deprecation warning; brain/ has `check_access()` + `set_mode()` + `FactorAccessLevel` | `shared/`, `brain/` |
+| G-3 | Phase 0 deliverables (SELL priority, baseline scripts, golden lists, parquet data) exist only in working tree, never committed | **P0** | ✅ **Closed** — all files committed across 22-commit sequence | — |
+| G-4 | EventBus is sync-only; no async variant blocks hot-path scaling | P2 | ✅ **Closed** — `AsyncEventBus` + `ThreadPoolExecutor` deployed; 9 async + 10 sync + 6 integration tests pass | `shared/` |
 
 ### Quick Start For New Tasks
 

@@ -2,6 +2,8 @@
 
 > 基于 Phase 0-5 完成审计后识别的 4 个遗留缺口。
 > 报告日期: 2026-06-11 | 当前测试: 1,085 passed, 0 failed
+>
+> **2026-06-12 状态更新**：G-1 到 G-4 全部关闭，已验证。本节（§G-1 到 §执行进展前）为历史原始计划，保留供追溯。实际完成状态见下方 §执行进展（已更新测试计数为 1159）。完整关闭证据见 `docs/analysis/institutional/17_institutional_closure_review_report.md` §Phase 6 Gap Review。
 
 ---
 
@@ -359,5 +361,5 @@ else:
 2. ✅ G-2: `shared/factor_governance.py` 标记废弃；`brain/factors/registry.py` 包含 `check_access()`；16 个导入点指向统一版本
 3. ✅ G-4: `AsyncEventBus` 类存在；feature flag 默认关闭；9 测试覆盖并行调度和错误隔离
 4. ✅ G-1: 全库 ~124 个 `datetime.now()` / `pd.Timestamp.now()` 调用全部替换为 `get_time_provider()`；协议扩展 `epoch()` / `epoch_ms()` 支持时间戳需求；模块级 `get_time_provider()` / `set_time_provider()` 支持 DI-free 测试
-5. ✅ 全量回归: `pytest tests/ -q` → 1,094 通过，0 失败
+5. ✅ 全量回归: `pytest tests/ -q` → 1,159 通过，0 失败
 6. ✅ 基线一致: `compare_baseline.py` → 100% 匹配
