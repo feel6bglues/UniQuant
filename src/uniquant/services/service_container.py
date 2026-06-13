@@ -143,9 +143,21 @@ class ServiceContainer:
                 from ..signal.arbitrator import SignalArbitrator
                 arbitrator = SignalArbitrator()
                 logger.info("信号仲裁器已启用")
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("SignalArbitrator configuration failed; leaving arbitrator disabled: %s", exc)
         self.register("arbitrator", arbitrator)
+
+        # 因子准入 (特性开关控制)
+        try:
+            ref_config = load_refactoring_config()
+            gate_mode = ref_config.feature_flags.factor_gate
+            if gate_mode != "off":
+                from ..brain.factors.registry import FactorAccessLevel, FactorRegistry
+                level = FactorAccessLevel(gate_mode)
+                FactorRegistry.set_mode(level)
+                logger.info("因子准入模式已设为: %s", gate_mode)
+        except Exception as exc:
+            logger.debug("FactorRegistry gate configuration failed; leaving default mode: %s", exc)
 
         pipeline = UnifiedResearchPipeline(
             analysis_service=analysis_svc,

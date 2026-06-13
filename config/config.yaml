@@ -414,7 +414,7 @@ refactoring:
   feature_flags:
     signal_arbitration: true
     typed_contracts: false
-    factor_gate: "off"
+    factor_gate: "warn"
     engine_migration:
       regime: false
       ntf: false

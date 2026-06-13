@@ -3,6 +3,30 @@ from unittest.mock import MagicMock, patch
 from uniquant.services.service_container import ServiceContainer
 
 
+def test_factor_registry_mode_set_from_config():
+    from unittest.mock import patch as _patch
+    from uniquant.shared.config_models import FeatureFlags, RefactoringConfig
+    from uniquant.brain.factors.registry import FactorAccessLevel, FactorRegistry
+
+    FactorRegistry.set_mode(FactorAccessLevel.FREE)
+
+    cfg = RefactoringConfig(
+        enabled=True,
+        feature_flags=FeatureFlags(
+            factor_gate="warn",
+        ),
+    )
+    with _patch(
+        "uniquant.shared.config_models.load_refactoring_config",
+        return_value=cfg,
+    ):
+        container = ServiceContainer()
+        container.initialize()
+
+    mode = FactorRegistry.get_mode()
+    assert mode == FactorAccessLevel.WARN
+
+
 class TestServiceContainer:
     def setup_method(self):
         ServiceContainer._instance = None
