@@ -141,3 +141,73 @@ def test_fetch_research_pack_returns_from_dict():
     pack = service.fetch_research_pack("600000.SH")
     assert pack.symbol == "600000.SH"
     assert pack.stock_df is None
+
+
+def test_prepare_data_default_path_uses_dict():
+    from unittest.mock import Mock
+    from uniquant.services.analysis_service_v2 import AnalysisService
+
+    mock_data = Mock()
+    analysis = AnalysisService(data_service=mock_data)
+    stock_df = pd.DataFrame({"date": ["2025-01-01"], "close": [10.0]})
+    mock_data.fetch_for_brain = Mock(return_value={"stock": stock_df})
+    mock_data.fetch_research_pack = Mock()
+
+    result = analysis._prepare_data("000001.SZ")
+    assert result is not None
+    assert result["stock"] is stock_df
+    mock_data.fetch_for_brain.assert_called_once_with("000001.SZ")
+    mock_data.fetch_research_pack.assert_not_called()
+
+
+def test_prepare_data_typed_path_uses_research_pack():
+    from unittest.mock import Mock, patch
+    from uniquant.services.analysis_service_v2 import AnalysisService
+
+    mock_data = Mock()
+    analysis = AnalysisService(data_service=mock_data)
+    stock_df = pd.DataFrame({"date": ["2025-01-01"], "close": [10.0]})
+
+    typed_pack = ResearchDataPack(
+        symbol="000001.SZ",
+        stock_df=stock_df,
+        lppl={"risk_level": "Safe"},
+        metadata={"source": "typed"},
+    )
+    mock_data.fetch_research_pack = Mock(return_value=typed_pack)
+
+    with patch(
+        "uniquant.services.analysis_service_v2.load_refactoring_config"
+    ) as mock_cfg:
+        from uniquant.shared.config_models import FeatureFlags, RefactoringConfig
+        mock_cfg.return_value = RefactoringConfig(
+            feature_flags=FeatureFlags(use_research_data_pack=True),
+        )
+        result = analysis._prepare_data("000001.SZ")
+
+    assert result is not None
+    assert result["stock"] is stock_df
+    assert result["symbol"] == "000001.SZ"
+    assert result["lppl"]["risk_level"] == "Safe"
+    assert result["metadata"]["source"] == "typed"
+    mock_data.fetch_research_pack.assert_called_once_with("000001.SZ")
+
+
+def test_prepare_data_typed_path_fallback_on_error():
+    from unittest.mock import Mock, patch
+    from uniquant.services.analysis_service_v2 import AnalysisService
+
+    mock_data = Mock()
+    analysis = AnalysisService(data_service=mock_data)
+    stock_df = pd.DataFrame({"date": ["2025-01-01"], "close": [10.0]})
+    mock_data.fetch_for_brain = Mock(return_value={"stock": stock_df})
+
+    with patch(
+        "uniquant.services.analysis_service_v2.load_refactoring_config"
+    ) as mock_cfg:
+        mock_cfg.side_effect = ImportError("config broken")
+        result = analysis._prepare_data("000001.SZ")
+
+    assert result is not None
+    assert result["stock"] is stock_df
+    mock_data.fetch_for_brain.assert_called_once_with("000001.SZ")

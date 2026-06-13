@@ -33,9 +33,10 @@ from ..shared.event_types import EngineCompleted
 from ..shared.exceptions import AnalysisError, DataFetchError, ServiceError
 from ..shared.interfaces import (
     AlphaOutput, CZSCOutput, DecisionOutput, LPPLOutput,
-    MarketSignalContext, NtfOutput, RegimeOutput, TradingSignal,
-    WyckoffOutput,
+    MarketSignalContext, NtfOutput, RegimeOutput, ResearchDataPack,
+    TradingSignal, WyckoffOutput,
 )
+from ..shared.config_models import load_refactoring_config
 from ..shared.logger_factory import get_logger
 from ..shared.observability import perf_section
 from .analysis.engine_factory import AnalysisEngineFactory
@@ -301,7 +302,19 @@ class AnalysisService:
     def _prepare_data(self, ticker: str) -> Optional[Dict[str, Any]]:
         """准备分析数据 — 委托 DataService"""
         try:
-            data_pack = self.data_service.fetch_for_brain(ticker)
+            research_pack: Optional[ResearchDataPack] = None
+            try:
+                ref_config = load_refactoring_config()
+                if ref_config.feature_flags.use_research_data_pack:
+                    research_pack = self.data_service.fetch_research_pack(ticker)
+            except Exception as exc:
+                logger.debug("ResearchDataPack feature flag check failed; falling back to dict path: %s", exc)
+
+            if research_pack is not None:
+                data_pack = research_pack.to_dict()
+            else:
+                data_pack = self.data_service.fetch_for_brain(ticker)
+
             if not data_pack or data_pack.get("stock") is None:
                 logger.error(f"{ticker} 数据不足")
                 return None
