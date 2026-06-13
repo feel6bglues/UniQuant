@@ -18,7 +18,7 @@
 | P0-2 | Design complete, implementation pending | **Partially closed** | TimeProvider 已注入关键路径；剩余 38 处低风险时钟调用 |
 | P0-3 | Design complete, implementation pending | **Closed** | SELL 优先 + metadata + survivorship + baseline + 偏差测试全部通过 |
 | P0-4 | Design complete, implementation pending | **Closed** | SignalArbitrator 已接入 pipeline；arbitrate_candidates 新增 WS14 链；15 测试通过 |
-| P0-5 | Design complete, implementation pending | **Partially closed** | FactorAdmissionGate + FactorManifest 已定义；但双 registry 未治理，gate=off |
+| P0-5 | Design complete, implementation pending | **Partially closed** | factor_gate=warn 已接入 FactorRegistry；但 check_access() 尚未进入实际因子调用链 |
 
 ### Phase 6 缺口状态
 
@@ -159,22 +159,25 @@ grep -c "arbitrate" src/uniquant/services/research_pipeline.py  # line 200
 - 准入检查：命名验证（`_check_naming`）、文档验证（`_check_documentation`）、参数验证（`_check_parameters`）
 - `FactorRegistry` 实现在 `src/uniquant/brain/factors/registry.py`，被 16 个模块引用
 - `ConfigValidator._validate_factor_registry()` 检查已启用因子是否注册
-- 但存在 **双 registry 问题（G-2）**：`shared/factor_governance.py:156` 创建了第二个 `global_factor_registry` 实例
-- `factor_gate` 配置仍为 `"off"`（`config/config.yaml:417`）
+- `config/config.yaml` 中 `factor_gate` 已切至 `"warn"`
+- `ServiceContainer.initialize()` 已读取 `factor_gate` 并调用 `FactorRegistry.set_mode()`
+- `FactorRegistry.get_mode()` 可验证配置与 registry 模式一致
+- `check_access()` 仍未被实际因子注册、查询或计算调用方触发；warn 模式目前是可用能力，不是完整准入闭环
 
 **Verification:**
 ```bash
 pytest tests/shared/test_factor_admission_gate.py -q  # 通过
 pytest tests/test_factor_registry.py -q              # 通过
 pytest tests/shared/test_config_validator_factor.py -q  # 2 passed
+pytest tests/test_service_container.py tests/test_custom_factors.py tests/test_factor_composer.py -q  # 通过
 ```
 
 **Residual risk:**
-- 中。双 registry 导致因子注册状态分裂
-- admission gate 为 `"off"` 意味着准入检查实际上不阻断任何因子
-- 但因子注册机制本身完整，可快速启用
+- 中。配置到 registry 的接线已经完成，但因子访问路径尚未调用 `check_access()`
+- warn 模式不会阻断现有因子，回归风险低，但也意味着未形成强制准入闭环
+- shared governance 模块仍作为 deprecated 兼容层存在
 
-**Next action:** 按 G-2 计划将 shared/factor_governance.py 反向合并到 brain/版本，删除 dead code；`factor_gate` 切至 `"warn"` 观察
+**Next action:** 在 `FactorRegistry.get_factor()` / `get_enabled()` 或因子计算入口调用 `check_access()`，确保 warn 模式产生日志证据；随后再评估是否可将 P0-5 标记为 Closed
 
 ---
 
@@ -380,7 +383,7 @@ grep -n "api_key\|token\|password\|secret" config/config.yaml  # 无输出
 | P0-3 Survivorship 测试 | 3 passed |
 | P0-4 Arbitrator 测试 | 15 passed |
 | P0-5 ConfigValidator 因子测试 | 2 passed |
-| P0-5 Admission gate 测试 | (warn mode, 可导入) |
+| P0-5 config → FactorRegistry 接线测试 | passed |
 
 ### 统计检查（§11.3）
 
