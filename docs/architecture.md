@@ -66,7 +66,7 @@ UniQuant 采用四层架构，自下而上分别为基础设施层、数据层�
 +======================================================================+
 |                       基础设施层 (Infrastructure)                      |
 |  shared/                                                             |
-|  - constants.py     (常量定义: 市场/回测/网络/数据源)                |
+|  - constants/       (常量子包: 市场/技术/数据/风险/路径/杂项)       |
 |  - exceptions.py    (统一异常体系)                                   |
 |  - config_loader.py (GlobalConfig 配置单例)                          |
 |  - logger_factory.py(统一日志工厂)                                   |
@@ -953,7 +953,7 @@ class FactorRegistry:
 src/uniquant/
   shared/           # 基础设施层
     cache/          #   缓存子系统 (CacheInterface + 多后端)
-    constants.py    #   全局常量
+    constants/      #   常量子包 (7 模块)
     exceptions.py   #   异常体系
     interfaces.py   #   Protocol 定义
     config_loader.py#   GlobalConfig

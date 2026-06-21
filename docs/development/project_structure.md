@@ -252,7 +252,7 @@ shared/
 ├── analysis_result.py                  — 分析结果统一格式模块，提供 AnalysisResult / AnalysisResultBuilder / AnalysisStatus
 ├── backtest_utils.py                   — 回测工具函数，提供停牌股过滤 (filter_suspended) 等
 ├── config_loader.py                    — 配置加载器 (单例)，从 config/*.yaml 加载并提供统一配置接口
-├── constants.py                        — 全局常量定义，按功能模块分组 (日期、网络、指标阈值、风险、缓存、回测等)
+├── constants/                          — 常量子包 (7 模块: __init__.py, market, technical, data, risk, path, misc)
 ├── cost_model.py                       — 统一交易成本模型，佣金/印花税/最低佣金/滑点的唯一真值源
 ├── di_container.py                     — [废弃] 旧版依赖注入容器，已迁移至 ServiceContainer
 ├── env_config.py                       — 环境变量配置模块，确保底层并行库不与 Python 多进程冲突

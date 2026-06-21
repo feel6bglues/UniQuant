@@ -471,7 +471,7 @@ df = normalize_column_names(df)
 
 ## 字段映射
 
-`DataSourceConstants`（`shared/constants.py`）定义了所有字段名别名映射：
+`DataSourceConstants`（`shared/constants/data.py`）定义了所有字段名别名映射：
 
 | 标准字段 | 别名列表 |
 |----------|----------|

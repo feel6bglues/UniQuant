@@ -440,7 +440,7 @@
 
 ## PathConstants
 
-路径相关常量。所有路径以 `PROJECT_ROOT`（即 `constants.py` 上三级目录）为基准。
+路径相关常量。所有路径以 `PROJECT_ROOT`（即 `shared/constants/path.py` 中定义的项目根目录）为基准。
 
 | 字段名 | 类型 | 值 | 说明 |
 |--------|------|------|------|

@@ -65,4 +65,4 @@
 | index.md 模块状态表（data/hands/signal 标注为"待迁移"） | ✅ 已修正 |
 | STATUS.md 全量数据（44→263 文件, 10→951 测试） | ✅ 已修正 |
 | docs/pyproject.toml 误导性副本 | ⏳ 待删除 |
-| constants.py 过时引用 | ⏳ 待全局替换 |
+| constants.py 过时引用 | ✅ 已修复 (6 个文件, 含 architecture.md/project_structure.md 等) |
