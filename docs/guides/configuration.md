@@ -402,9 +402,9 @@ UniQuant 使用多个环境变量来控制运行时行为。
 
 ## 常量 vs 配置
 
-UniQuant 中存在两种参数管理方式：`constants.py` 中的常量和 `config.yaml` 中的配置项。它们的适用场景不同：
+UniQuant 中存在两种参数管理方式：`shared/constants/` 子包中的常量和 `config.yaml` 中的配置项。它们的适用场景不同：
 
-### 何时使用 constants.py
+### 何时使用 shared/constants/
 
 - **不应在运行时变化**的值: 市场交易时间、交易所代码、指数代码等
 - **系统级约束**: 数据验证范围（最小价格、最大成交量）、精度控制（小数位数）
@@ -427,7 +427,7 @@ UniQuant 中存在两种参数管理方式：`constants.py` 中的常量和 `con
 UniQuant 的配置存在以下覆盖层次（从低到高优先级）：
 
 ```
-constants.py (最低优先级, 编译时确定)
+shared/constants/ (最低优先级, 编译时确定)
     |
 config.yaml / trading.yaml / factors.yaml (运行时加载)
     |
@@ -436,13 +436,13 @@ config.yaml / trading.yaml / factors.yaml (运行时加载)
 
 高优先级的值会覆盖低优先级的值。例如：
 
-- `constants.py` 中 `COMMISSION_PCT = 0.0003`
+- `shared/constants/market.py` 中 `COMMISSION_PCT = 0.0003`
 - `trading.yaml` 中 `buy_fee_pct: 0.0003` (可设为不同值)
 - 环境变量 `LPPL_COST_BUY_FEE=0.0002` 会覆盖以上两者
 
 ### 建议
 
-1. **不要修改 constants.py**: 常量文件中的值经过精心设定，直接修改可能导致系统行为异常。如需调整，优先通过 config.yaml 或环境变量覆盖。
+1. **不要修改 shared/constants/**: 常量子包中的值经过精心设定，直接修改可能导致系统行为异常。如需调整，优先通过 config.yaml 或环境变量覆盖。
 
 2. **使用 get_config() 获取配置**: 始终通过 `get_config()` 函数获取全局配置实例，确保单例一致性。
 

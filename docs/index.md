@@ -4,18 +4,18 @@
 
 UniQuant 是一套面向 A 股市场的量化交易系统，基于 Python 3.12+ 构建。系统划分为 **8 大模块**，覆盖从数据接入、信号生成、因子分析、风险管理到回测撮合的完整量化工作流。
 
-> ⚠️ **状态提示**: 项目正在重构中。标记为 🎯 的文档描述目标状态（重构完成后），标记为 ✅ 的文档描述当前可用功能。详见 [STATUS.md](STATUS.md)。
+> ✅ **状态**: 项目重构已基本完成（v0.6.x），全部 8 个模块层均已就位。详见 [STATUS.md](STATUS.md)。
 
-| 模块 | 职责 | 状态 |
-|------|------|------|
-| **brain** | 信号生成引擎 -- CZSC、FSM、LPPL 等多引擎并行 | ⚠️ 部分可用 |
-| **data** | 数据层 -- 多源数据获取、存储、管道、缓存 | 🔴 待迁移 |
-| **hands** | 回测与策略 -- 向量化撮合回测引擎、策略框架 | 🔴 待迁移 |
-| **services** | 服务层 -- DI 容器、分析引擎工厂、业务服务编排 | ⚠️ 部分可用 |
-| **shared** | 公共基础设施 -- 常量、异常、缓存、配置、成本/滑点模型 | ✅ 基本完整 |
-| **signal** | 信号系统 -- 信号模型、归一化、聚合、质量评估 | 🔴 待迁移 |
-| **risk** | 风险管理 -- 组合优化、仓位管理、回撤分析 | ⚠️ 部分可用 |
-| **ui** | 用户界面 -- Streamlit 仪表盘、Plotly 可视化 | ⚠️ 部分可用 |
+| 模块 | 职责 | 状态 | 规模 |
+|------|------|:----:|:----:|
+| **brain** | 信号生成引擎 -- CZSC、FSM、LPPL、Wyckoff、Regime、NTF 等 | ✅ 完整 | 73 文件 / 15.7K LOC |
+| **data** | 数据层 -- 11 个数据源、管道、湖存储 | ✅ 完整 | 65 文件 / 15.4K LOC |
+| **hands** | 回测与策略 -- 统一撮合引擎、策略框架 | ✅ 完整 | 34 文件 / 6.1K LOC |
+| **services** | 服务层 -- DAG 容器、13 个分析引擎、14 个服务 | ✅ 完整 | 31 文件 / 8.5K LOC |
+| **shared** | 公共基础设施 -- 常量、异常、缓存、配置、成本/滑点模型 | ✅ 完整 | 37 文件 / 5.7K LOC |
+| **signal** | 信号系统 -- 信号模型、归一化、聚合、质量评估 | ✅ 完整 | 7 文件 / 2.1K LOC |
+| **risk** | 风险管理 -- 组合优化、仓位管理、回撤分析 | ✅ 完整 | 7 文件 / 1.5K LOC |
+| **ui** | 用户界面 -- Streamlit 仪表盘、Plotly 可视化 | ⚠️ 部分可用 | 8 文件 / 3.2K LOC |
 
 ---
 
@@ -34,25 +34,25 @@ UniQuant 是一套面向 A 股市场的量化交易系统，基于 Python 3.12+ 
 
 | 文档 | 状态 | 说明 |
 |------|------|------|
-| [brain -- 信号生成引擎](packages/brain.md) | ⚠️ | 仅 czsc/fsm/lppl 可用，其余待迁移 |
-| [data -- 数据层](packages/data.md) | 🎯 | 目标状态，当前不存在 |
-| [hands -- 回测与策略](packages/hands.md) | 🎯 | 目标状态，当前仅空壳 |
-| [services -- 服务层](packages/services.md) | ⚠️ | 部分可用 (11/24 文件) |
-| [shared -- 公共基础设施](packages/shared.md) | ✅ | 基本完整 (23/29 文件) |
-| [signal -- 信号系统](packages/signal.md) | 🎯 | 目标状态，当前不存在 |
-| [risk -- 风险管理](packages/risk.md) | ⚠️ | 仅 drawdown_analyzer 可用 |
+| [brain -- 信号生成引擎](packages/brain.md) | ✅ | CZSC、FSM、LPPL、Wyckoff、Regime、NTF、Indicators、Screener、Alpha Decoupler、27 个 Auto-Mined 因子 |
+| [data -- 数据层](packages/data.md) | ✅ | 11 个数据源 (baostock/eastmoney/mootdx/sina/tdx/tencent/ths 等)、管道、湖存储 |
+| [hands -- 回测与策略](packages/hands.md) | ✅ | 统一撮合引擎、策略框架、参数调优 |
+| [services -- 服务层](packages/services.md) | ✅ | DAG 容器、13 个分析引擎、14 个懒加载服务 |
+| [shared -- 公共基础设施](packages/shared.md) | ✅ | 5 个 Protocol 接口、常量子包(7 模块)、缓存、配置、成本/滑点 |
+| [signal -- 信号系统](packages/signal.md) | ✅ | 信号模型、归一化、聚合、质量评估 |
+| [risk -- 风险管理](packages/risk.md) | ✅ | 组合优化、仓位管理、回撤分析、EVT、结构风险 |
 | [ui -- 用户界面](packages/ui.md) | ⚠️ | 仅 dashboard/health_check 可用 |
 
 ### 使用指南
 
-| 文档 | 状态 | 前置条件 |
-|------|------|---------|
-| [快速上手](guides/quickstart.md) | 🎯 | 需要 data 层迁移完成 |
-| [回测指南](guides/backtest.md) | 🎯 | 需要 hands 层迁移完成 |
-| [因子系统指南](guides/factors.md) | 🎯 | 需要 brain/factors 迁移完成 |
-| [策略开发指南](guides/strategies.md) | 🎯 | 需要 hands/strategies 迁移完成 |
-| [数据源接入指南](guides/data_sources.md) | 🎯 | 需要 data 层迁移完成 |
-| [配置指南](guides/configuration.md) | ✅ | shared/config_loader 已就绪 |
+| 文档 | 状态 | 说明 |
+|------|------|------|
+| [快速上手](guides/quickstart.md) | ⚠️ | 需更新以反映当前 v0.6.x 状态 |
+| [回测指南](guides/backtest.md) | ⚠️ | 需更新以反映当前统一撮合引擎 |
+| [因子系统指南](guides/factors.md) | ⚠️ | 需更新以反映 27 个 Auto-Mined 因子 |
+| [策略开发指南](guides/strategies.md) | ⚠️ | 需更新以反映当前策略框架 |
+| [数据源接入指南](guides/data_sources.md) | ⚠️ | 需更新以反映 11 个数据源 |
+| [配置指南](guides/configuration.md) | ⚠️ | 需更新 constants.py → shared/constants/ 子包 |
 
 ### 参考手册
 
@@ -74,7 +74,7 @@ UniQuant 是一套面向 A 股市场的量化交易系统，基于 Python 3.12+ 
 
 | 文档 | 状态 | 说明 |
 |------|------|------|
-| [测试指南](development/testing.md) | ⚠️ | 需更新为实际测试数 (11 文件) |
+| [测试指南](development/testing.md) | ⚠️ | 需更新测试数 (实际 76 文件, 951+ 通过) |
 | [项目结构](development/project_structure.md) | ⚠️ | 需更新为实际文件清单 |
 | [文档管理计划](DOC_MANAGEMENT_PLAN.md) | ✅ | 文档规范与维护流程 |
 

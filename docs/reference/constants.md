@@ -1,6 +1,6 @@
 # 常量参考
 
-本文档为 UniQuant 系统中所有常量类的完整参考，源自 `src/uniquant/shared/constants.py`。
+本文档为 UniQuant 系统中所有常量类的完整参考，源自 `src/uniquant/shared/constants/` 子包（7 个模块，通过 `__init__.py` 统一导出）。
 
 ---
 

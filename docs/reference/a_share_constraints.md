@@ -354,7 +354,7 @@ shares_adj = np.where(
 
 ## 交易时间
 
-A 股交易时间由 `MarketHours` 类定义于 `src/uniquant/shared/constants.py`：
+A 股交易时间由 `MarketHours` 类定义于 `src/uniquant/shared/constants/market.py`：
 
 | 时段 | 起始时间 | 结束时间 |
 |---|---|---|
@@ -554,7 +554,7 @@ A 股交易约束从常量定义出发，经过多个层级传播到最终的回
 ### 传播路径
 
 ```
-constants.py (MarketConstants, BacktestConstants, MarketHours)
+shared/constants/ (MarketConstants, BacktestConstants, MarketHours)
     |
     +---> limit_checker.py (get_board_type, check_limit_status, LimitStatus)
     |         |
@@ -575,7 +575,7 @@ constants.py (MarketConstants, BacktestConstants, MarketHours)
 
 ### 层级职责
 
-**第 1 层：常量定义（constants.py）**
+**第 1 层：常量定义（shared/constants/）**
 
 - `MarketConstants.LIMIT_RATIO`：涨跌停比例
 - `MarketConstants.BOARD_PREFIX`：板块前缀
@@ -614,7 +614,7 @@ constants.py (MarketConstants, BacktestConstants, MarketHours)
 
 ### 设计原则
 
-1. **单一真相源**：所有常量集中在 `constants.py` 和 `cost_model.py` 中定义，避免各引擎自行定义导致不一致
+1. **单一真相源**：所有常量集中在 `shared/constants/` 子包和 `cost_model.py` 中定义，避免各引擎自行定义导致不一致
 2. **强制执行**：UME 作为唯一撮合入口，通过 `assert` 校验参数合法性，确保约束不被跳过
 3. **向量化处理**：所有约束检查均支持 numpy 数组输入，避免逐笔 Python 循环带来的性能损耗（T+1 的非交易日检查是唯一例外，因为需要调用 `TradeCalendarManager`）
 4. **掩码分离**：`FillResult` 分别暴露 `t1_violation_mask`、`limit_violation_mask`、`cash_shortfall_mask`，便于上层引擎分析拒绝原因
