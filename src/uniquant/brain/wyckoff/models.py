@@ -512,6 +512,7 @@ class ConfidenceResult:
     multiframe_aligned: bool = False  # 条件⑤
     position_size: str = ""
     reason: str = ""
+    bypassed: bool = False  # True if result from early-return path, not full R8 matrix
 
 
 @dataclass

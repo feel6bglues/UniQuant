@@ -6,7 +6,7 @@ v3.0 规则执行器 - 10 条规则的独立验证层
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import pandas as pd
 
@@ -21,13 +21,25 @@ from uniquant.brain.wyckoff.models import (
 class V3Rules:
     """v3.0 规则执行器 - 10 条规则的独立验证"""
 
-    @staticmethod
-    def rule1_relative_volume(volume: float, volume_series: pd.Series) -> str:
-        """规则1: 相对量能分类（参考基准：近30根K线）"""
+    def __init__(self) -> None:
+        self._vol_ma_30_cache: Dict[int, pd.Series] = {}
+
+    def rule1_relative_volume(self, volume: float, volume_series: pd.Series) -> str:
+        """规则1: 相对量能分类（参考基准：近30根K线）
+
+        缓存 30 期滚动均线的计算——管道内的同一次 analyze() 调用中
+        volume_series 引用的是同一个 df["volume"] 对象，无需重复计算。
+        """
         if volume_series.empty or volume <= 0:
             return VolumeLevel.AVERAGE.value
 
-        avg_vol = volume_series.rolling(window=30, min_periods=10).mean().iloc[-1]
+        vol_id = id(volume_series)
+        if vol_id not in self._vol_ma_30_cache:
+            self._vol_ma_30_cache[vol_id] = volume_series.rolling(
+                window=30, min_periods=10
+            ).mean()
+
+        avg_vol = self._vol_ma_30_cache[vol_id].iloc[-1]
         if pd.isna(avg_vol) or avg_vol <= 0:
             return VolumeLevel.AVERAGE.value
 
@@ -57,36 +69,44 @@ class V3Rules:
 
     @staticmethod
     def rule3_t1_risk_test(
-        entry_price: float, support_low: float, recent_limit_moves: List[Dict] = None
+        entry_price: float, support_low: float, recent_limit_moves: List[Dict] = None,
+        atr: Optional[float] = None
     ) -> Dict[str, Any]:
-        """规则3: T+1 极限回撤测试（含涨跌停流动性警告）"""
+        """规则3: T+1 极限回撤测试（含涨跌停流动性警告 + ATR动态阈值）"""
         if entry_price <= 0 or support_low <= 0:
             return {"verdict": "超限", "pct": 100.0, "desc": "无效价格", "liquidity_warning": ""}
 
         max_drawdown_pct = (entry_price - support_low) / entry_price * 100
 
+        if atr is not None and atr > 0:
+            atr_pct = atr / entry_price * 100
+            safe_threshold = atr_pct * 1.0
+            limit_threshold = atr_pct * 2.0
+        else:
+            safe_threshold = 3.0
+            limit_threshold = 5.0
+
         # 检查止损位附近是否有涨跌停记录
         liquidity_warning = ""
         if recent_limit_moves:
+            stop_price = support_low * 0.995
             for move in recent_limit_moves:
                 move_price = move.get("price", 0)
                 if move_price > 0:
-                    # 检查止损位是否在涨跌停价格附近（±3%）
-                    stop_price = support_low * 0.995
                     if abs(move_price - stop_price) / stop_price < 0.03:
                         move_type = move.get("type", "")
                         if move_type in ("涨停", "跌停"):
                             liquidity_warning = f"流动性风险警告：止损位附近有{move_type}记录，止损单可能无法按预期价格成交"
                             break
 
-        if max_drawdown_pct < 3.0:
+        if max_drawdown_pct < safe_threshold:
             return {
                 "verdict": "安全",
                 "pct": round(max_drawdown_pct, 2),
                 "desc": f"极限回撤{max_drawdown_pct:.1f}%，安全",
                 "liquidity_warning": liquidity_warning,
             }
-        elif max_drawdown_pct < 5.0:
+        elif max_drawdown_pct < limit_threshold:
             return {
                 "verdict": "偏薄",
                 "pct": round(max_drawdown_pct, 2),
@@ -309,8 +329,9 @@ class V3Rules:
         return "mixed", "多周期信号混合"
 
     @staticmethod
-    def rule10_stop_loss(key_low: float, recent_limit_moves: List[Dict] = None) -> StopLossResult:
-        """规则10: 止损精度（关键低点 × 0.995，含流动性警告）"""
+    def rule10_stop_loss(key_low: float, recent_limit_moves: List[Dict] = None,
+                         atr: Optional[float] = None) -> StopLossResult:
+        """规则10: 止损精度（关键低点×0.995，ATR可用时用1倍ATR止损，含流动性警告）"""
         if key_low <= 0:
             return StopLossResult(
                 entry_price=0.0,
@@ -321,8 +342,14 @@ class V3Rules:
                 stop_logic="无法计算止损",
             )
 
-        stop_loss_price = key_low * 0.995
-        stop_pct = 0.5  # 固定0.5%
+        if atr is not None and atr > 0:
+            stop_loss_price = key_low - atr * 1.0
+            stop_pct = atr / key_low * 100
+            stop_logic = f"关键低点{key_low:.2f}-1倍ATR({atr:.3f})={stop_loss_price:.2f}"
+        else:
+            stop_loss_price = key_low * 0.995
+            stop_pct = 0.5
+            stop_logic = f"关键低点{key_low:.2f}×0.995={stop_loss_price:.2f}"
 
         precision_warning = stop_pct < 1.5
 
@@ -332,7 +359,6 @@ class V3Rules:
             for move in recent_limit_moves:
                 move_price = move.get("price", 0)
                 if move_price > 0:
-                    # 检查止损位是否在涨跌停价格附近（±3%）
                     if abs(move_price - stop_loss_price) / stop_loss_price < 0.03:
                         move_type = move.get("type", "")
                         if move_type in ("涨停", "跌停"):
@@ -345,8 +371,8 @@ class V3Rules:
         return StopLossResult(
             entry_price=key_low,
             stop_loss_price=round(stop_loss_price, 3),
-            stop_pct=stop_pct,
+            stop_pct=round(stop_pct, 2),
             precision_warning=precision_warning,
             liquidity_risk_warning=liquidity_warning,
-            stop_logic=f"关键低点{key_low:.2f}×0.995={stop_loss_price:.2f}",
+            stop_logic=stop_logic,
         )

@@ -53,6 +53,10 @@ tests/benchmark/*_intermediate.parquet
 /*.json
 /*.csv
 
+# Wyckoff research output (regenerable)
+scripts/wyckoff_multitf/output_v4/
+scripts/wyckoff_verification/output/
+
 # Lock and cache files
 *.lock
 **/__pycache__/

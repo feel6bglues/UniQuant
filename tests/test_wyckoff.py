@@ -205,6 +205,27 @@ def _make_df(rows=30, base_price=10.0, trend=0.0):
     return pd.DataFrame(data)
 
 
+def _make_benchmark_df(rows: int = 150) -> pd.DataFrame:
+    """Create realistic OHLCV data for performance benchmarking."""
+    import numpy as np
+    rng = np.random.default_rng(42)
+    price = 10.0
+    data = []
+    for i in range(rows):
+        ret = rng.normal(0, 0.02)
+        price *= 1 + ret
+        vol = int(abs(rng.normal(1_000_000, 300_000)))
+        data.append({
+            "date": f"2024-01-{(i % 30) + 1:02d}",
+            "open": round(price * (1 - 0.005), 2),
+            "high": round(price * (1 + 0.02), 2),
+            "low": round(price * (1 - 0.02), 2),
+            "close": round(price, 2),
+            "volume": max(vol, 100_000),
+        })
+    return pd.DataFrame(data)
+
+
 @pytest.mark.skipif(not _CLASSIFIERS_AVAILABLE, reason="classifiers import chain broken")
 class TestClassifyUnknownCandidate:
     def test_non_unknown_phase_returns_empty(self):
@@ -390,3 +411,101 @@ class TestStateManager:
         monday = datetime(2024, 6, 3)
         result = sm._add_trading_days(monday, 3)
         assert result.weekday() == 3  # Thursday
+
+
+# ───────────────────────── V3Rules cache ─────────────────────────
+
+
+class TestV3Rule1Cache:
+    """rule1_relative_volume 缓存行为验证"""
+
+    def test_cache_hit_avoids_recomputation(self):
+        from uniquant.brain.wyckoff.rules import V3Rules
+        rules = V3Rules()
+        vol_series = pd.Series([1_000_000] * 50, name="volume")
+        result_a = rules.rule1_relative_volume(500_000, vol_series)
+        cache_size_after_first = len(rules._vol_ma_30_cache)
+        result_b = rules.rule1_relative_volume(1_500_000, vol_series)
+        assert result_a != result_b
+        assert len(rules._vol_ma_30_cache) == cache_size_after_first
+
+    def test_cache_miss_new_series(self):
+        from uniquant.brain.wyckoff.rules import V3Rules
+        rules = V3Rules()
+        vol_a = pd.Series([1_000_000] * 50, name="volume")
+        vol_b = pd.Series([500_000] * 50, name="volume")
+        rules.rule1_relative_volume(500_000, vol_a)
+        assert len(rules._vol_ma_30_cache) == 1
+        rules.rule1_relative_volume(500_000, vol_b)
+        assert len(rules._vol_ma_30_cache) == 2
+
+    def test_volume_levels(self):
+        from uniquant.brain.wyckoff.rules import V3Rules
+        rules = V3Rules()
+        series = pd.Series([1_000_000] * 50, name="volume")
+        assert rules.rule1_relative_volume(3_000_000, series) == "天量/爆量"  # ratio >= 2.0
+        assert rules.rule1_relative_volume(1_500_000, series) == "高于平均"   # ratio >= 1.3
+        assert rules.rule1_relative_volume(1_000_000, series) == "平均"       # ratio >= 0.7
+        assert rules.rule1_relative_volume(500_000, series) == "萎缩"         # ratio >= 0.4
+        assert rules.rule1_relative_volume(100_000, series) == "地量"         # ratio < 0.4
+
+    def test_empty_series(self):
+        from uniquant.brain.wyckoff.rules import V3Rules
+        rules = V3Rules()
+        empty = pd.Series([], dtype=float)
+        assert rules.rule1_relative_volume(1_000_000, empty) == "平均"
+
+    def test_zero_volume(self):
+        from uniquant.brain.wyckoff.rules import V3Rules
+        rules = V3Rules()
+        series = pd.Series([1_000_000] * 50, name="volume")
+        assert rules.rule1_relative_volume(0, series) == "平均"
+
+
+# ───────────────────────── Performance baseline ─────────────────────────
+
+
+class TestWyckoffEngineBenchmark:
+    """Wyckoff 引擎性能基线——用 mock 数据跑完整 analyze() 确保不退化。"""
+
+    @staticmethod
+    def _make_stock_df(rows: int = 160) -> pd.DataFrame:
+        import numpy as np
+        rng = np.random.default_rng(42)
+        price = 10.0
+        data = []
+        for i in range(rows):
+            ret = rng.normal(0, 0.02)
+            price *= 1 + ret
+            spike = 1 + abs(rng.normal(0, 0.5)) if i % 10 == 0 else 1.0
+            vol = int(abs(rng.normal(1_000_000, 300_000)) * spike)
+            data.append({
+                "date": f"2024-01-{(i % 31) + 1:02d}",
+                "open": round(price * (1 - 0.005), 2),
+                "high": round(price * (1 + 0.025), 2),
+                "low": round(price * (1 - 0.025), 2),
+                "close": round(price, 2),
+                "volume": max(vol, 100_000),
+            })
+        return pd.DataFrame(data)
+
+    def test_engine_analyze_completes(self):
+        from uniquant.brain.wyckoff.engine import WyckoffEngine
+        df = self._make_stock_df(160)
+        engine = WyckoffEngine(lookback_days=120)
+        result = engine.analyze(df)
+        assert result is not None
+        assert result.signal is not None
+        assert result.trading_plan is not None
+
+    def test_engine_benchmark_within_threshold(self):
+        import time
+        from uniquant.brain.wyckoff.engine import WyckoffEngine
+        df = self._make_stock_df(160)
+        engine = WyckoffEngine(lookback_days=120)
+        start = time.perf_counter()
+        for _ in range(3):
+            engine.analyze(df)
+        elapsed = time.perf_counter() - start
+        per_call = elapsed / 3
+        assert per_call < 10.0, f"Wyckoff analyze avg {per_call:.2f}s > 10s threshold"

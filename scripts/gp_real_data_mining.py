@@ -15,7 +15,10 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from uniquant.brain.factors.auto_mined.generator import (
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "experiments" / "gp_factor_mining"))
+from generator import (
     GPConfig,
     GeneticFactorMiner,
 )

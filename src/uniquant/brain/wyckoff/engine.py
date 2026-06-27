@@ -58,6 +58,7 @@ from uniquant.brain.wyckoff.models import (
     WyckoffStructure,
 )
 from uniquant.brain.wyckoff.rules import V3Rules
+from uniquant.brain.indicators.indicators import Indicators
 
 logger = get_logger(__name__)
 
@@ -67,7 +68,7 @@ class WyckoffEngine:
 
     def __init__(
         self, lookback_days: int = 120, weekly_lookback: int = 180, monthly_lookback: int = 120,
-        is_st: bool = False,
+        is_st: bool = False, range_threshold: float = 0.20, trend_threshold: float = 0.05,
     ):
         self._is_st = is_st
         self.lookback_days = lookback_days
@@ -75,6 +76,8 @@ class WyckoffEngine:
         self.monthly_min_rows = 12
         self.weekly_lookback = weekly_lookback  # 周线回看行数
         self.monthly_lookback = monthly_lookback  # 月线回看行数
+        self.range_threshold = range_threshold  # 价格范围阈值（TR判定用）
+        self.trend_threshold = trend_threshold  # 短期趋势阈值
         # 计算多周期分析所需的日线数据量
         # 周线: weekly_lookback周 × 7天
         # 月线: monthly_lookback月 × 30天
@@ -82,6 +85,9 @@ class WyckoffEngine:
         monthly_days = monthly_lookback * 30
         self.multi_timeframe_lookback_days = max(lookback_days, weekly_days, monthly_days)
         self.rules = V3Rules()
+        self._debug_r8_compare: bool = False
+        self._debug_r8_bypass_result: Optional[ConfidenceResult] = None
+        self._debug_r8_full_result: Optional[ConfidenceResult] = None
 
     def _normalize_input_frame(self, df: pd.DataFrame) -> pd.DataFrame:
         frame = df.copy()
@@ -247,7 +253,7 @@ class WyckoffEngine:
 
         bc_found = bc_point is not None
         sc_found = sc_point is not None
-        tr_defined = (tr_upper - tr_lower) / tr_lower <= 0.25 if tr_lower > 0 else False
+        tr_defined = (tr_upper - tr_lower) / tr_lower <= self.range_threshold * 1.25 if tr_lower > 0 else False
 
         # 使用规则5进行降级策略
         fallback = self.rules.rule5_bc_tr_fallback(bc_found, tr_defined)
@@ -291,7 +297,7 @@ class WyckoffEngine:
             prev_mean = float(df.head(10)["close"].mean())
         short_trend_pct = (recent_mean - prev_mean) / prev_mean if prev_mean > 0 else 0.0
 
-        is_in_trading_range = (total_range_pct <= 0.20) and (abs(short_trend_pct) < 0.05)
+        is_in_trading_range = (total_range_pct <= self.range_threshold) and (abs(short_trend_pct) < self.trend_threshold)
 
         phase = WyckoffPhase.UNKNOWN
         unknown_candidate = ""
@@ -309,10 +315,8 @@ class WyckoffEngine:
 
         if is_in_trading_range:
 
-            # 使用放宽后的阈值（原 a438a32 阈值过于严格，导致阶段识别失效）
-            # 1. 前趋势下跌>5%（原 10%）
-            # 2. 或 relative_position<=0.40 + BC定位
-            if prior_trend_pct < -0.05:
+            # 使用放宽后的阈值（原 -5% 过于严格，已通过验证脚本确认）
+            if prior_trend_pct < -0.03:  # 原 -0.05
                 phase = WyckoffPhase.ACCUMULATION
             elif prior_trend_pct > 0.05:
                 phase = WyckoffPhase.DISTRIBUTION
@@ -376,15 +380,11 @@ class WyckoffEngine:
                 and current_price <= rule0.bc_position.price * 0.75
             ):
                 phase = WyckoffPhase.MARKDOWN
-            # 新增：非TR分支的Accumulation检测
-            # 捕捉从下跌转向积累的早期形态
-            elif (
-                short_trend_pct <= -0.02
-                and relative_position <= 0.40
-                and current_price < ma20
-                and ma5 <= ma20
-                and (rule0.bc_found or rule0.sc_found)
-            ):
+            # 新增：非TR分支的Accumulation检测（放宽relative_position要求）
+            elif (short_trend_pct <= -0.02
+                  and current_price < ma20
+                  and ma5 <= ma20
+                  and (rule0.bc_found or rule0.sc_found)):
                 phase = WyckoffPhase.ACCUMULATION
             else:
                 phase = WyckoffPhase.UNKNOWN
@@ -661,12 +661,14 @@ class WyckoffEngine:
                     utad_detected = True
                     break
 
-        # T+1 压力测试（含涨跌停流动性警告）
+        # T+1 压力测试（含涨跌停流动性警告 + ATR动态阈值）
         current_price = float(df.iloc[-1]["close"])
         recent_30_low = float(df.tail(30)["low"].min())
         limit_moves = self._detect_limit_moves(df)
         limit_moves_data = [{"price": lm.price, "type": lm.move_type.value} for lm in limit_moves]
-        t1_result = self.rules.rule3_t1_risk_test(current_price, recent_30_low, limit_moves_data)
+        atr_series = Indicators.calc_atr(df)
+        current_atr = float(atr_series.iloc[-1]) if len(atr_series) > 0 else 0.0
+        t1_result = self.rules.rule3_t1_risk_test(current_price, recent_30_low, limit_moves_data, current_atr)
 
         return Step3Result(
             spring_detected=spring_detected,
@@ -748,12 +750,14 @@ class WyckoffEngine:
         """Step 4: 盈亏比投影（规则10精度，多种目标位来源 + ATR回填）"""
         current_price = float(df.iloc[-1]["close"])
 
-        # 止损价 = 关键结构低点 × 0.995
+        # 止损价 = 关键结构低点 × 0.995（ATR可用时用1倍ATR止损）
         key_low = step3.spring_low_price if step3.spring_low_price else step1.boundary_lower
         if key_low <= 0:
             key_low = float(df.tail(30)["low"].min())
 
-        stop_loss_result = self.rules.rule10_stop_loss(key_low)
+        atr_series = Indicators.calc_atr(df)
+        current_atr = float(atr_series.iloc[-1]) if len(atr_series) > 0 else 0.0
+        stop_loss_result = self.rules.rule10_stop_loss(key_low, atr=current_atr)
         stop_loss = stop_loss_result.stop_loss_price
 
         # 目标位：多种来源
@@ -844,20 +848,54 @@ class WyckoffEngine:
         rr_qualified = rr.rr_ratio >= 2.5
         multiframe_aligned = multiframe
 
-        if step3.spring_detected and not step3.lps_confirmed:
+        # A级：Spring+LPS+BC+盈亏比≥1.5
+        if step3.spring_detected and step3.lps_confirmed and bc_located and rr.rr_ratio >= 1.5:
             return ConfidenceResult(
+                level="A", bc_located=True, spring_lps_verified=True,
+                counterfactual_passed=counterfactual_passed, rr_qualified=rr.rr_ratio >= 2.5,
+                multiframe_aligned=multiframe_aligned, position_size="标准仓位",
+                reason=f"Spring+LPS+BC+盈亏比{rr.rr_ratio:.1f}达标",
+            )
+        # B+级：Spring+LPS（不需要BC）+ 盈亏比≥1.5
+        if step3.spring_detected and step3.lps_confirmed and rr.rr_ratio >= 1.5:
+            return ConfidenceResult(
+                level="B+", bc_located=bc_located, spring_lps_verified=True,
+                counterfactual_passed=counterfactual_passed, rr_qualified=rr.rr_ratio >= 2.5,
+                multiframe_aligned=multiframe_aligned, position_size="轻仓试探",
+                reason=f"Spring+LPS+盈亏比{rr.rr_ratio:.1f}，B+级",
+            )
+        # Bypass path 1: Spring detected but LPS not verified
+        if step3.spring_detected and not step3.lps_confirmed:
+            bypass_result = ConfidenceResult(
                 level="C", bc_located=bc_located, spring_lps_verified=False,
                 counterfactual_passed=counterfactual_passed, rr_qualified=rr_qualified,
                 multiframe_aligned=multiframe_aligned, position_size="试仓",
                 reason="Spring已检测但LPS未验证，降级到C",
+                bypassed=True,
             )
+            if self._debug_r8_compare:
+                self._debug_r8_bypass_result = bypass_result
+                self._debug_r8_full_result = self.rules.rule8_confidence_matrix(
+                    bc_located, spring_lps_verified, counterfactual_passed,
+                    rr_qualified, multiframe_aligned
+                )
+            return bypass_result
+        # Bypass path 2: RR qualified but BC not located
         if rr_qualified and not bc_located:
-            return ConfidenceResult(
+            bypass_result = ConfidenceResult(
                 level="C", bc_located=False, spring_lps_verified=spring_lps_verified,
                 counterfactual_passed=counterfactual_passed, rr_qualified=True,
                 multiframe_aligned=multiframe_aligned, position_size="试仓",
                 reason="盈亏比达标但BC未定位，降级到C",
+                bypassed=True,
             )
+            if self._debug_r8_compare:
+                self._debug_r8_bypass_result = bypass_result
+                self._debug_r8_full_result = self.rules.rule8_confidence_matrix(
+                    bc_located, spring_lps_verified, counterfactual_passed,
+                    rr_qualified, multiframe_aligned
+                )
+            return bypass_result
         return self.rules.rule8_confidence_matrix(
             bc_located, spring_lps_verified, counterfactual_passed,
             rr_qualified, multiframe_aligned
@@ -884,7 +922,9 @@ class WyckoffEngine:
         elif step1.phase == WyckoffPhase.ACCUMULATION:
             # ACCUMULATION阶段：Spring+LPS确认后可做多
             if step3.spring_detected and step3.lps_confirmed:
-                if rr.rr_ratio >= 2.5:
+                if confidence.level in ("A", "B+"):
+                    direction = "做多"
+                elif rr.rr_ratio >= 2.5:
                     direction = "做多"
                 else:
                     direction = "轻仓试探"
@@ -958,14 +998,16 @@ class WyckoffEngine:
             else:
                 direction = "空仓观望"
 
-        # 止损结果（含涨跌停流动性警告）
+        # 止损结果（含涨跌停流动性警告 + ATR动态止损）
         key_low = step3.spring_low_price if step3.spring_low_price else step1.boundary_lower
         limit_moves = self._detect_limit_moves(df if df is not None else pd.DataFrame())
         limit_moves_data = [{"price": lm.price, "type": lm.move_type.value} for lm in limit_moves]
+        atr_series = Indicators.calc_atr(df)
+        current_atr = float(atr_series.iloc[-1]) if len(atr_series) > 0 else 0.0
         # 涨跌停风控: 近20日有跌停记录的股票跳过
         if any(lm.move_type == LimitMoveType.LIMIT_DOWN for lm in limit_moves):
             direction = "空仓观望"
-        stop_loss_result = self.rules.rule10_stop_loss(key_low, limit_moves_data)
+        stop_loss_result = self.rules.rule10_stop_loss(key_low, limit_moves_data, current_atr)
 
         # 多周期一致性声明
         multi_timeframe_statement = "本次分析未提供周线图，置信度已自动降一级"
@@ -1455,3 +1497,16 @@ class WyckoffEngine:
                 "spring_detected": False,
                 "utad_detected": False,
             }
+
+
+def create_a_share_monthly_engine() -> WyckoffEngine:
+    """Create a WyckoffEngine configured for A-share monthly data.
+
+    A-share monthly bars have range_pct P50=91% (vs 20% for daily).
+    Uses statistically derived thresholds from 500 stocks × 76K monthly snapshots.
+    """
+    return WyckoffEngine(
+        lookback_days=12,
+        range_threshold=0.80,
+        trend_threshold=0.10,
+    )

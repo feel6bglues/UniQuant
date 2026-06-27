@@ -1,8 +1,8 @@
 """
 分析大脑模块
 
-包含: CZSC 缠论、FSM 状态机、LPPL 泡沫检测、Indicators、NTF、Regime、AlphaDecoupler、Factors
-待迁移: Wyckoff、Screener
+子包: CZSC (缠论), FSM (状态机), LPPL (泡沫检测), Wyckoff, NTF, Regime, AlphaDecoupler, Factors, Indicators, Screener
+公开导出: DecisionBrain, FSM, FSMState, Indicators, NTFEngine, RegimeDetector, AlphaDecoupler, StockScreener, FactorRegistry, FactorAnalyzer, FactorComposer, FinancialFactorBridge
 """
 
 from .fsm.fsm import DecisionBrain, FSM, FSMState

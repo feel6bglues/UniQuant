@@ -1,0 +1,4449 @@
+{
+  "pre_analysis": {
+    "markdown_b_signals": {
+      "n_signals": 476,
+      "mean_fwd_60d_return_pct": 4.403088235294118,
+      "median_fwd_60d_return_pct": 0.6100000000000001,
+      "positive_ratio_pct": 52.52100840336135,
+      "details": [
+        {
+          "symbol": "002984.SZ",
+          "date": "2024-06-28 00:00:00",
+          "price": 24.09,
+          "conf_level": "B",
+          "rr_ratio": 9.56,
+          "short_trend_pct": -2.9020556227327687,
+          "fwd_60d_return_pct": 0.17
+        },
+        {
+          "symbol": "002984.SZ",
+          "date": "2025-06-26 00:00:00",
+          "price": 18.74,
+          "conf_level": "B",
+          "rr_ratio": 6.51,
+          "short_trend_pct": -1.3684210526315854,
+          "fwd_60d_return_pct": 5.34
+        },
+        {
+          "symbol": "600338.SH",
+          "date": "2022-11-03 00:00:00",
+          "price": 22.49,
+          "conf_level": "B",
+          "rr_ratio": 3.92,
+          "short_trend_pct": 0.8520179372197179,
+          "fwd_60d_return_pct": 12.49
+        },
+        {
+          "symbol": "605337.SH",
+          "date": "2022-07-06 00:00:00",
+          "price": 25.84,
+          "conf_level": "B",
+          "rr_ratio": 2.99,
+          "short_trend_pct": 7.98161303802758,
+          "fwd_60d_return_pct": -23.68
+        },
+        {
+          "symbol": "605337.SH",
+          "date": "2022-08-31 00:00:00",
+          "price": 22.69,
+          "conf_level": "B",
+          "rr_ratio": 2.51,
+          "short_trend_pct": 2.207207207207218,
+          "fwd_60d_return_pct": -4.58
+        },
+        {
+          "symbol": "605337.SH",
+          "date": "2023-12-26 00:00:00",
+          "price": 13.34,
+          "conf_level": "B",
+          "rr_ratio": 6.98,
+          "short_trend_pct": -15.835962145110404,
+          "fwd_60d_return_pct": 0.3
+        },
+        {
+          "symbol": "605337.SH",
+          "date": "2024-08-23 00:00:00",
+          "price": 8.74,
+          "conf_level": "B",
+          "rr_ratio": 11.56,
+          "short_trend_pct": -3.6383682469680267,
+          "fwd_60d_return_pct": 19.45
+        },
+        {
+          "symbol": "600390.SH",
+          "date": "2023-07-03 00:00:00",
+          "price": 5.51,
+          "conf_level": "B",
+          "rr_ratio": 2.76,
+          "short_trend_pct": -2.3049645390070927,
+          "fwd_60d_return_pct": -2.18
+        },
+        {
+          "symbol": "600390.SH",
+          "date": "2023-10-31 00:00:00",
+          "price": 5.08,
+          "conf_level": "B",
+          "rr_ratio": 4.01,
+          "short_trend_pct": -5.400372439478584,
+          "fwd_60d_return_pct": -4.72
+        },
+        {
+          "symbol": "600390.SH",
+          "date": "2023-12-26 00:00:00",
+          "price": 4.48,
+          "conf_level": "B",
+          "rr_ratio": 9.03,
+          "short_trend_pct": -7.818930041152261,
+          "fwd_60d_return_pct": 4.24
+        },
+        {
+          "symbol": "600390.SH",
+          "date": "2024-06-28 00:00:00",
+          "price": 4.05,
+          "conf_level": "B",
+          "rr_ratio": 7.17,
+          "short_trend_pct": -8.577878103837467,
+          "fwd_60d_return_pct": 12.35
+        },
+        {
+          "symbol": "600390.SH",
+          "date": "2026-04-23 00:00:00",
+          "price": 5.23,
+          "conf_level": "B",
+          "rr_ratio": 7.13,
+          "short_trend_pct": -2.607076350093107,
+          "fwd_60d_return_pct": -13.58
+        },
+        {
+          "symbol": "002811.SZ",
+          "date": "2022-12-29 00:00:00",
+          "price": 7.15,
+          "conf_level": "B",
+          "rr_ratio": 2.5,
+          "short_trend_pct": -11.945812807881762,
+          "fwd_60d_return_pct": 6.85
+        },
+        {
+          "symbol": "000709.SZ",
+          "date": "2024-06-28 00:00:00",
+          "price": 1.94,
+          "conf_level": "B",
+          "rr_ratio": 4.72,
+          "short_trend_pct": -9.76744186046512,
+          "fwd_60d_return_pct": -6.19
+        },
+        {
+          "symbol": "300080.SZ",
+          "date": "2022-12-29 00:00:00",
+          "price": 4.66,
+          "conf_level": "B",
+          "rr_ratio": 3.94,
+          "short_trend_pct": -11.068702290076338,
+          "fwd_60d_return_pct": 18.67
+        },
+        {
+          "symbol": "399613.SZ",
+          "date": "2024-08-23 00:00:00",
+          "price": 2518.41,
+          "conf_level": "B",
+          "rr_ratio": 13.04,
+          "short_trend_pct": -3.7463261008320536,
+          "fwd_60d_return_pct": 19.91
+        },
+        {
+          "symbol": "600127.SH",
+          "date": "2023-10-31 00:00:00",
+          "price": 7.62,
+          "conf_level": "B",
+          "rr_ratio": 4.53,
+          "short_trend_pct": 0.13140604467805073,
+          "fwd_60d_return_pct": -17.06
+        },
+        {
+          "symbol": "399376.SZ",
+          "date": "2024-08-23 00:00:00",
+          "price": 3548.35,
+          "conf_level": "B",
+          "rr_ratio": 10.86,
+          "short_trend_pct": -4.761201801521309,
+          "fwd_60d_return_pct": 29.03
+        },
+        {
+          "symbol": "300882.SZ",
+          "date": "2025-12-19 00:00:00",
+          "price": 18.76,
+          "conf_level": "B",
+          "rr_ratio": 4.06,
+          "short_trend_pct": -2.342529932326909,
+          "fwd_60d_return_pct": 13.59
+        },
+        {
+          "symbol": "603277.SH",
+          "date": "2022-12-29 00:00:00",
+          "price": 16.42,
+          "conf_level": "B",
+          "rr_ratio": 3.1,
+          "short_trend_pct": -10.322228290551594,
+          "fwd_60d_return_pct": 20.34
+        },
+        {
+          "symbol": "603277.SH",
+          "date": "2024-08-23 00:00:00",
+          "price": 24.13,
+          "conf_level": "B",
+          "rr_ratio": 6.49,
+          "short_trend_pct": -2.347227842978561,
+          "fwd_60d_return_pct": -4.14
+        },
+        {
+          "symbol": "003009.SZ",
+          "date": "2026-04-23 00:00:00",
+          "price": 59.2,
+          "conf_level": "B",
+          "rr_ratio": 2.62,
+          "short_trend_pct": 6.188340807174897,
+          "fwd_60d_return_pct": 2.94
+        },
+        {
+          "symbol": "300059.SZ",
+          "date": "2023-12-26 00:00:00",
+          "price": 13.69,
+          "conf_level": "B",
+          "rr_ratio": 7.83,
+          "short_trend_pct": -6.4251537935748555,
+          "fwd_60d_return_pct": -5.92
+        },
+        {
+          "symbol": "300059.SZ",
+          "date": "2025-12-19 00:00:00",
+          "price": 23.0,
+          "conf_level": "B",
+          "rr_ratio": 3.8,
+          "short_trend_pct": -1.8352539479300045,
+          "fwd_60d_return_pct": -13.48
+        },
+        {
+          "symbol": "600905.SH",
+          "date": "2023-12-26 00:00:00",
+          "price": 4.32,
+          "conf_level": "B",
+          "rr_ratio": 4.66,
+          "short_trend_pct": -6.0869565217391175,
+          "fwd_60d_return_pct": 8.33
+        },
+        {
+          "symbol": "600905.SH",
+          "date": "2024-12-24 00:00:00",
+          "price": 4.48,
+          "conf_level": "B",
+          "rr_ratio": 2.82,
+          "short_trend_pct": -1.969365426695835,
+          "fwd_60d_return_pct": -5.13
+        },
+        {
+          "symbol": "000987.SZ",
+          "date": "2023-10-31 00:00:00",
+          "price": 6.56,
+          "conf_level": "B",
+          "rr_ratio": 4.62,
+          "short_trend_pct": -2.9585798816568087,
+          "fwd_60d_return_pct": -10.06
+        },
+        {
+          "symbol": "000987.SZ",
+          "date": "2023-12-26 00:00:00",
+          "price": 5.87,
+          "conf_level": "B",
+          "rr_ratio": 7.94,
+          "short_trend_pct": -7.559055118110225,
+          "fwd_60d_return_pct": -5.11
+        },
+        {
+          "symbol": "000987.SZ",
+          "date": "2024-06-28 00:00:00",
+          "price": 4.96,
+          "conf_level": "B",
+          "rr_ratio": 6.93,
+          "short_trend_pct": -10.469314079422388,
+          "fwd_60d_return_pct": 10.28
+        },
+        {
+          "symbol": "600651.SH",
+          "date": "2026-04-23 00:00:00",
+          "price": 6.68,
+          "conf_level": "B",
+          "rr_ratio": 6.3,
+          "short_trend_pct": -5.782792665726378,
+          "fwd_60d_return_pct": -3.29
+        },
+        {
+          "symbol": "300086.SZ",
+          "date": "2023-12-26 00:00:00",
+          "price": 5.67,
+          "conf_level": "B",
+          "rr_ratio": 9.22,
+          "short_trend_pct": -13.036809815950912,
+          "fwd_60d_return_pct": -11.64
+        },
+        {
+          "symbol": "000651.SZ",
+          "date": "2025-02-27 00:00:00",
+          "price": 41.43,
+          "conf_level": "B",
+          "rr_ratio": 3.61,
+          "short_trend_pct": -6.415179579850927,
+          "fwd_60d_return_pct": 12.67
+        },
+        {
+          "symbol": "399370.SZ",
+          "date": "2023-12-26 00:00:00",
+          "price": 3613.03,
+          "conf_level": "B",
+          "rr_ratio": 4.06,
+          "short_trend_pct": -5.387846380257566,
+          "fwd_60d_return_pct": 0.28
+        },
+        {
+          "symbol": "600380.SH",
+          "date": "2022-08-31 00:00:00",
+          "price": 10.91,
+          "conf_level": "B",
+          "rr_ratio": 4.48,
+          "short_trend_pct": 0.09174311926605228,
+          "fwd_60d_return_pct": 9.53
+        },
+        {
+          "symbol": "600380.SH",
+          "date": "2023-08-28 00:00:00",
+          "price": 11.3,
+          "conf_level": "B",
+          "rr_ratio": 2.52,
+          "short_trend_pct": -8.870967741935477,
+          "fwd_60d_return_pct": 12.04
+        },
+        {
+          "symbol": "600380.SH",
+          "date": "2024-08-23 00:00:00",
+          "price": 10.01,
+          "conf_level": "B",
+          "rr_ratio": 9.26,
+          "short_trend_pct": -0.7928642220019877,
+          "fwd_60d_return_pct": 11.09
+        },
+        {
+          "symbol": "600380.SH",
+          "date": "2025-10-24 00:00:00",
+          "price": 12.1,
+          "conf_level": "B",
+          "rr_ratio": 5.83,
+          "short_trend_pct": -4.57413249211357,
+          "fwd_60d_return_pct": -1.16
+        },
+        {
+          "symbol": "300783.SZ",
+          "date": "2024-06-28 00:00:00",
+          "price": 21.87,
+          "conf_level": "B",
+          "rr_ratio": 3.93,
+          "short_trend_pct": -10.037021801727676,
+          "fwd_60d_return_pct": -17.7
+        },
+        {
+          "symbol": "300783.SZ",
+          "date": "2024-08-23 00:00:00",
+          "price": 16.96,
+          "conf_level": "B",
+          "rr_ratio": 8.23,
+          "short_trend_pct": 1.496110113704363,
+          "fwd_60d_return_pct": 73.05
+        },
+        {
+          "symbol": "300783.SZ",
+          "date": "2025-10-24 00:00:00",
+          "price": 23.25,
+          "conf_level": "B",
+          "rr_ratio": 2.87,
+          "short_trend_pct": -8.930669800235025,
+          "fwd_60d_return_pct": 5.72
+        },
+        {
+          "symbol": "300783.SZ",
+          "date": "2026-04-23 00:00:00",
+          "price": 18.49,
+          "conf_level": "B",
+          "rr_ratio": 4.58,
+          "short_trend_pct": 0.16251354279521735,
+          "fwd_60d_return_pct": -5.57
+        },
+        {
+          "symbol": "601238.SH",
+          "date": "2023-12-26 00:00:00",
+          "price": 8.52,
+          "conf_level": "B",
+          "rr_ratio": 7.95,
+          "short_trend_pct": -14.800000000000002,
+          "fwd_60d_return_pct": 4.58
+        },
+        {
+          "symbol": "601238.SH",
+          "date": "2024-06-28 00:00:00",
+          "price": 7.74,
+          "conf_level": "B",
+          "rr_ratio": 2.61,
+          "short_trend_pct": -8.076009501187642,
+          "fwd_60d_return_pct": -2.07
+        },
+        {
+          "symbol": "300498.SZ",
+          "date": "2024-12-24 00:00:00",
+          "price": 16.9,
+          "conf_level": "B",
+          "rr_ratio": 8.33,
+          "short_trend_pct": -2.4812463935372175,
+          "fwd_60d_return_pct": 1.42
+        },
+        {
+          "symbol": "300498.SZ",
+          "date": "2026-02-25 00:00:00",
+          "price": 15.48,
+          "conf_level": "B",
+          "rr_ratio": 4.17,
+          "short_trend_pct": -0.9596928982725572,
+          "fwd_60d_return_pct": -10.34
+        },
+        {
+          "symbol": "601000.SH",
+          "date": "2022-07-06 00:00:00",
+          "price": 2.57,
+          "conf_level": "B",
+          "rr_ratio": 10.34,
+          "short_trend_pct": -4.104477611940305,
+          "fwd_60d_return_pct": 0.39
+        },
+        {
+          "symbol": "399240.SZ",
+          "date": "2023-10-31 00:00:00",
+          "price": 1127.27,
+          "conf_level": "B",
+          "rr_ratio": 4.01,
+          "short_trend_pct": -2.561997043849573,
+          "fwd_60d_return_pct": -9.91
+        },
+        {
+          "symbol": "399240.SZ",
+          "date": "2023-12-26 00:00:00",
+          "price": 1021.99,
+          "conf_level": "B",
+          "rr_ratio": 8.72,
+          "short_trend_pct": -6.327106744147681,
+          "fwd_60d_return_pct": -0.46
+        },
+        {
+          "symbol": "399240.SZ",
+          "date": "2024-06-28 00:00:00",
+          "price": 951.3,
+          "conf_level": "B",
+          "rr_ratio": 8.95,
+          "short_trend_pct": -8.600032666865232,
+          "fwd_60d_return_pct": 6.76
+        },
+        {
+          "symbol": "301093.SZ",
+          "date": "2022-12-29 00:00:00",
+          "price": 25.4,
+          "conf_level": "B",
+          "rr_ratio": 4.23,
+          "short_trend_pct": -7.501820830298622,
+          "fwd_60d_return_pct": 22.95
+        },
+        {
+          "symbol": "000719.SZ",
+          "date": "2023-10-31 00:00:00",
+          "price": 10.0,
+          "conf_level": "B",
+          "rr_ratio": 5.04,
+          "short_trend_pct": -9.173478655767486,
+          "fwd_60d_return_pct": -9.6
+        },
+        {
+          "symbol": "002890.SZ",
+          "date": "2024-06-28 00:00:00",
+          "price": 8.02,
+          "conf_level": "B",
+          "rr_ratio": 3.25,
+          "short_trend_pct": -33.333333333333336,
+          "fwd_60d_return_pct": 4.99
+        },
+        {
+          "symbol": "002607.SZ",
+          "date": "2022-08-31 00:00:00",
+          "price": 4.58,
+          "conf_level": "B",
+          "rr_ratio": 4.79,
+          "short_trend_pct": -3.98322851153039,
+          "fwd_60d_return_pct": 10.7
+        },
+        {
+          "symbol": "399328.SZ",
+          "date": "2023-12-26 00:00:00",
+          "price": 8517.62,
+          "conf_level": "B",
+          "rr_ratio": 5.63,
+          "short_trend_pct": -5.9198681626494665,
+          "fwd_60d_return_pct": 5.56
+        },
+        {
+          "symbol": "399328.SZ",
+          "date": "2024-06-28 00:00:00",
+          "price": 8529.16,
+          "conf_level": "B",
+          "rr_ratio": 6.52,
+          "short_trend_pct": -5.139857417726013,
+          "fwd_60d_return_pct": -5.56
+        },
+        {
+          "symbol": "300179.SZ",
+          "date": "2022-11-03 00:00:00",
+          "price": 14.15,
+          "conf_level": "B",
+          "rr_ratio": 2.72,
+          "short_trend_pct": 10.89341692789969,
+          "fwd_60d_return_pct": -1.55
+        },
+        {
+          "symbol": "601777.SH",
+          "date": "2022-12-29 00:00:00",
+          "price": 3.83,
+          "conf_level": "B",
+          "rr_ratio": 9.23,
+          "short_trend_pct": -10.093896713615013,
+          "fwd_60d_return_pct": -0.52
+        },
+        {
+          "symbol": "601777.SH",
+          "date": "2023-05-04 00:00:00",
+          "price": 3.56,
+          "conf_level": "B",
+          "rr_ratio": 2.55,
+          "short_trend_pct": -6.068601583113454,
+          "fwd_60d_return_pct": 11.24
+        },
+        {
+          "symbol": "605050.SH",
+          "date": "2025-12-19 00:00:00",
+          "price": 12.82,
+          "conf_level": "B",
+          "rr_ratio": 10.8,
+          "short_trend_pct": -3.825956489122284,
+          "fwd_60d_return_pct": 13.03
+        },
+        {
+          "symbol": "002332.SZ",
+          "date": "2024-12-24 00:00:00",
+          "price": 10.37,
+          "conf_level": "B",
+          "rr_ratio": 3.91,
+          "short_trend_pct": -15.964343598055109,
+          "fwd_60d_return_pct": -0.58
+        },
+        {
+          "symbol": "002332.SZ",
+          "date": "2025-10-24 00:00:00",
+          "price": 9.58,
+          "conf_level": "B",
+          "rr_ratio": 9.29,
+          "short_trend_pct": -4.486540378863402,
+          "fwd_60d_return_pct": -1.67
+        },
+        {
+          "symbol": "603348.SH",
+          "date": "2025-12-19 00:00:00",
+          "price": 19.5,
+          "conf_level": "B",
+          "rr_ratio": 4.9,
+          "short_trend_pct": -4.223968565815317,
+          "fwd_60d_return_pct": -1.08
+        },
+        {
+          "symbol": "603969.SH",
+          "date": "2022-12-29 00:00:00",
+          "price": 4.85,
+          "conf_level": "B",
+          "rr_ratio": 4.69,
+          "short_trend_pct": -7.442748091603068,
+          "fwd_60d_return_pct": -1.86
+        },
+        {
+          "symbol": "300871.SZ",
+          "date": "2023-07-03 00:00:00",
+          "price": 16.52,
+          "conf_level": "B",
+          "rr_ratio": 3.43,
+          "short_trend_pct": -4.563835932986704,
+          "fwd_60d_return_pct": -4.72
+        },
+        {
+          "symbol": "300871.SZ",
+          "date": "2025-10-24 00:00:00",
+          "price": 20.75,
+          "conf_level": "B",
+          "rr_ratio": 3.78,
+          "short_trend_pct": -2.306967984934083,
+          "fwd_60d_return_pct": 51.76
+        },
+        {
+          "symbol": "002698.SZ",
+          "date": "2026-04-23 00:00:00",
+          "price": 13.8,
+          "conf_level": "B",
+          "rr_ratio": 4.21,
+          "short_trend_pct": 3.293413173652704,
+          "fwd_60d_return_pct": -7.25
+        },
+        {
+          "symbol": "002148.SZ",
+          "date": "2022-11-03 00:00:00",
+          "price": 5.53,
+          "conf_level": "B",
+          "rr_ratio": 4.01,
+          "short_trend_pct": 9.504950495049513,
+          "fwd_60d_return_pct": 11.39
+        },
+        {
+          "symbol": "399387.SZ",
+          "date": "2022-11-03 00:00:00",
+          "price": 3664.26,
+          "conf_level": "B",
+          "rr_ratio": 3.73,
+          "short_trend_pct": -5.806716964641467,
+          "fwd_60d_return_pct": 18.09
+        },
+        {
+          "symbol": "301101.SZ",
+          "date": "2023-07-03 00:00:00",
+          "price": 41.39,
+          "conf_level": "B",
+          "rr_ratio": 17.08,
+          "short_trend_pct": -8.226164079822617,
+          "fwd_60d_return_pct": -9.54
+        },
+        {
+          "symbol": "301101.SZ",
+          "date": "2025-12-19 00:00:00",
+          "price": 38.94,
+          "conf_level": "B",
+          "rr_ratio": 4.23,
+          "short_trend_pct": -1.1925907130169944,
+          "fwd_60d_return_pct": -14.43
+        },
+        {
+          "symbol": "603076.SH",
+          "date": "2023-12-26 00:00:00",
+          "price": 25.1,
+          "conf_level": "B",
+          "rr_ratio": 12.3,
+          "short_trend_pct": -13.745704467353947,
+          "fwd_60d_return_pct": -3.59
+        },
+        {
+          "symbol": "688026.SH",
+          "date": "2025-12-19 00:00:00",
+          "price": 16.19,
+          "conf_level": "B",
+          "rr_ratio": 2.78,
+          "short_trend_pct": -4.932472108044628,
+          "fwd_60d_return_pct": 1.24
+        },
+        {
+          "symbol": "688211.SH",
+          "date": "2024-08-23 00:00:00",
+          "price": 23.28,
+          "conf_level": "B",
+          "rr_ratio": 6.89,
+          "short_trend_pct": -1.1884550084889534,
+          "fwd_60d_return_pct": 30.03
+        },
+        {
+          "symbol": "688211.SH",
+          "date": "2025-10-24 00:00:00",
+          "price": 31.95,
+          "conf_level": "B",
+          "rr_ratio": 2.69,
+          "short_trend_pct": -4.769001490312963,
+          "fwd_60d_return_pct": 4.69
+        },
+        {
+          "symbol": "605080.SH",
+          "date": "2023-12-26 00:00:00",
+          "price": 20.41,
+          "conf_level": "B",
+          "rr_ratio": 10.23,
+          "short_trend_pct": -10.325131810193323,
+          "fwd_60d_return_pct": -7.1
+        },
+        {
+          "symbol": "605080.SH",
+          "date": "2025-12-19 00:00:00",
+          "price": 22.92,
+          "conf_level": "B",
+          "rr_ratio": 2.71,
+          "short_trend_pct": 0.4382120946538226,
+          "fwd_60d_return_pct": -0.92
+        },
+        {
+          "symbol": "000050.SZ",
+          "date": "2023-08-28 00:00:00",
+          "price": 8.19,
+          "conf_level": "B",
+          "rr_ratio": 5.66,
+          "short_trend_pct": -13.05732484076434,
+          "fwd_60d_return_pct": 31.38
+        },
+        {
+          "symbol": "000050.SZ",
+          "date": "2025-12-19 00:00:00",
+          "price": 8.9,
+          "conf_level": "B",
+          "rr_ratio": 3.18,
+          "short_trend_pct": 1.598173515981749,
+          "fwd_60d_return_pct": -9.66
+        },
+        {
+          "symbol": "605116.SH",
+          "date": "2024-12-24 00:00:00",
+          "price": 21.0,
+          "conf_level": "B",
+          "rr_ratio": 4.83,
+          "short_trend_pct": -1.8232819074333828,
+          "fwd_60d_return_pct": 3.95
+        },
+        {
+          "symbol": "301003.SZ",
+          "date": "2022-11-03 00:00:00",
+          "price": 24.1,
+          "conf_level": "B",
+          "rr_ratio": 2.85,
+          "short_trend_pct": 2.8595817328211703,
+          "fwd_60d_return_pct": 7.8
+        },
+        {
+          "symbol": "300749.SZ",
+          "date": "2023-10-31 00:00:00",
+          "price": 8.98,
+          "conf_level": "B",
+          "rr_ratio": 3.78,
+          "short_trend_pct": -2.178649237472763,
+          "fwd_60d_return_pct": -11.14
+        },
+        {
+          "symbol": "600148.SH",
+          "date": "2023-08-28 00:00:00",
+          "price": 14.84,
+          "conf_level": "B",
+          "rr_ratio": 3.52,
+          "short_trend_pct": -5.9569074778200175,
+          "fwd_60d_return_pct": 33.02
+        },
+        {
+          "symbol": "600351.SH",
+          "date": "2022-08-31 00:00:00",
+          "price": 6.03,
+          "conf_level": "B",
+          "rr_ratio": 3.81,
+          "short_trend_pct": 0.5000000000000115,
+          "fwd_60d_return_pct": 11.44
+        },
+        {
+          "symbol": "600351.SH",
+          "date": "2023-12-26 00:00:00",
+          "price": 6.81,
+          "conf_level": "B",
+          "rr_ratio": 11.29,
+          "short_trend_pct": -12.12903225806452,
+          "fwd_60d_return_pct": -11.01
+        },
+        {
+          "symbol": "399685.SZ",
+          "date": "2023-07-03 00:00:00",
+          "price": 2074.19,
+          "conf_level": "B",
+          "rr_ratio": 5.68,
+          "short_trend_pct": -5.010533064663846,
+          "fwd_60d_return_pct": -3.71
+        },
+        {
+          "symbol": "399685.SZ",
+          "date": "2024-06-28 00:00:00",
+          "price": 1634.71,
+          "conf_level": "B",
+          "rr_ratio": 8.56,
+          "short_trend_pct": -7.666455796299221,
+          "fwd_60d_return_pct": -10.36
+        },
+        {
+          "symbol": "399685.SZ",
+          "date": "2024-08-23 00:00:00",
+          "price": 1496.79,
+          "conf_level": "B",
+          "rr_ratio": 9.05,
+          "short_trend_pct": -2.970919604309552,
+          "fwd_60d_return_pct": 15.63
+        },
+        {
+          "symbol": "600161.SH",
+          "date": "2024-06-28 00:00:00",
+          "price": 24.4,
+          "conf_level": "B",
+          "rr_ratio": 3.59,
+          "short_trend_pct": -13.902611150317579,
+          "fwd_60d_return_pct": -12.38
+        },
+        {
+          "symbol": "600161.SH",
+          "date": "2024-08-23 00:00:00",
+          "price": 23.87,
+          "conf_level": "B",
+          "rr_ratio": 5.74,
+          "short_trend_pct": -2.0918785890073788,
+          "fwd_60d_return_pct": -10.85
+        },
+        {
+          "symbol": "600161.SH",
+          "date": "2024-12-24 00:00:00",
+          "price": 20.98,
+          "conf_level": "B",
+          "rr_ratio": 7.85,
+          "short_trend_pct": -1.7790262172284632,
+          "fwd_60d_return_pct": -2.86
+        },
+        {
+          "symbol": "600161.SH",
+          "date": "2025-12-19 00:00:00",
+          "price": 16.44,
+          "conf_level": "B",
+          "rr_ratio": 5.47,
+          "short_trend_pct": -6.908267270668167,
+          "fwd_60d_return_pct": -8.03
+        },
+        {
+          "symbol": "002484.SZ",
+          "date": "2023-12-26 00:00:00",
+          "price": 15.11,
+          "conf_level": "B",
+          "rr_ratio": 2.98,
+          "short_trend_pct": -11.997670355270829,
+          "fwd_60d_return_pct": 2.25
+        },
+        {
+          "symbol": "605136.SH",
+          "date": "2025-08-21 00:00:00",
+          "price": 10.27,
+          "conf_level": "B",
+          "rr_ratio": 6.87,
+          "short_trend_pct": 4.795918367346919,
+          "fwd_60d_return_pct": -1.07
+        },
+        {
+          "symbol": "688626.SH",
+          "date": "2023-08-28 00:00:00",
+          "price": 37.52,
+          "conf_level": "B",
+          "rr_ratio": 2.63,
+          "short_trend_pct": -22.65512265512265,
+          "fwd_60d_return_pct": 47.12
+        },
+        {
+          "symbol": "399642.SZ",
+          "date": "2023-08-28 00:00:00",
+          "price": 1723.94,
+          "conf_level": "B",
+          "rr_ratio": 4.53,
+          "short_trend_pct": -9.817850828093444,
+          "fwd_60d_return_pct": -3.42
+        },
+        {
+          "symbol": "399642.SZ",
+          "date": "2023-12-26 00:00:00",
+          "price": 1546.83,
+          "conf_level": "B",
+          "rr_ratio": 5.85,
+          "short_trend_pct": -6.15490086635766,
+          "fwd_60d_return_pct": -1.33
+        },
+        {
+          "symbol": "688366.SH",
+          "date": "2023-07-03 00:00:00",
+          "price": 82.41,
+          "conf_level": "B",
+          "rr_ratio": 4.58,
+          "short_trend_pct": -5.286748649580519,
+          "fwd_60d_return_pct": 37.64
+        },
+        {
+          "symbol": "688366.SH",
+          "date": "2024-12-24 00:00:00",
+          "price": 62.15,
+          "conf_level": "B",
+          "rr_ratio": 4.5,
+          "short_trend_pct": -2.4639045825486483,
+          "fwd_60d_return_pct": -3.01
+        },
+        {
+          "symbol": "688366.SH",
+          "date": "2025-06-26 00:00:00",
+          "price": 50.74,
+          "conf_level": "B",
+          "rr_ratio": 3.66,
+          "short_trend_pct": -3.572786012922835,
+          "fwd_60d_return_pct": 4.85
+        },
+        {
+          "symbol": "688366.SH",
+          "date": "2025-10-24 00:00:00",
+          "price": 50.41,
+          "conf_level": "B",
+          "rr_ratio": 4.0,
+          "short_trend_pct": -4.670953101361586,
+          "fwd_60d_return_pct": -7.74
+        },
+        {
+          "symbol": "688665.SH",
+          "date": "2023-08-28 00:00:00",
+          "price": 67.9,
+          "conf_level": "B",
+          "rr_ratio": 4.15,
+          "short_trend_pct": -15.283842794759828,
+          "fwd_60d_return_pct": 19.56
+        },
+        {
+          "symbol": "688665.SH",
+          "date": "2024-08-23 00:00:00",
+          "price": 22.91,
+          "conf_level": "B",
+          "rr_ratio": 32.41,
+          "short_trend_pct": -4.81927710843374,
+          "fwd_60d_return_pct": 29.81
+        },
+        {
+          "symbol": "601908.SH",
+          "date": "2023-08-28 00:00:00",
+          "price": 4.83,
+          "conf_level": "B",
+          "rr_ratio": 5.94,
+          "short_trend_pct": -12.02185792349727,
+          "fwd_60d_return_pct": -4.14
+        },
+        {
+          "symbol": "002783.SZ",
+          "date": "2023-05-04 00:00:00",
+          "price": 8.34,
+          "conf_level": "B",
+          "rr_ratio": 2.75,
+          "short_trend_pct": -6.606942889137734,
+          "fwd_60d_return_pct": 4.08
+        },
+        {
+          "symbol": "605299.SH",
+          "date": "2022-08-31 00:00:00",
+          "price": 9.58,
+          "conf_level": "B",
+          "rr_ratio": 3.06,
+          "short_trend_pct": 1.2684989429175397,
+          "fwd_60d_return_pct": 7.1
+        },
+        {
+          "symbol": "605299.SH",
+          "date": "2023-08-28 00:00:00",
+          "price": 11.32,
+          "conf_level": "B",
+          "rr_ratio": 5.33,
+          "short_trend_pct": -8.265802269043753,
+          "fwd_60d_return_pct": -3.62
+        },
+        {
+          "symbol": "600528.SH",
+          "date": "2023-12-26 00:00:00",
+          "price": 7.25,
+          "conf_level": "B",
+          "rr_ratio": 10.83,
+          "short_trend_pct": -3.7184594953519334,
+          "fwd_60d_return_pct": 5.79
+        },
+        {
+          "symbol": "600528.SH",
+          "date": "2024-06-28 00:00:00",
+          "price": 7.32,
+          "conf_level": "B",
+          "rr_ratio": 4.16,
+          "short_trend_pct": -6.033376123234913,
+          "fwd_60d_return_pct": -3.83
+        },
+        {
+          "symbol": "300569.SZ",
+          "date": "2023-08-28 00:00:00",
+          "price": 7.12,
+          "conf_level": "B",
+          "rr_ratio": 5.71,
+          "short_trend_pct": -11.221945137157096,
+          "fwd_60d_return_pct": 0.98
+        },
+        {
+          "symbol": "300249.SZ",
+          "date": "2023-12-26 00:00:00",
+          "price": 8.28,
+          "conf_level": "B",
+          "rr_ratio": 5.0,
+          "short_trend_pct": -12.565997888067592,
+          "fwd_60d_return_pct": -1.57
+        },
+        {
+          "symbol": "000966.SZ",
+          "date": "2024-08-23 00:00:00",
+          "price": 4.08,
+          "conf_level": "B",
+          "rr_ratio": 7.29,
+          "short_trend_pct": -3.7735849056603765,
+          "fwd_60d_return_pct": 18.14
+        },
+        {
+          "symbol": "000966.SZ",
+          "date": "2025-06-26 00:00:00",
+          "price": 4.53,
+          "conf_level": "B",
+          "rr_ratio": 2.7,
+          "short_trend_pct": -8.853118712273634,
+          "fwd_60d_return_pct": -2.43
+        },
+        {
+          "symbol": "688088.SH",
+          "date": "2022-12-29 00:00:00",
+          "price": 22.4,
+          "conf_level": "B",
+          "rr_ratio": 6.48,
+          "short_trend_pct": -10.112359550561811,
+          "fwd_60d_return_pct": 60.45
+        },
+        {
+          "symbol": "600223.SH",
+          "date": "2024-08-23 00:00:00",
+          "price": 6.12,
+          "conf_level": "B",
+          "rr_ratio": 8.48,
+          "short_trend_pct": -0.8103727714748765,
+          "fwd_60d_return_pct": 12.25
+        },
+        {
+          "symbol": "002723.SZ",
+          "date": "2023-03-03 00:00:00",
+          "price": 11.33,
+          "conf_level": "B",
+          "rr_ratio": 4.48,
+          "short_trend_pct": -3.162393162393151,
+          "fwd_60d_return_pct": -8.38
+        },
+        {
+          "symbol": "002723.SZ",
+          "date": "2023-08-28 00:00:00",
+          "price": 10.63,
+          "conf_level": "B",
+          "rr_ratio": 2.59,
+          "short_trend_pct": -8.598452278589852,
+          "fwd_60d_return_pct": 6.59
+        },
+        {
+          "symbol": "300482.SZ",
+          "date": "2023-05-04 00:00:00",
+          "price": 29.91,
+          "conf_level": "B",
+          "rr_ratio": 2.77,
+          "short_trend_pct": -3.8881748071979416,
+          "fwd_60d_return_pct": -9.76
+        },
+        {
+          "symbol": "300253.SZ",
+          "date": "2023-08-28 00:00:00",
+          "price": 6.8,
+          "conf_level": "B",
+          "rr_ratio": 2.89,
+          "short_trend_pct": -8.847184986595181,
+          "fwd_60d_return_pct": 14.41
+        },
+        {
+          "symbol": "605099.SH",
+          "date": "2023-10-31 00:00:00",
+          "price": 20.13,
+          "conf_level": "B",
+          "rr_ratio": 4.5,
+          "short_trend_pct": -8.124144226380658,
+          "fwd_60d_return_pct": 3.97
+        },
+        {
+          "symbol": "605099.SH",
+          "date": "2024-08-23 00:00:00",
+          "price": 16.83,
+          "conf_level": "B",
+          "rr_ratio": 11.64,
+          "short_trend_pct": -3.1088082901554515,
+          "fwd_60d_return_pct": 14.2
+        },
+        {
+          "symbol": "000858.SZ",
+          "date": "2022-08-31 00:00:00",
+          "price": 167.19,
+          "conf_level": "B",
+          "rr_ratio": 4.33,
+          "short_trend_pct": -5.42482181242222,
+          "fwd_60d_return_pct": -1.56
+        },
+        {
+          "symbol": "000858.SZ",
+          "date": "2024-06-28 00:00:00",
+          "price": 128.04,
+          "conf_level": "B",
+          "rr_ratio": 5.33,
+          "short_trend_pct": -12.719836400817996,
+          "fwd_60d_return_pct": -6.0
+        },
+        {
+          "symbol": "000858.SZ",
+          "date": "2024-08-23 00:00:00",
+          "price": 121.11,
+          "conf_level": "B",
+          "rr_ratio": 8.13,
+          "short_trend_pct": -2.4093473005640575,
+          "fwd_60d_return_pct": 19.56
+        },
+        {
+          "symbol": "000858.SZ",
+          "date": "2025-06-26 00:00:00",
+          "price": 119.73,
+          "conf_level": "B",
+          "rr_ratio": 3.97,
+          "short_trend_pct": -5.961357210179063,
+          "fwd_60d_return_pct": 3.52
+        },
+        {
+          "symbol": "002224.SZ",
+          "date": "2024-08-23 00:00:00",
+          "price": 3.58,
+          "conf_level": "B",
+          "rr_ratio": 4.77,
+          "short_trend_pct": -1.9178082191780743,
+          "fwd_60d_return_pct": 34.36
+        },
+        {
+          "symbol": "600738.SH",
+          "date": "2023-03-03 00:00:00",
+          "price": 6.86,
+          "conf_level": "B",
+          "rr_ratio": 2.54,
+          "short_trend_pct": -1.0101010101010055,
+          "fwd_60d_return_pct": -22.74
+        },
+        {
+          "symbol": "600738.SH",
+          "date": "2024-08-23 00:00:00",
+          "price": 3.44,
+          "conf_level": "B",
+          "rr_ratio": 5.63,
+          "short_trend_pct": -7.277628032345018,
+          "fwd_60d_return_pct": 55.52
+        },
+        {
+          "symbol": "600425.SH",
+          "date": "2025-02-27 00:00:00",
+          "price": 3.74,
+          "conf_level": "B",
+          "rr_ratio": 3.45,
+          "short_trend_pct": 0.2680965147453085,
+          "fwd_60d_return_pct": -1.6
+        },
+        {
+          "symbol": "600425.SH",
+          "date": "2025-12-19 00:00:00",
+          "price": 4.26,
+          "conf_level": "B",
+          "rr_ratio": 3.7,
+          "short_trend_pct": -3.1818181818181968,
+          "fwd_60d_return_pct": 1.17
+        },
+        {
+          "symbol": "603392.SH",
+          "date": "2022-07-06 00:00:00",
+          "price": 163.0,
+          "conf_level": "B",
+          "rr_ratio": 2.82,
+          "short_trend_pct": 26.258714175058095,
+          "fwd_60d_return_pct": -28.45
+        },
+        {
+          "symbol": "603392.SH",
+          "date": "2022-08-31 00:00:00",
+          "price": 127.65,
+          "conf_level": "B",
+          "rr_ratio": 4.72,
+          "short_trend_pct": -4.5607476635514015,
+          "fwd_60d_return_pct": 19.07
+        },
+        {
+          "symbol": "603392.SH",
+          "date": "2023-03-03 00:00:00",
+          "price": 126.16,
+          "conf_level": "B",
+          "rr_ratio": 4.19,
+          "short_trend_pct": -1.9431058604072793,
+          "fwd_60d_return_pct": -25.23
+        },
+        {
+          "symbol": "603392.SH",
+          "date": "2023-10-31 00:00:00",
+          "price": 43.86,
+          "conf_level": "B",
+          "rr_ratio": 5.08,
+          "short_trend_pct": -7.7020202020202095,
+          "fwd_60d_return_pct": 41.36
+        },
+        {
+          "symbol": "603392.SH",
+          "date": "2024-06-28 00:00:00",
+          "price": 65.88,
+          "conf_level": "B",
+          "rr_ratio": 2.79,
+          "short_trend_pct": -3.2883147386964295,
+          "fwd_60d_return_pct": 7.97
+        },
+        {
+          "symbol": "603392.SH",
+          "date": "2025-08-21 00:00:00",
+          "price": 57.34,
+          "conf_level": "B",
+          "rr_ratio": 5.59,
+          "short_trend_pct": -4.017408771342479,
+          "fwd_60d_return_pct": -9.87
+        },
+        {
+          "symbol": "603392.SH",
+          "date": "2025-12-19 00:00:00",
+          "price": 46.43,
+          "conf_level": "B",
+          "rr_ratio": 6.52,
+          "short_trend_pct": -9.84466019417476,
+          "fwd_60d_return_pct": -14.17
+        },
+        {
+          "symbol": "603392.SH",
+          "date": "2026-02-25 00:00:00",
+          "price": 41.06,
+          "conf_level": "B",
+          "rr_ratio": 3.48,
+          "short_trend_pct": -7.376494473268657,
+          "fwd_60d_return_pct": -16.17
+        },
+        {
+          "symbol": "399242.SZ",
+          "date": "2024-06-28 00:00:00",
+          "price": 840.17,
+          "conf_level": "B",
+          "rr_ratio": 4.22,
+          "short_trend_pct": -6.845472386380013,
+          "fwd_60d_return_pct": 0.32
+        },
+        {
+          "symbol": "603737.SH",
+          "date": "2023-12-26 00:00:00",
+          "price": 45.58,
+          "conf_level": "B",
+          "rr_ratio": 2.67,
+          "short_trend_pct": -16.213235294117645,
+          "fwd_60d_return_pct": -28.72
+        },
+        {
+          "symbol": "603737.SH",
+          "date": "2024-08-23 00:00:00",
+          "price": 27.4,
+          "conf_level": "B",
+          "rr_ratio": 2.74,
+          "short_trend_pct": -15.248994741725951,
+          "fwd_60d_return_pct": 71.57
+        },
+        {
+          "symbol": "600505.SH",
+          "date": "2023-08-28 00:00:00",
+          "price": 7.76,
+          "conf_level": "B",
+          "rr_ratio": 9.57,
+          "short_trend_pct": -10.599078341013824,
+          "fwd_60d_return_pct": 3.99
+        },
+        {
+          "symbol": "002322.SZ",
+          "date": "2022-12-29 00:00:00",
+          "price": 8.87,
+          "conf_level": "B",
+          "rr_ratio": 2.77,
+          "short_trend_pct": -9.304703476482622,
+          "fwd_60d_return_pct": 31.91
+        },
+        {
+          "symbol": "002322.SZ",
+          "date": "2024-12-24 00:00:00",
+          "price": 13.15,
+          "conf_level": "B",
+          "rr_ratio": 2.9,
+          "short_trend_pct": -1.7923823749066536,
+          "fwd_60d_return_pct": 4.79
+        },
+        {
+          "symbol": "000882.SZ",
+          "date": "2025-06-26 00:00:00",
+          "price": 1.95,
+          "conf_level": "B",
+          "rr_ratio": 3.28,
+          "short_trend_pct": -10.138248847926267,
+          "fwd_60d_return_pct": 18.46
+        },
+        {
+          "symbol": "601162.SH",
+          "date": "2026-02-25 00:00:00",
+          "price": 4.11,
+          "conf_level": "B",
+          "rr_ratio": 2.7,
+          "short_trend_pct": -2.375296912114011,
+          "fwd_60d_return_pct": -15.57
+        },
+        {
+          "symbol": "600630.SH",
+          "date": "2026-02-25 00:00:00",
+          "price": 9.15,
+          "conf_level": "B",
+          "rr_ratio": 4.14,
+          "short_trend_pct": -1.4008620689655027,
+          "fwd_60d_return_pct": -14.1
+        },
+        {
+          "symbol": "399689.SZ",
+          "date": "2022-11-03 00:00:00",
+          "price": 843.42,
+          "conf_level": "B",
+          "rr_ratio": 3.14,
+          "short_trend_pct": 2.7971772276865536,
+          "fwd_60d_return_pct": 5.28
+        },
+        {
+          "symbol": "002791.SZ",
+          "date": "2026-04-23 00:00:00",
+          "price": 18.29,
+          "conf_level": "B",
+          "rr_ratio": 2.5,
+          "short_trend_pct": -9.679012345679016,
+          "fwd_60d_return_pct": -19.52
+        },
+        {
+          "symbol": "399399.SZ",
+          "date": "2022-11-03 00:00:00",
+          "price": 6189.71,
+          "conf_level": "B",
+          "rr_ratio": 2.85,
+          "short_trend_pct": -3.5529696637284447,
+          "fwd_60d_return_pct": 14.76
+        },
+        {
+          "symbol": "399399.SZ",
+          "date": "2023-12-26 00:00:00",
+          "price": 5789.94,
+          "conf_level": "B",
+          "rr_ratio": 4.39,
+          "short_trend_pct": -3.9183147861123313,
+          "fwd_60d_return_pct": 8.0
+        },
+        {
+          "symbol": "601618.SH",
+          "date": "2023-12-26 00:00:00",
+          "price": 2.98,
+          "conf_level": "B",
+          "rr_ratio": 8.24,
+          "short_trend_pct": -3.2467532467532534,
+          "fwd_60d_return_pct": 15.1
+        },
+        {
+          "symbol": "601618.SH",
+          "date": "2024-06-28 00:00:00",
+          "price": 3.1,
+          "conf_level": "B",
+          "rr_ratio": 3.09,
+          "short_trend_pct": -4.907975460122693,
+          "fwd_60d_return_pct": -10.65
+        },
+        {
+          "symbol": "002805.SZ",
+          "date": "2023-08-28 00:00:00",
+          "price": 16.03,
+          "conf_level": "B",
+          "rr_ratio": 4.48,
+          "short_trend_pct": -18.588115794819704,
+          "fwd_60d_return_pct": 1.43
+        },
+        {
+          "symbol": "603686.SH",
+          "date": "2026-04-23 00:00:00",
+          "price": 18.68,
+          "conf_level": "B",
+          "rr_ratio": 5.04,
+          "short_trend_pct": 3.777777777777769,
+          "fwd_60d_return_pct": -22.0
+        },
+        {
+          "symbol": "600201.SH",
+          "date": "2024-08-23 00:00:00",
+          "price": 6.0,
+          "conf_level": "B",
+          "rr_ratio": 15.02,
+          "short_trend_pct": -6.396255850234011,
+          "fwd_60d_return_pct": 11.0
+        },
+        {
+          "symbol": "600201.SH",
+          "date": "2025-02-27 00:00:00",
+          "price": 6.46,
+          "conf_level": "B",
+          "rr_ratio": 4.81,
+          "short_trend_pct": 1.2539184952978122,
+          "fwd_60d_return_pct": 11.61
+        },
+        {
+          "symbol": "300078.SZ",
+          "date": "2025-10-24 00:00:00",
+          "price": 3.44,
+          "conf_level": "B",
+          "rr_ratio": 2.55,
+          "short_trend_pct": -1.9943019943019946,
+          "fwd_60d_return_pct": 51.16
+        },
+        {
+          "symbol": "301048.SZ",
+          "date": "2022-08-31 00:00:00",
+          "price": 9.64,
+          "conf_level": "B",
+          "rr_ratio": 7.1,
+          "short_trend_pct": -3.8883349950149415,
+          "fwd_60d_return_pct": 0.1
+        },
+        {
+          "symbol": "301048.SZ",
+          "date": "2025-12-19 00:00:00",
+          "price": 11.38,
+          "conf_level": "B",
+          "rr_ratio": 2.97,
+          "short_trend_pct": -4.9289891395154495,
+          "fwd_60d_return_pct": -10.37
+        },
+        {
+          "symbol": "002139.SZ",
+          "date": "2023-12-26 00:00:00",
+          "price": 8.92,
+          "conf_level": "B",
+          "rr_ratio": 2.66,
+          "short_trend_pct": -10.710710710710714,
+          "fwd_60d_return_pct": 2.24
+        },
+        {
+          "symbol": "600585.SH",
+          "date": "2023-05-04 00:00:00",
+          "price": 27.01,
+          "conf_level": "B",
+          "rr_ratio": 5.12,
+          "short_trend_pct": -4.693013408609737,
+          "fwd_60d_return_pct": 0.48
+        },
+        {
+          "symbol": "600585.SH",
+          "date": "2023-12-26 00:00:00",
+          "price": 22.0,
+          "conf_level": "B",
+          "rr_ratio": 4.13,
+          "short_trend_pct": -4.885430177258964,
+          "fwd_60d_return_pct": 1.0
+        },
+        {
+          "symbol": "600585.SH",
+          "date": "2025-06-26 00:00:00",
+          "price": 22.14,
+          "conf_level": "B",
+          "rr_ratio": 4.21,
+          "short_trend_pct": -4.238754325259519,
+          "fwd_60d_return_pct": 4.16
+        },
+        {
+          "symbol": "600585.SH",
+          "date": "2026-04-23 00:00:00",
+          "price": 21.65,
+          "conf_level": "B",
+          "rr_ratio": 12.54,
+          "short_trend_pct": -5.582206716092464,
+          "fwd_60d_return_pct": -11.82
+        },
+        {
+          "symbol": "600776.SH",
+          "date": "2023-12-26 00:00:00",
+          "price": 10.84,
+          "conf_level": "B",
+          "rr_ratio": 4.61,
+          "short_trend_pct": -9.74188176519567,
+          "fwd_60d_return_pct": -8.67
+        },
+        {
+          "symbol": "300177.SZ",
+          "date": "2022-12-29 00:00:00",
+          "price": 6.14,
+          "conf_level": "B",
+          "rr_ratio": 5.71,
+          "short_trend_pct": -10.75581395348838,
+          "fwd_60d_return_pct": 18.4
+        },
+        {
+          "symbol": "300177.SZ",
+          "date": "2023-12-26 00:00:00",
+          "price": 6.94,
+          "conf_level": "B",
+          "rr_ratio": 5.39,
+          "short_trend_pct": -12.594458438287148,
+          "fwd_60d_return_pct": -20.46
+        },
+        {
+          "symbol": "300177.SZ",
+          "date": "2026-04-23 00:00:00",
+          "price": 7.96,
+          "conf_level": "B",
+          "rr_ratio": 5.82,
+          "short_trend_pct": -1.7283950617283939,
+          "fwd_60d_return_pct": -13.82
+        },
+        {
+          "symbol": "399621.SZ",
+          "date": "2023-10-31 00:00:00",
+          "price": 3247.19,
+          "conf_level": "B",
+          "rr_ratio": 5.06,
+          "short_trend_pct": -7.983723111538055,
+          "fwd_60d_return_pct": -2.21
+        },
+        {
+          "symbol": "600236.SH",
+          "date": "2024-08-23 00:00:00",
+          "price": 6.72,
+          "conf_level": "B",
+          "rr_ratio": 3.91,
+          "short_trend_pct": -10.519307589880157,
+          "fwd_60d_return_pct": -8.63
+        },
+        {
+          "symbol": "000823.SZ",
+          "date": "2023-08-28 00:00:00",
+          "price": 8.65,
+          "conf_level": "B",
+          "rr_ratio": 4.11,
+          "short_trend_pct": -8.658922914466737,
+          "fwd_60d_return_pct": 12.6
+        },
+        {
+          "symbol": "002104.SZ",
+          "date": "2026-04-23 00:00:00",
+          "price": 14.45,
+          "conf_level": "B",
+          "rr_ratio": 3.16,
+          "short_trend_pct": -6.774193548387098,
+          "fwd_60d_return_pct": -21.59
+        },
+        {
+          "symbol": "002605.SZ",
+          "date": "2025-10-24 00:00:00",
+          "price": 25.86,
+          "conf_level": "B",
+          "rr_ratio": 3.79,
+          "short_trend_pct": -10.208333333333341,
+          "fwd_60d_return_pct": 2.59
+        },
+        {
+          "symbol": "002605.SZ",
+          "date": "2025-12-19 00:00:00",
+          "price": 23.29,
+          "conf_level": "B",
+          "rr_ratio": 4.36,
+          "short_trend_pct": -2.9583333333333406,
+          "fwd_60d_return_pct": -10.78
+        },
+        {
+          "symbol": "001896.SZ",
+          "date": "2023-05-04 00:00:00",
+          "price": 4.48,
+          "conf_level": "B",
+          "rr_ratio": 2.59,
+          "short_trend_pct": -3.239740820734327,
+          "fwd_60d_return_pct": 5.8
+        },
+        {
+          "symbol": "001896.SZ",
+          "date": "2023-08-28 00:00:00",
+          "price": 4.34,
+          "conf_level": "B",
+          "rr_ratio": 5.52,
+          "short_trend_pct": -9.771309771309767,
+          "fwd_60d_return_pct": 4.61
+        },
+        {
+          "symbol": "001896.SZ",
+          "date": "2023-12-26 00:00:00",
+          "price": 4.23,
+          "conf_level": "B",
+          "rr_ratio": 3.25,
+          "short_trend_pct": -5.58035714285714,
+          "fwd_60d_return_pct": 16.08
+        },
+        {
+          "symbol": "001896.SZ",
+          "date": "2024-08-23 00:00:00",
+          "price": 3.52,
+          "conf_level": "B",
+          "rr_ratio": 12.55,
+          "short_trend_pct": -4.34782608695653,
+          "fwd_60d_return_pct": 16.76
+        },
+        {
+          "symbol": "300823.SZ",
+          "date": "2023-12-26 00:00:00",
+          "price": 20.16,
+          "conf_level": "B",
+          "rr_ratio": 5.14,
+          "short_trend_pct": -8.65428183053919,
+          "fwd_60d_return_pct": -15.72
+        },
+        {
+          "symbol": "399991.SZ",
+          "date": "2023-10-31 00:00:00",
+          "price": 1778.51,
+          "conf_level": "B",
+          "rr_ratio": 4.28,
+          "short_trend_pct": -6.053034704981242,
+          "fwd_60d_return_pct": -4.09
+        },
+        {
+          "symbol": "300224.SZ",
+          "date": "2024-08-23 00:00:00",
+          "price": 7.94,
+          "conf_level": "B",
+          "rr_ratio": 11.52,
+          "short_trend_pct": -6.478209658421674,
+          "fwd_60d_return_pct": 61.21
+        },
+        {
+          "symbol": "300224.SZ",
+          "date": "2025-12-19 00:00:00",
+          "price": 15.02,
+          "conf_level": "B",
+          "rr_ratio": 5.04,
+          "short_trend_pct": 1.21293800539084,
+          "fwd_60d_return_pct": -4.86
+        },
+        {
+          "symbol": "300756.SZ",
+          "date": "2022-08-31 00:00:00",
+          "price": 13.52,
+          "conf_level": "B",
+          "rr_ratio": 3.56,
+          "short_trend_pct": -6.951135581555401,
+          "fwd_60d_return_pct": 18.71
+        },
+        {
+          "symbol": "600637.SH",
+          "date": "2024-06-28 00:00:00",
+          "price": 6.08,
+          "conf_level": "B",
+          "rr_ratio": 5.02,
+          "short_trend_pct": -7.033639143730886,
+          "fwd_60d_return_pct": 6.58
+        },
+        {
+          "symbol": "000009.SZ",
+          "date": "2022-11-03 00:00:00",
+          "price": 11.97,
+          "conf_level": "B",
+          "rr_ratio": 3.07,
+          "short_trend_pct": 6.68449197860963,
+          "fwd_60d_return_pct": 4.01
+        },
+        {
+          "symbol": "000009.SZ",
+          "date": "2025-12-19 00:00:00",
+          "price": 9.94,
+          "conf_level": "B",
+          "rr_ratio": 5.42,
+          "short_trend_pct": 0.3027245206861595,
+          "fwd_60d_return_pct": -10.66
+        },
+        {
+          "symbol": "603818.SH",
+          "date": "2025-10-24 00:00:00",
+          "price": 4.02,
+          "conf_level": "B",
+          "rr_ratio": 2.7,
+          "short_trend_pct": 0.49999999999998934,
+          "fwd_60d_return_pct": -8.46
+        },
+        {
+          "symbol": "399383.SZ",
+          "date": "2023-10-31 00:00:00",
+          "price": 2279.65,
+          "conf_level": "B",
+          "rr_ratio": 3.94,
+          "short_trend_pct": -4.4740657553993035,
+          "fwd_60d_return_pct": -9.1
+        },
+        {
+          "symbol": "399383.SZ",
+          "date": "2023-12-26 00:00:00",
+          "price": 2112.17,
+          "conf_level": "B",
+          "rr_ratio": 3.62,
+          "short_trend_pct": -4.554101990555582,
+          "fwd_60d_return_pct": 4.29
+        },
+        {
+          "symbol": "605177.SH",
+          "date": "2023-12-26 00:00:00",
+          "price": 25.59,
+          "conf_level": "B",
+          "rr_ratio": 12.58,
+          "short_trend_pct": -10.71179344033496,
+          "fwd_60d_return_pct": -20.28
+        },
+        {
+          "symbol": "300655.SZ",
+          "date": "2023-12-26 00:00:00",
+          "price": 9.24,
+          "conf_level": "B",
+          "rr_ratio": 9.2,
+          "short_trend_pct": -12.747875354107641,
+          "fwd_60d_return_pct": -13.42
+        },
+        {
+          "symbol": "603618.SH",
+          "date": "2023-08-28 00:00:00",
+          "price": 5.69,
+          "conf_level": "B",
+          "rr_ratio": 5.73,
+          "short_trend_pct": -11.093750000000002,
+          "fwd_60d_return_pct": 12.13
+        },
+        {
+          "symbol": "603618.SH",
+          "date": "2025-12-19 00:00:00",
+          "price": 7.83,
+          "conf_level": "B",
+          "rr_ratio": 9.19,
+          "short_trend_pct": -0.3816793893129833,
+          "fwd_60d_return_pct": 191.19
+        },
+        {
+          "symbol": "002625.SZ",
+          "date": "2026-04-23 00:00:00",
+          "price": 39.84,
+          "conf_level": "B",
+          "rr_ratio": 2.81,
+          "short_trend_pct": 2.8129032258064512,
+          "fwd_60d_return_pct": -11.95
+        },
+        {
+          "symbol": "603013.SH",
+          "date": "2024-08-23 00:00:00",
+          "price": 12.43,
+          "conf_level": "B",
+          "rr_ratio": 4.49,
+          "short_trend_pct": -2.7386541471048464,
+          "fwd_60d_return_pct": 21.4
+        },
+        {
+          "symbol": "603013.SH",
+          "date": "2025-12-19 00:00:00",
+          "price": 22.21,
+          "conf_level": "B",
+          "rr_ratio": 3.21,
+          "short_trend_pct": 5.260663507109009,
+          "fwd_60d_return_pct": -8.78
+        },
+        {
+          "symbol": "002579.SZ",
+          "date": "2023-12-26 00:00:00",
+          "price": 8.32,
+          "conf_level": "B",
+          "rr_ratio": 3.76,
+          "short_trend_pct": -12.605042016806712,
+          "fwd_60d_return_pct": -2.04
+        },
+        {
+          "symbol": "601127.SH",
+          "date": "2025-12-19 00:00:00",
+          "price": 120.6,
+          "conf_level": "B",
+          "rr_ratio": 11.22,
+          "short_trend_pct": -3.1325301204819356,
+          "fwd_60d_return_pct": -19.94
+        },
+        {
+          "symbol": "300960.SZ",
+          "date": "2025-12-19 00:00:00",
+          "price": 24.44,
+          "conf_level": "B",
+          "rr_ratio": 3.02,
+          "short_trend_pct": -0.9323064450749929,
+          "fwd_60d_return_pct": -4.46
+        },
+        {
+          "symbol": "605365.SH",
+          "date": "2023-05-04 00:00:00",
+          "price": 15.12,
+          "conf_level": "B",
+          "rr_ratio": 2.66,
+          "short_trend_pct": -16.602316602316602,
+          "fwd_60d_return_pct": 1.79
+        },
+        {
+          "symbol": "688317.SH",
+          "date": "2023-12-26 00:00:00",
+          "price": 20.15,
+          "conf_level": "B",
+          "rr_ratio": 7.38,
+          "short_trend_pct": -12.391304347826093,
+          "fwd_60d_return_pct": -21.59
+        },
+        {
+          "symbol": "688317.SH",
+          "date": "2025-12-19 00:00:00",
+          "price": 20.38,
+          "conf_level": "B",
+          "rr_ratio": 4.95,
+          "short_trend_pct": -5.822550831792983,
+          "fwd_60d_return_pct": -6.77
+        },
+        {
+          "symbol": "000498.SZ",
+          "date": "2023-12-26 00:00:00",
+          "price": 5.5,
+          "conf_level": "B",
+          "rr_ratio": 13.45,
+          "short_trend_pct": -4.181184668989546,
+          "fwd_60d_return_pct": -0.73
+        },
+        {
+          "symbol": "605198.SH",
+          "date": "2023-08-28 00:00:00",
+          "price": 18.32,
+          "conf_level": "B",
+          "rr_ratio": 3.15,
+          "short_trend_pct": -5.077720207253888,
+          "fwd_60d_return_pct": 15.07
+        },
+        {
+          "symbol": "605198.SH",
+          "date": "2024-08-23 00:00:00",
+          "price": 21.22,
+          "conf_level": "B",
+          "rr_ratio": 2.84,
+          "short_trend_pct": -6.84811237928008,
+          "fwd_60d_return_pct": 30.49
+        },
+        {
+          "symbol": "300320.SZ",
+          "date": "2024-08-23 00:00:00",
+          "price": 6.86,
+          "conf_level": "B",
+          "rr_ratio": 2.63,
+          "short_trend_pct": -8.042895442359244,
+          "fwd_60d_return_pct": 50.58
+        },
+        {
+          "symbol": "600052.SH",
+          "date": "2023-07-03 00:00:00",
+          "price": 4.32,
+          "conf_level": "B",
+          "rr_ratio": 2.59,
+          "short_trend_pct": -3.9999999999999925,
+          "fwd_60d_return_pct": 8.33
+        },
+        {
+          "symbol": "399901.SZ",
+          "date": "2022-11-03 00:00:00",
+          "price": 4749.0,
+          "conf_level": "B",
+          "rr_ratio": 2.71,
+          "short_trend_pct": -2.866750116584438,
+          "fwd_60d_return_pct": 13.01
+        },
+        {
+          "symbol": "002133.SZ",
+          "date": "2024-08-23 00:00:00",
+          "price": 2.01,
+          "conf_level": "B",
+          "rr_ratio": 5.74,
+          "short_trend_pct": -2.4271844660194275,
+          "fwd_60d_return_pct": 34.33
+        },
+        {
+          "symbol": "000948.SZ",
+          "date": "2025-10-24 00:00:00",
+          "price": 18.03,
+          "conf_level": "B",
+          "rr_ratio": 4.16,
+          "short_trend_pct": -1.6902944383860308,
+          "fwd_60d_return_pct": -1.33
+        },
+        {
+          "symbol": "300401.SZ",
+          "date": "2023-05-04 00:00:00",
+          "price": 12.31,
+          "conf_level": "B",
+          "rr_ratio": 7.41,
+          "short_trend_pct": -7.997010463378174,
+          "fwd_60d_return_pct": -1.62
+        },
+        {
+          "symbol": "300401.SZ",
+          "date": "2023-07-03 00:00:00",
+          "price": 11.62,
+          "conf_level": "B",
+          "rr_ratio": 3.47,
+          "short_trend_pct": -5.1428571428571495,
+          "fwd_60d_return_pct": -2.32
+        },
+        {
+          "symbol": "002522.SZ",
+          "date": "2024-08-23 00:00:00",
+          "price": 2.88,
+          "conf_level": "B",
+          "rr_ratio": 10.43,
+          "short_trend_pct": -6.1889250814332275,
+          "fwd_60d_return_pct": 47.22
+        },
+        {
+          "symbol": "600000.SH",
+          "date": "2026-02-25 00:00:00",
+          "price": 9.79,
+          "conf_level": "B",
+          "rr_ratio": 15.28,
+          "short_trend_pct": -8.845437616387342,
+          "fwd_60d_return_pct": -5.31
+        },
+        {
+          "symbol": "300829.SZ",
+          "date": "2024-08-23 00:00:00",
+          "price": 12.49,
+          "conf_level": "B",
+          "rr_ratio": 2.87,
+          "short_trend_pct": -7.890855457227142,
+          "fwd_60d_return_pct": 29.94
+        },
+        {
+          "symbol": "300016.SZ",
+          "date": "2023-12-26 00:00:00",
+          "price": 6.96,
+          "conf_level": "B",
+          "rr_ratio": 3.49,
+          "short_trend_pct": -9.019607843137257,
+          "fwd_60d_return_pct": -25.86
+        },
+        {
+          "symbol": "300016.SZ",
+          "date": "2025-12-19 00:00:00",
+          "price": 7.99,
+          "conf_level": "B",
+          "rr_ratio": 2.57,
+          "short_trend_pct": -1.1138613861386149,
+          "fwd_60d_return_pct": 18.65
+        },
+        {
+          "symbol": "002034.SZ",
+          "date": "2025-12-19 00:00:00",
+          "price": 15.95,
+          "conf_level": "B",
+          "rr_ratio": 3.72,
+          "short_trend_pct": -2.327005511328839,
+          "fwd_60d_return_pct": 15.61
+        },
+        {
+          "symbol": "601778.SH",
+          "date": "2023-05-04 00:00:00",
+          "price": 4.76,
+          "conf_level": "B",
+          "rr_ratio": 2.82,
+          "short_trend_pct": -3.25203252032521,
+          "fwd_60d_return_pct": 1.26
+        },
+        {
+          "symbol": "002792.SZ",
+          "date": "2022-12-29 00:00:00",
+          "price": 10.54,
+          "conf_level": "B",
+          "rr_ratio": 3.3,
+          "short_trend_pct": -9.682947729220226,
+          "fwd_60d_return_pct": 44.02
+        },
+        {
+          "symbol": "002792.SZ",
+          "date": "2023-12-26 00:00:00",
+          "price": 15.61,
+          "conf_level": "B",
+          "rr_ratio": 2.98,
+          "short_trend_pct": -9.507246376811596,
+          "fwd_60d_return_pct": 4.29
+        },
+        {
+          "symbol": "000066.SZ",
+          "date": "2025-12-19 00:00:00",
+          "price": 13.92,
+          "conf_level": "B",
+          "rr_ratio": 6.0,
+          "short_trend_pct": -7.631055076310556,
+          "fwd_60d_return_pct": 8.33
+        },
+        {
+          "symbol": "600971.SH",
+          "date": "2024-08-23 00:00:00",
+          "price": 9.26,
+          "conf_level": "B",
+          "rr_ratio": 2.52,
+          "short_trend_pct": -5.894308943089433,
+          "fwd_60d_return_pct": 0.22
+        },
+        {
+          "symbol": "600971.SH",
+          "date": "2025-06-26 00:00:00",
+          "price": 6.52,
+          "conf_level": "B",
+          "rr_ratio": 8.65,
+          "short_trend_pct": -0.45801526717557106,
+          "fwd_60d_return_pct": 3.07
+        },
+        {
+          "symbol": "600971.SH",
+          "date": "2025-12-19 00:00:00",
+          "price": 6.32,
+          "conf_level": "B",
+          "rr_ratio": 6.12,
+          "short_trend_pct": -7.467057101024888,
+          "fwd_60d_return_pct": 24.68
+        },
+        {
+          "symbol": "300541.SZ",
+          "date": "2025-12-19 00:00:00",
+          "price": 14.26,
+          "conf_level": "B",
+          "rr_ratio": 4.81,
+          "short_trend_pct": -3.9730639730639727,
+          "fwd_60d_return_pct": -0.84
+        },
+        {
+          "symbol": "002337.SZ",
+          "date": "2023-08-28 00:00:00",
+          "price": 5.33,
+          "conf_level": "B",
+          "rr_ratio": 5.32,
+          "short_trend_pct": -5.663716814159292,
+          "fwd_60d_return_pct": 13.7
+        },
+        {
+          "symbol": "600010.SH",
+          "date": "2022-08-31 00:00:00",
+          "price": 2.01,
+          "conf_level": "B",
+          "rr_ratio": 10.94,
+          "short_trend_pct": -4.739336492891,
+          "fwd_60d_return_pct": -1.49
+        },
+        {
+          "symbol": "600010.SH",
+          "date": "2023-12-26 00:00:00",
+          "price": 1.41,
+          "conf_level": "B",
+          "rr_ratio": 4.23,
+          "short_trend_pct": -9.03225806451614,
+          "fwd_60d_return_pct": 12.77
+        },
+        {
+          "symbol": "600010.SH",
+          "date": "2025-12-19 00:00:00",
+          "price": 2.37,
+          "conf_level": "B",
+          "rr_ratio": 4.4,
+          "short_trend_pct": -2.868852459016391,
+          "fwd_60d_return_pct": 8.86
+        },
+        {
+          "symbol": "000505.SZ",
+          "date": "2023-05-04 00:00:00",
+          "price": 7.73,
+          "conf_level": "B",
+          "rr_ratio": 2.5,
+          "short_trend_pct": -6.755126658624833,
+          "fwd_60d_return_pct": 7.12
+        },
+        {
+          "symbol": "000505.SZ",
+          "date": "2023-10-31 00:00:00",
+          "price": 7.13,
+          "conf_level": "B",
+          "rr_ratio": 3.41,
+          "short_trend_pct": -3.518267929634644,
+          "fwd_60d_return_pct": -12.48
+        },
+        {
+          "symbol": "000505.SZ",
+          "date": "2024-08-23 00:00:00",
+          "price": 4.77,
+          "conf_level": "B",
+          "rr_ratio": 11.65,
+          "short_trend_pct": -5.7312252964426875,
+          "fwd_60d_return_pct": 38.78
+        },
+        {
+          "symbol": "000505.SZ",
+          "date": "2025-06-26 00:00:00",
+          "price": 6.34,
+          "conf_level": "B",
+          "rr_ratio": 2.81,
+          "short_trend_pct": -1.705426356589157,
+          "fwd_60d_return_pct": 4.57
+        },
+        {
+          "symbol": "600871.SH",
+          "date": "2023-12-26 00:00:00",
+          "price": 1.79,
+          "conf_level": "B",
+          "rr_ratio": 15.36,
+          "short_trend_pct": -3.7634408602150615,
+          "fwd_60d_return_pct": 1.68
+        },
+        {
+          "symbol": "600871.SH",
+          "date": "2025-02-27 00:00:00",
+          "price": 1.94,
+          "conf_level": "B",
+          "rr_ratio": 6.72,
+          "short_trend_pct": -1.0204081632653073,
+          "fwd_60d_return_pct": -4.12
+        },
+        {
+          "symbol": "300488.SZ",
+          "date": "2023-08-28 00:00:00",
+          "price": 20.85,
+          "conf_level": "B",
+          "rr_ratio": 5.36,
+          "short_trend_pct": -6.5441506051098,
+          "fwd_60d_return_pct": 18.94
+        },
+        {
+          "symbol": "300488.SZ",
+          "date": "2024-06-28 00:00:00",
+          "price": 20.35,
+          "conf_level": "B",
+          "rr_ratio": 3.48,
+          "short_trend_pct": -6.736938588450958,
+          "fwd_60d_return_pct": -9.63
+        },
+        {
+          "symbol": "300488.SZ",
+          "date": "2025-12-19 00:00:00",
+          "price": 29.91,
+          "conf_level": "B",
+          "rr_ratio": 5.45,
+          "short_trend_pct": -2.858070802208501,
+          "fwd_60d_return_pct": -8.29
+        },
+        {
+          "symbol": "605122.SH",
+          "date": "2022-08-31 00:00:00",
+          "price": 17.17,
+          "conf_level": "B",
+          "rr_ratio": 2.82,
+          "short_trend_pct": -2.4431818181818166,
+          "fwd_60d_return_pct": -5.88
+        },
+        {
+          "symbol": "688388.SH",
+          "date": "2023-12-26 00:00:00",
+          "price": 18.93,
+          "conf_level": "B",
+          "rr_ratio": 2.98,
+          "short_trend_pct": -8.017492711370256,
+          "fwd_60d_return_pct": -22.61
+        },
+        {
+          "symbol": "688388.SH",
+          "date": "2024-08-23 00:00:00",
+          "price": 8.5,
+          "conf_level": "B",
+          "rr_ratio": 2.78,
+          "short_trend_pct": -6.28445424476296,
+          "fwd_60d_return_pct": 67.41
+        },
+        {
+          "symbol": "600057.SH",
+          "date": "2023-08-28 00:00:00",
+          "price": 7.88,
+          "conf_level": "B",
+          "rr_ratio": 4.07,
+          "short_trend_pct": -5.060240963855433,
+          "fwd_60d_return_pct": -16.12
+        },
+        {
+          "symbol": "600057.SH",
+          "date": "2023-10-31 00:00:00",
+          "price": 6.41,
+          "conf_level": "B",
+          "rr_ratio": 5.37,
+          "short_trend_pct": -5.317577548005903,
+          "fwd_60d_return_pct": -1.25
+        },
+        {
+          "symbol": "600057.SH",
+          "date": "2024-08-23 00:00:00",
+          "price": 4.96,
+          "conf_level": "B",
+          "rr_ratio": 19.47,
+          "short_trend_pct": -0.6012024048096198,
+          "fwd_60d_return_pct": 20.56
+        },
+        {
+          "symbol": "603025.SH",
+          "date": "2022-08-31 00:00:00",
+          "price": 18.45,
+          "conf_level": "B",
+          "rr_ratio": 6.36,
+          "short_trend_pct": -5.5783009211873065,
+          "fwd_60d_return_pct": -7.8
+        },
+        {
+          "symbol": "000099.SZ",
+          "date": "2025-10-24 00:00:00",
+          "price": 21.95,
+          "conf_level": "B",
+          "rr_ratio": 3.22,
+          "short_trend_pct": -0.49864007252946596,
+          "fwd_60d_return_pct": -4.24
+        },
+        {
+          "symbol": "000099.SZ",
+          "date": "2025-12-19 00:00:00",
+          "price": 19.85,
+          "conf_level": "B",
+          "rr_ratio": 3.17,
+          "short_trend_pct": -2.9814271749755594,
+          "fwd_60d_return_pct": -11.28
+        },
+        {
+          "symbol": "300806.SZ",
+          "date": "2022-11-03 00:00:00",
+          "price": 25.19,
+          "conf_level": "B",
+          "rr_ratio": 2.72,
+          "short_trend_pct": 12.45535714285715,
+          "fwd_60d_return_pct": 8.02
+        },
+        {
+          "symbol": "300806.SZ",
+          "date": "2023-07-03 00:00:00",
+          "price": 18.54,
+          "conf_level": "B",
+          "rr_ratio": 5.09,
+          "short_trend_pct": -2.421052631578957,
+          "fwd_60d_return_pct": -4.64
+        },
+        {
+          "symbol": "605100.SH",
+          "date": "2022-07-06 00:00:00",
+          "price": 14.31,
+          "conf_level": "B",
+          "rr_ratio": 4.94,
+          "short_trend_pct": -30.092818759159744,
+          "fwd_60d_return_pct": -13.7
+        },
+        {
+          "symbol": "605100.SH",
+          "date": "2022-12-29 00:00:00",
+          "price": 13.06,
+          "conf_level": "B",
+          "rr_ratio": 2.68,
+          "short_trend_pct": -13.795379537953789,
+          "fwd_60d_return_pct": 9.04
+        },
+        {
+          "symbol": "605100.SH",
+          "date": "2023-08-28 00:00:00",
+          "price": 14.59,
+          "conf_level": "B",
+          "rr_ratio": 8.43,
+          "short_trend_pct": -7.423857868020301,
+          "fwd_60d_return_pct": 9.94
+        },
+        {
+          "symbol": "300421.SZ",
+          "date": "2023-08-28 00:00:00",
+          "price": 9.15,
+          "conf_level": "B",
+          "rr_ratio": 4.93,
+          "short_trend_pct": -8.408408408408407,
+          "fwd_60d_return_pct": 11.37
+        },
+        {
+          "symbol": "600556.SH",
+          "date": "2023-10-31 00:00:00",
+          "price": 6.01,
+          "conf_level": "B",
+          "rr_ratio": 2.82,
+          "short_trend_pct": -2.9079159935379795,
+          "fwd_60d_return_pct": -16.64
+        },
+        {
+          "symbol": "300733.SZ",
+          "date": "2023-07-03 00:00:00",
+          "price": 14.71,
+          "conf_level": "B",
+          "rr_ratio": 7.4,
+          "short_trend_pct": -43.5099846390169,
+          "fwd_60d_return_pct": -21.62
+        },
+        {
+          "symbol": "300733.SZ",
+          "date": "2025-10-24 00:00:00",
+          "price": 18.66,
+          "conf_level": "B",
+          "rr_ratio": 3.3,
+          "short_trend_pct": -8.304668304668306,
+          "fwd_60d_return_pct": 2.3
+        },
+        {
+          "symbol": "600545.SH",
+          "date": "2022-11-03 00:00:00",
+          "price": 3.03,
+          "conf_level": "B",
+          "rr_ratio": 3.22,
+          "short_trend_pct": 4.123711340206171,
+          "fwd_60d_return_pct": -3.63
+        },
+        {
+          "symbol": "600545.SH",
+          "date": "2023-12-26 00:00:00",
+          "price": 2.6,
+          "conf_level": "B",
+          "rr_ratio": 5.52,
+          "short_trend_pct": -7.473309608540923,
+          "fwd_60d_return_pct": -12.31
+        },
+        {
+          "symbol": "002666.SZ",
+          "date": "2023-05-04 00:00:00",
+          "price": 4.76,
+          "conf_level": "B",
+          "rr_ratio": 2.72,
+          "short_trend_pct": -5.742574257425748,
+          "fwd_60d_return_pct": 10.71
+        },
+        {
+          "symbol": "002666.SZ",
+          "date": "2023-08-28 00:00:00",
+          "price": 4.77,
+          "conf_level": "B",
+          "rr_ratio": 3.79,
+          "short_trend_pct": -6.6536203522505,
+          "fwd_60d_return_pct": 10.69
+        },
+        {
+          "symbol": "001201.SZ",
+          "date": "2024-08-23 00:00:00",
+          "price": 14.59,
+          "conf_level": "B",
+          "rr_ratio": 3.53,
+          "short_trend_pct": -4.951140065146575,
+          "fwd_60d_return_pct": 11.31
+        },
+        {
+          "symbol": "001201.SZ",
+          "date": "2025-02-27 00:00:00",
+          "price": 14.39,
+          "conf_level": "B",
+          "rr_ratio": 3.46,
+          "short_trend_pct": 1.3380281690140938,
+          "fwd_60d_return_pct": 0.21
+        },
+        {
+          "symbol": "001201.SZ",
+          "date": "2025-12-19 00:00:00",
+          "price": 14.79,
+          "conf_level": "B",
+          "rr_ratio": 2.95,
+          "short_trend_pct": -3.2068062827225186,
+          "fwd_60d_return_pct": -8.11
+        },
+        {
+          "symbol": "600789.SH",
+          "date": "2025-12-19 00:00:00",
+          "price": 9.21,
+          "conf_level": "B",
+          "rr_ratio": 4.47,
+          "short_trend_pct": -2.4364406779660897,
+          "fwd_60d_return_pct": -11.51
+        },
+        {
+          "symbol": "600789.SH",
+          "date": "2026-04-23 00:00:00",
+          "price": 8.19,
+          "conf_level": "B",
+          "rr_ratio": 5.5,
+          "short_trend_pct": 1.3613861386138515,
+          "fwd_60d_return_pct": -12.21
+        },
+        {
+          "symbol": "601512.SH",
+          "date": "2025-12-19 00:00:00",
+          "price": 8.68,
+          "conf_level": "B",
+          "rr_ratio": 5.48,
+          "short_trend_pct": -1.4755959137344066,
+          "fwd_60d_return_pct": 0.0
+        },
+        {
+          "symbol": "300957.SZ",
+          "date": "2023-07-03 00:00:00",
+          "price": 91.85,
+          "conf_level": "B",
+          "rr_ratio": 3.91,
+          "short_trend_pct": -2.2768379614852674,
+          "fwd_60d_return_pct": 4.21
+        },
+        {
+          "symbol": "605369.SH",
+          "date": "2022-12-29 00:00:00",
+          "price": 105.1,
+          "conf_level": "B",
+          "rr_ratio": 2.96,
+          "short_trend_pct": -4.852435270686217,
+          "fwd_60d_return_pct": -33.9
+        },
+        {
+          "symbol": "605369.SH",
+          "date": "2024-08-23 00:00:00",
+          "price": 27.66,
+          "conf_level": "B",
+          "rr_ratio": 10.14,
+          "short_trend_pct": 1.9535569480280124,
+          "fwd_60d_return_pct": 9.11
+        },
+        {
+          "symbol": "603609.SH",
+          "date": "2023-07-03 00:00:00",
+          "price": 9.2,
+          "conf_level": "B",
+          "rr_ratio": 5.85,
+          "short_trend_pct": -1.4989293361884481,
+          "fwd_60d_return_pct": -3.48
+        },
+        {
+          "symbol": "603609.SH",
+          "date": "2025-10-24 00:00:00",
+          "price": 8.0,
+          "conf_level": "B",
+          "rr_ratio": 4.12,
+          "short_trend_pct": -3.2648125755743607,
+          "fwd_60d_return_pct": -8.0
+        },
+        {
+          "symbol": "603609.SH",
+          "date": "2025-12-19 00:00:00",
+          "price": 7.15,
+          "conf_level": "B",
+          "rr_ratio": 3.08,
+          "short_trend_pct": -5.423280423280419,
+          "fwd_60d_return_pct": -5.17
+        },
+        {
+          "symbol": "600617.SH",
+          "date": "2024-08-23 00:00:00",
+          "price": 2.29,
+          "conf_level": "B",
+          "rr_ratio": 24.61,
+          "short_trend_pct": -3.3755274261603407,
+          "fwd_60d_return_pct": 27.07
+        },
+        {
+          "symbol": "600617.SH",
+          "date": "2025-12-19 00:00:00",
+          "price": 3.23,
+          "conf_level": "B",
+          "rr_ratio": 3.52,
+          "short_trend_pct": -3.293413173652693,
+          "fwd_60d_return_pct": 34.06
+        },
+        {
+          "symbol": "300915.SZ",
+          "date": "2023-12-26 00:00:00",
+          "price": 31.27,
+          "conf_level": "B",
+          "rr_ratio": 3.64,
+          "short_trend_pct": -9.309744779582363,
+          "fwd_60d_return_pct": -3.84
+        },
+        {
+          "symbol": "301058.SZ",
+          "date": "2023-12-26 00:00:00",
+          "price": 10.76,
+          "conf_level": "B",
+          "rr_ratio": 8.67,
+          "short_trend_pct": -9.19831223628692,
+          "fwd_60d_return_pct": -16.36
+        },
+        {
+          "symbol": "301058.SZ",
+          "date": "2024-08-23 00:00:00",
+          "price": 7.83,
+          "conf_level": "B",
+          "rr_ratio": 2.69,
+          "short_trend_pct": -11.123723041997735,
+          "fwd_60d_return_pct": 43.68
+        },
+        {
+          "symbol": "002996.SZ",
+          "date": "2023-08-28 00:00:00",
+          "price": 11.0,
+          "conf_level": "B",
+          "rr_ratio": 2.85,
+          "short_trend_pct": -12.698412698412698,
+          "fwd_60d_return_pct": 5.27
+        },
+        {
+          "symbol": "002996.SZ",
+          "date": "2024-08-23 00:00:00",
+          "price": 5.01,
+          "conf_level": "B",
+          "rr_ratio": 10.7,
+          "short_trend_pct": -7.904411764705888,
+          "fwd_60d_return_pct": 31.54
+        },
+        {
+          "symbol": "301002.SZ",
+          "date": "2023-08-28 00:00:00",
+          "price": 18.26,
+          "conf_level": "B",
+          "rr_ratio": 4.22,
+          "short_trend_pct": -10.402355250245332,
+          "fwd_60d_return_pct": 13.53
+        },
+        {
+          "symbol": "300231.SZ",
+          "date": "2023-12-26 00:00:00",
+          "price": 9.75,
+          "conf_level": "B",
+          "rr_ratio": 2.57,
+          "short_trend_pct": -11.84448462929476,
+          "fwd_60d_return_pct": -4.62
+        },
+        {
+          "symbol": "300231.SZ",
+          "date": "2025-12-19 00:00:00",
+          "price": 10.29,
+          "conf_level": "B",
+          "rr_ratio": 2.6,
+          "short_trend_pct": -5.769230769230771,
+          "fwd_60d_return_pct": 24.88
+        },
+        {
+          "symbol": "688181.SH",
+          "date": "2023-12-26 00:00:00",
+          "price": 25.31,
+          "conf_level": "B",
+          "rr_ratio": 3.13,
+          "short_trend_pct": -12.452438602559667,
+          "fwd_60d_return_pct": -26.16
+        },
+        {
+          "symbol": "399972.SZ",
+          "date": "2022-11-03 00:00:00",
+          "price": 4697.36,
+          "conf_level": "B",
+          "rr_ratio": 2.75,
+          "short_trend_pct": -2.838503368434564,
+          "fwd_60d_return_pct": 14.13
+        },
+        {
+          "symbol": "399972.SZ",
+          "date": "2023-10-31 00:00:00",
+          "price": 4275.57,
+          "conf_level": "B",
+          "rr_ratio": 2.64,
+          "short_trend_pct": -2.468195183597699,
+          "fwd_60d_return_pct": -11.95
+        },
+        {
+          "symbol": "399972.SZ",
+          "date": "2023-12-26 00:00:00",
+          "price": 3907.8,
+          "conf_level": "B",
+          "rr_ratio": 5.1,
+          "short_trend_pct": -6.184955694850236,
+          "fwd_60d_return_pct": 4.28
+        },
+        {
+          "symbol": "002616.SZ",
+          "date": "2025-12-19 00:00:00",
+          "price": 5.56,
+          "conf_level": "B",
+          "rr_ratio": 5.2,
+          "short_trend_pct": -7.023411371237476,
+          "fwd_60d_return_pct": 20.86
+        },
+        {
+          "symbol": "002772.SZ",
+          "date": "2023-10-31 00:00:00",
+          "price": 8.05,
+          "conf_level": "B",
+          "rr_ratio": 4.57,
+          "short_trend_pct": -8.209806157354604,
+          "fwd_60d_return_pct": -12.05
+        },
+        {
+          "symbol": "600004.SH",
+          "date": "2023-12-26 00:00:00",
+          "price": 9.63,
+          "conf_level": "B",
+          "rr_ratio": 4.81,
+          "short_trend_pct": -12.13503649635036,
+          "fwd_60d_return_pct": 4.57
+        },
+        {
+          "symbol": "300958.SZ",
+          "date": "2022-12-29 00:00:00",
+          "price": 16.83,
+          "conf_level": "B",
+          "rr_ratio": 4.67,
+          "short_trend_pct": -11.187335092348293,
+          "fwd_60d_return_pct": 13.78
+        },
+        {
+          "symbol": "300958.SZ",
+          "date": "2023-12-26 00:00:00",
+          "price": 16.8,
+          "conf_level": "B",
+          "rr_ratio": 2.75,
+          "short_trend_pct": -8.794788273615639,
+          "fwd_60d_return_pct": -17.44
+        },
+        {
+          "symbol": "300893.SZ",
+          "date": "2023-08-28 00:00:00",
+          "price": 22.3,
+          "conf_level": "B",
+          "rr_ratio": 2.77,
+          "short_trend_pct": -5.907172995780585,
+          "fwd_60d_return_pct": 33.59
+        },
+        {
+          "symbol": "300893.SZ",
+          "date": "2024-08-23 00:00:00",
+          "price": 25.31,
+          "conf_level": "B",
+          "rr_ratio": 3.19,
+          "short_trend_pct": -5.383177570093467,
+          "fwd_60d_return_pct": 17.9
+        },
+        {
+          "symbol": "300893.SZ",
+          "date": "2025-12-19 00:00:00",
+          "price": 23.96,
+          "conf_level": "B",
+          "rr_ratio": 7.83,
+          "short_trend_pct": 2.1748400852878547,
+          "fwd_60d_return_pct": -10.1
+        },
+        {
+          "symbol": "002457.SZ",
+          "date": "2022-11-03 00:00:00",
+          "price": 7.93,
+          "conf_level": "B",
+          "rr_ratio": 3.19,
+          "short_trend_pct": 2.5873221216041298,
+          "fwd_60d_return_pct": 7.44
+        },
+        {
+          "symbol": "002457.SZ",
+          "date": "2025-12-19 00:00:00",
+          "price": 10.68,
+          "conf_level": "B",
+          "rr_ratio": 4.86,
+          "short_trend_pct": -4.301075268817211,
+          "fwd_60d_return_pct": 3.84
+        },
+        {
+          "symbol": "300429.SZ",
+          "date": "2023-08-28 00:00:00",
+          "price": 8.54,
+          "conf_level": "B",
+          "rr_ratio": 2.84,
+          "short_trend_pct": -11.867905056759554,
+          "fwd_60d_return_pct": 65.69
+        },
+        {
+          "symbol": "601169.SH",
+          "date": "2025-08-21 00:00:00",
+          "price": 6.29,
+          "conf_level": "B",
+          "rr_ratio": 6.16,
+          "short_trend_pct": -4.115853658536583,
+          "fwd_60d_return_pct": -8.74
+        },
+        {
+          "symbol": "000503.SZ",
+          "date": "2025-12-19 00:00:00",
+          "price": 9.29,
+          "conf_level": "B",
+          "rr_ratio": 2.58,
+          "short_trend_pct": -7.377866400797606,
+          "fwd_60d_return_pct": -13.89
+        },
+        {
+          "symbol": "000503.SZ",
+          "date": "2026-04-23 00:00:00",
+          "price": 7.57,
+          "conf_level": "B",
+          "rr_ratio": 5.3,
+          "short_trend_pct": -4.659949622166248,
+          "fwd_60d_return_pct": -7.4
+        },
+        {
+          "symbol": "600835.SH",
+          "date": "2023-10-31 00:00:00",
+          "price": 12.51,
+          "conf_level": "B",
+          "rr_ratio": 6.24,
+          "short_trend_pct": -16.15281501340483,
+          "fwd_60d_return_pct": -8.55
+        },
+        {
+          "symbol": "600835.SH",
+          "date": "2023-12-26 00:00:00",
+          "price": 11.72,
+          "conf_level": "B",
+          "rr_ratio": 14.12,
+          "short_trend_pct": -7.789142407553107,
+          "fwd_60d_return_pct": 1.54
+        },
+        {
+          "symbol": "600256.SH",
+          "date": "2023-05-04 00:00:00",
+          "price": 9.27,
+          "conf_level": "B",
+          "rr_ratio": 2.5,
+          "short_trend_pct": -1.8008474576271194,
+          "fwd_60d_return_pct": -23.19
+        },
+        {
+          "symbol": "600256.SH",
+          "date": "2024-12-24 00:00:00",
+          "price": 6.72,
+          "conf_level": "B",
+          "rr_ratio": 2.6,
+          "short_trend_pct": -6.9252077562326875,
+          "fwd_60d_return_pct": -6.55
+        },
+        {
+          "symbol": "600256.SH",
+          "date": "2025-08-21 00:00:00",
+          "price": 5.39,
+          "conf_level": "B",
+          "rr_ratio": 7.41,
+          "short_trend_pct": -3.5778175313059046,
+          "fwd_60d_return_pct": -5.94
+        },
+        {
+          "symbol": "300021.SZ",
+          "date": "2025-10-24 00:00:00",
+          "price": 4.88,
+          "conf_level": "B",
+          "rr_ratio": 9.51,
+          "short_trend_pct": -3.3663366336633693,
+          "fwd_60d_return_pct": -1.02
+        },
+        {
+          "symbol": "688379.SH",
+          "date": "2023-12-26 00:00:00",
+          "price": 18.54,
+          "conf_level": "B",
+          "rr_ratio": 5.82,
+          "short_trend_pct": -12.464589235127477,
+          "fwd_60d_return_pct": -15.7
+        },
+        {
+          "symbol": "688379.SH",
+          "date": "2024-08-23 00:00:00",
+          "price": 12.17,
+          "conf_level": "B",
+          "rr_ratio": 10.29,
+          "short_trend_pct": -4.173228346456693,
+          "fwd_60d_return_pct": 84.72
+        },
+        {
+          "symbol": "601628.SH",
+          "date": "2023-12-26 00:00:00",
+          "price": 27.65,
+          "conf_level": "B",
+          "rr_ratio": 10.19,
+          "short_trend_pct": -7.771847898599072,
+          "fwd_60d_return_pct": 3.07
+        },
+        {
+          "symbol": "601628.SH",
+          "date": "2026-04-23 00:00:00",
+          "price": 36.88,
+          "conf_level": "B",
+          "rr_ratio": 6.31,
+          "short_trend_pct": -2.2787493375728607,
+          "fwd_60d_return_pct": -10.52
+        },
+        {
+          "symbol": "002779.SZ",
+          "date": "2023-08-28 00:00:00",
+          "price": 20.37,
+          "conf_level": "B",
+          "rr_ratio": 8.1,
+          "short_trend_pct": -12.9859034600598,
+          "fwd_60d_return_pct": 5.94
+        },
+        {
+          "symbol": "603759.SH",
+          "date": "2024-08-23 00:00:00",
+          "price": 5.55,
+          "conf_level": "B",
+          "rr_ratio": 5.59,
+          "short_trend_pct": -3.141361256544517,
+          "fwd_60d_return_pct": 21.98
+        },
+        {
+          "symbol": "300238.SZ",
+          "date": "2023-12-26 00:00:00",
+          "price": 13.14,
+          "conf_level": "B",
+          "rr_ratio": 3.01,
+          "short_trend_pct": -10.307167235494873,
+          "fwd_60d_return_pct": -18.65
+        },
+        {
+          "symbol": "300238.SZ",
+          "date": "2025-12-19 00:00:00",
+          "price": 14.36,
+          "conf_level": "B",
+          "rr_ratio": 3.24,
+          "short_trend_pct": -6.082406801831263,
+          "fwd_60d_return_pct": 5.36
+        },
+        {
+          "symbol": "600658.SH",
+          "date": "2024-08-23 00:00:00",
+          "price": 2.89,
+          "conf_level": "B",
+          "rr_ratio": 2.8,
+          "short_trend_pct": -6.774193548387098,
+          "fwd_60d_return_pct": 71.28
+        },
+        {
+          "symbol": "600151.SH",
+          "date": "2023-12-26 00:00:00",
+          "price": 6.17,
+          "conf_level": "B",
+          "rr_ratio": 2.5,
+          "short_trend_pct": -13.220815752461323,
+          "fwd_60d_return_pct": -12.32
+        },
+        {
+          "symbol": "300088.SZ",
+          "date": "2023-12-26 00:00:00",
+          "price": 6.23,
+          "conf_level": "B",
+          "rr_ratio": 3.41,
+          "short_trend_pct": -11.379800853485056,
+          "fwd_60d_return_pct": -16.37
+        },
+        {
+          "symbol": "300088.SZ",
+          "date": "2025-12-19 00:00:00",
+          "price": 5.93,
+          "conf_level": "B",
+          "rr_ratio": 5.05,
+          "short_trend_pct": 1.3675213675213627,
+          "fwd_60d_return_pct": 3.71
+        },
+        {
+          "symbol": "399812.SZ",
+          "date": "2024-06-28 00:00:00",
+          "price": 5041.05,
+          "conf_level": "B",
+          "rr_ratio": 10.44,
+          "short_trend_pct": -10.112069042375815,
+          "fwd_60d_return_pct": -2.65
+        },
+        {
+          "symbol": "688103.SH",
+          "date": "2023-12-26 00:00:00",
+          "price": 46.17,
+          "conf_level": "B",
+          "rr_ratio": 3.49,
+          "short_trend_pct": -13.295774647887326,
+          "fwd_60d_return_pct": -20.53
+        },
+        {
+          "symbol": "603823.SH",
+          "date": "2023-05-04 00:00:00",
+          "price": 15.8,
+          "conf_level": "B",
+          "rr_ratio": 3.37,
+          "short_trend_pct": -15.053763440860212,
+          "fwd_60d_return_pct": -30.95
+        },
+        {
+          "symbol": "603823.SH",
+          "date": "2023-08-28 00:00:00",
+          "price": 9.92,
+          "conf_level": "B",
+          "rr_ratio": 12.96,
+          "short_trend_pct": -11.03139013452915,
+          "fwd_60d_return_pct": 3.53
+        },
+        {
+          "symbol": "002415.SZ",
+          "date": "2022-08-31 00:00:00",
+          "price": 29.87,
+          "conf_level": "B",
+          "rr_ratio": 2.61,
+          "short_trend_pct": -4.354787063720778,
+          "fwd_60d_return_pct": 7.3
+        },
+        {
+          "symbol": "002415.SZ",
+          "date": "2025-12-19 00:00:00",
+          "price": 29.19,
+          "conf_level": "B",
+          "rr_ratio": 5.37,
+          "short_trend_pct": -2.2438044206296026,
+          "fwd_60d_return_pct": 5.45
+        },
+        {
+          "symbol": "603085.SH",
+          "date": "2025-10-24 00:00:00",
+          "price": 10.2,
+          "conf_level": "B",
+          "rr_ratio": 2.98,
+          "short_trend_pct": -2.764537654909449,
+          "fwd_60d_return_pct": 16.67
+        },
+        {
+          "symbol": "002631.SZ",
+          "date": "2022-12-29 00:00:00",
+          "price": 5.51,
+          "conf_level": "B",
+          "rr_ratio": 2.55,
+          "short_trend_pct": -9.225700164744655,
+          "fwd_60d_return_pct": 6.35
+        },
+        {
+          "symbol": "300183.SZ",
+          "date": "2022-12-29 00:00:00",
+          "price": 11.91,
+          "conf_level": "B",
+          "rr_ratio": 6.15,
+          "short_trend_pct": -10.652663165791443,
+          "fwd_60d_return_pct": 51.13
+        },
+        {
+          "symbol": "300183.SZ",
+          "date": "2025-12-19 00:00:00",
+          "price": 14.67,
+          "conf_level": "B",
+          "rr_ratio": 4.05,
+          "short_trend_pct": -5.659163987138271,
+          "fwd_60d_return_pct": -1.98
+        },
+        {
+          "symbol": "603390.SH",
+          "date": "2022-12-29 00:00:00",
+          "price": 6.41,
+          "conf_level": "B",
+          "rr_ratio": 4.72,
+          "short_trend_pct": -10.22408963585434,
+          "fwd_60d_return_pct": 13.88
+        },
+        {
+          "symbol": "300039.SZ",
+          "date": "2022-08-31 00:00:00",
+          "price": 5.49,
+          "conf_level": "B",
+          "rr_ratio": 8.07,
+          "short_trend_pct": -3.1746031746031744,
+          "fwd_60d_return_pct": 21.31
+        },
+        {
+          "symbol": "300039.SZ",
+          "date": "2023-12-26 00:00:00",
+          "price": 6.5,
+          "conf_level": "B",
+          "rr_ratio": 2.66,
+          "short_trend_pct": -10.344827586206895,
+          "fwd_60d_return_pct": -6.0
+        },
+        {
+          "symbol": "399659.SZ",
+          "date": "2024-06-28 00:00:00",
+          "price": 3030.75,
+          "conf_level": "B",
+          "rr_ratio": 4.73,
+          "short_trend_pct": -7.6097891097982595,
+          "fwd_60d_return_pct": -4.94
+        },
+        {
+          "symbol": "300434.SZ",
+          "date": "2023-12-26 00:00:00",
+          "price": 10.85,
+          "conf_level": "B",
+          "rr_ratio": 5.94,
+          "short_trend_pct": -11.065573770491799,
+          "fwd_60d_return_pct": -19.26
+        },
+        {
+          "symbol": "603308.SH",
+          "date": "2023-05-04 00:00:00",
+          "price": 17.85,
+          "conf_level": "B",
+          "rr_ratio": 2.59,
+          "short_trend_pct": -9.711684370257956,
+          "fwd_60d_return_pct": -6.78
+        },
+        {
+          "symbol": "601956.SH",
+          "date": "2025-12-19 00:00:00",
+          "price": 6.95,
+          "conf_level": "B",
+          "rr_ratio": 4.79,
+          "short_trend_pct": -0.5722460658083017,
+          "fwd_60d_return_pct": -7.63
+        },
+        {
+          "symbol": "002098.SZ",
+          "date": "2026-04-23 00:00:00",
+          "price": 8.73,
+          "conf_level": "B",
+          "rr_ratio": 3.72,
+          "short_trend_pct": -2.458100558659204,
+          "fwd_60d_return_pct": -19.13
+        },
+        {
+          "symbol": "600371.SH",
+          "date": "2023-05-04 00:00:00",
+          "price": 12.0,
+          "conf_level": "B",
+          "rr_ratio": 2.96,
+          "short_trend_pct": -4.83743061062648,
+          "fwd_60d_return_pct": 1.42
+        },
+        {
+          "symbol": "002349.SZ",
+          "date": "2025-02-27 00:00:00",
+          "price": 7.3,
+          "conf_level": "B",
+          "rr_ratio": 5.76,
+          "short_trend_pct": 1.1080332409972415,
+          "fwd_60d_return_pct": 0.55
+        },
+        {
+          "symbol": "399670.SZ",
+          "date": "2022-11-03 00:00:00",
+          "price": 3576.37,
+          "conf_level": "B",
+          "rr_ratio": 2.92,
+          "short_trend_pct": 0.11141000842573856,
+          "fwd_60d_return_pct": 9.37
+        },
+        {
+          "symbol": "399670.SZ",
+          "date": "2023-10-31 00:00:00",
+          "price": 2984.77,
+          "conf_level": "B",
+          "rr_ratio": 3.45,
+          "short_trend_pct": -1.9863656961967235,
+          "fwd_60d_return_pct": -12.38
+        },
+        {
+          "symbol": "399670.SZ",
+          "date": "2023-12-26 00:00:00",
+          "price": 2713.72,
+          "conf_level": "B",
+          "rr_ratio": 3.65,
+          "short_trend_pct": -5.679946057543262,
+          "fwd_60d_return_pct": 3.44
+        },
+        {
+          "symbol": "002212.SZ",
+          "date": "2025-12-19 00:00:00",
+          "price": 8.65,
+          "conf_level": "B",
+          "rr_ratio": 5.43,
+          "short_trend_pct": -4.41988950276243,
+          "fwd_60d_return_pct": -11.79
+        },
+        {
+          "symbol": "002212.SZ",
+          "date": "2026-02-25 00:00:00",
+          "price": 8.72,
+          "conf_level": "B",
+          "rr_ratio": 2.84,
+          "short_trend_pct": -4.699453551912569,
+          "fwd_60d_return_pct": -17.66
+        },
+        {
+          "symbol": "601008.SH",
+          "date": "2025-12-19 00:00:00",
+          "price": 5.16,
+          "conf_level": "B",
+          "rr_ratio": 6.76,
+          "short_trend_pct": -1.7142857142857126,
+          "fwd_60d_return_pct": -3.29
+        },
+        {
+          "symbol": "002374.SZ",
+          "date": "2023-03-03 00:00:00",
+          "price": 4.85,
+          "conf_level": "B",
+          "rr_ratio": 7.06,
+          "short_trend_pct": -5.0880626223092085,
+          "fwd_60d_return_pct": -21.44
+        },
+        {
+          "symbol": "002374.SZ",
+          "date": "2026-04-23 00:00:00",
+          "price": 3.09,
+          "conf_level": "B",
+          "rr_ratio": 5.89,
+          "short_trend_pct": -4.9230769230769305,
+          "fwd_60d_return_pct": 12.62
+        },
+        {
+          "symbol": "300347.SZ",
+          "date": "2024-06-28 00:00:00",
+          "price": 48.6,
+          "conf_level": "B",
+          "rr_ratio": 2.82,
+          "short_trend_pct": -9.883181902466154,
+          "fwd_60d_return_pct": 5.74
+        },
+        {
+          "symbol": "300347.SZ",
+          "date": "2025-10-24 00:00:00",
+          "price": 52.56,
+          "conf_level": "B",
+          "rr_ratio": 8.29,
+          "short_trend_pct": -10.53617021276595,
+          "fwd_60d_return_pct": 14.21
+        },
+        {
+          "symbol": "002094.SZ",
+          "date": "2025-12-19 00:00:00",
+          "price": 7.2,
+          "conf_level": "B",
+          "rr_ratio": 3.77,
+          "short_trend_pct": -2.1739130434782594,
+          "fwd_60d_return_pct": -8.61
+        },
+        {
+          "symbol": "002094.SZ",
+          "date": "2026-04-23 00:00:00",
+          "price": 6.04,
+          "conf_level": "B",
+          "rr_ratio": 2.92,
+          "short_trend_pct": -6.211180124223603,
+          "fwd_60d_return_pct": -19.21
+        },
+        {
+          "symbol": "600793.SH",
+          "date": "2024-08-23 00:00:00",
+          "price": 8.58,
+          "conf_level": "B",
+          "rr_ratio": 3.02,
+          "short_trend_pct": -2.6106696935300877,
+          "fwd_60d_return_pct": 51.4
+        },
+        {
+          "symbol": "399436.SZ",
+          "date": "2024-12-24 00:00:00",
+          "price": 4096.55,
+          "conf_level": "B",
+          "rr_ratio": 8.43,
+          "short_trend_pct": -1.6344828579798354,
+          "fwd_60d_return_pct": -7.23
+        },
+        {
+          "symbol": "399436.SZ",
+          "date": "2025-02-27 00:00:00",
+          "price": 3653.05,
+          "conf_level": "B",
+          "rr_ratio": 10.26,
+          "short_trend_pct": -3.242510204027571,
+          "fwd_60d_return_pct": -0.41
+        },
+        {
+          "symbol": "399436.SZ",
+          "date": "2025-12-19 00:00:00",
+          "price": 3863.2,
+          "conf_level": "B",
+          "rr_ratio": 3.3,
+          "short_trend_pct": -2.3593787516902442,
+          "fwd_60d_return_pct": 19.64
+        },
+        {
+          "symbol": "603909.SH",
+          "date": "2022-07-06 00:00:00",
+          "price": 13.22,
+          "conf_level": "B",
+          "rr_ratio": 9.19,
+          "short_trend_pct": -7.810320781032076,
+          "fwd_60d_return_pct": -17.32
+        },
+        {
+          "symbol": "603909.SH",
+          "date": "2023-08-28 00:00:00",
+          "price": 12.3,
+          "conf_level": "B",
+          "rr_ratio": 4.72,
+          "short_trend_pct": -16.326530612244895,
+          "fwd_60d_return_pct": -1.63
+        },
+        {
+          "symbol": "688076.SH",
+          "date": "2026-04-24 00:00:00",
+          "price": 28.97,
+          "conf_level": "B",
+          "rr_ratio": 5.52,
+          "short_trend_pct": -0.719671007539413,
+          "fwd_60d_return_pct": -2.62
+        },
+        {
+          "symbol": "002598.SZ",
+          "date": "2023-08-28 00:00:00",
+          "price": 10.02,
+          "conf_level": "B",
+          "rr_ratio": 4.38,
+          "short_trend_pct": -8.241758241758246,
+          "fwd_60d_return_pct": 3.59
+        },
+        {
+          "symbol": "002598.SZ",
+          "date": "2025-12-19 00:00:00",
+          "price": 10.31,
+          "conf_level": "B",
+          "rr_ratio": 2.51,
+          "short_trend_pct": -7.2007200720071936,
+          "fwd_60d_return_pct": -9.89
+        },
+        {
+          "symbol": "002198.SZ",
+          "date": "2024-08-23 00:00:00",
+          "price": 6.21,
+          "conf_level": "B",
+          "rr_ratio": 3.83,
+          "short_trend_pct": 1.140065146579805,
+          "fwd_60d_return_pct": 24.64
+        },
+        {
+          "symbol": "000610.SZ",
+          "date": "2025-02-27 00:00:00",
+          "price": 12.67,
+          "conf_level": "B",
+          "rr_ratio": 2.86,
+          "short_trend_pct": 5.7595993322203665,
+          "fwd_60d_return_pct": -2.76
+        },
+        {
+          "symbol": "000903.SZ",
+          "date": "2025-08-22 00:00:00",
+          "price": 3.11,
+          "conf_level": "B",
+          "rr_ratio": 13.03,
+          "short_trend_pct": 1.967213114754096,
+          "fwd_60d_return_pct": -8.04
+        },
+        {
+          "symbol": "300327.SZ",
+          "date": "2023-08-28 00:00:00",
+          "price": 24.87,
+          "conf_level": "B",
+          "rr_ratio": 2.6,
+          "short_trend_pct": -13.314743813175323,
+          "fwd_60d_return_pct": 2.9
+        },
+        {
+          "symbol": "600711.SH",
+          "date": "2023-12-26 00:00:00",
+          "price": 4.14,
+          "conf_level": "B",
+          "rr_ratio": 2.57,
+          "short_trend_pct": -6.966292134831475,
+          "fwd_60d_return_pct": 1.45
+        },
+        {
+          "symbol": "000980.SZ",
+          "date": "2023-03-07 00:00:00",
+          "price": 4.03,
+          "conf_level": "B",
+          "rr_ratio": 11.45,
+          "short_trend_pct": -11.233480176211453,
+          "fwd_60d_return_pct": -34.24
+        },
+        {
+          "symbol": "300147.SZ",
+          "date": "2022-08-31 00:00:00",
+          "price": 5.27,
+          "conf_level": "B",
+          "rr_ratio": 4.76,
+          "short_trend_pct": -4.355716878402904,
+          "fwd_60d_return_pct": 44.21
+        },
+        {
+          "symbol": "300147.SZ",
+          "date": "2023-12-26 00:00:00",
+          "price": 5.17,
+          "conf_level": "B",
+          "rr_ratio": 3.7,
+          "short_trend_pct": -10.243055555555557,
+          "fwd_60d_return_pct": -11.99
+        },
+        {
+          "symbol": "000839.SZ",
+          "date": "2023-05-05 00:00:00",
+          "price": 2.26,
+          "conf_level": "B",
+          "rr_ratio": 2.67,
+          "short_trend_pct": -6.611570247933896,
+          "fwd_60d_return_pct": 5.75
+        },
+        {
+          "symbol": "000839.SZ",
+          "date": "2025-10-28 00:00:00",
+          "price": 2.63,
+          "conf_level": "B",
+          "rr_ratio": 4.12,
+          "short_trend_pct": -3.663003663003661,
+          "fwd_60d_return_pct": 12.93
+        },
+        {
+          "symbol": "600535.SH",
+          "date": "2023-07-03 00:00:00",
+          "price": 14.21,
+          "conf_level": "B",
+          "rr_ratio": 3.26,
+          "short_trend_pct": -6.7585301837270295,
+          "fwd_60d_return_pct": -3.38
+        },
+        {
+          "symbol": "600535.SH",
+          "date": "2024-12-26 00:00:00",
+          "price": 14.49,
+          "conf_level": "B",
+          "rr_ratio": 6.26,
+          "short_trend_pct": -1.0921501706484649,
+          "fwd_60d_return_pct": 4.28
+        },
+        {
+          "symbol": "300175.SZ",
+          "date": "2025-12-22 00:00:00",
+          "price": 5.65,
+          "conf_level": "B",
+          "rr_ratio": 3.94,
+          "short_trend_pct": -1.0507880910682998,
+          "fwd_60d_return_pct": 6.73
+        },
+        {
+          "symbol": "600234.SH",
+          "date": "2022-12-29 00:00:00",
+          "price": 6.73,
+          "conf_level": "B",
+          "rr_ratio": 3.84,
+          "short_trend_pct": -15.13240857503152,
+          "fwd_60d_return_pct": 11.0
+        },
+        {
+          "symbol": "300256.SZ",
+          "date": "2023-01-03 00:00:00",
+          "price": 2.87,
+          "conf_level": "B",
+          "rr_ratio": 3.53,
+          "short_trend_pct": -10.59190031152648,
+          "fwd_60d_return_pct": 4.18
+        },
+        {
+          "symbol": "002310.SZ",
+          "date": "2025-03-03 00:00:00",
+          "price": 1.63,
+          "conf_level": "B",
+          "rr_ratio": 8.43,
+          "short_trend_pct": -6.321839080459779,
+          "fwd_60d_return_pct": 47.85
+        },
+        {
+          "symbol": "002853.SZ",
+          "date": "2024-08-23 00:00:00",
+          "price": 6.64,
+          "conf_level": "B",
+          "rr_ratio": 4.99,
+          "short_trend_pct": -1.1904761904761862,
+          "fwd_60d_return_pct": 55.72
+        },
+        {
+          "symbol": "600520.SH",
+          "date": "2025-10-31 00:00:00",
+          "price": 27.27,
+          "conf_level": "B",
+          "rr_ratio": 4.42,
+          "short_trend_pct": -5.803108808290158,
+          "fwd_60d_return_pct": 2.9
+        },
+        {
+          "symbol": "600520.SH",
+          "date": "2025-12-26 00:00:00",
+          "price": 25.25,
+          "conf_level": "B",
+          "rr_ratio": 5.15,
+          "short_trend_pct": -4.64501510574018,
+          "fwd_60d_return_pct": -4.91
+        },
+        {
+          "symbol": "300641.SZ",
+          "date": "2025-12-26 00:00:00",
+          "price": 17.8,
+          "conf_level": "B",
+          "rr_ratio": 5.26,
+          "short_trend_pct": -5.46999468932553,
+          "fwd_60d_return_pct": 13.37
+        },
+        {
+          "symbol": "300070.SZ",
+          "date": "2024-07-05 00:00:00",
+          "price": 4.21,
+          "conf_level": "B",
+          "rr_ratio": 5.19,
+          "short_trend_pct": -8.078602620087338,
+          "fwd_60d_return_pct": 30.64
+        },
+        {
+          "symbol": "300070.SZ",
+          "date": "2025-12-26 00:00:00",
+          "price": 3.97,
+          "conf_level": "B",
+          "rr_ratio": 3.04,
+          "short_trend_pct": -7.0257611241217655,
+          "fwd_60d_return_pct": -0.76
+        },
+        {
+          "symbol": "002825.SZ",
+          "date": "2023-08-28 00:00:00",
+          "price": 7.82,
+          "conf_level": "B",
+          "rr_ratio": 2.52,
+          "short_trend_pct": -11.337868480725621,
+          "fwd_60d_return_pct": 16.88
+        },
+        {
+          "symbol": "300850.SZ",
+          "date": "2023-03-13 00:00:00",
+          "price": 49.33,
+          "conf_level": "B",
+          "rr_ratio": 2.61,
+          "short_trend_pct": -16.882898062342043,
+          "fwd_60d_return_pct": -26.86
+        },
+        {
+          "symbol": "002022.SZ",
+          "date": "2022-07-07 00:00:00",
+          "price": 8.2,
+          "conf_level": "B",
+          "rr_ratio": 5.83,
+          "short_trend_pct": -4.093567251462005,
+          "fwd_60d_return_pct": 58.9
+        },
+        {
+          "symbol": "002022.SZ",
+          "date": "2023-07-12 00:00:00",
+          "price": 10.46,
+          "conf_level": "B",
+          "rr_ratio": 3.06,
+          "short_trend_pct": 3.8728897715988087,
+          "fwd_60d_return_pct": -13.29
+        },
+        {
+          "symbol": "002022.SZ",
+          "date": "2025-12-30 00:00:00",
+          "price": 5.93,
+          "conf_level": "B",
+          "rr_ratio": 6.27,
+          "short_trend_pct": -10.82706766917294,
+          "fwd_60d_return_pct": -2.02
+        },
+        {
+          "symbol": "600078.SH",
+          "date": "2025-03-10 00:00:00",
+          "price": 5.3,
+          "conf_level": "B",
+          "rr_ratio": 7.29,
+          "short_trend_pct": -8.145580589254763,
+          "fwd_60d_return_pct": 6.23
+        },
+        {
+          "symbol": "603042.SH",
+          "date": "2022-12-29 00:00:00",
+          "price": 9.14,
+          "conf_level": "B",
+          "rr_ratio": 5.38,
+          "short_trend_pct": -12.702960840496658,
+          "fwd_60d_return_pct": 43.98
+        },
+        {
+          "symbol": "603042.SH",
+          "date": "2023-12-28 00:00:00",
+          "price": 14.74,
+          "conf_level": "B",
+          "rr_ratio": 3.65,
+          "short_trend_pct": -9.681372549019606,
+          "fwd_60d_return_pct": -11.33
+        },
+        {
+          "symbol": "605028.SH",
+          "date": "2024-08-23 00:00:00",
+          "price": 12.43,
+          "conf_level": "B",
+          "rr_ratio": 11.32,
+          "short_trend_pct": -5.690440060698032,
+          "fwd_60d_return_pct": 44.17
+        },
+        {
+          "symbol": "603991.SH",
+          "date": "2023-08-28 00:00:00",
+          "price": 32.75,
+          "conf_level": "B",
+          "rr_ratio": 2.76,
+          "short_trend_pct": -10.567995630802828,
+          "fwd_60d_return_pct": 66.63
+        },
+        {
+          "symbol": "002208.SZ",
+          "date": "2022-08-31 00:00:00",
+          "price": 7.35,
+          "conf_level": "B",
+          "rr_ratio": 7.16,
+          "short_trend_pct": -0.40650406504065817,
+          "fwd_60d_return_pct": 0.82
+        },
+        {
+          "symbol": "301022.SZ",
+          "date": "2025-12-19 00:00:00",
+          "price": 31.33,
+          "conf_level": "B",
+          "rr_ratio": 4.86,
+          "short_trend_pct": 0.7071681131469054,
+          "fwd_60d_return_pct": -7.05
+        },
+        {
+          "symbol": "002729.SZ",
+          "date": "2024-01-10 00:00:00",
+          "price": 18.72,
+          "conf_level": "B",
+          "rr_ratio": 2.87,
+          "short_trend_pct": -17.131474103585663,
+          "fwd_60d_return_pct": -35.04
+        },
+        {
+          "symbol": "600179.SH",
+          "date": "2023-07-03 00:00:00",
+          "price": 2.83,
+          "conf_level": "B",
+          "rr_ratio": 2.66,
+          "short_trend_pct": -5.35117056856188,
+          "fwd_60d_return_pct": -2.12
+        },
+        {
+          "symbol": "600179.SH",
+          "date": "2026-05-12 00:00:00",
+          "price": 4.2,
+          "conf_level": "B",
+          "rr_ratio": 6.95,
+          "short_trend_pct": -5.61797752808989,
+          "fwd_60d_return_pct": 6.19
+        },
+        {
+          "symbol": "600208.SH",
+          "date": "2022-07-06 00:00:00",
+          "price": 2.7,
+          "conf_level": "B",
+          "rr_ratio": 4.56,
+          "short_trend_pct": -2.877697841726601,
+          "fwd_60d_return_pct": -9.26
+        },
+        {
+          "symbol": "600208.SH",
+          "date": "2023-10-31 00:00:00",
+          "price": 2.38,
+          "conf_level": "B",
+          "rr_ratio": 3.54,
+          "short_trend_pct": -3.6437246963562875,
+          "fwd_60d_return_pct": -9.24
+        },
+        {
+          "symbol": "600208.SH",
+          "date": "2024-06-28 00:00:00",
+          "price": 1.58,
+          "conf_level": "B",
+          "rr_ratio": 2.73,
+          "short_trend_pct": -25.47169811320755,
+          "fwd_60d_return_pct": 20.25
+        },
+        {
+          "symbol": "600208.SH",
+          "date": "2026-01-06 00:00:00",
+          "price": 3.98,
+          "conf_level": "B",
+          "rr_ratio": 3.59,
+          "short_trend_pct": -6.132075471698117,
+          "fwd_60d_return_pct": -19.35
+        },
+        {
+          "symbol": "300197.SZ",
+          "date": "2024-05-16 00:00:00",
+          "price": 1.73,
+          "conf_level": "B",
+          "rr_ratio": 3.31,
+          "short_trend_pct": 2.366863905325456,
+          "fwd_60d_return_pct": -18.5
+        },
+        {
+          "symbol": "300197.SZ",
+          "date": "2026-01-06 00:00:00",
+          "price": 1.85,
+          "conf_level": "B",
+          "rr_ratio": 2.78,
+          "short_trend_pct": -2.631578947368407,
+          "fwd_60d_return_pct": -9.73
+        },
+        {
+          "symbol": "002917.SZ",
+          "date": "2025-09-04 00:00:00",
+          "price": 13.9,
+          "conf_level": "B",
+          "rr_ratio": 3.19,
+          "short_trend_pct": -7.333333333333336,
+          "fwd_60d_return_pct": -4.32
+        },
+        {
+          "symbol": "000016.SZ",
+          "date": "2023-08-28 00:00:00",
+          "price": 4.2,
+          "conf_level": "B",
+          "rr_ratio": 5.56,
+          "short_trend_pct": -11.205073995771675,
+          "fwd_60d_return_pct": 2.38
+        },
+        {
+          "symbol": "000016.SZ",
+          "date": "2023-12-26 00:00:00",
+          "price": 3.66,
+          "conf_level": "B",
+          "rr_ratio": 9.52,
+          "short_trend_pct": -14.485981308411223,
+          "fwd_60d_return_pct": -7.1
+        },
+        {
+          "symbol": "000057.SH",
+          "date": "2023-12-26 00:00:00",
+          "price": 3145.19,
+          "conf_level": "B",
+          "rr_ratio": 3.74,
+          "short_trend_pct": -5.400706820061663,
+          "fwd_60d_return_pct": 0.2
+        },
+        {
+          "symbol": "000066.SH",
+          "date": "2022-11-03 00:00:00",
+          "price": 2541.15,
+          "conf_level": "B",
+          "rr_ratio": 2.99,
+          "short_trend_pct": -4.474509243735381,
+          "fwd_60d_return_pct": 7.82
+        },
+        {
+          "symbol": "000066.SH",
+          "date": "2024-08-23 00:00:00",
+          "price": 2327.32,
+          "conf_level": "B",
+          "rr_ratio": 8.52,
+          "short_trend_pct": -2.256567480733296,
+          "fwd_60d_return_pct": 10.16
+        },
+        {
+          "symbol": "000100.SH",
+          "date": "2022-11-03 00:00:00",
+          "price": 4446.59,
+          "conf_level": "B",
+          "rr_ratio": 3.1,
+          "short_trend_pct": -4.00052678280357,
+          "fwd_60d_return_pct": 12.35
+        },
+        {
+          "symbol": "000106.SH",
+          "date": "2024-08-23 00:00:00",
+          "price": 3786.47,
+          "conf_level": "B",
+          "rr_ratio": 11.18,
+          "short_trend_pct": -4.465301694231039,
+          "fwd_60d_return_pct": 20.22
+        },
+        {
+          "symbol": "000063.SH",
+          "date": "2022-11-03 00:00:00",
+          "price": 2501.57,
+          "conf_level": "B",
+          "rr_ratio": 3.69,
+          "short_trend_pct": -6.616719301782126,
+          "fwd_60d_return_pct": 16.93
+        },
+        {
+          "symbol": "000105.SH",
+          "date": "2024-06-28 00:00:00",
+          "price": 3493.88,
+          "conf_level": "B",
+          "rr_ratio": 8.5,
+          "short_trend_pct": -9.959436544220356,
+          "fwd_60d_return_pct": -7.83
+        },
+        {
+          "symbol": "000105.SH",
+          "date": "2024-08-23 00:00:00",
+          "price": 3116.29,
+          "conf_level": "B",
+          "rr_ratio": 11.39,
+          "short_trend_pct": -4.933190970103718,
+          "fwd_60d_return_pct": 18.83
+        },
+        {
+          "symbol": "000819.SH",
+          "date": "2024-06-28 00:00:00",
+          "price": 4782.72,
+          "conf_level": "B",
+          "rr_ratio": 4.07,
+          "short_trend_pct": -7.845800794233416,
+          "fwd_60d_return_pct": -4.98
+        },
+        {
+          "symbol": "000819.SH",
+          "date": "2024-08-23 00:00:00",
+          "price": 4416.35,
+          "conf_level": "B",
+          "rr_ratio": 5.51,
+          "short_trend_pct": -1.9027056803516573,
+          "fwd_60d_return_pct": 12.77
+        },
+        {
+          "symbol": "000932.SH",
+          "date": "2023-12-26 00:00:00",
+          "price": 16801.28,
+          "conf_level": "B",
+          "rr_ratio": 3.94,
+          "short_trend_pct": -7.201550057911776,
+          "fwd_60d_return_pct": 4.33
+        },
+        {
+          "symbol": "000932.SH",
+          "date": "2024-06-28 00:00:00",
+          "price": 15722.7,
+          "conf_level": "B",
+          "rr_ratio": 9.91,
+          "short_trend_pct": -10.743613048042,
+          "fwd_60d_return_pct": -9.92
+        },
+        {
+          "symbol": "000932.SH",
+          "date": "2024-08-23 00:00:00",
+          "price": 14297.03,
+          "conf_level": "B",
+          "rr_ratio": 12.02,
+          "short_trend_pct": -4.09157869880914,
+          "fwd_60d_return_pct": 13.94
+        },
+        {
+          "symbol": "000070.SH",
+          "date": "2024-12-24 00:00:00",
+          "price": 2832.68,
+          "conf_level": "B",
+          "rr_ratio": 3.44,
+          "short_trend_pct": -0.23315605959216557,
+          "fwd_60d_return_pct": -5.32
+        },
+        {
+          "symbol": "000073.SH",
+          "date": "2024-06-28 00:00:00",
+          "price": 2629.69,
+          "conf_level": "B",
+          "rr_ratio": 8.72,
+          "short_trend_pct": -8.6240565972174,
+          "fwd_60d_return_pct": -4.71
+        },
+        {
+          "symbol": "000073.SH",
+          "date": "2024-08-23 00:00:00",
+          "price": 2408.18,
+          "conf_level": "B",
+          "rr_ratio": 6.84,
+          "short_trend_pct": -2.9824229215094644,
+          "fwd_60d_return_pct": 23.93
+        },
+        {
+          "symbol": "300307.SZ",
+          "date": "2022-11-03 00:00:00",
+          "price": 4.97,
+          "conf_level": "B",
+          "rr_ratio": 3.08,
+          "short_trend_pct": 8.752735229759278,
+          "fwd_60d_return_pct": 10.87
+        },
+        {
+          "symbol": "300307.SZ",
+          "date": "2023-12-26 00:00:00",
+          "price": 6.07,
+          "conf_level": "B",
+          "rr_ratio": 4.58,
+          "short_trend_pct": -11.127379209370424,
+          "fwd_60d_return_pct": -8.9
+        },
+        {
+          "symbol": "300875.SZ",
+          "date": "2023-11-28 00:00:00",
+          "price": 32.35,
+          "conf_level": "B",
+          "rr_ratio": 12.32,
+          "short_trend_pct": -0.7668711656441674,
+          "fwd_60d_return_pct": -23.8
+        },
+        {
+          "symbol": "300875.SZ",
+          "date": "2024-07-26 00:00:00",
+          "price": 18.92,
+          "conf_level": "B",
+          "rr_ratio": 4.06,
+          "short_trend_pct": 4.357418643132949,
+          "fwd_60d_return_pct": 83.62
+        },
+        {
+          "symbol": "600193.SH",
+          "date": "2024-08-23 00:00:00",
+          "price": 3.37,
+          "conf_level": "B",
+          "rr_ratio": 2.8,
+          "short_trend_pct": 2.1212121212121238,
+          "fwd_60d_return_pct": 24.93
+        },
+        {
+          "symbol": "603122.SH",
+          "date": "2023-06-09 00:00:00",
+          "price": 8.3,
+          "conf_level": "B",
+          "rr_ratio": 3.19,
+          "short_trend_pct": -9.782608695652161,
+          "fwd_60d_return_pct": 1.93
+        },
+        {
+          "symbol": "603122.SH",
+          "date": "2023-10-11 00:00:00",
+          "price": 8.3,
+          "conf_level": "B",
+          "rr_ratio": 4.36,
+          "short_trend_pct": -1.3079667063020106,
+          "fwd_60d_return_pct": -0.48
+        },
+        {
+          "symbol": "301215.SZ",
+          "date": "2023-08-28 00:00:00",
+          "price": 6.0,
+          "conf_level": "B",
+          "rr_ratio": 4.27,
+          "short_trend_pct": -8.536585365853655,
+          "fwd_60d_return_pct": 22.0
+        },
+        {
+          "symbol": "301215.SZ",
+          "date": "2024-08-23 00:00:00",
+          "price": 5.04,
+          "conf_level": "B",
+          "rr_ratio": 2.54,
+          "short_trend_pct": -10.479573712255775,
+          "fwd_60d_return_pct": 26.39
+        },
+        {
+          "symbol": "301218.SZ",
+          "date": "2022-12-28 00:00:00",
+          "price": 18.64,
+          "conf_level": "B",
+          "rr_ratio": 7.86,
+          "short_trend_pct": -10.556621880998074,
+          "fwd_60d_return_pct": 26.93
+        },
+        {
+          "symbol": "301163.SZ",
+          "date": "2023-08-10 00:00:00",
+          "price": 28.22,
+          "conf_level": "B",
+          "rr_ratio": 2.81,
+          "short_trend_pct": -12.577447335811653,
+          "fwd_60d_return_pct": 0.67
+        },
+        {
+          "symbol": "301259.SZ",
+          "date": "2023-06-20 00:00:00",
+          "price": 13.49,
+          "conf_level": "B",
+          "rr_ratio": 10.46,
+          "short_trend_pct": -30.067392431311557,
+          "fwd_60d_return_pct": 11.93
+        },
+        {
+          "symbol": "301160.SZ",
+          "date": "2025-11-19 00:00:00",
+          "price": 58.16,
+          "conf_level": "B",
+          "rr_ratio": 3.18,
+          "short_trend_pct": -1.82309250506415,
+          "fwd_60d_return_pct": 16.37
+        },
+        {
+          "symbol": "301220.SZ",
+          "date": "2023-04-17 00:00:00",
+          "price": 39.59,
+          "conf_level": "B",
+          "rr_ratio": 4.89,
+          "short_trend_pct": -3.10817425354869,
+          "fwd_60d_return_pct": -14.42
+        },
+        {
+          "symbol": "301220.SZ",
+          "date": "2023-06-15 00:00:00",
+          "price": 35.81,
+          "conf_level": "B",
+          "rr_ratio": 3.0,
+          "short_trend_pct": -2.2919508867667027,
+          "fwd_60d_return_pct": -6.84
+        },
+        {
+          "symbol": "301220.SZ",
+          "date": "2025-10-10 00:00:00",
+          "price": 42.5,
+          "conf_level": "B",
+          "rr_ratio": 2.79,
+          "short_trend_pct": -4.128129934581548,
+          "fwd_60d_return_pct": -11.55
+        },
+        {
+          "symbol": "603170.SH",
+          "date": "2024-01-05 00:00:00",
+          "price": 16.02,
+          "conf_level": "B",
+          "rr_ratio": 2.74,
+          "short_trend_pct": -9.94940978077572,
+          "fwd_60d_return_pct": -3.25
+        },
+        {
+          "symbol": "603170.SH",
+          "date": "2025-12-30 00:00:00",
+          "price": 14.2,
+          "conf_level": "B",
+          "rr_ratio": 3.78,
+          "short_trend_pct": -5.585106382978722,
+          "fwd_60d_return_pct": -7.61
+        },
+        {
+          "symbol": "688130.SH",
+          "date": "2024-01-19 00:00:00",
+          "price": 35.95,
+          "conf_level": "B",
+          "rr_ratio": 3.08,
+          "short_trend_pct": -8.871989860583017,
+          "fwd_60d_return_pct": -18.94
+        },
+        {
+          "symbol": "301278.SZ",
+          "date": "2023-08-01 00:00:00",
+          "price": 56.96,
+          "conf_level": "B",
+          "rr_ratio": 2.59,
+          "short_trend_pct": -10.2992125984252,
+          "fwd_60d_return_pct": -12.89
+        },
+        {
+          "symbol": "301278.SZ",
+          "date": "2023-09-26 00:00:00",
+          "price": 49.83,
+          "conf_level": "B",
+          "rr_ratio": 3.71,
+          "short_trend_pct": -6.387375540108964,
+          "fwd_60d_return_pct": -4.74
+        },
+        {
+          "symbol": "301192.SZ",
+          "date": "2023-04-11 00:00:00",
+          "price": 18.4,
+          "conf_level": "B",
+          "rr_ratio": 5.54,
+          "short_trend_pct": -7.351460221550865,
+          "fwd_60d_return_pct": 75.38
+        },
+        {
+          "symbol": "001330.SZ",
+          "date": "2023-10-18 00:00:00",
+          "price": 6.85,
+          "conf_level": "B",
+          "rr_ratio": 3.67,
+          "short_trend_pct": -14.052697616060229,
+          "fwd_60d_return_pct": 5.55
+        },
+        {
+          "symbol": "001330.SZ",
+          "date": "2024-08-12 00:00:00",
+          "price": 4.31,
+          "conf_level": "B",
+          "rr_ratio": 7.8,
+          "short_trend_pct": -5.689277899343558,
+          "fwd_60d_return_pct": 44.78
+        },
+        {
+          "symbol": "688271.SH",
+          "date": "2025-12-10 00:00:00",
+          "price": 129.79,
+          "conf_level": "B",
+          "rr_ratio": 6.04,
+          "short_trend_pct": -5.9629039269671225,
+          "fwd_60d_return_pct": -7.79
+        },
+        {
+          "symbol": "688271.SH",
+          "date": "2026-04-14 00:00:00",
+          "price": 114.7,
+          "conf_level": "B",
+          "rr_ratio": 4.28,
+          "short_trend_pct": -3.7105439892545333,
+          "fwd_60d_return_pct": 0.0
+        },
+        {
+          "symbol": "001332.SZ",
+          "date": "2023-05-23 00:00:00",
+          "price": 43.07,
+          "conf_level": "B",
+          "rr_ratio": 6.42,
+          "short_trend_pct": -35.485320551228284,
+          "fwd_60d_return_pct": -11.52
+        },
+        {
+          "symbol": "688410.SH",
+          "date": "2023-12-21 00:00:00",
+          "price": 25.54,
+          "conf_level": "B",
+          "rr_ratio": 23.9,
+          "short_trend_pct": -11.748445058742229,
+          "fwd_60d_return_pct": 0.94
+        },
+        {
+          "symbol": "688475.SH",
+          "date": "2024-08-22 00:00:00",
+          "price": 25.51,
+          "conf_level": "B",
+          "rr_ratio": 2.95,
+          "short_trend_pct": -8.729874776386392,
+          "fwd_60d_return_pct": 20.42
+        },
+        {
+          "symbol": "688475.SH",
+          "date": "2025-12-18 00:00:00",
+          "price": 29.18,
+          "conf_level": "B",
+          "rr_ratio": 6.28,
+          "short_trend_pct": -1.585160202360869,
+          "fwd_60d_return_pct": -10.14
+        },
+        {
+          "symbol": "123159.SZ",
+          "date": "2025-12-09 00:00:00",
+          "price": 150.299,
+          "conf_level": "B",
+          "rr_ratio": 4.86,
+          "short_trend_pct": -1.9556808026249595,
+          "fwd_60d_return_pct": 3.87
+        },
+        {
+          "symbol": "301408.SZ",
+          "date": "2023-10-27 00:00:00",
+          "price": 16.75,
+          "conf_level": "B",
+          "rr_ratio": 7.43,
+          "short_trend_pct": -8.21917808219178,
+          "fwd_60d_return_pct": -18.99
+        },
+        {
+          "symbol": "301408.SZ",
+          "date": "2023-12-22 00:00:00",
+          "price": 15.45,
+          "conf_level": "B",
+          "rr_ratio": 5.04,
+          "short_trend_pct": -14.876033057851235,
+          "fwd_60d_return_pct": -23.11
+        },
+        {
+          "symbol": "301322.SZ",
+          "date": "2023-12-27 00:00:00",
+          "price": 38.48,
+          "conf_level": "B",
+          "rr_ratio": 6.63,
+          "short_trend_pct": -12.921475446933695,
+          "fwd_60d_return_pct": -15.9
+        },
+        {
+          "symbol": "301439.SZ",
+          "date": "2023-11-14 00:00:00",
+          "price": 15.6,
+          "conf_level": "B",
+          "rr_ratio": 2.6,
+          "short_trend_pct": 3.516921035169207,
+          "fwd_60d_return_pct": -33.65
+        },
+        {
+          "symbol": "301439.SZ",
+          "date": "2024-09-06 00:00:00",
+          "price": 10.99,
+          "conf_level": "B",
+          "rr_ratio": 3.44,
+          "short_trend_pct": -0.8122743682310474,
+          "fwd_60d_return_pct": 27.48
+        },
+        {
+          "symbol": "601065.SH",
+          "date": "2023-10-10 00:00:00",
+          "price": 11.57,
+          "conf_level": "B",
+          "rr_ratio": 6.68,
+          "short_trend_pct": -12.215477996965095,
+          "fwd_60d_return_pct": 0.35
+        },
+        {
+          "symbol": "601065.SH",
+          "date": "2024-06-06 00:00:00",
+          "price": 9.16,
+          "conf_level": "B",
+          "rr_ratio": 11.2,
+          "short_trend_pct": -11.067961165048546,
+          "fwd_60d_return_pct": -8.08
+        },
+        {
+          "symbol": "601065.SH",
+          "date": "2026-06-02 00:00:00",
+          "price": 7.73,
+          "conf_level": "B",
+          "rr_ratio": 6.22,
+          "short_trend_pct": -7.202881152460982,
+          "fwd_60d_return_pct": -1.03
+        },
+        {
+          "symbol": "301429.SZ",
+          "date": "2023-10-17 00:00:00",
+          "price": 21.95,
+          "conf_level": "B",
+          "rr_ratio": 2.72,
+          "short_trend_pct": -10.408163265306126,
+          "fwd_60d_return_pct": -9.2
+        },
+        {
+          "symbol": "301559.SZ",
+          "date": "2025-12-01 00:00:00",
+          "price": 16.31,
+          "conf_level": "B",
+          "rr_ratio": 4.09,
+          "short_trend_pct": -3.6052009456264966,
+          "fwd_60d_return_pct": 9.56
+        },
+        {
+          "symbol": "001376.SZ",
+          "date": "2025-03-04 00:00:00",
+          "price": 13.44,
+          "conf_level": "B",
+          "rr_ratio": 2.92,
+          "short_trend_pct": -1.17647058823529,
+          "fwd_60d_return_pct": -11.31
+        },
+        {
+          "symbol": "127089.SZ",
+          "date": "2025-06-04 00:00:00",
+          "price": 96.5,
+          "conf_level": "B",
+          "rr_ratio": 4.03,
+          "short_trend_pct": -1.5296074449739239,
+          "fwd_60d_return_pct": 28.71
+        },
+        {
+          "symbol": "688717.SH",
+          "date": "2024-12-31 00:00:00",
+          "price": 46.71,
+          "conf_level": "B",
+          "rr_ratio": 2.66,
+          "short_trend_pct": -15.319071791153005,
+          "fwd_60d_return_pct": 13.59
+        },
+        {
+          "symbol": "603344.SH",
+          "date": "2025-11-13 00:00:00",
+          "price": 26.64,
+          "conf_level": "B",
+          "rr_ratio": 3.1,
+          "short_trend_pct": 0.870882241575166,
+          "fwd_60d_return_pct": 17.27
+        },
+        {
+          "symbol": "159915.SZ",
+          "date": "2023-12-26 00:00:00",
+          "price": 1.761,
+          "conf_level": "B",
+          "rr_ratio": 4.83,
+          "short_trend_pct": -5.677557579003755,
+          "fwd_60d_return_pct": 2.56
+        },
+        {
+          "symbol": "161222.SZ",
+          "date": "2022-11-03 00:00:00",
+          "price": 22.95,
+          "conf_level": "B",
+          "rr_ratio": 2.63,
+          "short_trend_pct": -3.286978508217453,
+          "fwd_60d_return_pct": 8.89
+        },
+        {
+          "symbol": "159861.SZ",
+          "date": "2023-12-26 00:00:00",
+          "price": 0.812,
+          "conf_level": "B",
+          "rr_ratio": 2.61,
+          "short_trend_pct": -3.218116805721083,
+          "fwd_60d_return_pct": 2.96
+        },
+        {
+          "symbol": "159941.SZ",
+          "date": "2022-07-06 00:00:00",
+          "price": 0.611,
+          "conf_level": "B",
+          "rr_ratio": 10.19,
+          "short_trend_pct": -76.52708413369189,
+          "fwd_60d_return_pct": 3.11
+        },
+        {
+          "symbol": "161028.SZ",
+          "date": "2022-11-03 00:00:00",
+          "price": 11.49,
+          "conf_level": "B",
+          "rr_ratio": 2.64,
+          "short_trend_pct": 1.3227513227513255,
+          "fwd_60d_return_pct": 2.44
+        },
+        {
+          "symbol": "161028.SZ",
+          "date": "2023-10-31 00:00:00",
+          "price": 8.08,
+          "conf_level": "B",
+          "rr_ratio": 3.35,
+          "short_trend_pct": -2.415458937198056,
+          "fwd_60d_return_pct": -7.3
+        },
+        {
+          "symbol": "161028.SZ",
+          "date": "2023-12-26 00:00:00",
+          "price": 7.32,
+          "conf_level": "B",
+          "rr_ratio": 2.89,
+          "short_trend_pct": -4.935064935064936,
+          "fwd_60d_return_pct": 2.32
+        },
+        {
+          "symbol": "159768.SZ",
+          "date": "2023-10-11 00:00:00",
+          "price": 0.721,
+          "conf_level": "B",
+          "rr_ratio": 7.35,
+          "short_trend_pct": -8.502538071066002,
+          "fwd_60d_return_pct": -21.5
+        },
+        {
+          "symbol": "159616.SZ",
+          "date": "2023-06-06 00:00:00",
+          "price": 0.758,
+          "conf_level": "B",
+          "rr_ratio": 7.18,
+          "short_trend_pct": -5.955334987593053,
+          "fwd_60d_return_pct": -1.19
+        }
+      ]
+    },
+    "unknown_forward_40d": {
+      "n_unknown": 4330,
+      "mean_fwd_40d_return_pct": 1.5202199321973802,
+      "median_fwd_40d_return_pct": -1.6959574080922246,
+      "positive_ratio_pct": 44.387990762124716,
+      "by_candidate": {
+        "unknown_range": {
+          "count": 3686,
+          "mean_fwd_ret_pct": 1.577124349591007,
+          "positive_ratio": 44.4384156266956
+        },
+        "phase_b_range": {
+          "count": 331,
+          "mean_fwd_ret_pct": -0.8031706058674353,
+          "positive_ratio": 40.78549848942598
+        },
+        "phase_a_candidate": {
+          "count": 57,
+          "mean_fwd_ret_pct": 5.631092301621901,
+          "positive_ratio": 56.14035087719298
+        },
+        "sc_st_candidate": {
+          "count": 222,
+          "mean_fwd_ret_pct": 3.46335890608904,
+          "positive_ratio": 46.846846846846844
+        },
+        "upthrust_candidate": {
+          "count": 34,
+          "mean_fwd_ret_pct": -1.609309234702659,
+          "positive_ratio": 38.23529411764706
+        }
+      }
+    },
+    "spring_forward": {
+      "n_spring": 2333,
+      "mean_fwd_20d_return_pct": 1.575425025523486,
+      "mean_fwd_40d_return_pct": 1.5119323293207232,
+      "mean_fwd_60d_return_pct": 2.3058548088039106,
+      "positive_20d_ratio_pct": 52.764680668666955
+    }
+  },
+  "roi_comparison": {
+    "A": {
+      "mean_return_pct": "-0.23",
+      "annualized_pct": "-1.79",
+      "vs_v0_raw": "-0.73",
+      "vs_v1_phase": "+1.92",
+      "vs_bh": "-19.55",
+      "vs_bh_improvement_pct": "-101.2",
+      "beat_bh_ratio": "42.2%",
+      "profitable_stock_ratio": "35.6%"
+    },
+    "B": {
+      "mean_return_pct": "-1.33",
+      "annualized_pct": "-3.15",
+      "vs_v0_raw": "-1.84",
+      "vs_v1_phase": "+0.82",
+      "vs_bh": "-20.66",
+      "vs_bh_improvement_pct": "-106.9",
+      "beat_bh_ratio": "34.4%",
+      "profitable_stock_ratio": "29.6%"
+    },
+    "B+": {
+      "mean_return_pct": "1.41",
+      "annualized_pct": "-2.57",
+      "vs_v0_raw": "+0.91",
+      "vs_v1_phase": "+3.57",
+      "vs_bh": "-17.91",
+      "vs_bh_improvement_pct": "-92.7",
+      "beat_bh_ratio": "36.4%",
+      "profitable_stock_ratio": "33.4%"
+    },
+    "C": {
+      "mean_return_pct": "4.99",
+      "annualized_pct": "0.44",
+      "vs_v0_raw": "+4.48",
+      "vs_v1_phase": "+7.14",
+      "vs_bh": "-14.34",
+      "vs_bh_improvement_pct": "-74.2",
+      "beat_bh_ratio": "47.0%",
+      "profitable_stock_ratio": "11.8%"
+    }
+  },
+  "full_backtest": {
+    "v0_raw": {
+      "mean_return_pct": 0.5,
+      "median_return_pct": 0.0,
+      "mean_annualized_pct": -0.1,
+      "profitable_stock_pct": 15.4,
+      "mean_sharpe": -0.213,
+      "mean_max_dd_pct": 2.85,
+      "total_trades": 236
+    },
+    "v1_phase": {
+      "mean_return_pct": -2.15,
+      "median_return_pct": -5.91,
+      "mean_annualized_pct": -2.23,
+      "profitable_stock_pct": 34.4,
+      "mean_sharpe": -2.954,
+      "mean_max_dd_pct": 23.93,
+      "total_trades": 2216
+    },
+    "bh": {
+      "mean_return_pct": 19.32,
+      "median_return_pct": 0.0,
+      "mean_annualized_pct": 1.23,
+      "profitable_stock_pct": 43.6,
+      "mean_sharpe": 0.0,
+      "mean_max_dd_pct": 14.94,
+      "total_trades": 453
+    },
+    "a_corrected": {
+      "mean_return_pct": -0.23,
+      "median_return_pct": -4.86,
+      "mean_annualized_pct": -1.79,
+      "profitable_stock_pct": 35.6,
+      "mean_sharpe": -1.479,
+      "mean_max_dd_pct": 24.61,
+      "total_trades": 2334
+    },
+    "b_corrected": {
+      "mean_return_pct": -1.33,
+      "median_return_pct": -12.14,
+      "mean_annualized_pct": -3.15,
+      "profitable_stock_pct": 29.6,
+      "mean_sharpe": -1.357,
+      "mean_max_dd_pct": 31.35,
+      "total_trades": 2743
+    },
+    "bplus_corrected": {
+      "mean_return_pct": 1.41,
+      "median_return_pct": -8.84,
+      "mean_annualized_pct": -2.57,
+      "profitable_stock_pct": 33.4,
+      "mean_sharpe": -1.224,
+      "mean_max_dd_pct": 31.43,
+      "total_trades": 2686
+    },
+    "c_pattern": {
+      "mean_return_pct": 4.99,
+      "median_return_pct": 0.0,
+      "mean_annualized_pct": 0.44,
+      "profitable_stock_pct": 11.8,
+      "mean_sharpe": -0.837,
+      "mean_max_dd_pct": 2.77,
+      "total_trades": 175
+    }
+  },
+  "config": {
+    "n_stocks": 500,
+    "window_step": 40,
+    "min_window": 120,
+    "elapsed_seconds": 275.0
+  }
+}

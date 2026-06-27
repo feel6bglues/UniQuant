@@ -62,14 +62,15 @@ def calculate_total_cost(
     return commission + stamp_duty + transfer_fee
 
 
-def calculate_sharpe_ratio(returns, risk_free_rate: float = RISK_FREE_RATE) -> float:
+def calculate_sharpe_ratio(returns, risk_free_rate: float = RISK_FREE_RATE, period_days: int = 1) -> float:
     if hasattr(returns, "__len__") and len(returns) < 2:
         return 0.0
     arr = np.asarray(returns, dtype=np.float64)
     n = len(arr)
     if n < 2 or np.std(arr) == 0:
         return 0.0
-    return float((np.mean(arr) - risk_free_rate / 252.0) / np.std(arr, ddof=1) * np.sqrt(252.0))
+    periods_per_year = 252.0 / period_days
+    return float((np.mean(arr) - risk_free_rate / periods_per_year) / np.std(arr, ddof=1) * np.sqrt(periods_per_year))
 
 
 # ── Config dataclass (for dependency injection) ───────────────────────────

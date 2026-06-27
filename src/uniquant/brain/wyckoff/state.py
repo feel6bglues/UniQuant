@@ -143,7 +143,7 @@ class StateManager:
             try:
                 freeze_date = datetime.strptime(state.freeze_until, "%Y-%m-%d")
                 if reference_date is None:
-                    logger.warning("_determine_watch_status called without reference_date — using datetime.now()")
+                    logger.warning("_determine_watch_status called without reference_date — using TimeProvider")
                 now = reference_date or get_time_provider().now()
                 if now <= freeze_date:
                     return "cooling_down"
@@ -252,7 +252,7 @@ class StateManager:
         try:
             freeze_date = datetime.strptime(state.freeze_until, "%Y-%m-%d")
             if reference_date is None:
-                logger.warning("is_in_freeze_period called without reference_date — using datetime.now()")
+                logger.warning("is_in_freeze_period called without reference_date — using TimeProvider")
             now = reference_date or get_time_provider().now()
             return now <= freeze_date
         except (ValueError, TypeError):

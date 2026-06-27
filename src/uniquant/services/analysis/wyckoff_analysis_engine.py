@@ -3,7 +3,7 @@ import pandas as pd
 
 from ...shared.logger_factory import get_logger
 from ...shared.constants import IndicatorThresholds
-from ...shared.constants.misc import AnalysisServiceConstants
+from ...shared.interfaces import WyckoffOutput
 
 logger = get_logger(__name__)
 
@@ -12,18 +12,65 @@ WYCKOFF_RECOVERABLE_ERRORS = (
     OSError, RuntimeError, TypeError, ValueError,
 )
 
+_CONFIDENCE_TO_FLOAT = {"A": 0.9, "B": 0.7, "C": 0.5, "D": 0.3}
+
 
 class WyckoffAnalysisEngine:
     def __init__(self, orchestrator):
         self.orchestrator = orchestrator
 
-    def run_wyckoff_analysis(self, symbol: str, df: Optional[pd.DataFrame] = None) -> Dict[str, Any]:
+    def _extract_from_report(self, result: Any, price: float) -> WyckoffOutput:
+        phase = "unknown"
+        confidence = 0.0
+        spring = False
+        utad = False
+        rr_ratio = 0.0
+        bypassed = False
+
+        if hasattr(result, "structure") and result.structure is not None:
+            p = getattr(result.structure, "phase", None)
+            if p is not None:
+                phase = str(p.value) if hasattr(p, "value") else str(p)
+
+        if hasattr(result, "signal") and result.signal is not None:
+            sig = result.signal
+            sig_type = getattr(sig, "signal_type", "")
+            if "spring" in str(sig_type).lower():
+                spring = True
+            if "utad" in str(sig_type).lower():
+                utad = True
+            conf = getattr(sig, "confidence", None)
+            if conf is not None:
+                conf_str = str(conf.value) if hasattr(conf, "value") else str(conf)
+                confidence = _CONFIDENCE_TO_FLOAT.get(conf_str, 0.3)
+
+        if hasattr(result, "risk_reward") and result.risk_reward is not None:
+            rr = getattr(result.risk_reward, "reward_risk_ratio", 0.0)
+            rr_ratio = float(rr) if rr else 0.0
+
+        if hasattr(result, "trading_plan") and result.trading_plan is not None:
+            tp = result.trading_plan
+            tp_conf = getattr(tp, "confidence", None)
+            if tp_conf is not None:
+                conf_str = str(tp_conf.value) if hasattr(tp_conf, "value") else str(tp_conf)
+                confidence = _CONFIDENCE_TO_FLOAT.get(conf_str, confidence)
+
+        return WyckoffOutput(
+            phase=phase, confidence=confidence,
+            spring=spring, utad=utad,
+            price=price, rr_ratio=rr_ratio,
+            bypassed=bypassed,
+        )
+
+    def run_wyckoff_analysis(self, symbol: str, df: Optional[pd.DataFrame] = None) -> "WyckoffOutput":
         try:
             cache_key = self.orchestrator._generate_cache_key("wyckoff_analysis", symbol=symbol)
 
             if df is None:
                 cached_result = self.orchestrator._get_cached_result(cache_key, use_disk=True)
                 if cached_result is not None:
+                    if isinstance(cached_result, dict):
+                        return WyckoffOutput.from_dict(cached_result)
                     return cached_result
 
             if df is None:
@@ -31,7 +78,7 @@ class WyckoffAnalysisEngine:
                     symbol, data_type="stock", market="cn"
                 )
                 if df is None or df.empty:
-                    return {"error": "数据不足", "status": "failed"}
+                    return WyckoffOutput(phase="unknown")
 
             df = self.orchestrator._optimize_dataframe(df)
             df = self.orchestrator._sample_data(
@@ -42,32 +89,10 @@ class WyckoffAnalysisEngine:
                 from ...brain.wyckoff.engine import WyckoffEngine
                 wyckoff_engine = WyckoffEngine()
 
-                result = wyckoff_engine.analyze(df)
+                result = wyckoff_engine.analyze(df, multi_timeframe=True)
+                price = float(df["close"].iloc[-1]) if "close" in df.columns else 0.0
 
-                result = {
-                    "symbol": symbol,
-                    "status": "success",
-                    "phase": result.get("phase", "unknown"),
-                    "confidence": result.get("confidence", 0.0),
-                    "accumulation_score": result.get("accumulation_score", 0.0),
-                    "distribution_score": result.get("distribution_score", 0.0),
-                    "spring_detected": result.get("spring_detected", False),
-                    "utad_detected": result.get("utad_detected", False),
-                    "lps_detected": result.get("lps_detected", False),
-                    "sow_detected": result.get("sow_detected", False),
-                    "summary": f"Wyckoff分析完成，当前阶段: {result.get('phase', 'unknown')}",
-                }
-
-                result = self.orchestrator.ensure_precision_consistency(result)
-
-                if df is None:
-                    cache_key = self.orchestrator._generate_cache_key("wyckoff_analysis", symbol=symbol)
-                    self.orchestrator._set_cached_result(
-                        cache_key, result, use_disk=True,
-                        ttl=AnalysisServiceConstants.CACHE_TTL_2HOURS,
-                    )
-
-                return result
+                return self._extract_from_report(result, price)
             except (ImportError, ModuleNotFoundError) as e:
                 logger.warning(f"Failed to import WyckoffEngine: {e}")
                 return self._fallback_wyckoff_analysis(symbol, df)
@@ -76,19 +101,16 @@ class WyckoffAnalysisEngine:
                 return self._fallback_wyckoff_analysis(symbol, df)
         except WYCKOFF_RECOVERABLE_ERRORS as e:
             logger.error(f"Wyckoff analysis failed for {symbol}: {e}")
-            return {"error": str(e), "status": "failed"}
+            return WyckoffOutput(phase="unknown")
 
-    def _fallback_wyckoff_analysis(self, symbol: str, df: pd.DataFrame) -> Dict[str, Any]:
+    def _fallback_wyckoff_analysis(self, symbol: str, df: pd.DataFrame) -> "WyckoffOutput":
         try:
             if "close" not in df.columns or "volume" not in df.columns:
-                return {
-                    "symbol": symbol, "status": "success",
-                    "phase": "unknown", "confidence": 0.0,
-                    "summary": "数据不足，无法进行Wyckoff分析",
-                }
+                return WyckoffOutput(phase="unknown")
 
             prices = df["close"]
             volume = df["volume"]
+            price = float(prices.iloc[-1])
 
             volume_sma = volume.shift(1).rolling(window=20).mean()
             volume_ratio = (volume / volume_sma).fillna(1.0)
@@ -112,22 +134,16 @@ class WyckoffAnalysisEngine:
                 phase = "markup" if recent_price_pos > 0.05 else "markdown"
                 confidence = 0.3
 
-            return {
-                "symbol": symbol, "status": "success",
-                "phase": phase, "confidence": confidence,
-                "accumulation_score": recent_vol_ratio if is_accumulation else 0.0,
-                "distribution_score": recent_vol_ratio if is_distribution else 0.0,
-                "spring_detected": False, "utad_detected": False,
-                "lps_detected": False, "sow_detected": False,
-                "summary": f"使用基本成交量分析方法进行Wyckoff阶段识别，当前阶段: {phase}",
-            }
+            return WyckoffOutput(
+                phase=phase,
+                confidence=confidence,
+                spring=False,
+                utad=False,
+                price=price,
+            )
         except WYCKOFF_RECOVERABLE_ERRORS as e:
             logger.error(f"Fallback Wyckoff analysis failed: {e}")
-            return {
-                "symbol": symbol, "status": "success",
-                "phase": "unknown", "confidence": 0.0,
-                "summary": "Wyckoff分析失败，使用默认结果",
-            }
+            return WyckoffOutput(phase="unknown")
 
     def detect_spring(self, df: pd.DataFrame) -> Dict[str, Any]:
         if "close" not in df.columns or "low" not in df.columns or "volume" not in df.columns:
