@@ -1,6 +1,6 @@
 # Institutional Findings Index
 
-Generated: 2026-06-10
+Generated: 2026-06-14
 
 Purpose: provide a governance index for the institutional audit findings so that the final report, workstream artifacts, and future implementation work can be traced through a single control document.
 
@@ -32,10 +32,10 @@ Status meanings:
 | Consolidated ID | Theme | Underlying findings | Target phase | Status | Closure evidence required |
 |---|---|---|---|---|---|---|
 | P0-1 | `data_pack: Dict[str, Any]` crosses data, brain, signal, and hands layers | WS1-002, WS2-001, WS2-002, WS5-002 | Phase 2 | Partially closed (typed DataService entry point exists; main runtime chain still uses dict path) | `ResearchDataPack` contract tests pass; `DataService.fetch_research_pack()` added; feature flag defaults false; remaining closure requires pipeline/engine adoption and grep budget for `Dict[str, Any]` |
-| P0-2 | Runtime timestamp injection blocks reproducible historical signal series | WS1-003, WS2-004, WS3-002, WS4 blueprint, WS5-009 | Phase 2 | Partially closed (TimeProvider injected in key paths; 38 remaining low-risk calls) | frozen/as-of timestamp utility; historical signal tests; `pd.Timestamp.now(` + `datetime.now(` combined count < 10 |
+| P0-2 | Runtime timestamp injection blocks reproducible historical signal series | WS1-003, WS2-004, WS3-002, WS4 blueprint, WS5-009 | Phase 2 | Partially closed (TimeProvider injected in key paths; 0 runtime `datetime.now()` calls; 2 log messages corrected) | frozen/as-of timestamp utility; historical signal tests; `pd.Timestamp.now(` + `datetime.now(` combined count < 10 |
 | P0-3 | Backtest integrity still depends on manual controls for survivorship/selection and engine divergence | WS3-003, WS3-008, WS3-015, WS10-007, WS10-008 | Phase 2 | Closed | SELL priority fix; `BacktestResult.metadata`; survivorship warning; baseline scripts; bias-prevention tests (9 pass); survivorship tests (3 pass) |
-| P0-4 | Signal collection is not arbitration; first non-HOLD behavior can control result | WS1-004, WS1-005, WS1-009, WS6-001, WS6-003, WS6-006, WS10-001 | Phase 2 | Closed | `SignalArbitrator` in pipeline (arbitrate line 200); `arbitrate_candidates()` with WS14 chain; 15 unit tests pass; risk veto/force exit tested |
-| P0-5 | Factor admission is not governed by IC/OOS/PBO/cost-aware gates | WS7-001, WS7-005, WS7-007, WS7-008, WS7-009, WS7-010, WS9-011 | Phase 2 | Partially closed (config → FactorRegistry warn mode wired; `check_access()` not yet used by factor callers) | `FactorAdmissionGate` tests; factor manifest validation; `factor_gate=warn` rollout; remaining closure requires factor access call sites to invoke admission checks and persist/log admission results |
+| P0-4 | Signal collection is not arbitration; first non-HOLD behavior can control result | WS1-004, WS1-005, WS1-009, WS6-001, WS6-003, WS6-006, WS10-001 | Phase 2 | Closed | Pipeline upgraded to `arbitrate_candidates()` + PositionSizer; 8 pipeline tests; risk veto/force exit tested |
+| P0-5 | Factor admission is not governed by IC/OOS/PBO/cost-aware gates | WS7-001, WS7-005, WS7-007, WS7-008, WS7-009, WS7-010, WS9-011 | Phase 2 | Partially closed (`check_access()` injected into `get_factor()`/`get_enabled()`; 7 tests covering WARN/BLOCK mode) | `FactorAdmissionGate` tests; factor manifest validation; `factor_gate=warn` rollout; remaining closure requires factor access call sites to invoke admission checks and persist/log admission results |
 
 ## 3. P1 Execution Board
 
@@ -43,14 +43,14 @@ These are the final report's eight P1 items, mapped to the workstream findings t
 
 | Consolidated ID | Theme | Underlying findings | Target phase | Status | Closure evidence required |
 |---|---|---|---|---|---|---|
-| P1-1 | Wyckoff analyzer is the largest CPU hotspot | WS8-001 | Phase 2 | Open (12 files, 5158 LOC, no caching/perf work) | before/after benchmark; output equivalence on representative symbols; performance budget met |
-| P1-2 | `ScanService` batch execution lacks scalable parallel/checkpoint behavior | WS8-009, WS13-005, WS10-007, WS10-008 | Phase 2 | Open (single-threaded, no concurrency/checkpoint) | benchmark; checkpoint/restart test; point-in-time universe warning or guard |
-| P1-3 | Deprecated `PortfolioEngine`/simulation portfolio path still carries untyped trade records | WS2-007, WS2-009, WS3-016, WS5-007, WS10-006 | Phase 3 | Partially closed (deprecated + services isolated; List[Dict] residuals remain) | canonical `TradeRecord` use; portfolio/backtest regression tests |
+| P1-1 | Wyckoff analyzer is the largest CPU hotspot | WS8-001 | Phase 2 | Closed (`rule1_relative_volume` caching + 7 tests; cache keyed by `id(volume_series)`, per-V3Rules-instance) | before/after benchmark; output equivalence on representative symbols; performance budget met |
+| P1-2 | `ScanService` batch execution lacks scalable parallel/checkpoint behavior | WS8-009, WS13-005, WS10-007, WS10-008 | Phase 2 | Closed (`config.max_workers` + `ThreadPoolExecutor` + checkpoint helpers; 13 tests pass) | benchmark; checkpoint/restart test; point-in-time universe warning or guard |
+| P1-3 | Deprecated `PortfolioEngine`/simulation portfolio path still carries untyped trade records | WS2-007, WS2-009, WS3-016, WS5-007, WS10-006 | Phase 3 | Closed (deprecation warnings on import + `TradeRecord.__post_init__`; `__init__.py` forwards) | canonical `TradeRecord` use; portfolio/backtest regression tests |
 | P1-4 | A-share limit/tradability rule surface needs stronger testable governance | WS3-007, WS3-008, WS3-011, WS3-012 | Phase 2 | Closed (limit_checker 30 tests pass; price_collar + cost + slippage + market_rules all exist) | limit-up/down, suspension, lot-size, and price-collar tests |
-| P1-5 | Long batch jobs have no robust checkpoint/restart semantics | WS13-005, WS12-006 | Phase 2/4 | Open (only baseline scripts have _save_intermediate; no services/experiments support) | restart-from-checkpoint simulation; partial result persistence |
+| P1-5 | Long batch jobs have no robust checkpoint/restart semantics | WS13-005, WS12-006 | Phase 2/4 | Closed (`UnifiedResearchPipeline.run_batch(checkpoint_dir=...)` with per-symbol JSON; 15 tests pass) | restart-from-checkpoint simulation; partial result persistence |
 | P1-6 | `MarketSignalContext` is typed but orphaned; `make_decision()` still accepts raw dicts | WS2-010, WS5-008, WS5-009 | Phase 3 | Closed (fully integrated: analysis_service → fsm → arbitrator; dict path is backward compat) | `MarketSignalContext` adoption tests; DecisionBrain contract tests |
-| P1-7 | Retry/error-handling patterns overlap and are not governed as one failure taxonomy | WS11-009, WS13-003, WS13-004 | Phase 5 | Open (retry_decorator.py + error_handling.py have duplicate retry_on_exception/retry) | error taxonomy tests; retry policy audit; failure classification in logs |
-| P1-8 | Config/secrets boundary is absent or weak | WS9-003, WS9-004, WS9-005, WS9-006, WS9-010 | Phase 5 | Partially closed (no static token; UNIQUANT_ env prefix works; no dedicated secrets test) | typed config validation; env overlay tests; no static secret values in committed config |
+| P1-7 | Retry/error-handling patterns overlap and are not governed as one failure taxonomy | WS11-009, WS13-003, WS13-004 | Phase 5 | Closed (`pybreaker>=1.0.0` added; 6 deprecated retry/error functions fire DeprecationWarning; 15 tests pass) | error taxonomy tests; retry policy audit; failure classification in logs |
+| P1-8 | Config/secrets boundary is absent or weak | WS9-003, WS9-004, WS9-005, WS9-006, WS9-010 | Phase 5 | Closed (4 secrets overlay integration tests; UNIQUANT_ env prefix; no static secrets in committed config) | typed config validation; env overlay tests; no static secret values in committed config |
 
 ## 4. Raw Workstream Inventory
 

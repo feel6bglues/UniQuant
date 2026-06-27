@@ -1,6 +1,6 @@
 # UniQuant 项目结构文档
 
-> 版本: 0.1.0 | 最后更新: 2026-05-23
+> 版本: 0.3+ | 最后更新: 2026-05-23 (初始) / 2026-06-17 (头部修正) | **⚠️ 内容可能过时**: 此文档描述早期阶段的项目结构。某些引擎已从 flat 文件重构为子包（如 `czsc_engine.py` → `czsc/`, `regime_detector.py` → `regime/` 等）。8 层（shared/data/brain/signal/hands/risk/services/ui）全部就绪，不是此文档描述的早期就绪状态。`data/`, `signal/`, `hands/` 已全部实现。
 
 ---
 

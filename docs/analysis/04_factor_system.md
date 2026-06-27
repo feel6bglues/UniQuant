@@ -27,8 +27,7 @@ Scope: `brain/factors` factor registration, calculation, IC/IR evaluation, compo
 | `src/uniquant/brain/factors/neutralizer.py` | MAD winsorization and size/industry residualization. |
 | `src/uniquant/brain/factors/walk_forward_pipeline.py` | Temporal train/test split and out-of-sample factor validation. |
 | `src/uniquant/brain/factors/__init__.py` | Package import contract and custom factor side-effect registration. |
-| `src/uniquant/brain/factors/auto_mined/__init__.py` | New controlled auto-mining package boundary. |
-| `src/uniquant/brain/factors/auto_mined/generator.py` | Genetic factor mining framework entry. |
+| `experiments/gp_factor_mining/generator.py` | Genetic factor mining framework (moved out of production package 2026-06-17). |
 | `config/factors.yaml` | Enabled/weight/category overrides for selected factors. |
 | `experiments/run_factor_ic_evaluation.py` | Mock-universe factor IC and collinearity pruning workflow. |
 | `experiments/run_walk_forward_pipeline.py` | Mock walk-forward OOS and PBO report workflow. |
@@ -72,7 +71,7 @@ Current registered manual pool:
 
 The config file currently overrides only `momentum_20d`, `turnover_momentum_20d`, and `pe_ttm` (`config/factors.yaml`). `pe_ttm` is configured but not registered in `custom_factors.py`; unless another module registers it, this config entry is inert.
 
-Auto-mined factor state is transitional. `src/uniquant/brain/factors/__init__.py:5` says old `auto_mined/` output was removed after PBO failure, while `src/uniquant/brain/factors/auto_mined/__init__.py:1-10` exposes a new `GeneticFactorMiner` framework. Therefore the correct current status is: old generated factor library has been purged, but a new controlled mining framework exists and still needs production admission evidence.
+Auto-mined factor state is transitional. `src/uniquant/brain/factors/__init__.py` says old `auto_mined/` output was removed after PBO failure. The new `GeneticFactorMiner` framework was later moved to `experiments/gp_factor_mining/generator.py` (2026-06-17) after identifying three algorithmic defects: `abs(mean_ic)` direction error, Gaussian PBO approximation, and broken code generation. The GP mining path is now an experiment, not a production component.
 
 ## 4. 因子计算流程
 
@@ -271,7 +270,7 @@ Stage 5 should inspect how factor outputs and other engine outputs become execut
 
 - `src/uniquant/signal/adapters.py`
 - `src/uniquant/signal/models.py`
-- `src/uniquant/signal/collector.py`
+- `src/uniquant/signal/adapters.py`
 - `src/uniquant/signal/aggregator.py`
 - `src/uniquant/signal/quality.py`
 - `src/uniquant/shared/interfaces.py`

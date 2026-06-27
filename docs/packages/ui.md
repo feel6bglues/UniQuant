@@ -1,6 +1,6 @@
 # ui -- 用户界面
 
-> **状态:** ⚠️ 部分可用 | **当前文件:** 2/8 | **可用:** dashboard, health_check
+> **状态:** ✅ 全部可用 | **当前文件:** 8/8 | **模块:** dashboard, manager_logic, health_check, components, lppl_visualizer, report_service, portfolio_analytics
 
 `uniquant.ui` 包基于 Streamlit 构建交互式量化分析仪表盘，约 3.3K LOC。包含主仪表盘布局、可复用组件库、LPPL 可视化、系统健康检查、资产管理逻辑门面以及报告/组合分析服务。
 

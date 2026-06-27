@@ -1,6 +1,6 @@
 # 异常体系参考
 
-本文档为 UniQuant 系统中所有异常类的完整参考。异常定义主要集中在 `src/uniquant/shared/exceptions.py`，此外 `src/uniquant/shared/errors.py` 提供向后兼容的别名。
+本文档为 UniQuant 系统中所有异常类的完整参考。异常定义集中于 `src/uniquant/shared/exceptions.py`。原有的 `errors.py` 兼容别名模块已移除。
 
 ---
 
@@ -400,17 +400,17 @@ Wyckoff 分析模块的异常，覆盖 BC 检测、输入验证、图像处理�
 
 ---
 
-## 向后兼容别名 (errors.py)
+## 已移除的向后兼容别名
 
-`src/uniquant/shared/errors.py` 为已废弃的兼容模块，提供以下别名映射：
+原有的 errors.py 兼容模块已移除。旧别名映射：
 
-| 旧名称 | 实际映射 | 说明 |
-|--------|----------|------|
-| `AlphaError` | `AlphaTacticianError` | 旧系统基础异常名 |
-| `DataError` | `DataFetchError` | 旧数据错误映射到数据获取错误 |
-| `EngineError` | `EngineError` | 引擎错误（名称未变） |
+| 旧名称 | 实际映射 |
+|--------|----------|
+| `AlphaError` | `AlphaTacticianError` |
+| `DataError` | `DataFetchError` |
+| `EngineError` | `EngineError` |
 
-> **注意**：`errors.py` 已标记为废弃，新代码应直接从 `exceptions.py` 导入。
+> 所有异常统一从 `src/uniquant/shared/exceptions.py` 导入。
 
 ---
 

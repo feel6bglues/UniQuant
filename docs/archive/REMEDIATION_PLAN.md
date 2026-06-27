@@ -3,7 +3,7 @@
 > 基于 16 轮深度审计(2,923 行 / 132 KB) + 最终勘误 + 交叉核实修正
 > 生成: 2026-06-07 v2 | 审计员: Minimax-M3
 > **修正说明**:经二次核实,修正了 Sprint 1.2 多余文件、Sprint 1.3a MDD 根因重判、
-> 补充 6 项未覆盖的 P1-P2 问题。见 docs/FIVE_STAGE_ROUND2_FINDINGS_20260607.md 第五阶段。
+> 补充 6 项未覆盖的 P1-P2 问题。见 archive/FIVE_STAGE_ROUND2_FINDINGS_20260607.md 第五阶段。
 
 ---
 
@@ -61,7 +61,7 @@
 
 | 字段 | 内容 |
 |---|---|
-| **目标文件** | `src/uniquant/services/analysis_service.py` → `analysis_service_legacy.py`; `services/__init__.py` |
+| **目标文件** | `src/uniquant/services/analysis_service_legacy.py` → `analysis_service_v2.py`; `services/__init__.py` |
 | **操作** | (1) v1 重命名 + 内部方法打 Deprecation 警告; (2) `__init__.py` 懒加载字典中 `"AnalysisService"` 指向 `.analysis_service_v2` |
 | **预估改动** | ~20 行 |
 
@@ -73,13 +73,9 @@
 | **操作** | 删除 `__init__.py` 中无生产引用的 `STRATEGY_MAP`; 全局唯一走 `registry.STRATEGY_MAP`; 旧 `BaseStrategy` 类加 `@deprecated` |
 | **预估改动** | ~10 行 |
 
-### 2.3a 复活 auto_mined 因子 (P1)
+### ~~2.3a 复活 auto_mined 因子 (P1)~~
 
-| 字段 | 内容 |
-|---|---|
-| **目标文件** | `src/uniquant/brain/factors/auto_mined/__init__.py` |
-| **操作** | 调起 `register_auto_mined.register_all()` |
-| **预估改动** | **1 行** |
+> **已过时 (2026-06-17):** `auto_mined/` 整目录已移至 `experiments/gp_factor_mining/`。GP 因子挖掘引擎因 `abs(mean_ic)` 方向性错误、PBO 高斯近似错误、代码生成断裂等问题，已退出生产包路径。逻辑因子系统已取代 GP 路径。
 
 ### 2.3b factors.yaml 闸门 (P1)
 
@@ -146,8 +142,8 @@
 
 | 字段 | 内容 |
 |---|---|
-| **目标文件** | `docs/` 下 `FULL_*_2012_2025.md`, `COMPREHENSIVE_*`, `AUDIT_REPORT_*` 等 15+ 个 2026-05-23 ~ 05-31 的旧报告 |
-| **操作** | 每文件顶部加一行: `> **Obsolete as of 2026-06-07** — 见 FIVE_STAGE_ANALYSIS_REPORT_20260607.md / FIVE_STAGE_ROUND2_FINDINGS_20260607.md` |
+| **目标文件** | `archive/` 下 `FULL_*_2012_2025.md`, `COMPREHENSIVE_*`, `AUDIT_REPORT_*` 等 15+ 个旧报告（已迁移至 archive/） |
+| **操作** | 每文件顶部加一行: `> **Obsolete as of 2026-06-07** — 见 archive/FIVE_STAGE_ANALYSIS_REPORT_20260607.md / archive/FIVE_STAGE_ROUND2_FINDINGS_20260607.md` |
 | **预估改动** | ~15 行(每文件 1 行 banner) |
 
 ---

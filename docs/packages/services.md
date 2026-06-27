@@ -1,6 +1,6 @@
 # services -- 服务层
 
-> **状态:** ⚠️ 部分可用 | **当前文件:** 10/24 | **可用:** analysis_service, service_container, 6 个引擎适配器
+> **状态:** ✅ 全部可用 | **当前文件:** 31/31 | **服务:** ServiceContainer, DataService, AnalysisService, ResearchPipeline, HealthService, CacheCoordinator, ScanPipeline, PortfolioService
 
 `uniquant.services` 模块是 UniQuant 的服务编排层，约 7.8K LOC。该模块通过依赖注入容器（DAG 拓扑）管理所有服务的生命周期，提供分析服务、数据服务、扫描服务、组合服务、健康监控、缓存协调等核心功能。服务层位于 brain（分析引擎）和 UI 之间，是系统的中间协调层。
 

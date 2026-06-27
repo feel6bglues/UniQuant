@@ -2,9 +2,53 @@
 
 本指南详细介绍 UniQuant 回测引擎的各种模式、配置选项和使用方法。
 
+## 回测引擎选择
+
+UniQuant 提供两种回测引擎，分别对应不同的信号生成模式：
+
+| 引擎 | 信号模式 | 适用场景 |
+|------|---------|----------|
+| `UnifiedBacktestEngine` (推荐) | 类型化 `List[TradingSignal]`，通过 `TradingSignalCollector` 从分析引擎输出转换 | 新项目、全流程分析 + 回测 |
+| `BacktestEngine` (已弃用) | `signal_generator(df_slice, idx, context) → dict` 函数 | 旧代码兼容、简单策略原型 |
+
+> **推荐使用 `UnifiedBacktestEngine`**: 它接收来自 `TradingSignalCollector` 的 `List[TradingSignal]`，支持 SELL 优先逻辑、`BacktestResult.metadata`、基于 `TradeCalendarManager` 的精确 T+1 校验。`BacktestEngine` 保留供旧代码参考，新项目不应使用。
+
 ## 回测模式总览
 
-UniQuant 提供四种回测模式，覆盖从基础验证到稳健性检验的完整流程：
+### UnifiedBacktestEngine (推荐)
+
+`UnifiedBacktestEngine` 通过 `run()` 方法接收 K 线数据和预处理好的信号列表：
+
+```python
+import pandas as pd
+from uniquant.hands.backtest.unified_engine import UnifiedBacktestEngine
+from uniquant.data.data_fetcher import DataFetcher
+from uniquant.signal.adapters import TradingSignalCollector
+
+# 1. 获取数据
+fetcher = DataFetcher(data_dir="./data")
+df = fetcher.fetch_stock_daily("600036", "2023-01-01", "2024-12-31", adjust="qfq")
+
+# 2. 收集信号（从分析引擎输出转换）
+collector = TradingSignalCollector()
+# signals = collector.collect(engine_outputs, symbol="600036")
+# 也可手动构造 TradingSignal 列表
+
+# 3. 运行回测
+engine = UnifiedBacktestEngine(initial_capital=100000.0)
+result = engine.run(df=df, signals=signals, symbol="600036")
+
+print(f"总收益率: {result.total_return:.2%}")
+print(f"夏普比率: {result.sharpe_ratio:.2f}")
+print(f"最大回撤: {result.max_drawdown:.2%}")
+print(f"交易次数: {len(result.trades)}")
+```
+
+`UnifiedBacktestEngine` 当前提供单资产回测模式。如需滚动窗口、Walk-Forward 或压力测试，可使用旧版 `BacktestEngine`（见下文旧版引擎章节），或通过外部循环组合多次 `run()` 调用实现。
+
+### BacktestEngine (旧版，已弃用)
+
+旧版 `BacktestEngine` 提供四种回测模式，覆盖从基础验证到稳健性检验的完整流程：
 
 | 模式 | 方法 | 说明 | 适用场景 |
 |------|------|------|----------|
@@ -15,9 +59,9 @@ UniQuant 提供四种回测模式，覆盖从基础验证到稳健性检验的�
 
 所有模式均通过 `UnifiedMatchingEngine` 统一撮合引擎执行，强制遵循 A 股 T+1、涨跌停、印花税等约束。
 
-## 单资产回测
+### 单资产回测 (BacktestEngine)
 
-单资产回测是最基本的回测模式。通过 `run_backtest()` 方法运行：
+单资产回测通过 `run_backtest()` 方法运行。信号生成器是一个可调用函数，接收历史数据切片和上下文：
 
 ```python
 result = engine.run_backtest(
@@ -53,7 +97,9 @@ def signal_generator(
 - `BUY` 信号仅在空仓时触发，`SELL` 信号仅在持仓时触发
 - `context` 包含当前持仓、成本和可用资金，可用于仓位管理逻辑
 
-### 完整代码示例
+### 完整代码示例 (BacktestEngine — 旧版)
+
+> 以下示例使用已弃用的 `BacktestEngine`，保留供旧代码维护参考。新项目请使用上文的 `UnifiedBacktestEngine`。
 
 ```python
 import pandas as pd

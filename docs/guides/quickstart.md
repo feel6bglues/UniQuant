@@ -155,7 +155,9 @@ calendar = container.get("calendar")
 
 ## 第四步: 运行回测
 
-`BacktestEngine` 支持单资产回测、滚动窗口回测、Walk-forward 验证和压力测试。以下是一个简单的均线交叉策略回测：
+> **推荐使用 `UnifiedBacktestEngine`**: 以下示例使用旧版 `BacktestEngine` 保留供旧代码参考。新项目应使用 `UnifiedBacktestEngine`，它接收来自 `TradingSignalCollector` 的 `List[TradingSignal]`，支持类型化信号输入和 SELL 优先逻辑。详见 [回测指南](backtest.md)。
+
+`BacktestEngine` (旧版) 支持单资产回测、滚动窗口回测、Walk-forward 验证和压力测试。以下是一个简单的均线交叉策略回测：
 
 ```python
 import pandas as pd

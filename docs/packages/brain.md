@@ -1,6 +1,6 @@
 # brain -- 信号生成引擎
 
-> **状态:** ⚠️ 部分可用 | **当前文件:** 5/30+ | **可用子包:** czsc, fsm, lppl (部分)
+> **状态:** ✅ 全部可用 | **当前文件:** 74 | **子包:** 10 (czsc, fsm, lppl, wyckoff, ntf, regime, alpha_decoupler, factors, indicators, screener) | **公开导出:** 16 个类
 
 brain 包是 UniQuant 的分析决策核心，约 12K LOC，包含 10 个子包：
 
@@ -20,13 +20,16 @@ brain 包是 UniQuant 的分析决策核心，约 12K LOC，包含 10 个子包�
 公开导出（`__init__.py`）：
 
 ```python
-from .czsc import CZSCEngine, CZSCSignalType, CZSCAnalysisError
-from .ntf import NTFEngine
-from .fsm import FSM, FSMState
-from .regime import RegimeDetector, Regime, RegimeDetectionError
-from .indicators import Indicators, IndicatorError
-from .screener import StockScreener, ScreenerConfig
+# 引擎类
 from .alpha_decoupler import AlphaDecoupler
+from .fsm import DecisionBrain, FSM, FSMState
+from .ntf import NTFEngine
+from .regime import RegimeDetector
+from .indicators import Indicators
+from .screener import StockScreener
+# 因子系统
+from .factors import FactorRegistry, FactorAnalyzer, FactorComposer, FinancialFactorBridge
+# 子包
 from . import factors
 from . import lppl
 ```

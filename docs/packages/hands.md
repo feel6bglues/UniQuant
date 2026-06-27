@@ -1,6 +1,6 @@
 # hands -- 回测与策略
 
-> **状态:** 🔴 待迁移 | **当前文件:** 1/19+ | **迁移阶段:** Phase 1E
+> **状态:** ✅ 已就绪 | **当前文件:** 34 | **说明:** UnifiedBacktestEngine 是当前主力回测引擎；BacktestEngine 已弃用
 
 `uniquant.hands` 模块是 UniQuant 的策略执行与回测子系统，约 4.7K LOC。该模块提供完整的回测引擎、统一撮合引擎、组合回测引擎、策略框架及内置策略，并包含丰富的回测分析工具（Monte Carlo 模拟、过拟合检测、稳健性检查、敏感性分析）。
 
@@ -8,9 +8,13 @@
 
 ---
 
-## BacktestEngine 回测引擎
+## BacktestEngine 回测引擎 (已弃用)
 
-`BacktestEngine` 位于 `hands.backtest.engine`，是单资产回测的核心入口。支持 4 种回测模式：
+> **⚠️ 已弃用**: `BacktestEngine` (位于 `hands.backtest.engine`) 已标记为 DEPRECATED，文件头部标注"请使用 UnifiedBacktestEngine"。新项目应直接使用 [`UnifiedBacktestEngine`](https://github.com/uniquant/uniquant/blob/main/src/uniquant/hands/backtest/unified_engine.py)。
+>
+> 以下文档保留供维护旧代码参考，新开发请跳至下方 UnifiedMatchingEngine 和 UnifiedBacktestEngine 章节。
+
+`BacktestEngine` 位于 `hands.backtest.engine`，是单资产回测的历史核心入口。支持 4 种回测模式：
 
 ### 构造函数
 
@@ -63,6 +67,24 @@ class StrategyProtocol(Protocol):
 - **板级涨跌停检查**：`compute_limit_status_vectorized` 根据 `MarketConstants.LIMIT_RATIO` 和 `get_board_type(symbol)` 判断每只股票所属板块（主板/创业板/科创板/北交所），分别适用不同涨跌停比例。买入时拒绝涨停股，卖出时拒绝跌停股。
 - **非线性滑点模型**：`compute_execution_prices` 基于成交量占比计算冲击成本 `impact = min(0.001 * sqrt(vol_ratio), 0.02)`，叠加基础滑点 `slippage_rate`。
 - **交易成本**：买入收取佣金（不低于 `min_commission`）；卖出额外收取印花税（`stamp_duty_rate`）。
+
+## UnifiedBacktestEngine 统一回测引擎
+
+> **推荐使用**: `UnifiedBacktestEngine` 位于 `hands.backtest.unified_engine`，是当前主力回测引擎，支持类型化 `TradingSignal` 输入、A股 SELL 优先逻辑、`BacktestResult.metadata` 扩展。
+
+`UnifiedBacktestEngine` 取代了旧的 `BacktestEngine`，提供更严格的类型安全和 A 股规则执行：
+
+```python
+from uniquant.hands.backtest.unified_engine import UnifiedBacktestEngine
+from uniquant.shared.interfaces import TradingSignal
+
+engine = UnifiedBacktestEngine(initial_capital=100000.0)
+result = engine.run(
+    df=df,
+    signals=[TradingSignal(action="BUY", ...)],
+    symbol="600036",
+)
+```
 
 ### FillResult 数据类
 

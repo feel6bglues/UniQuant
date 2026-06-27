@@ -42,7 +42,7 @@ Current components:
 | `FactorAnalyzer` | Computes Rank IC/ICIR, blocks LIVE mode for forward returns | `src/uniquant/brain/factors/analyzer.py:243-360`, `src/uniquant/brain/factors/analyzer.py:283-288` |
 | `check_lookahead_leakage()` | Future perturbation invariance test | `src/uniquant/brain/factors/analyzer.py:25-84` |
 | `WalkForwardFactorPipeline` | Temporal train/test split, OOS composite IC, weight stability | `src/uniquant/brain/factors/walk_forward_pipeline.py:62-78`, `src/uniquant/brain/factors/walk_forward_pipeline.py:153-228` |
-| Auto-mined generator | Genetic factor miner with stated Reaper rule: `PBO < 0.2` and `OOS IC > 0.03` | `src/uniquant/brain/factors/auto_mined/generator.py:1-14` |
+| ~~Auto-mined generator~~ | ~~Genetic factor miner~~ (moved to `experiments/gp_factor_mining/` 2026-06-17, algorithm defects found) | `experiments/gp_factor_mining/generator.py:1-14` |
 | Config | Enables/weights factors in `config/factors.yaml` | `config/factors.yaml:1-15` |
 
 Current gap:
@@ -154,7 +154,7 @@ Priority: Sprint 2
 
 Evidence:
 
-- Auto-mined generator docstring states Reaper rule: `PBO < 0.2 ∧ OOS IC > 0.03` (`src/uniquant/brain/factors/auto_mined/generator.py:8-10`).
+- ~~Auto-mined generator~~ docstring states Reaper rule: `PBO < 0.2 ∧ OOS IC > 0.03` (`experiments/gp_factor_mining/generator.py:8-10`). Moved out of production path 2026-06-17.
 - Stage 4 found PBO is implemented in experiment scripts rather than formalized as an admission gate.
 
 Impact:
@@ -262,7 +262,7 @@ Priority: Sprint 2 design, Sprint 3 implementation
 Evidence:
 
 - Current worktree shows many old `auto_mined` factor files deleted and new `factor_001.py` to `factor_025.py` files untracked.
-- `auto_mined/generator.py` exposes a new controlled mining framework with complexity limits and Reaper criteria (`src/uniquant/brain/factors/auto_mined/generator.py:1-14`).
+- ~~`auto_mined/generator.py`~~ exposed a new controlled mining framework that was moved to `experiments/gp_factor_mining/generator.py` (2026-06-17) with three algorithmic defects identified: `abs(mean_ic)` direction error, Gaussian PBO approximation, broken code generation.
 
 Impact:
 

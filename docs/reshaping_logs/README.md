@@ -6,14 +6,16 @@
 
 本目录是本轮受控状态机审计与修复的唯一连续状态链。
 
-阶段 4 及后续剩余风险修复应优先读取:
+阶段 4 及后续剩余风险修复参见:
 
-- `MASTER_REMEDIATION_PLAN.md`
+- `docs/REMEDIATION_PLAN.md` (高层修复方案概览)
 - `docs/reshaping_logs/01_global_topology.md`
 - `docs/reshaping_logs/02_deep_inspection.md`
 - `docs/reshaping_logs/04_*.md`
 - `docs/reshaping_logs/05_*.md`
 - `docs/reshaping_logs/06_*.md`
+
+> **注意**: `MASTER_REMEDIATION_PLAN.md` 在修复过程中被重新组织为上述文档链。所有 Phase 0-6 修复已完成。
 
 `docs/` 下其他审计、评估、路线图和历史迁移报告只作为背景材料，不得直接作为当前代码状态依据。
 
@@ -49,7 +51,8 @@
 - `data/`、`signal/`、`hands/` 等 8 个声明层均已存在。
 - 原 `shared/constants.py` 已拆为 `src/uniquant/shared/constants/` 子包，并由 `__init__.py` 聚合导出。
 - P0/P1 全量回归基线见 `05_8_full_regression.md`: `1020 passed, 7 skipped, 12 warnings, 0 failed`。
-- 提交后最终基线见 `../RESHAPING_REMEDIATION_REPORT_20260609.md`: `1026 passed, 7 skipped, 12 warnings`，全仓 `ruff` 通过。
+- 提交后基线: `1026 passed, 7 skipped, 12 warnings` (参见 `../RESHAPING_REMEDIATION_REPORT_20260609.md`)。
+- **最新基线 (2026-06-12)**: `1034 passed, 8 skipped, 0 failed` (参见 `../analysis/institutional/17_institutional_closure_review_report.md`)。
 
 ## 历史文档处理规则
 

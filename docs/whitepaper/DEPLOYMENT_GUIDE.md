@@ -1,6 +1,6 @@
 # UniQuant 快速上手与部署指南
 
-> **版本**: v0.6.x | **源码快照**: 2026-06-21 | **Python**: ≥ 3.12
+> **版本**: v0.3+ | **源码快照**: 2026-06-01 (模块就绪表已更新) | **Python**: ≥ 3.12
 > **代码即真理**: 所有配置键、路径、版本约束均从 `pyproject.toml` 和 `config/*.yaml` 物理文件提取。
 
 ---
@@ -9,18 +9,18 @@
 
 UniQuant 是面向 A 股市场的全栈量化交易系统，覆盖数据接入、信号生成、因子分析、风险管理到回测撮合的完整量化工作流。
 
-**当前状态**: 重构中期 (Phase 0 未开始)。完成度 ~28% (44/160 文件, ~12.6K LOC)。
+**当前状态**: Phases 0-6 全部完成。~269 文件, ~59,441 LOC, 1034+ 测试通过, 8 层全部就绪。
 
 | 包 | 状态 | 文件数 | 说明 |
 |----|------|--------|------|
-| `shared/` | ✅ 基本完整 | 23 | 常量、异常、缓存、配置、成本模型 |
-| `data/` | ✅ 已迁移 | 60+ | 完整数据层 (mootdx/DuckDB/Parquet) |
-| `services/` | ⚠️ 部分可用 | 11 | 幽灵导入阻塞 `import uniquant.services` |
-| `brain/` | ⚠️ 部分可用 | 15 | czsc/fsm/lppl/wyckoff/ntf/regime + indicators/screener/alpha_decoupler |
-| `risk/` | ⚠️ 部分可用 | 8 | drawdown_analyzer/evt_risk/sizer/portfolio_optimizer/structural |
-| `hands/` | ⚠️ 部分可用 | 14+ | backtest 引擎完整, strategies/tuning 部分 |
-| `ui/` | ⚠️ 部分可用 | 2 | Streamlit 仪表盘 (1518 行) |
-| `signal/` | 🔲 不存在 | 0 | 信号归一化/聚合/持久化待新建 |
+| `shared/` | ✅ 全部就绪 | 41 | Protocols、常量、异常、缓存、配置、成本模型、TimeProvider |
+| `data/` | ✅ 全部就绪 | 65 | 多源数据摄取、数据湖、管理器、管道、服务、复权 |
+| `services/` | ✅ 全部就绪 | 31 | ServiceContainer + AnalysisService + DataService + 8 个服务 |
+| `brain/` | ✅ 全部就绪 | 74 | CZSC/FSM/LPPL/Wyckoff/NTF/Regime/AlphaDecoupler/Factors/Indicators/Screener |
+| `risk/` | ✅ 全部就绪 | 7 | PositionSizer/DrawdownAnalyzer/EVTRisk/PortfolioOptimizer/StructuralRisk |
+| `hands/` | ✅ 全部就绪 | 34 | UnifiedBacktestEngine + UnifiedMatchingEngine + PortfolioEngine + Strategies |
+| `ui/` | ✅ 全部就绪 | 8 | Dashboard/ManagerLogic/HealthCheck/Components/LPPLVisualizer/Report/Portfolio |
+| `signal/` | ✅ 全部就绪 | 7 | 8 Adapters + Arbitrator + SignalModel/Normalization/Aggregation/Quality |
 
 ---
 
@@ -53,7 +53,7 @@ pip install -e ".[all,dev]"
 pip install -e ".[dev]"
 ```
 
-**注意**: 根目录 `pyproject.toml` 已存在，无需复制 `docs/pyproject.toml`。
+**注意**: 根目录 `pyproject.toml` 是唯一事实源。`docs/pyproject.toml` 曾存在但已移除（副本跟不上根文件更新）。
 
 ### 2.3 核心依赖
 

@@ -1,9 +1,9 @@
 # UniQuant 完整问题清单与重构计划
 
 > 合并自：
-> - `PROJECT_AUDIT_20260523.md`（原始审计，17 项）
-> - `PROJECT_AUDIT_SUPPLEMENT_20260523.md`（补充审计 + 交叉验证，新 17 项）
-> - `REFACTORING_PLAN.md`（原始重构计划，28 项，6 阶段）
+> - `archive/PROJECT_AUDIT_20260523.md`（原始审计，17 项）
+> - `archive/PROJECT_AUDIT_SUPPLEMENT_20260523.md`（补充审计 + 交叉验证，新 17 项）
+> - `archive/REFACTORING_PLAN.md`（原始重构计划，28 项，6 阶段）
 > - 针对原始计划的二次审计校验（发现遗漏 + 建议修正）
 > - **v3.0 三次审计校验**：基于代码实证的全面核实，修正过时描述，补充遗漏问题
 >
@@ -267,7 +267,7 @@
 ### Task 0.4: 旧导入路径兼容 Shim（P0-01 补充）
 
 - **修复**: 添加向前兼容 shim 模块（`from .czsc.czsc_engine import *`）+ `DeprecationWarning`
-- **文件**: `src/uniquant/brain/czsc_engine.py`, `ntf_engine.py`, `regime_detector.py`（新增）
+- **文件**: `src/uniquant/brain/czsc/czsc_engine.py`, `brain/ntf/ntf_engine.py`, `brain/regime/regime_detector.py`（新增 shim）
 - **验收**: 旧路径 import 正常，触发警告
 
 **Phase-0 退出标准**: 全部测试在无手动 `PYTHONPATH` 环境下收集通过。
@@ -781,13 +781,13 @@
 | `src/uniquant/signal/quality.py` | 修改 | S.4 |
 | `src/uniquant/ui/health_check.py` | 修改 | S.5 |
 | `src/uniquant/ui/components.py` | 修改 | S.6, 3.3 |
-| `src/uniquant/services/analysis_service.py` | 修改 | S.7, 4.3, 2a.1 |
+| `src/uniquant/services/analysis_service_v2.py` | 修改 | S.7, 4.3, 2a.1 |
 | `src/uniquant/brain/czsc/czsc_engine.py` | 修改 | S.7 |
 | `tests/conftest.py` | 修改 | 0.1 |
 | `pyproject.toml` | 修改 | 0.1, 0.3 |
-| `src/uniquant/brain/czsc_engine.py` | 新增 shim | 0.4 |
-| `src/uniquant/brain/ntf_engine.py` | 新增 shim | 0.4 |
-| `src/uniquant/brain/regime_detector.py` | 新增 shim | 0.4 |
+| `src/uniquant/brain/czsc/czsc_engine.py` | 新增 shim | 0.4 |
+| `src/uniquant/brain/ntf/ntf_engine.py` | 新增 shim | 0.4 |
+| `src/uniquant/brain/regime/regime_detector.py` | 新增 shim | 0.4 |
 | `src/uniquant/shared/config_loader.py` | 修改 | 0.2 |
 | `src/uniquant/hands/backtest/engine.py` | **大幅重构** | 1a.1, 1b.1 |
 | `src/uniquant/hands/backtest/unified_matching_engine.py` | 修改 | 1b.3 |
@@ -827,7 +827,7 @@
 | `src/uniquant/services/data_service.py` | 修改 | 4.4 |
 | `src/uniquant/data/lake/storage_manager.py` | 修改 | 4.4 |
 | `src/uniquant/data/pipeline/data_validator.py` | 修改 | 4.5 |
-| `src/uniquant/shared/constants.py` | 修改 | 4.6 |
+| `src/uniquant/shared/constants/__init__.py` | 修改 | 4.6 |
 | `src/uniquant/brain/wyckoff/rules.py` | 修改 | 4.7 |
 | `src/uniquant/brain/wyckoff/classifiers.py` | 修改 | 4.7 |
 | `src/uniquant/signal/db.py` | 修改 | 4.10 |

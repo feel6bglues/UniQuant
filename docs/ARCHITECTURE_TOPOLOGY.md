@@ -1,6 +1,7 @@
 # UniQuant 系统架构拓扑与接口抽提报告
 
 > 扫描时间: 2026-06-07 | 基于 `src/uniquant/` 物理结构 | 仅分析目录/类声明/函数签名/Import/DI
+> **注意**: 部分文件名在后续重构中已变更（`analysis_service.py`→`analysis_service_v2.py`, `constants.py`→`constants/` 等）。Mermaid 图反映的是扫描时结构，未更新。
 
 ---
 
@@ -200,8 +201,16 @@ graph TD
 
 | 数据类 | 字段数 | 用途 | 使用方 |
 |--------|--------|------|--------|
+| `ResearchDataPack` | 12 | 类型化 Brain 输出数据包（替代 Dict），受 `use_research_data_pack` 开关保护 | `DataService`, `AnalysisService`, `ResearchPipeline` |
 | `MarketSignalContext` | 18 | DecisionBrain 类型化输入信号包 | `FSM`, `DecisionBrain.make_decision()` |
 | `TradingSignal` | 6 | Brain↔Hands 统一信号 (action 映射) | BacktestEngine 输入 |
+| `RegimeOutput` | 4 | Regime 引擎类型化输出 | `regime_analysis_engine.py` |
+| `LPPLOutput` | 4 | LPPL 引擎类型化输出 | `lppl_analysis_engine.py` |
+| `CZSCOutput` | 4 | CZSC 引擎类型化输出 | `czsc_analysis_engine.py` |
+| `NtfOutput` | 2 | NTF 引擎类型化输出 | `ntf_analysis_engine.py` |
+| `WyckoffOutput` | 5 | Wyckoff 引擎类型化输出 | `wyckoff_analysis_engine.py` |
+| `AlphaOutput` | 2 | Alpha 引擎类型化输出 | `alpha_decoupler.py` |
+| `DecisionOutput` | 7 | DecisionBrain 类型化决策结果 | `arbitrator.py` |
 
 **TradingSignal action 映射表**:
 ```
@@ -242,15 +251,16 @@ class DataSource(ABC):
 | 引擎 | 核心方法 | 输入类型 | 输出类型 |
 |------|----------|----------|----------|
 | `FSM` | `infer_state(df)` | `DataFrame` | `Dict` (state, reason, ma_status) |
-| `DecisionBrain` | `make_decision(data_pack)` | `Dict[str, DataFrame]` | `Dict` (action, score, reason) |
-| `CZSCEngine` | `get_czsc_signals(df)` | `DataFrame` | `Dict` (czsc_signal, is_3rd_buy, bi_count) |
-| `LPPLEngine` | `detect_bubble(df, column)` | `DataFrame` | `Dict` (risk_level, confidence, votes) |
-| `WyckoffEngine` | `analyze(df, ...)` | `DataFrame` | `Dict` (phase, confidence, spring_detected) |
-| `RegimeDetector` | `detect(df)` | `DataFrame` | `Regime` dataclass |
-| `NTFEngine` | `detect_intervention(df, ...)` | `DataFrame` | `Dict` (side, intensity) |
-| `AlphaDecoupler` | `get_alpha_score(stock_df, bench_df, sector_df)` | `DataFrame × 3` | `float` |
+| `DecisionBrain` | `make_decision(data_pack)` | `Dict[str, DataFrame]` | `DecisionOutput` (action, score, reason) |
+| `CZSCEngine` | `get_czsc_signals(df)` | `DataFrame` | `CZSCOutput` (is_3rd_buy, bi_count, bottom) |
+| `LPPLEngine` | `detect_bubble(df, column)` | `DataFrame` | `LPPLOutput` (risk_level, confidence, days_to_tc) |
+| `WyckoffEngine` | `analyze(df, ...)` | `DataFrame` | `WyckoffOutput` (phase, confidence, spring, utad) |
+| `RegimeDetector` | `detect(df)` | `DataFrame` | `RegimeOutput` (regime, entropy, turnover_z) |
+| `NTFEngine` | `detect_intervention(df, ...)` | `DataFrame` | `NtfOutput` (side, intensity) |
+| `AlphaDecoupler` | `get_alpha_score(stock_df, bench_df, sector_df)` | `DataFrame × 3` | `AlphaOutput` (score, factors) |
 
 **问题**: 无统一的 `analyze(data, **kwargs) → Dict` 签名，`AnalysisEngineProtocol` 形同虚设。
+**Phase 4 改进**: LPPL/CZSC/NTF/Wyckoff 4 个 AnalysisEngine 已返回 `LPPLOutput`/`CZSCOutput`/`NtfOutput`/`WyckoffOutput` 类型化输出，受 `use_research_data_pack` 开关保护。ResearchDataPack 字段注解已更新为对应输出类型。
 
 ### 2.6 因子系统契约 (`brain/factors/`)
 

@@ -1,15 +1,17 @@
 # UniQuant 核心算法与撮合架构白皮书
 
-> **版本**: v0.6.x | **源码快照**: 2026-06-21 | **完成度**: 100% (263/263 .py 文件, ~58K LOC)
+> **版本**: v0.3+ | **源码快照**: 2026-06-01 (架构内容仍有效，但完成度已过时) | **当前完成度**: ~100% (269 文件, ~59,441 LOC, 8 层全部就绪, 1034+ 测试)
 > **代码即真理**: 所有 API 签名、行号引用均从物理源码提取。`[WIP]` 标记表示空壳或桩实现。
 
 ---
 
 ## 1. 系统架构总览
 
-### 1.1 五层 DAG 架构图
+### 1.1 六层 DAG 架构图
 
-UniQuant 采用严格的五层有向无环图 (DAG) 架构，上层依赖下层，**禁止反向依赖和循环引用**。
+UniQuant 采用严格的六层有向无环图 (DAG) 架构 (L0-L5)，上层依赖下层，**禁止反向依赖和循环引用**。
+
+> **`signal/` 是横切层**: `signal` 包（7 文件，8 Adapters + Arbitrator）的职责是标准化 brain 输出为 `TradingSignal`。它在逻辑上跨越 L2（消费 brain 引擎输出）、L0（`TradingSignal` 类型定义于 `interfaces.py`）和 L4（`adapters.py` 在服务层编排）。架构图中未单独列为一层，但其存在是 L2→L3 信号传输的关键桥梁。
 
 ```mermaid
 graph TD
@@ -1049,9 +1051,9 @@ class BacktestResult:
 | services | `services/service_container.py` | 83 | ✅ |
 | services | `services/analysis/engine_factory.py` | 79 | ✅ |
 
-**未实现/桩模块**:
-- `risk/sizer.py` → `PositionSizer` 存在但依赖未完全
-- `risk/evt_risk.py` → `HistoricalSimulationRisk` 存在但 deprecated wrapper
+**历史备注 (2026-06-01)**: 以下模块当时为有限实现；当前已全部功能完善（见 [risk package](../packages/risk.md)）:
+- `risk/sizer.py` → `PositionSizer`: 已实现 kelly/penalty/shares 计算
+- `risk/evt_risk.py` → `HistoricalSimulationRisk`: 已实现 VaR/CVaR/相关性/回撤等指标
 
 ---
 

@@ -24,6 +24,8 @@ UniQuant 因子系统提供了一套完整的多因子研究管道，覆盖因�
 
 ## 因子注册 (FactorRegistry)
 
+> **注意**: 项目中存在两个 `FactorRegistry` 类。(1) `brain.factors.registry.FactorRegistry` — **实际使用的注册中心**，单例模式 + 线程安全锁 + `check_access()` 权限控制；(2) `shared.factor_governance.FactorRegistry` — 旧版设计，已标记弃用，仅保留向后兼容桩。所有因子操作应使用 `from uniquant.brain.factors.registry import FactorRegistry`。
+
 `FactorRegistry` 是全局因子注册中心，采用**单例模式 + 线程安全锁**实现。所有因子必须在此注册后，才能被 FactorAnalyzer、FactorComposer 及扫描管道使用。
 
 ### 因子元信息 (FactorInfo)

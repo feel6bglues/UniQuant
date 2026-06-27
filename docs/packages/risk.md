@@ -1,6 +1,6 @@
 # risk -- 风险管理
 
-> **状态:** ⚠️ 部分可用 | **当前文件:** 1/7 | **可用:** drawdown_analyzer
+> **状态:** ✅ 全部可用 | **当前文件:** 7/7 | **模块:** sizer, drawdown_analyzer, evt_risk, historical_risk, portfolio_optimizer, structural
 
 `uniquant.risk` 包提供组合优化、仓位管理、回撤分析、极值风险计算和结构性风险评估能力，约 1.3K LOC。该包被 services 层和 ui 层广泛调用，是系统风控体系的核心。
 

@@ -338,7 +338,7 @@ Checklist:
 
 Artifact options:
 
-- Append to `03_backtest_integrity_audit.md`, or create `03b_matching_engine_audit.md`.
+- ✅ Append to `03_backtest_integrity_audit.md` (03b was not created separately)
 
 Acceptance:
 

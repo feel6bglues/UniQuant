@@ -195,7 +195,7 @@ reports:
 
 ### 重点涉及文件
 
-- `scripts/research_run.py` or `src/uniquant/research/run.py`
+- `scripts/research_run.py`
 - `config/research/`
 - `src/uniquant/services/research_pipeline.py`
 - `src/uniquant/hands/reporter.py`

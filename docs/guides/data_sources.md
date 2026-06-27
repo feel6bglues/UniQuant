@@ -18,7 +18,7 @@ UniQuant 内置支持以下数据源，每个数据源的能力范围和安装�
 | THS (同花顺) | 是 | 是 | 否 | 否 | 否 | 否 | 否 | 已含在基础依赖中 |
 | Eastmoney (东方财富) | 是 | 是 | 是 | 是 | 是 | 是 | 是 | 已含在基础依赖中 |
 
-> **说明**: 当前默认启用的数据源为合并后的 `StockDataSource`、`IndexDataSource` 和 `EtfDataSource`，传统的单数据源（BaoStock、Sina、Tencent、Eastmoney、THS）在配置中默认禁用，可按需开启。
+> **说明**: 运行时的数据源由 `DataFetcher` 硬编码初始化（见 `src/uniquant/data/data_fetcher.py`），依次尝试 TDX → BaoStock → Sina → Tencent → THS → Eastmoney，直到首个成功的数据源。配置文件 `config.yaml` 中的 `data_sources.sources` 区块定义了合并型 `StockDataSource`/`IndexDataSource`/`EtfDataSource` 的蓝图，但该路由尚未接入当前运行时 `DataFetcher`。扩展新数据源仍需修改 `DataFetcher` 初始化代码，详见 §添加新数据源。
 
 ---
 

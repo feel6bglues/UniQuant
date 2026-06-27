@@ -1,6 +1,8 @@
 # 剩余 5 项修复计划
 
-**基线**: 986 passed, 7 skipped, 0 failed | **生成**: 2026-06-08
+> **⚠️ 测试数时效性**: 本文件基线为 986 passed (2026-06-08)。当前最新基线为 **1034 passed** (2026-06-12)。详见 [`docs/REFACTORING_PLAN_COMPLETE.md`](REFACTORING_PLAN_COMPLETE.md) 和 [`docs/index.md`](index.md)。以下修复计划内容本身仍然有效。
+
+**基线**: 986 passed, 7 skipped, 0 failed (2026-06-08) | **当前**: 1034 passed, 8 skipped, 0 failed (2026-06-12)
 
 ---
 

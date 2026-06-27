@@ -1,5 +1,7 @@
 # UniQuant 系统架构文档
 
+> **⚠️ 部分文件路径已过时**: 此文档中的文件路径树（§文件结构）基于早期模块布局。自 Phase 0-3 重构后，部分文件已重命名（如 `analysis_service.py` → `analysis_service_v2.py`）或重组（如 `constants.py` → `constants/` 子包, `czsc_engine.py` → `czsc/` 子包）。整体架构描述仍然有效。
+
 本文档详细描述 UniQuant 量化交易平台的整体架构设计、核心组件、数据流转以及关键设计决策。
 
 ---

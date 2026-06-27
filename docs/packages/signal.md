@@ -1,6 +1,6 @@
 # signal -- 信号系统
 
-> **状态:** 🔴 待迁移 | **当前文件:** 0/6 | **说明:** 整个包需新建或从 TDX 迁移
+> **状态:** ✅ 已就绪 | **当前文件:** 9 | **说明:** 8个Adapter + Arbitrator + 归一化/聚合/质量模块全部运行中
 
 `uniquant.signal` 包实现了统一的信号建模、归一化、聚合、质量评估和持久化流水线，约 906 LOC。该包是连接 brain 层（LPPL/Wyckoff/CZSC/NTF/FSM 等引擎）与 risk/hands 层的桥梁：brain 产出原始信号 -> signal 归一化为标准 `Signal` -> 聚合为共识 -> 评估质量 -> 持久化存储。
 

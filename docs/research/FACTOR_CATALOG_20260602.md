@@ -9,6 +9,14 @@
 
 ## 概览
 
+> **🎯 历史文档 (Session 5, 2026-06-02)**  
+> 自动因子挖掘已在 2026-06-17 重构中彻底整改：
+> 1. `auto_mined/` 目录整体迁出生产包 → `experiments/gp_factor_mining/`
+> 2. 25 个 `factor_*.py` 文件已删除（全部为 `return (amount)` 垃圾因子）
+> 3. GP 引擎中的 `abs(mean_ic)` 方向性错误已于归档时标记
+> 4. `register_auto_mined.py` 及其 9 因子注册代码已随目录移除  
+> **本文件保留作为历史参考，所有代码路径已失效。**
+
 | 因子 | 引擎 | ICIR | 持有期 | 方向 | 权重 |
 |------|------|------|--------|------|------|
 | [am_wyckoff_action](#1-am_wyckoff_action) | Wyckoff | 0.6437 | 5d | 双向 | 0.85 |
@@ -31,7 +39,7 @@
 |------|-----|
 | Registry 名 | `am_wyckoff_action` |
 | 类别 | `alternative` |
-| 文件 | `src/uniquant/brain/factors/auto_mined/round_01_wyckoff_confidence.py` |
+| ~~原文件~~ | ~~已迁移~~ `experiments/gp_factor_mining/generator.py` |
 | 函数 | `compute_wyckoff_phase_confidence(df, mode='backtest')` |
 | 持有期 | 5d（最优），20d（ICIR=0.60）|
 
@@ -87,7 +95,7 @@ if sig['utad_detected']:
 |------|-----|
 | Registry 名 | `am_lppl_days_to_tc` |
 | 类别 | `alternative` |
-| 文件 | `src/uniquant/brain/factors/auto_mined/round_02_lppl_bubble_risk.py` |
+| ~~原文件~~ | ~~已迁移~~ `experiments/gp_factor_mining/generator.py` |
 | 函数 | `compute_lppl_bubble_risk(df, mode='backtest')` |
 | 持有期 | 20d（最优），5d（ICIR=0.04）|
 
@@ -135,7 +143,7 @@ score = tanh(days_to_tc / 60.0)
 |------|-----|
 | Registry 名 | `am_regime_rsi_momentum` |
 | 类别 | `technical` |
-| 文件 | `src/uniquant/brain/factors/auto_mined/round_03_regime_rsi_reversion.py` |
+| ~~原文件~~ | ~~已迁移~~ `experiments/gp_factor_mining/generator.py` |
 | 函数 | `compute_regime_rsi_reversion(df, mode='backtest')` |
 | 持有期 | 5d（最优）|
 
@@ -193,7 +201,7 @@ factor = rsi_signal * regime_weight
 |------|-----|
 | Registry 名 | `am_entropy_shock` |
 | 类别 | `alternative` |
-| 文件 | `src/uniquant/brain/factors/auto_mined/round_04_entropy_shock_reversion.py` |
+| ~~原文件~~ | ~~已迁移~~ `experiments/gp_factor_mining/generator.py` |
 | 函数 | `compute_entropy_shock_reversion(df, mode='backtest')` |
 | 持有期 | 5d（最优）|
 
@@ -246,7 +254,7 @@ p_i = P(收益率落在第i个区间)，共10个区间
 |------|-----|
 | Registry 名 | `am_stealth_accumulation` |
 | 类别 | `technical` |
-| 文件 | `src/uniquant/brain/factors/auto_mined/round_05_vol_price_exhaustion.py` |
+| ~~原文件~~ | ~~已迁移~~ `experiments/gp_factor_mining/generator.py` |
 | 函数 | `compute_vol_price_exhaustion(df, mode='backtest')` |
 | 持有期 | 5d（最优）|
 
@@ -300,7 +308,7 @@ factor = (factor - factor.rolling(60).mean()) / (factor.rolling(60).std() + 1e-8
 |------|-----|
 | Registry 名 | `am_ma_dispersion_regime` |
 | 类别 | `technical` |
-| 文件 | `src/uniquant/brain/factors/auto_mined/round_07_ma_dispersion_regime.py` |
+| ~~原文件~~ | ~~已迁移~~ `experiments/gp_factor_mining/generator.py` |
 | 函数 | `compute_ma_dispersion_regime(df, mode='backtest')` |
 | 持有期 | 5d（最优）|
 
@@ -359,7 +367,7 @@ factor = dispersion * regime_flip
 |------|-----|
 | Registry 名 | `am_wyckoff_contrarian` |
 | 类别 | `alternative` |
-| 文件 | `src/uniquant/brain/factors/auto_mined/round_08_wyckoff_persistence.py` |
+| ~~原文件~~ | ~~已迁移~~ `experiments/gp_factor_mining/generator.py` |
 | 函数 | `compute_wyckoff_persistence(df, mode='backtest')` |
 | 持有期 | 20d（最优），5d（ICIR=0.23）|
 
@@ -415,7 +423,7 @@ for i in sample_indices:
 |------|-----|
 | Registry 名 | `am_lppl_oscillation` |
 | 类别 | `alternative` |
-| 文件 | `src/uniquant/brain/factors/auto_mined/round_09_lppl_oscillation.py` |
+| ~~原文件~~ | ~~已迁移~~ `experiments/gp_factor_mining/generator.py` |
 | 函数 | `compute_lppl_oscillation_amplitude(df, mode='backtest')` |
 | 持有期 | 5d（最优）|
 
@@ -477,7 +485,7 @@ factor = -oscillation
 |------|-----|
 | Registry 名 | `am_multi_engine_ensemble` |
 | 类别 | `alternative` |
-| 文件 | `src/uniquant/brain/factors/auto_mined/round_10_multi_engine_ensemble.py` |
+| ~~原文件~~ | ~~已迁移~~ `experiments/gp_factor_mining/generator.py` |
 | 函数 | `compute_multi_engine_ensemble(df, mode='backtest')` |
 | 持有期 | 5d（最优）|
 
@@ -566,7 +574,7 @@ ensemble = pd.concat([s3, s4, s5, s7], axis=1).mean(axis=1)
 import sys
 sys.path.insert(0, 'src')
 
-from uniquant.brain.factors.auto_mined.register_auto_mined import register_all
+# from experiments.gp_factor_mining.register_auto_mined import register_all (已移除)
 register_all()
 
 from uniquant.brain.factors.registry import FactorRegistry
@@ -585,23 +593,14 @@ df = r.daily(symbol='000001')
 df.index = pd.to_datetime(df.index)
 df['date'] = df.index  # 必须：多数因子需要 date 列
 
-# 计算最强因子
-from uniquant.brain.factors.auto_mined.round_10_multi_engine_ensemble import (
-    compute_multi_engine_ensemble
-)
-ensemble_factor = compute_multi_engine_ensemble(df)
-print(f"最新因子值: {ensemble_factor.iloc[-1]:.4f}")
+# 计算最强因子 — 注: round_*.py 已删除, 因子框架已迁移至 generator.py
+# 具体计算接口参照 experiments/gp_factor_mining/ (2026-06-17 迁出生产包)
 ```
 
 ### 构建 IC 分析面板
 
 ```python
-from uniquant.brain.factors.auto_mined.mining_harness import (
-    build_factor_panel, compute_icir, UNIVERSE
-)
-from uniquant.brain.factors.auto_mined.round_10_multi_engine_ensemble import (
-    compute_multi_engine_ensemble
-)
+# 注: round_*.py 已删除; factor_*.py 已于 2026-06-17 清理（全部为 return (amount) 垃圾因子）
 
 panel = build_factor_panel(compute_multi_engine_ensemble, symbols=UNIVERSE)
 metrics = compute_icir(panel, holding_period=5)

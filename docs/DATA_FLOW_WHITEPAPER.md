@@ -1,6 +1,8 @@
 # UniQuant 数据流生命周期白皮书
 
 > 追踪目标: 数据形态的每一次突变 (Mutation) | 忽略算法数学 | 只关注 Shape/Type/Key/Index
+>
+> **⚠️ 类型声明更新**: 本文档的 `TradingSignal`, `WyckoffReport` 等类型在 Phase 1-3 已从 `dataclass` 重构为 `Protocol` (见 `shared/interfaces.py`)。数据流路径描述仍然有效，但具体类型定义以源码为准。
 
 ---
 
@@ -12,13 +14,13 @@ DF[col1, col2, ...]   = DataFrame 含指定列
 DF@index              = DataFrame 的 Index 类型 (DatetimeIndex / RangeIndex / MultiIndex)
 Series                = pd.Series
 Dict[k_type, v_type]  = Python dict
-Signal                = signal.models.Signal (dataclass)
-TradingSignal         = shared.interfaces.TradingSignal (dataclass)
-WyckoffReport         = brain.wyckoff.models.WyckoffReport (dataclass)
-FactorICResult        = brain.factors.analyzer.FactorICResult (dataclass)
+Signal                = signal.models.Signal (dataclass)  → Phase 3+: signal.adapters 接管
+TradingSignal         = shared.interfaces.TradingSignal (Protocol) → Phase 1-3: dataclass→Protocol
+WyckoffReport         = brain.wyckoff.models.WyckoffReport (dataclass) → Phase 3: WyckoffOutput
+FactorICResult        = brain.factors.analyzer.FactorICResult (dataclass) → 仍有效
 →                     = 数据形态转换箭头
 ⚠️                    = 数据丢失/风险点
-🔴                    = 断裂点 (无自动桥接)
+🔴                    = 断裂点 (无自动桥接) → Phase 3 大部分已修复
 ```
 
 ---
@@ -297,6 +299,12 @@ composite_score: add(..., fill_value=0.0)  ⚠️ NaN 被当作 0 参与加权
         "indicators": Dict,             # 技术指标
         "market": str,                  # "CN"
     }
+
+> **Phase 4 类型管道 (可选)**: 受 `use_research_data_pack` 开关控制。
+> 开启后 `AnalysisService._run_*` 将引擎输出存入 `ResearchDataPack.regime/.lppl/.czsc/.ntf/.wyckoff/.alpha` 字段,
+> `data_pack.metadata` 持有平坦键 (供 `to_dict()` 展开后兼容下游信号收集器)。
+> 4 个 AnalysisEngine (LPPL/CZSC/NTF/Wyckoff) 返回类型化输出 (`LPPLOutput`/`CZSCOutput`/`NtfOutput`/`WyckoffOutput`)。
+> 默认关闭, Dict 路径完全不受影响。
 
 ═══════════════════════════════════════════════════════════════
   ZONE 2: 胶水代码 — Dict → MarketSignalContext 转换

@@ -250,7 +250,7 @@ trace_id
 
 Deliverables:
 
-- `docs/analysis/institutional/04_historical_signal_series_design.md`
+- `docs/analysis/institutional/04_historical_signal_series_blueprint.md`
 - Contract proposal for `HistoricalSignalRunner`
 - Test plan
 
@@ -278,7 +278,7 @@ Tasks:
 
 Deliverable:
 
-- `docs/analysis/institutional/14a_research_refactoring_seed.md`
+- `docs/analysis/institutional/14_tdd_refactoring_design.md` (原计划 `14a_research_refactoring_seed.md` 内容合并至此)
 
 Acceptance:
 
@@ -354,7 +354,7 @@ Tasks:
 Deliverables:
 
 - `docs/analysis/institutional/07_factor_admission_governance.md`
-- `docs/templates/factor_admission_report.md`
+- `docs/templates/factor_admission_report.md` (计划模板文件，尚未创建)
 
 Acceptance:
 
@@ -434,7 +434,7 @@ Tasks:
 
 Deliverable:
 
-- `docs/analysis/institutional/10_risk_governance_research.md`
+- `docs/analysis/institutional/10_research_risk_governance.md`
 
 Acceptance:
 
@@ -512,7 +512,7 @@ Tasks:
 
 Deliverable:
 
-- `docs/analysis/institutional/13_production_readiness_placeholder.md`
+- `docs/analysis/institutional/13_production_readiness_report.md`
 
 Acceptance:
 

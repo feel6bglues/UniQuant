@@ -53,7 +53,7 @@ The current goal is not live automated trading. Therefore:
 | WS1 Architecture Discovery | `01_architecture_discovery.md` | Created |
 | WS2 Data Lineage Audit | `02_data_lineage_audit.md` | Completed |
 | WS3 Backtest Integrity Audit | `03_backtest_integrity_audit.md` | Completed |
-| WS3b Matching Engine Audit | `03b_matching_engine_audit.md` or included in `03_backtest_integrity_audit.md` | Included in WS3 |
+| WS3b Matching Engine Audit | ✅ 合并至 `03_backtest_integrity_audit.md` | Included in WS3 |
 | WS4 Historical Signal Series | `04_historical_signal_series_blueprint.md` | Completed |
 | WS5 Interface Contract Audit | `05_interface_contract_audit.md` | Completed |
 | WS6 Adapter Blueprint | `06_adapter_blueprint.md` | Completed |
@@ -69,6 +69,8 @@ The current goal is not live automated trading. Therefore:
 | Closure Review Plan | `16_institutional_closure_review_plan.md` | Created |
 | Closure Review Report | `17_institutional_closure_review_report.md` | Completed — P0-3/P0-4 Closed, P0-2/P0-5 Partially closed, P0-1 Open |
 | Final Consolidated Report | `99_final_institutional_audit_report.md` | Completed |
+| Execution Plan Recommendation | `EXECUTION_PLAN_RECOMMENDATION.md` | Completed |
+| Implementation Task Cards | `IMPLEMENTATION_PLAN_TASK_CARDS.md` | Completed |
 
 ## Post-Implementation Closure Review
 
