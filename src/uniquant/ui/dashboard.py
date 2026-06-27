@@ -1209,6 +1209,12 @@ with tabs[6]:
                                 f"**风险等级**: {bubble_result.get('risk_level', 'Safe')}"
                             )
                             st.write(
+                                f"**R²**: {bubble_result.get('r_squared', 0):.4f}"
+                            )
+                            st.write(
+                                f"**OOS R²**: {bubble_result.get('out_of_sample_r_squared', 0):.4f}"
+                            )
+                            st.write(
                                 f"**预测崩盘日**: {plot_data.get('crash_date', 'N/A')}"
                             )
                             st.write(
@@ -1240,6 +1246,25 @@ with tabs[6]:
                             st.error("⚠️ 泡沫警报：建议减仓或设置严格止损")
                         else:
                             st.success("✅ 市场正常：可按既定策略操作")
+
+                        # Wyckoff 阶段分析
+                        with st.expander("📊 Wyckoff 阶段分析", expanded=False):
+                            try:
+                                from uniquant.brain.wyckoff.engine import WyckoffEngine
+                                ds = lppl_visualizer.data_service
+                                wdf = ds.get_index_data(selected_index, 180)
+                                if wdf is not None and not wdf.empty:
+                                    we = WyckoffEngine(lookback_days=120)
+                                    wr = we.analyze(wdf.copy(), symbol=selected_index, period="日线")
+                                    phase = wr.structure.phase.value if wr.structure else "unknown"
+                                    conf = wr.signal.confidence.value if wr.signal and wr.signal.confidence else "D"
+                                    st.write(f"**当前阶段**: {phase}")
+                                    st.write(f"**置信度**: {conf}")
+                                    st.write(f"**方向**: {wr.trading_plan.direction if wr.trading_plan else '空仓观望'}")
+                                else:
+                                    st.write("Wyckoff 分析数据暂不可用")
+                            except Exception as wex:
+                                st.write(f"Wyckoff 分析暂不可用: {wex}")
 
                         # 拟合质量评估
                         st.markdown("### 🎯 拟合质量评估")

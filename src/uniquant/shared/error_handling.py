@@ -5,6 +5,7 @@ import random
 import threading
 import time
 import traceback
+import warnings
 from typing import Any, Callable, Dict, Optional, Tuple, Type
 
 import pandas as pd
@@ -192,15 +193,13 @@ def retry_on_exception(
     """重试装饰器
 
     .. deprecated::
-        请使用 ``src.shared.retry_decorator.retry`` 代替，此函数将在后续版本移除。
-
-    Args:
-        max_retries: 最大重试次数
-        backoff: 退避因子
-        retry_exceptions: 需要重试的异常类型
-        jitter: 是否添加随机抖动
-        max_wait_time: 最大等待时间
+        请使用 ``uniquant.shared.retry_decorator.retry`` 代替，此函数将在后续版本移除。
     """
+    warnings.warn(
+        "retry_on_exception 已弃用，请使用 retry_decorator.retry 代替",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     if max_retries is None:
         max_retries = NetworkConstants.MAX_RETRIES
     if backoff is None:
@@ -349,10 +348,15 @@ def with_context(context: Dict[str, Any]):
 def handle_network_errors(default_return: Any = None, max_retries: Optional[int] = None):
     """网络操作错误处理装饰器
 
-    Args:
-        default_return: 异常发生时的默认返回值
-        max_retries: 最大重试次数
+    .. deprecated::
+        请使用 ``uniquant.shared.retry_decorator.retry`` 配合 ``@handle_errors`` 代替。
+        此包装器将在后续版本移除。
     """
+    warnings.warn(
+        "handle_network_errors 已弃用，请使用 retry_decorator.retry 配合 @handle_errors 代替",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     network_exceptions = (
         requests.RequestException,
         urllib3.exceptions.HTTPError,
@@ -384,9 +388,15 @@ def handle_network_errors(default_return: Any = None, max_retries: Optional[int]
 def handle_file_errors(default_return: Any = None):
     """文件操作错误处理装饰器
 
-    Args:
-        default_return: 异常发生时的默认返回值
+    .. deprecated::
+        请使用 ``@handle_errors`` 捕获对应的文件异常代替。
+        此包装器将在后续版本移除。
     """
+    warnings.warn(
+        "handle_file_errors 已弃用，请直接使用 @handle_errors 代替",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     file_exceptions = (
         FileNotFoundError,
         PermissionError,
@@ -415,9 +425,15 @@ def handle_file_errors(default_return: Any = None):
 def handle_data_errors(default_return: Any = None):
     """数据处理错误处理装饰器
 
-    Args:
-        default_return: 异常发生时的默认返回值
+    .. deprecated::
+        请使用 ``@handle_errors`` 捕获对应的数据异常代替。
+        此包装器将在后续版本移除。
     """
+    warnings.warn(
+        "handle_data_errors 已弃用，请直接使用 @handle_errors 代替",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     data_exceptions = (
         pd.errors.EmptyDataError,
         pd.errors.ParserError,
@@ -446,10 +462,15 @@ def handle_data_errors(default_return: Any = None):
 def handle_api_errors(default_return: Any = None, max_retries: int = 3):
     """API操作错误处理装饰器
 
-    Args:
-        default_return: 异常发生时的默认返回值
-        max_retries: 最大重试次数
+    .. deprecated::
+        请使用 ``uniquant.shared.retry_decorator.retry`` 配合 ``@handle_errors`` 代替。
+        此包装器将在后续版本移除。
     """
+    warnings.warn(
+        "handle_api_errors 已弃用，请使用 retry_decorator.retry 配合 @handle_errors 代替",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     api_exceptions = (
         requests.RequestException,
         ValueError,

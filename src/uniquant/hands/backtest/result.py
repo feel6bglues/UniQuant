@@ -1,3 +1,4 @@
+import warnings
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Dict, List, Optional
@@ -8,7 +9,11 @@ import pandas as pd
 
 @dataclass
 class TradeRecord:
-    """交易记录"""
+    """交易记录
+
+    .. deprecated::
+        请使用 ``uniquant.hands.backtest.unified_engine.TradeRecord`` (UnifiedTradeRecord) 代替。
+    """
     timestamp: datetime
     action: str
     price: float
@@ -18,6 +23,14 @@ class TradeRecord:
     pnl: float = 0.0
     pnl_pct: float = 0.0
     reason: str = ""
+
+    def __post_init__(self):
+        warnings.warn(
+            "result.TradeRecord is deprecated. Use UnifiedTradeRecord from "
+            "uniquant.hands.backtest.unified_engine instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
 
     def to_dict(self) -> Dict[str, Any]:
         return {

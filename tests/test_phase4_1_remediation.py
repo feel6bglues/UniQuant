@@ -55,20 +55,26 @@ def test_data_aligner_does_not_backfill_leading_suspension_prices():
 
 
 def test_factor_registry_config_loader_failure_is_not_silent(monkeypatch):
-    FactorRegistry._factors.clear()
+    from uniquant.brain.factors.registry import FactorAccessLevel
+    saved_mode = FactorRegistry.get_mode()
+    FactorRegistry.set_mode(FactorAccessLevel.FREE)
+    try:
+        FactorRegistry._factors.clear()
 
-    def broken_config_loader():
-        raise RuntimeError("bad factors config")
+        def broken_config_loader():
+            raise RuntimeError("bad factors config")
 
-    monkeypatch.setattr(
-        "uniquant.shared.config_loader.get_config",
-        broken_config_loader,
-    )
+        monkeypatch.setattr(
+            "uniquant.shared.config_loader.get_config",
+            broken_config_loader,
+        )
 
-    with pytest.raises(RuntimeError, match="bad factors config"):
-        FactorRegistry.register("broken_factor", lambda df: df["close"])
+        with pytest.raises(RuntimeError, match="bad factors config"):
+            FactorRegistry.register("broken_factor", lambda df: df["close"])
 
-    assert FactorRegistry.get_factor("broken_factor") is None
+        assert FactorRegistry.get_factor("broken_factor") is None
+    finally:
+        FactorRegistry.set_mode(saved_mode)
 
 
 def test_macro_service_empty_real_returns_does_not_generate_random_fallback(monkeypatch):

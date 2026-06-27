@@ -414,7 +414,7 @@ refactoring:
   feature_flags:
     signal_arbitration: true
     typed_contracts: false
-    factor_gate: "warn"
+    factor_gate: "block"
     engine_migration:
       regime: false
       ntf: false
@@ -429,6 +429,10 @@ refactoring:
     use_research_data_pack: false
   time:
     provider: "real"
+
+# 批处理配置
+batch:
+  max_workers: null  # 并行线程数; null = cpu_count//2, 1 = 串行, N = 指定线程数
 
 # 核心逻辑配置
 brain:

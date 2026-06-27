@@ -113,15 +113,19 @@ class FactorRegistry:
 
     @classmethod
     def get_enabled(cls) -> List[FactorInfo]:
-        """获取启用的因子 - Thread-safe"""
+        """获取启用的因子 - Thread-safe。每个因子通过准入检查"""
         cls._ensure_loaded()
         with cls._lock:
-            return [f for f in cls._factors.values() if f.enabled]
+            enabled = [f for f in cls._factors.values() if f.enabled]
+        for f in enabled:
+            cls.check_access(f.name)
+        return enabled
 
     @classmethod
     def get_factor(cls, name: str) -> Optional[FactorInfo]:
-        """获取指定因子 - Thread-safe"""
+        """获取指定因子 - Thread-safe。同时触发准入检查"""
         cls._ensure_loaded()
+        cls.check_access(name)
         with cls._lock:
             return cls._factors.get(name)
 

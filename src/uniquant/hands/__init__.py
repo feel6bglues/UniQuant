@@ -1,8 +1,11 @@
 """
-策略执行模块初始化
-Strategy Execution Module Initialization
+策略执行模块 (hands)
 
-导出策略执行和报告生成等核心功能
+回测引擎、撮合引擎、组合引擎、策略框架、报告。
+
+推荐使用 UnifiedBacktestEngine + UnifiedMatchingEngine (基于 typed TradingSignal)。
+BacktestEngine (旧版) 保留兼容性但已弃用。
+子模块: backtest (引擎/撮合/组合), strategies (策略), reporter (报告), results_manager (结果管理), robustness (稳健性分析)
 """
 
 __all__ = [  # pylint: disable=undefined-all-variable

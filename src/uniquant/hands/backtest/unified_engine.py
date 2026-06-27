@@ -145,6 +145,8 @@ class UnifiedBacktestEngine:
         equity_curve: List[float] = []
         daily_returns: List[float] = []
         prev_equity = self.initial_capital
+        trading_days_count: int = 0
+        max_position: int = 0
 
         dates = pd.to_datetime(df["date"]).values
         opens = df["open"].values.astype(np.float64)
@@ -170,6 +172,8 @@ class UnifiedBacktestEngine:
                     daily_returns.append(0.0)
                 prev_equity = equity
                 continue
+
+            trading_days_count += 1
 
             # ── Step 1: 执行前一根 bar 的挂单 (T+1 延迟) ──
             if pending_order is not None:
@@ -201,6 +205,7 @@ class UnifiedBacktestEngine:
                             position += record.shares
                             position_cost = record.price
                             buy_date = ts
+                            max_position = max(max_position, position)
 
                     elif pending_order["action"] == "SELL":
                         # 防线 A: T+1 检查
@@ -293,6 +298,13 @@ class UnifiedBacktestEngine:
             "start_date": str(pd.to_datetime(df["date"].iloc[0]).date()) if len(df) else "",
             "end_date": str(pd.to_datetime(df["date"].iloc[-1]).date()) if len(df) else "",
             "signal_count": len(signals),
+            "trading_days_count": trading_days_count,
+            "final_equity": float(equity_curve[-1]) if equity_curve else 0.0,
+            "max_position": max_position,
+            "commission_rate": self.commission_rate,
+            "stamp_duty_rate": self.stamp_duty_rate,
+            "slippage_rate": self.slippage_rate,
+            "min_commission": self.min_commission,
         }
         if survivorship_warning:
             metadata["survivorship_warning"] = survivorship_warning

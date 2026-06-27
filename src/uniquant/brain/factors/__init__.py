@@ -2,7 +2,7 @@
 因子系统
 
 包含: FactorRegistry, FactorAnalyzer, FactorComposer, CustomFactors
-auto_mined/ 已于 2026-06-09 移除 (PBO=1.000 万箭穿心, 逻辑因子已取代)
+GP 因子挖掘引擎已迁至 experiments/gp_factor_mining/ (2026-06-17).
 """
 from .registry import FactorRegistry
 from .analyzer import FactorAnalyzer

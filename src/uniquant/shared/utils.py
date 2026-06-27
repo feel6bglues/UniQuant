@@ -4,6 +4,7 @@
 
 import concurrent.futures
 import time
+import warnings
 from typing import Any, Callable, Optional, TypeVar
 
 import pandas as pd
@@ -154,6 +155,11 @@ def retry_on_failure(
     """
     失败时自动重试的函数执行
 
+    .. deprecated::
+        请使用 ``uniquant.shared.retry_decorator.retry`` 或
+        ``uniquant.shared.retry_decorator.retry_with_fallback`` 代替。
+        此函数将在后续版本移除。
+
     Args:
         func: 要执行的函数
         max_retries: 最大重试次数
@@ -163,6 +169,12 @@ def retry_on_failure(
     Returns:
         函数执行结果或默认值
     """
+    warnings.warn(
+        "retry_on_failure 已弃用，请使用 retry_decorator.retry 或 "
+        "retry_decorator.retry_with_fallback 代替",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     for attempt in range(max_retries):
         try:
             return func()

@@ -131,3 +131,50 @@ def test_apply_env_overrides(monkeypatch):
     result = _apply_env_overrides(config)
     assert result["base"]["tdx"]["path"] == "/custom/tdx"
     assert result["cache"]["global"]["enabled"] is False
+
+
+# ── Secrets overlay tests (P1-8) ──
+
+
+def test_secret_env_overrides_string_value(monkeypatch):
+    """Simulate injecting a token via env var - string values preserved."""
+    from uniquant.shared.config_loader import _apply_env_overrides
+    monkeypatch.setenv("UNIQUANT_DATA_SOURCES__EASTMONEY__TOKEN", "sk-abc123")
+    config = {"data_sources": {"eastmoney": {}}}
+    result = _apply_env_overrides(config)
+    assert result["data_sources"]["eastmoney"]["token"] == "sk-abc123"
+
+
+def test_secret_env_overrides_deep_nested_path(monkeypatch):
+    """Override a 4-level deep config path (simulating nested secrets)."""
+    from uniquant.shared.config_loader import _apply_env_overrides
+    monkeypatch.setenv("UNIQUANT_BRAIN__LLM__API__KEY", "sk-llm-secret")
+    config = {"brain": {"llm": {}}}
+    result = _apply_env_overrides(config)
+    assert result["brain"]["llm"]["api"]["key"] == "sk-llm-secret"
+
+
+def test_secret_env_does_not_leak_to_sibling_keys(monkeypatch):
+    """Verify env override only touches the target key, not siblings."""
+    from uniquant.shared.config_loader import _apply_env_overrides
+    monkeypatch.setenv("UNIQUANT_CACHE__GLOBAL__ENABLED", "false")
+    config = {"cache": {"global": {"enabled": True, "path": "data/cache"}}}
+    result = _apply_env_overrides(config)
+    assert result["cache"]["global"]["enabled"] is False
+    assert result["cache"]["global"]["path"] == "data/cache"
+
+
+def test_no_static_secrets_in_committed_config():
+    """Verify committed config.yaml contains no hardcoded tokens or passwords."""
+    import os
+    config_path = os.path.join(
+        os.path.dirname(__file__), "..", "..", "config", "config.yaml"
+    )
+    if not os.path.exists(config_path):
+        pytest.skip("config.yaml not found")
+    with open(config_path) as f:
+        content = f.read()
+    secrets = ["api_key", "token", "password", "secret"]
+    for s in secrets:
+        lines = [line for line in content.splitlines() if s in line.lower()]
+        assert not lines, f"Static secret '{s}' found in config.yaml: {lines}"

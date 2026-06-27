@@ -24,6 +24,10 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from functools import partial
+
+
 
 # ─── 算子定义 ───────────────────────────────────────────────────────────────
 
@@ -322,22 +326,30 @@ class GPTree:
 
     def _collect_resources(self, node: Node) -> Tuple[List[Tuple[str, str]], List[Tuple[str, float]]]:
         """提取所需的中间变量和常量"""
-        vars_needed = []
-        consts_needed = []
-        # 简化实现 — 直接生成表达式
-        return vars_needed, consts_needed
+        return [], []
 
-    def _to_code(self, node: Node) -> str:
+    def _to_code(self, node: Node, _depth: int = 0) -> str:
         """递归生成 Python 代码"""
         if node.terminal:
             name = node.terminal.name
             col_map = {
+                "open": "df['open']",
+                "high": "df['high']",
+                "low": "df['low']",
+                "close": "df['close']",
+                "volume": "df['volume']",
+                "amount": "df['amount']",
                 "returns_1d": "df['close'].pct_change(fill_method=None)",
                 "returns_5d": "df['close'].pct_change(5, fill_method=None)",
                 "returns_10d": "df['close'].pct_change(10, fill_method=None)",
                 "returns_20d": "df['close'].pct_change(20, fill_method=None)",
-                "vol_20d": "(lambda r=None: (r if r is not None else df['close'].pct_change(fill_method=None)).rolling(20, min_periods=10).std())(df['close'].pct_change(fill_method=None))",
-                "rsi_14": "(lambda d=df['close'].diff(), g=d.clip(lower=0).rolling(14).mean(), l=(-d.clip(upper=0)).rolling(14).mean(): 100 - 100/(1+g/l.replace(0,np.nan)))()",
+                "vol_20d": "df['close'].pct_change(fill_method=None).rolling(20, min_periods=10).std()",
+                "rsi_14": (
+                    "(lambda d=df['close'].diff(), "
+                    "g=d.clip(lower=0).rolling(14).mean(), "
+                    "l=(-d.clip(upper=0)).rolling(14).mean(): "
+                    "100 - 100 / (1 + g / l.replace(0, np.nan)))()"
+                ),
                 "vwap": "df['amount'] / df['volume'].replace(0, np.nan)",
             }
             return col_map.get(name, name)
@@ -416,6 +428,16 @@ class GPConfig:
     amount_neutralize: bool = True  # IC 计算前对 amount 做横截面正交化
     amount_penalty_weight: float = 0.5  # |corr(factor, amount)| > 0.6 时的惩罚权重
     diversity_pressure: float = 0.3  # 锦标赛中选择多样性个体的概率
+
+    # 换手率控制
+    turnover_penalty_weight: float = 0.3  # 换手率惩罚权重
+    turnover_lookback: int = 10  # 换手率计算的回看窗口数
+
+    # IC 时序加权
+    ic_half_life: float = 10.0  # IC 指数加权的半衰期 (测试窗口数)
+
+    # 性能
+    n_jobs: int = 1  # 并行评估进程数 (1 = 串行)
 
 
 # ─── 默认操作子和终端 ──────────────────────────────────────────────────────
@@ -708,14 +730,15 @@ class GeneticFactorMiner:
         test_date_groups: Optional[List[np.ndarray]] = None,
     ) -> float:
         """
-        适应度 = abs(OOS IC@5d) - complexity_penalty * complexity - amount_penalty
+        适应度 = weighted_OOS_IC - complexity_penalty - amount_penalty - turnover_penalty
 
-        Amount 惩罚机制:
-          - IC 计算前先对 amount 做横截面正交化 (剥离 amount 的强解释力)
+        IC 时序指数加权: 近期 IC 半衰期 = config.ic_half_life
+
+        换手率惩罚: 因子秩在连续日期间的平均绝对变化率
+
+        Amount 惩罚:
+          - IC 计算前先对 amount 做横截面正交化
           - 额外对 |corr(factor, amount)| > 0.6 的个体施加严重惩罚
-          - 逼迫算法去非成交额领域寻找 Alpha
-
-        返回浮点数, 越高越好
         """
         try:
             train_vals = tree.evaluate(df_train)
@@ -775,9 +798,27 @@ class GeneticFactorMiner:
             if not ics:
                 return -1.0
 
-            mean_ic = float(np.mean(ics))
+            # IC 时序指数加权: 近期 IC 权重更高
+            n_ics = len(ics)
+            if n_ics > 1 and self.config.ic_half_life > 0:
+                decay = np.log(2) / self.config.ic_half_life
+                raw_weights = np.exp(-np.arange(n_ics) * decay)
+                weights = raw_weights[::-1]
+                weights /= weights.sum()
+                mean_ic = float(np.average(ics, weights=weights))
+            else:
+                mean_ic = float(np.mean(ics))
+
             penalty = self.config.complexity_penalty * tree.complexity
 
+            # 换手率惩罚
+            turnover = self._compute_turnover_np(
+                test_factor, has_nan, test_date_groups,
+                lookback=self.config.turnover_lookback,
+            )
+            turnover_penalty = self.config.turnover_penalty_weight * turnover
+
+            # Amount 相关性惩罚
             amount_penalty = 0.0
             if self.config.amount_penalty_weight > 0 and amount_corrs:
                 avg_amount_corr = float(np.mean(amount_corrs))
@@ -786,7 +827,7 @@ class GeneticFactorMiner:
                     amount_penalty = self.config.amount_penalty_weight * overage * 2.0
                     amount_penalty = min(amount_penalty, 0.5)
 
-            return abs(mean_ic) - penalty - amount_penalty
+            return mean_ic - penalty - amount_penalty - turnover_penalty
 
         except Exception:
             return -1.0
@@ -819,6 +860,62 @@ class GeneticFactorMiner:
             return abs(c) if not np.isnan(c) else 0.0
         except Exception:
             return 0.0
+
+    def _compute_turnover_np(
+        self,
+        test_factor: np.ndarray,
+        has_nan: np.ndarray,
+        date_groups: List[np.ndarray],
+        lookback: int = 10,
+    ) -> float:
+        """计算因子值的平均换手率 (rank change / max_change). 范围 [0, 1]."""
+        ranked = []
+        for idx in date_groups:
+            mask = ~has_nan[idx]
+            idx_clean = idx[mask]
+            if len(idx_clean) < 20:
+                continue
+            fv = test_factor[idx_clean]
+            ranks = np.argsort(np.argsort(fv)).astype(np.float64)
+            ranked.append(ranks)
+
+        if len(ranked) < 2:
+            return 0.0
+
+        changes = []
+        for i in range(1, min(len(ranked), lookback + 1)):
+            r_prev, r_curr = ranked[-i - 1], ranked[-i]
+            n = min(len(r_prev), len(r_curr))
+            if n < 20:
+                continue
+            avg_change = float(np.mean(np.abs(r_prev[:n] - r_curr[:n])))
+            max_change = n - 1
+            changes.append(avg_change / max_change if max_change > 0 else 0.0)
+
+        return float(np.mean(changes)) if changes else 0.0
+
+    @staticmethod
+    def block_bootstrap_pbo(oos_ics: list, n_bootstrap: int = 2000, block_size: Optional[int] = None) -> float:
+        """块 Bootstrap PBO 估计: 保留 IC 时序自相关结构"""
+        arr = np.array(oos_ics, dtype=np.float64)
+        n = len(arr)
+        if n < 5:
+            return 1.0
+        bs = block_size or max(3, min(10, n // 5))
+        if n < bs * 2:
+            return 1.0
+        actual_mean = float(np.mean(arr))
+        rng = np.random.RandomState(42)
+        bootstrap_means = np.empty(n_bootstrap)
+        for i in range(n_bootstrap):
+            chunks = []
+            pos = 0
+            while pos < n:
+                start = rng.randint(0, n - bs + 1)
+                chunks.extend(arr[start:start + bs].tolist())
+                pos += bs
+            bootstrap_means[i] = np.mean(chunks[:n])
+        return float(np.mean(bootstrap_means >= actual_mean))
 
     # ─── 选择 ──────────────────────────────────────────────────────────────
 
@@ -924,14 +1021,32 @@ class GeneticFactorMiner:
 
         for gen in range(self.config.n_generations):
             # 评估适应度 (使用预计算数据)
-            fitness = []
-            for i, tree in enumerate(population):
-                f = self.evaluate_fitness(
-                    tree, df_train, df_test,
+            n_jobs = max(1, self.config.n_jobs)
+            if n_jobs > 1:
+                fitness = [None] * len(population)
+                eval_fn = partial(
+                    self.evaluate_fitness,
+                    df_train=df_train, df_test=df_test,
                     test_fwd=test_fwd_np, test_amount=test_amount_np,
                     test_date_groups=test_date_groups,
                 )
-                fitness.append(f)
+                with ThreadPoolExecutor(max_workers=n_jobs) as pool:
+                    fut_map = {pool.submit(eval_fn, tree): i for i, tree in enumerate(population)}
+                    for fut in as_completed(fut_map):
+                        idx = fut_map[fut]
+                        try:
+                            fitness[idx] = fut.result()
+                        except Exception:
+                            fitness[idx] = -1.0
+            else:
+                fitness = []
+                for i, tree in enumerate(population):
+                    f = self.evaluate_fitness(
+                        tree, df_train, df_test,
+                        test_fwd=test_fwd_np, test_amount=test_amount_np,
+                        test_date_groups=test_date_groups,
+                    )
+                    fitness.append(f)
 
             # 精英
             n_elite = max(1, int(self.config.pop_size * self.config.elitism_ratio))
@@ -997,14 +1112,32 @@ class GeneticFactorMiner:
             population = new_pop[:self.config.pop_size]
 
         # 最终排序 (使用预计算数据)
-        final_fitness = []
-        for tree in population:
-            f = self.evaluate_fitness(
-                tree, df_train, df_test,
+        n_jobs = max(1, self.config.n_jobs)
+        if n_jobs > 1:
+            final_fitness = [None] * len(population)
+            eval_fn = partial(
+                self.evaluate_fitness,
+                df_train=df_train, df_test=df_test,
                 test_fwd=test_fwd_np, test_amount=test_amount_np,
                 test_date_groups=test_date_groups,
             )
-            final_fitness.append(f)
+            with ThreadPoolExecutor(max_workers=n_jobs) as pool:
+                fut_map = {pool.submit(eval_fn, tree): i for i, tree in enumerate(population)}
+                for fut in as_completed(fut_map):
+                    idx = fut_map[fut]
+                    try:
+                        final_fitness[idx] = fut.result()
+                    except Exception:
+                        final_fitness[idx] = -1.0
+        else:
+            final_fitness = []
+            for tree in population:
+                f = self.evaluate_fitness(
+                    tree, df_train, df_test,
+                    test_fwd=test_fwd_np, test_amount=test_amount_np,
+                    test_date_groups=test_date_groups,
+                )
+                final_fitness.append(f)
 
         sorted_idx = np.argsort(final_fitness)[::-1]
         results = [(population[i], final_fitness[i]) for i in sorted_idx[:50]]

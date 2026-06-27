@@ -17,6 +17,8 @@
 """
 
 from typing import Any, Callable, Dict, Optional, Set
+
+from ..shared.interfaces import PositionSizerProtocol
 import threading
 
 from ..data.lake.storage_manager import StorageManager
@@ -99,6 +101,7 @@ class ServiceContainer:
         data_svc = DataService(
             storage_manager=storage,
         )
+        # docs: AGENTS.md §Core Runtime Flow — 12 registered service keys
         self.register("storage", storage)
         self.register("calendar", calendar)
         self.register("cache", cache)
@@ -127,6 +130,7 @@ class ServiceContainer:
             engine_factory=engine_factory,
             market_cache=market_cache,
         )
+        engine_factory.bind_orchestrator(analysis_svc)
         self.register("analysis_service", analysis_svc)
 
         backtest_engine = UnifiedBacktestEngine()
@@ -159,12 +163,23 @@ class ServiceContainer:
         except Exception as exc:
             logger.debug("FactorRegistry gate configuration failed; leaving default mode: %s", exc)
 
+        sizer: Optional[PositionSizerProtocol] = None
+        try:
+            from ..risk.sizer import PositionSizer
+            sizer = PositionSizer()
+        except Exception as exc:
+            logger.debug("PositionSizer init failed; sizer disabled: %s", exc)
+
+        batch_max_workers: Optional[int] = config.get("batch", {}).get("max_workers", None)
+
         pipeline = UnifiedResearchPipeline(
             analysis_service=analysis_svc,
             backtest_engine=backtest_engine,
             signal_collector=signal_collector,
             arbitrator=arbitrator,
+            sizer=sizer,
             time_provider=time_provider,
+            max_workers=batch_max_workers,
         )
         self.register("research_pipeline", pipeline)
 

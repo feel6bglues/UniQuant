@@ -10,6 +10,9 @@ from ...shared.logger_factory import get_logger
 
 logger = get_logger(__name__)
 
+# docs: 所有引擎名 (fsm, czsc, lppl, regime, ntf, macro, report, brain, wyckoff)
+#       在 docs/index.md §Runtime Modules 中记录。添加/删除引擎时同步更新。
+
 
 class AnalysisEngineFactory:
     def __init__(self, orchestrator):

@@ -7,6 +7,8 @@ import pandas as pd
 import numpy as np
 from unittest.mock import Mock
 
+from uniquant.shared.interfaces import CZSCOutput
+
 
 @pytest.fixture
 def sample_ohlc_df():
@@ -77,8 +79,7 @@ class TestCzscAnalysisEngine:
         result = engine.run_czsc_analysis("000001.SZ", df=sample_ohlc_df)
         
         assert result is not None
-        assert "status" in result
-        assert result["symbol"] == "000001.SZ"
+        assert isinstance(result.is_3rd_buy, bool)
 
     def test_run_czsc_analysis_empty_df(self, mock_orchestrator):
         """Test CZSC analysis with empty DataFrame"""
@@ -89,7 +90,7 @@ class TestCzscAnalysisEngine:
         empty_df = pd.DataFrame()
         result = engine.run_czsc_analysis("000001.SZ", df=empty_df)
         
-        assert result["status"] in ["failed", "success"]
+        assert isinstance(result, CZSCOutput)
 
     def test_run_czsc_analysis_none_df_reads_from_lake(self, mock_orchestrator, sample_ohlc_df):
         """Test CZSC analysis reads from data lake when df is None"""
@@ -108,11 +109,8 @@ class TestCzscAnalysisEngine:
         engine = CzscAnalysisEngine(mock_orchestrator)
         result = engine._fallback_czsc_analysis("000001.SZ", sample_ohlc_df)
         
-        assert result["status"] == "success"
-        assert "current_state" in result
-        assert "trend" in result
-        assert "support_level" in result
-        assert "resistance_level" in result
+        assert isinstance(result.price, float)
+        assert isinstance(result.bottom, (float, type(None)))
 
     def test_fallback_czsc_analysis_missing_columns(self, mock_orchestrator):
         """Test fallback CZSC analysis with missing columns"""
@@ -123,8 +121,9 @@ class TestCzscAnalysisEngine:
         invalid_df = pd.DataFrame({"close": [10, 11, 12]})
         result = engine._fallback_czsc_analysis("000001.SZ", invalid_df)
         
-        assert result["status"] == "success"
-        assert result["current_state"] == "UNKNOWN"
+        assert result.is_3rd_buy is False
+        assert result.bi_count == 0
+        assert result.price == 0.0
 
 
 class TestFsmAnalysisEngine:
@@ -219,13 +218,14 @@ class TestLpplAnalysisEngine:
     def test_run_lppl_analysis_with_df(self, mock_orchestrator, sample_ohlc_df):
         """Test LPPL analysis with provided DataFrame"""
         from uniquant.services.analysis.lppl_analysis_engine import LpplAnalysisEngine
+        from uniquant.shared.interfaces import LPPLOutput
         
         engine = LpplAnalysisEngine(mock_orchestrator)
         result = engine.run_lppl_analysis("000001.SZ", df=sample_ohlc_df)
         
         assert result is not None
-        assert "status" in result
-        assert result["symbol"] == "000001.SZ"
+        assert isinstance(result, LPPLOutput)
+        assert result.risk_level in ("Safe", "Warning", "Danger", "Critical")
 
     def test_run_lppl_analysis_none_df_reads_from_lake(self, mock_orchestrator, sample_ohlc_df):
         """Test LPPL analysis reads from data lake when df is None"""
@@ -240,14 +240,15 @@ class TestLpplAnalysisEngine:
     def test_fallback_lppl_analysis(self, mock_orchestrator, sample_ohlc_df):
         """Test fallback LPPL analysis"""
         from uniquant.services.analysis.lppl_analysis_engine import LpplAnalysisEngine
+        from uniquant.shared.interfaces import LPPLOutput
         
         engine = LpplAnalysisEngine(mock_orchestrator)
         result = engine._fallback_lppl_analysis("000001.SZ", sample_ohlc_df)
         
-        assert result["status"] == "success"
-        assert "bubble_detected" in result
-        assert "confidence" in result
-        assert "amplitude" in result
+        assert isinstance(result, LPPLOutput)
+        assert result.risk_level in ("Safe", "Warning")
+        assert isinstance(result.confidence, float)
+        assert isinstance(result.price, float)
 
 
 class TestNtfAnalysisEngine:
@@ -268,10 +269,8 @@ class TestNtfAnalysisEngine:
         result = engine.run_ntf_detection("000001.SZ")
         
         assert result is not None
-        assert "status" in result
-        assert result["symbol"] == "000001.SZ"
-        assert "ntf_side" in result
-        assert "ntf_intensity" in result
+        assert result.side in ("NONE",)
+        assert isinstance(result.intensity, float)
 
 
 class TestRegimeAnalysisEngine:

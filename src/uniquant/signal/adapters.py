@@ -98,6 +98,10 @@ class LPPLAdapter(EngineAdapter):
             symbol=symbol,
             price=float(raw_output.get("price", 0.0)),
             timestamp=timestamp,
+            metadata={
+                "r_squared": float(raw_output.get("r_squared", 0.0)),
+                "out_of_sample_r_squared": float(raw_output.get("out_of_sample_r_squared", 0.0)),
+            },
         )
 
 
@@ -188,6 +192,13 @@ class WyckoffAdapter(EngineAdapter):
             symbol=symbol,
             price=float(raw_output.get("price", 0.0)),
             timestamp=timestamp,
+            metadata={
+                "wyckoff_phase": phase,
+                "wyckoff_spring": spring,
+                "wyckoff_utad": utad,
+                "wyckoff_rr_ratio": float(raw_output.get("rr_ratio", 0.0)),
+                "wyckoff_bypassed": raw_output.get("bypassed", False),
+            },
         )
 
 
@@ -420,7 +431,8 @@ class AdapterRegistry:
 
 
 def create_default_registry() -> AdapterRegistry:
-    """创建包含所有内置适配器的注册表"""
+    """创建包含所有内置适配器的注册表
+    docs: docs/reference/signal_types.md — 8 个引擎适配器"""
     registry = AdapterRegistry()
     registry.register("lppl", LPPLAdapter())
     registry.register("czsc", CZSCAdapter())
@@ -587,4 +599,6 @@ class TradingSignalCollector:
             "wyckoff_spring": data_pack.get("wyckoff_spring", False),
             "wyckoff_utad": data_pack.get("wyckoff_utad", False),
             "price": data_pack.get("price", 0.0),
+            "rr_ratio": data_pack.get("rr_ratio", 0.0),
+            "bypassed": data_pack.get("bypassed", False),
         }

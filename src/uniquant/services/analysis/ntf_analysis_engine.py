@@ -1,5 +1,6 @@
 from typing import Dict, Any
 import pandas as pd
+from ...shared.interfaces import NtfOutput
 from ...shared.logger_factory import get_logger
 
 logger = get_logger(__name__)
@@ -25,7 +26,7 @@ class NtfAnalysisEngine:
         """
         self.orchestrator = orchestrator
 
-    def run_ntf_detection(self, symbol: str, df: pd.DataFrame = None) -> Dict[str, Any]:
+    def run_ntf_detection(self, symbol: str, df: pd.DataFrame = None) -> "NtfOutput":
         """
         Run NTF (National Team Fund) detection for policy intervention analysis
 
@@ -40,21 +41,13 @@ class NtfAnalysisEngine:
             from ...brain.ntf.ntf_engine import NTFEngine
             ntf_engine = NTFEngine()
             ntf_result = ntf_engine.detect_intervention(symbol)
-            return {
-                "symbol": symbol,
-                "status": "success",
-                "ntf_side": ntf_result.get("side", "NONE"),
-                "ntf_intensity": ntf_result.get("intensity", 0.0),
-            }
+            return NtfOutput(
+                side=str(ntf_result.get("side", "NONE")),
+                intensity=float(ntf_result.get("intensity", 0.0)),
+            )
         except NTF_RECOVERABLE_ERRORS as e:
             logger.warning(f"NTFEngine 分析失败: {e}")
-            return {
-                "symbol": symbol,
-                "status": "failed",
-                "ntf_side": "NONE",
-                "ntf_intensity": 0.0,
-                "error": str(e),
-            }
+            return NtfOutput(side="NONE")
 
     def _run_ntf_detection(self, ticker: str, data_pack: Dict[str, Any]) -> None:
         """
@@ -87,21 +80,18 @@ class NtfAnalysisEngine:
             logger.info("执行国家队干预监测计算...")
             result = self.run_ntf_detection(ntf_proxy)
             
-            if result.get("status") == "success":
-                # 保存到缓存
-                ntf_data = {
-                    "side": result.get("ntf_side", "NONE"),
-                    "intensity": result.get("ntf_intensity", 0.0)
-                }
-                self.orchestrator._market_cache['ntf_signals'] = ntf_data
-                data_pack['ntf'] = ntf_data
-                
-                # 设置磁盘缓存
-                self.orchestrator._set_cached_result(
-                    cache_key, 
-                    ntf_data, 
-                    use_disk=True, 
-                    ttl=24*3600  # 缓存一天
-                )
+            ntf_data = {
+                "side": result.side,
+                "intensity": result.intensity,
+            }
+            self.orchestrator._market_cache['ntf_signals'] = ntf_data
+            data_pack['ntf'] = ntf_data
+
+            self.orchestrator._set_cached_result(
+                cache_key, 
+                ntf_data, 
+                use_disk=True, 
+                ttl=24*3600,  
+            )
         except NTF_RECOVERABLE_ERRORS as e:
             logger.error(f"NTFEngine integration failed: {e}")

@@ -411,8 +411,20 @@ class DataService:
 
     def fetch_research_pack(self, symbol: str) -> ResearchDataPack:
         """返回类型化的 ResearchDataPack，兼容旧 dict 路径"""
-        raw = self.fetch_for_brain(symbol)
-        return ResearchDataPack.from_dict(raw, symbol=symbol)
+        try:
+            raw = self.fetch_for_brain(symbol)
+        except Exception:
+            logger.exception("fetch_for_brain failed for %s, returning empty ResearchDataPack", symbol)
+            return ResearchDataPack(symbol=symbol)
+
+        if not isinstance(raw, dict):
+            logger.warning("fetch_for_brain returned non-dict for %s: %s", symbol, type(raw).__name__)
+            return ResearchDataPack(symbol=symbol)
+
+        result = ResearchDataPack.from_dict(raw, symbol=symbol)
+        if "etf" in raw:
+            result.metadata["etf_data"] = raw["etf"]
+        return result
 
     def _load_data_with_fallback(self, symbol: str, data_type: str, description: str) -> pd.DataFrame:
         """加载数据，失败时回退到数据源"""

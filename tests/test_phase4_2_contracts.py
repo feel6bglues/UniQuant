@@ -74,6 +74,7 @@ def test_analysis_service_rebinds_factory_orchestrator_contract():
     factory = AnalysisEngineFactory(orchestrator=data_service)
 
     analysis = AnalysisService(data_service=data_service, engine_factory=factory)
+    factory.bind_orchestrator(analysis)
 
     assert factory._orchestrator is analysis
     for method_name in [

@@ -2,7 +2,7 @@
 
 > UniQuant: A-share quantitative research and trading platform.
 >
-> Generated: 2026-06-12. Institutional closure review completed — P0-3/P0-4 Closed, P0-2/P0-5 Partially closed, P0-1 Open. See `docs/analysis/institutional/17_institutional_closure_review_report.md` for full status matrix. This file is the first local context source for Codex-style agents working in this repository.
+> Generated: 2026-06-17. Institutional closure review completed — P0-3/P0-4 Closed, P0-2/P0-5 Partially closed, P0-1 Open. Phases 4 (Wave 1a+1b+2) completed — pipeline typing, engine output typing, batch parallelization. See `docs/analysis/institutional/17_institutional_closure_review_report.md` for full status matrix. This file is the first local context source for Codex-style agents working in this repository.
 
 ---
 
@@ -14,7 +14,7 @@ The repository is past the historical "migration target" phase. The eight declar
 
 `shared -> data -> brain/risk/signal -> hands -> services -> ui`
 
-Current worktree snapshot from 2026-06-12 (post-institutional-audit, post-Phase-0~3):
+Current worktree snapshot from 2026-06-17 (post-Phase-4):
 
 | Metric | Current value |
 |---|---:|
@@ -23,7 +23,7 @@ Current worktree snapshot from 2026-06-12 (post-institutional-audit, post-Phase-
 | Test files under `tests/` | 90 |
 | Approximate test functions | 1,034 |
 
-Phases 0-3 (typed contract migration, SignalArbitrator, 6-engine migration) complete — 1034 tests pass, baseline 100% consistent.
+Phases 0-3 (typed contract migration, SignalArbitrator, 6-engine migration) + Phase 4 (pipeline typing, engine output typing, batch parallelization) complete — 1255 tests pass, baseline 100% consistent.
 
 ---
 
@@ -38,7 +38,7 @@ Read these first:
 | `docs/ANALYSIS_PROMPT_PLAYBOOK.md` | Direct-call prompt playbook for staged system analysis. |
 | `pyproject.toml` | Real package metadata, dependencies, pytest config. Use root file, not docs copies. |
 | `config/config.yaml` | Main runtime configuration. |
-| `src/uniquant/shared/interfaces.py` | Typed cross-layer contracts including `TradingSignal` and protocols. |
+| `src/uniquant/shared/interfaces.py` | Typed cross-layer contracts including `TradingSignal`, `ResearchDataPack`, `RegimeOutput`, `LPPLOutput`, `CZSCOutput`, `NtfOutput`, `WyckoffOutput`, `AlphaOutput`, and protocols. |
 | `src/uniquant/services/service_container.py` | DAG dependency injection and service initialization. |
 | `src/uniquant/services/analysis_service_v2.py` | Main single-ticker analysis orchestrator. |
 | `src/uniquant/services/research_pipeline.py` | End-to-end research pipeline. |
@@ -46,6 +46,7 @@ Read these first:
 | `src/uniquant/signal/adapters.py` | Brain output to `TradingSignal` adapters. |
 | `src/uniquant/signal/arbitrator.py` | Sell-priority signal arbitration with confidence-based rules. |
 | `src/uniquant/shared/time_provider.py` | RealTimeProvider / FrozenTimeProvider for testable time. |
+| `docs/analysis/wyckoff_research_report.md` | Wyckoff WSO+WSS+Resonance — 7-phase empirical research report on 22,148 A-share observations. All findings traceable to Phase I–VII run output. |
 | `src/uniquant/shared/event_types.py` | Event/Command base and domain events. |
 | `src/uniquant/shared/factor_governance.py` | FactorManifest / FactorRegistry with admission gate. |
 | `src/uniquant/shared/config_models.py` | RefactoringConfig / FeatureFlags for staged migration. |
@@ -138,19 +139,20 @@ Any change touching these rules requires focused tests and explicit review.
 
 ---
 
-## Phase 0-3 Completion Status
+## Phase 0-4 Completion Status
 
-All phases verified: **1034 tests pass, baseline 100% consistent**. No regressions.
+All phases verified: **1255 tests pass, baseline 100% consistent**. No regressions.
 
 | Phase | Scope | Status | Key deliverables |
-|---|---|---|---|
+|---|---|---|---|---|
 | **0** | LPPL SELL priority, baseline tooling | ✓ | `unified_engine.py` SELL-before-BUY fix, `golden_20/100.txt`, `scripts/capture_baseline.py` + `compare_baseline.py` |
 | **1.1–1.2** | BacktestResult metadata, typed contracts | ✓ | `BacktestResult.metadata`, `RealTimeProvider`, `FrozenTimeProvider`, domain events, `FactorManifest`/`FactorRegistry` |
 | **1.4** | Feature flags, config models | ✓ | `RefactoringConfig`, `FeatureFlags`, `config.yaml` refactoring section, `ServiceContainer` DI |
 | **2** | SignalArbitrator, TimeProvider adoption | ✓ | `SignalArbitrator` (sell-priority, confidence-based), 7 tests, pipeline integration, `FactorRegistry` admission gate |
 | **3** | 6-engine typed output migration | ✓ | `RegimeOutput`, `LPPLOutput`, `NtfOutput`, `CZSCOutput`, `WyckoffOutput`, `AlphaOutput`, `DecisionOutput`, `MarketSignalContext` direct pass |
+| **4** | Pipeline typing, engine output typing, batch parallelization | ✓ | `ResearchDataPack` + feature flag in pipeline & analysis & data services; 4 engines return typed outputs; `run_batch()` ThreadPoolExecutor + atomic checkpoint; `factor_gate: "block"` |
 
-**Design**: All typed outputs coexist with legacy `Dict[str, Any]` keys for backward compatibility. Feature flags in `RefactoringConfig` default OFF.
+**Design**: All typed outputs coexist with legacy `Dict[str, Any]` keys for backward compatibility. Feature flags in `RefactoringConfig` default OFF. Phase 4 gate `factor_gate: "block"` prevents unregistered factors.
 
 ---
 
@@ -244,3 +246,6 @@ Each stage requires a plan, concrete artifacts, checkpoint context, and verifica
 | Factor registration/access | `brain/factors/registry.py` (actual) NOT `shared/factor_governance.py` (dead code) | GAP_REMEDIATION_PLAN.md §G-2 — shared/ deprecated with warning |
 | Baseline/regression testing | `scripts/capture_baseline.py` + `compare_baseline.py` | GAP_REMEDIATION_PLAN.md §G-3 — Phase 0 all committed |
 | Event-driven features | `shared/event_bus.py` (sync) + `shared/event_bus.py` (async) | GAP_REMEDIATION_PLAN.md §G-4 — AsyncEventBus deployed with 9 tests |
+| Pipeline typing / data pack | `shared/interfaces.py` `ResearchDataPack` + `services/analysis_service_v2.py` dual-path | Feature flag `use_research_data_pack: false` default; `to_dict()` flattens `metadata` for signal collector |
+| Engine output typing | `shared/interfaces.py` (LPPLOutput/CZSCOutput/NtfOutput/WyckoffOutput) + engine files in `services/analysis/` | 4 engines return typed outputs; field annotations in ResearchDataPack are forward references |
+| Batch research | `services/research_pipeline.py` `run_batch()` | ThreadPoolExecutor + atomic checkpoint; input order preserved via result map |

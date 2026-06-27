@@ -130,7 +130,7 @@ def test_fetch_research_pack_returns_typed():
     assert isinstance(pack, ResearchDataPack)
     assert pack.symbol == "000001.SZ"
     assert pack.stock_df is mock_stock
-    assert pack.index_df is None  # "bench" key not mapped by from_dict
+    assert pack.index_df is mock_bench  # "bench" key now mapped by from_dict
 
 
 def test_fetch_research_pack_returns_from_dict():
@@ -186,10 +186,11 @@ def test_prepare_data_typed_path_uses_research_pack():
         result = analysis._prepare_data("000001.SZ")
 
     assert result is not None
-    assert result["stock"] is stock_df
-    assert result["symbol"] == "000001.SZ"
-    assert result["lppl"]["risk_level"] == "Safe"
-    assert result["metadata"]["source"] == "typed"
+    assert isinstance(result, ResearchDataPack)
+    assert result.stock_df is stock_df
+    assert result.symbol == "000001.SZ"
+    assert result.lppl["risk_level"] == "Safe"
+    assert result.metadata["source"] == "typed"
     mock_data.fetch_research_pack.assert_called_once_with("000001.SZ")
 
 

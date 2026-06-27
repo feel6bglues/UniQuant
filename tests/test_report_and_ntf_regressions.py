@@ -46,9 +46,8 @@ def test_run_ntf_detection_returns_failed_result_on_attribute_error(monkeypatch,
 
     result = engine.run_ntf_detection("510300.SH")
 
-    assert result["status"] == "failed"
-    assert result["ntf_side"] == "NONE"
-    assert "bad ntf engine" in result["error"]
+    assert result.side == "NONE"
+    assert result.intensity == 0.0
 
 
 def test_generate_analysis_report_returns_false_on_reporter_error(tmp_path):

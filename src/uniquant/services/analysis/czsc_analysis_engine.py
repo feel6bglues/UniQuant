@@ -1,5 +1,5 @@
-from typing import Dict, Any
 import pandas as pd
+from ...shared.interfaces import CZSCOutput
 from ...shared.logger_factory import get_logger
 from ...shared.constants import AnalysisServiceConstants
 
@@ -26,7 +26,7 @@ class CzscAnalysisEngine:
         """
         self.orchestrator = orchestrator
 
-    def run_czsc_analysis(self, symbol: str, df: pd.DataFrame = None) -> Dict[str, Any]:
+    def run_czsc_analysis(self, symbol: str, df: pd.DataFrame = None) -> 'CZSCOutput':
         """
         Run CZSC (缠论) analysis for technical analysis
 
@@ -45,7 +45,7 @@ class CzscAnalysisEngine:
             if df is None:
                 cached_result = self.orchestrator._get_cached_result(cache_key, use_disk=True)
                 if cached_result is not None:
-                    return cached_result
+                    return CZSCOutput.from_dict(cached_result)
 
             if df is None:
                 # 使用数据湖中的数据，避免网络请求
@@ -53,7 +53,7 @@ class CzscAnalysisEngine:
                     symbol, data_type="stock", market="cn"
                 )
                 if df is None or df.empty:
-                    return {"error": "数据不足", "status": "failed"}
+                    return CZSCOutput()
 
             # 优化DataFrame以提高处理效率
             df = self.orchestrator._optimize_dataframe(df)
@@ -69,35 +69,27 @@ class CzscAnalysisEngine:
                 czsc_engine = CZSCEngine()
 
                 # 运行CZSC分析 - 使用 get_czsc_signals 方法
-                result = czsc_engine.get_czsc_signals(df)
+                signals = czsc_engine.get_czsc_signals(df)
 
-                # 格式化结果
-                result = {
-                    "symbol": symbol,
-                    "status": "success",
-                    "current_state": result.get("czsc_signal", "UNKNOWN"),
-                    "trend": "上升" if result.get("is_3rd_buy") else "震荡",
-                    "support_level": df["low"].min() if "low" in df.columns else 0,
-                    "resistance_level": df["high"].max() if "high" in df.columns else 0,
-                    "bi_count": result.get("bi_count", 0),
-                    "is_3rd_buy": result.get("is_3rd_buy", False),
-                    "summary": f"CZSC分析完成，笔数: {result.get('bi_count', 0)}",
-                }
+                price = float(df["close"].iloc[-1]) if "close" in df.columns else 0.0
+                output = CZSCOutput(
+                    is_3rd_buy=bool(signals.get("is_3rd_buy", False)),
+                    bi_count=int(signals.get("bi_count", 0)),
+                    price=price,
+                    bottom=signals.get("czsc_bottom_price") or signals.get("bottom_fractal"),
+                )
 
-                # 确保精度一致性
-                result = self.orchestrator.ensure_precision_consistency(result)
-
-                # 缓存结果
+                # 缓存结果（序列化为 dict）
                 if df is None:
                     cache_key = self.orchestrator._generate_cache_key("czsc_analysis", symbol=symbol)
                     self.orchestrator._set_cached_result(
                         cache_key,
-                        result,
+                        output.to_dict(),
                         use_disk=True,
                         ttl=AnalysisServiceConstants.CACHE_TTL_2HOURS,
-                    )  # 2小时缓存
+                    )
 
-                return result
+                return output
             except (ImportError, ModuleNotFoundError) as e:
                 logger.warning(f"Failed to import CZSCEngine: {e}")
                 # 降级处理：使用基本技术分析
@@ -108,9 +100,9 @@ class CzscAnalysisEngine:
                 return self._fallback_czsc_analysis(symbol, df)
         except CZSC_RECOVERABLE_ERRORS as e:
             logger.error(f"CZSC analysis failed for {symbol}: {e}")
-            return {"error": str(e), "status": "failed"}
+            return CZSCOutput()
 
-    def _fallback_czsc_analysis(self, symbol: str, df: pd.DataFrame) -> Dict[str, Any]:
+    def _fallback_czsc_analysis(self, symbol: str, df: pd.DataFrame) -> 'CZSCOutput':
         """
         降级处理：当CZSC引擎不可用时使用基本技术分析
         """
@@ -119,15 +111,7 @@ class CzscAnalysisEngine:
             required_cols = ["open", "high", "low", "close"]
             for col in required_cols:
                 if col not in df.columns:
-                    return {
-                        "symbol": symbol,
-                        "status": "success",
-                        "current_state": "UNKNOWN",
-                        "trend": "未知",
-                        "support_level": 0.0,
-                        "resistance_level": 0.0,
-                        "summary": "数据不足，无法进行CZSC分析",
-                    }
+                    return CZSCOutput()
 
             # 计算基本技术指标
             latest_data = df.iloc[-1]
@@ -183,23 +167,10 @@ class CzscAnalysisEngine:
             else:
                 current_state = "NEUTRAL"
 
-            return {
-                "symbol": symbol,
-                "status": "success",
-                "current_state": current_state,
-                "trend": trend,
-                "support_level": recent_lows,
-                "resistance_level": recent_highs,
-                "summary": "使用基本技术分析方法进行判断",
-            }
+            return CZSCOutput(
+                price=float(latest_close),
+                bottom=float(recent_lows) if recent_lows else None,
+            )
         except CZSC_RECOVERABLE_ERRORS as e:
             logger.error(f"Fallback CZSC analysis failed: {e}")
-            return {
-                "symbol": symbol,
-                "status": "success",
-                "current_state": "UNKNOWN",
-                "trend": "未知",
-                "support_level": 0.0,
-                "resistance_level": 0.0,
-                "summary": "CZSC分析失败，使用默认结果",
-            }
+            return CZSCOutput()

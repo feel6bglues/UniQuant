@@ -1,7 +1,7 @@
 import hashlib
 import logging
 from collections import OrderedDict
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 import numpy as np
 import pandas as pd
@@ -440,6 +440,50 @@ class LPPLCalculator:
         else:
             return "Safe"
 
+    def _fit_lbfgsb(self, t: np.ndarray, log_prices: np.ndarray,
+                     bounds: List, current_max_t: int) -> Optional[Any]:
+        """L-BFGS-B multi-start on reduced cost function (3 params: tc, m, w)"""
+        from scipy.optimize import minimize
+
+        w_lo, w_hi = self.w_min, self.w_max
+        w_mid = (w_lo + w_hi) / 2
+        log_mean = np.mean(log_prices)
+        log_std = np.std(log_prices) if np.std(log_prices) > 0 else 0.01
+
+        initial_guesses = [
+            [current_max_t + 5, 0.5, w_mid],
+            [current_max_t + 10, 0.4, w_hi * 0.85],
+            [current_max_t + 15, 0.6, w_lo * 1.3],
+            [current_max_t + 8, 0.7, w_mid],
+            [current_max_t + 3, 0.3, w_hi * 0.9],
+            [current_max_t + 20, 0.8, w_lo * 1.2],
+            [current_max_t + 12, 0.5, w_mid * 0.8],
+            [current_max_t + 6, 0.6, w_hi * 0.95],
+            [current_max_t + 18, 0.4, w_lo * 1.1],
+            [current_max_t + 9, 0.55, w_mid * 1.1],
+        ]
+
+        best_cost = np.inf
+        best_result = None
+
+        for x0 in initial_guesses:
+            try:
+                res = minimize(
+                    self.cost_function_reduced, x0,
+                    args=(t, log_prices),
+                    method="L-BFGS-B", bounds=bounds,
+                    options={"maxiter": 50, "ftol": 1e-6},
+                )
+                if res.fun < best_cost:
+                    best_cost = res.fun
+                    best_result = res
+            except Exception:
+                continue
+
+        if best_result is not None:
+            best_result.success = best_cost < 1e18
+        return best_result
+
     @handle_errors(
         LPPLFitError, AnalysisError, default_return={}, log_level=logging.ERROR
     )
@@ -495,21 +539,26 @@ class LPPLCalculator:
             (self.w_min, self.w_max),  # w
         ]
 
-        logger.info("Starting differential evolution optimization")
-        # 使用差分进化算法进行全局优化
-        result = differential_evolution(
-            self.cost_function_reduced,
-            bounds,
-            args=(t, log_prices),
-            strategy="best1bin",
-            maxiter=self.maxiter,
-            popsize=self.popsize,
-            tol=self.tol,
-            mutation=self.mutation,
-            recombination=self.recombination,
-            seed=self.seed,
-            workers=self.workers,
-        )
+        logger.info("Starting L-BFGS-B optimization (DE fallback)")
+        # 使用L-BFGS-B多点启动(快10-50倍), 失败时降级到DE
+        result = self._fit_lbfgsb(t, log_prices, bounds, current_max_t)
+        used_de = False
+        if result is None or not result.success:
+            logger.info("L-BFGS-B failed, falling back to differential evolution")
+            result = differential_evolution(
+                self.cost_function_reduced,
+                bounds,
+                args=(t, log_prices),
+                strategy="best1bin",
+                maxiter=self.maxiter,
+                popsize=self.popsize,
+                tol=self.tol,
+                mutation=self.mutation,
+                recombination=self.recombination,
+                seed=self.seed,
+                workers=self.workers,
+            )
+            used_de = True
 
         if not result.success:
             logger.warning("Optimization failed, returning default result")
@@ -547,6 +596,18 @@ class LPPLCalculator:
         confidence = self._calculate_confidence(days_to_tc, np.sqrt(result.fun / len(df)), len(df))
         logger.info(f"Calculated confidence: {confidence:.4f}")
 
+        # 计算R²
+        tau = tc - t
+        f = tau ** m
+        g = f * np.cos(w * np.log(tau))
+        h = f * np.sin(w * np.log(tau))
+        fitted_log = a + b * f + c1 * g + c2 * h
+        ss_res = np.sum((log_prices - fitted_log) ** 2)
+        ss_tot = np.sum((log_prices - np.mean(log_prices)) ** 2)
+        r_squared = 1.0 - (ss_res / ss_tot) if ss_tot > 0 else 0.0
+
+        # 计算RMSE
+
         # 确定风险等级
         risk_level = self._determine_risk_level(days_to_tc)
         logger.info(f"Risk level: {risk_level}")
@@ -565,6 +626,8 @@ class LPPLCalculator:
             "tc": tc,
             "days_to_tc": days_to_tc,
             "confidence": confidence,
+            "r_squared": round(r_squared, 4),
+            "rmse": float(np.sqrt(result.fun / len(df))) if result.fun > 0 else 0.0,
             "lppl_risk": risk_level,
             "risk_level": risk_level,
             "model_params": {
@@ -595,6 +658,8 @@ class LPPLCalculator:
             "tc": None,
             "days_to_tc": 50.0,
             "confidence": 0.0,
+            "r_squared": 0.0,
+            "rmse": 0.0,
             "lppl_risk": "Safe",
             "risk_level": "Safe",
             "model_params": {},

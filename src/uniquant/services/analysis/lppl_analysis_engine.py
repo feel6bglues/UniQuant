@@ -4,10 +4,9 @@ LPPL 分析引擎适配器
 将 brain.lppl.LPPLEngine 包装为 services 层可用的分析引擎。
 """
 
-from typing import Any, Dict
-
 import pandas as pd
 
+from ...shared.interfaces import LPPLOutput
 from ...shared.logger_factory import get_logger
 
 logger = get_logger(__name__)
@@ -44,7 +43,7 @@ class LpplAnalysisEngine:
     def __init__(self, orchestrator=None):
         self.orchestrator = orchestrator
 
-    def run_lppl_analysis(self, symbol: str, df: pd.DataFrame = None) -> Dict[str, Any]:
+    def run_lppl_analysis(self, symbol: str, df: pd.DataFrame = None) -> LPPLOutput:
         """
         运行 LPPL 泡沫检测分析
 
@@ -66,40 +65,29 @@ class LpplAnalysisEngine:
 
                 engine = LPPLEngine()
                 result = engine.detect_bubble(df)
-                return {
-                    "symbol": symbol,
-                    "status": "success",
-                    "risk_level": result.get("risk_level", "Safe"),
-                    "confidence": result.get("confidence", 0.0),
-                    "votes": result.get("votes", 0),
-                }
+                price = float(df["close"].iloc[-1]) if "close" in df.columns else 0.0
+                return LPPLOutput(
+                    risk_level=str(result.get("risk_level", "Safe")),
+                    confidence=float(result.get("confidence", 0.0)),
+                    days_to_tc=result.get("days_to_tc"),
+                    price=price,
+                    r_squared=float(result.get("r_squared", 0.0)),
+                    out_of_sample_r_squared=float(result.get("out_of_sample_r_squared", 0.0)),
+                )
             except LPPL_RECOVERABLE_ERRORS as e:
                 logger.warning(f"LPPLEngine 分析失败: {e}")
                 return self._fallback_lppl_analysis(symbol, df)
         except LPPL_RECOVERABLE_ERRORS as e:
             logger.error(f"LPPL analysis failed for {symbol}: {e}")
-            return {
-                "symbol": symbol,
-                "status": "success",
-                "bubble_detected": False,
-                "confidence": 0.0,
-                "amplitude": 0.0,
-            }
+            return LPPLOutput(risk_level="ENGINE_FAILED", confidence=0.0)
 
-    def _fallback_lppl_analysis(self, symbol: str, df: pd.DataFrame) -> Dict[str, Any]:
+    def _fallback_lppl_analysis(self, symbol: str, df: pd.DataFrame) -> LPPLOutput:
         """
         降级处理：当 LPPL 引擎不可用时使用基本统计方法进行泡沫风险分析
         """
         try:
             if "close" not in df.columns:
-                return {
-                    "symbol": symbol,
-                    "status": "success",
-                    "bubble_detected": False,
-                    "confidence": 0.0,
-                    "amplitude": 0.0,
-                    "summary": "数据不足，无法进行LPPL分析",
-                }
+                return LPPLOutput(risk_level="Safe", confidence=0.0)
 
             close = df["close"]
 
@@ -125,21 +113,12 @@ class LpplAnalysisEngine:
                 bubble_detected = False
                 confidence = 0.0
 
-            return {
-                "symbol": symbol,
-                "status": "success",
-                "bubble_detected": bool(bubble_detected),
-                "confidence": round(float(confidence), 4),
-                "amplitude": round(float(amplitude), 4),
-                "summary": "使用基本统计方法进行泡沫风险分析",
-            }
+            risk_level = "Warning" if bubble_detected else "Safe"
+            return LPPLOutput(
+                risk_level=risk_level,
+                confidence=round(float(confidence), 4),
+                price=round(float(amplitude), 4),
+            )
         except Exception as e:
             logger.error(f"Fallback LPPL analysis failed: {e}")
-            return {
-                "symbol": symbol,
-                "status": "success",
-                "bubble_detected": False,
-                "confidence": 0.0,
-                "amplitude": 0.0,
-                "summary": "LPPL分析失败，使用默认结果",
-            }
+            return LPPLOutput(risk_level="ENGINE_FAILED", confidence=0.0)

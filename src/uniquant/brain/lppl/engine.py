@@ -13,6 +13,7 @@ import logging
 import os
 import warnings
 from dataclasses import dataclass
+from multiprocessing import current_process
 from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
@@ -40,6 +41,11 @@ except ImportError:
 warnings.filterwarnings("once", category=RuntimeWarning, module="numba")
 logging.captureWarnings(True)
 
+def _in_parallel() -> bool:
+    if os.environ.get("LPPL_DISABLE_PARALLEL") == "1":
+        return True
+    return current_process().name.startswith("LokyProcess")
+
 
 # ============================================================================
 # 配置类
@@ -53,11 +59,12 @@ class LPPLConfig:
     # 窗口配置
     window_range: List[int]
 
-    # 优化器配置 (使用DE保持与原verify_lppl.py一致)
-    optimizer: str = "de"
-    maxiter: int = 500
-    popsize: int = 15
+    # 优化器配置 (L-BFGS-B 生产默认; DE 仅用于离线研究, 速度慢 ~50倍)
+    optimizer: str = "lbfgsb"
+    maxiter: int = 30
+    popsize: int = 5        # DE 用: 默认值对 7 维 (min ~70) 不够, 见 de_popsize
     tol: float = 0.05
+    de_popsize: int = 70    # DE 模式有效种群数, 仅 optimizer="de" 时使用
 
     # 风险阈值 (与 constants/technical.py W_BOUNDS/M_BOUNDS 统一)
     m_bounds: Tuple[float, float] = M_BOUNDS
@@ -104,14 +111,20 @@ def danger_r2_threshold(config: LPPLConfig) -> float:
     return min(1.0, max(0.0, float(config.r2_threshold) + float(config.danger_r2_offset)))
 
 
-def classify_top_phase(days_left: float, r2: float, config: LPPLConfig) -> str:
+def classify_top_phase(days_left: float, r2: float, config: LPPLConfig,
+                       price_ret: Optional[float] = None) -> str:
     if days_left < 0:
         return "none"
-    if days_left < config.danger_days and r2 >= danger_r2_threshold(config):
+
+    adjusted_r2 = r2
+    if price_ret is not None and abs(price_ret) < 0.10:
+        adjusted_r2 = r2 - 0.15
+
+    if days_left < config.danger_days and adjusted_r2 >= danger_r2_threshold(config):
         return "danger"
-    if days_left < config.warning_days and r2 >= warning_r2_threshold(config):
+    if days_left < config.warning_days and adjusted_r2 >= warning_r2_threshold(config):
         return "warning"
-    if days_left < config.watch_days and r2 >= watch_r2_threshold(config):
+    if days_left < config.watch_days and adjusted_r2 >= watch_r2_threshold(config):
         return "watch"
     return "none"
 
@@ -227,10 +240,12 @@ def fit_single_window(
 
         rmse = np.sqrt(np.mean((fitted_curve - log_price_data) ** 2))
 
+        price_ret = (price_data[-1] - price_data[0]) / price_data[0] if len(price_data) > 1 else 0
+
         is_danger = (
             (config.m_bounds[0] < m < config.m_bounds[1])
             and (config.w_bounds[0] < w < config.w_bounds[1])
-            and classify_top_phase(days_to_crash, r_squared, config) == "danger"
+            and classify_top_phase(days_to_crash, r_squared, config, price_ret) == "danger"
             and r_squared > 0
         )
 
@@ -341,10 +356,12 @@ def fit_single_window_lbfgsb(
 
         rmse = best_cost
 
+        price_ret = (price_data[-1] - price_data[0]) / price_data[0] if len(price_data) > 1 else 0
+
         is_danger = (
             (config.m_bounds[0] < m < config.m_bounds[1])
             and (config.w_bounds[0] < w < config.w_bounds[1])
-            and classify_top_phase(days_to_crash, r_squared, config) == "danger"
+            and classify_top_phase(days_to_crash, r_squared, config, price_ret) == "danger"
             and r_squared > 0
         )
 
@@ -391,7 +408,7 @@ def calculate_risk_level(
     if not valid_model:
         return "无效模型", False, False
 
-    phase = classify_top_phase(days_left, r2, cfg)
+    phase = classify_top_phase(days_left, r2, cfg, None)
     is_danger = phase == "danger"
     is_warning = phase in {"warning", "danger"}
 
@@ -451,10 +468,10 @@ def scan_single_date(
 
         subset = close_prices[idx - window_size : idx]
 
-        if config.optimizer == "lbfgsb":
-            res = fit_single_window_lbfgsb(subset, window_size, config)
-        else:
+        if config.optimizer == "de":
             res = fit_single_window(subset, window_size, config)
+        else:
+            res = fit_single_window_lbfgsb(subset, window_size, config)
 
         if res is not None:
             res["idx"] = idx
@@ -497,9 +514,12 @@ def scan_date_range(
 
     indices = list(range(start_idx, end_idx, step))
 
-    results = Parallel(n_jobs=config.n_workers, backend="loky", verbose=0)(
-        delayed(scan_single_date)(close_prices, idx, window_range, config) for idx in indices
-    )
+    if _in_parallel():
+        results = [scan_single_date(close_prices, idx, window_range, config) for idx in indices]
+    else:
+        results = Parallel(n_jobs=config.n_workers, backend="loky", verbose=0)(
+            delayed(scan_single_date)(close_prices, idx, window_range, config) for idx in indices
+        )
 
     return [r for r in results if r is not None]
 
@@ -600,7 +620,7 @@ def calculate_trend_scores(
             (config.w_bounds[0] < w_arr) & (w_arr < config.w_bounds[1])
         )
         phases = np.array([
-            classify_top_phase(float(d), float(r), config)
+            classify_top_phase(float(d), float(r), config, None)
             for d, r in zip(d_arr, r_arr)
         ])
         df["is_warning"] = in_bounds & np.isin(phases, ["watch", "warning", "danger"])
@@ -948,13 +968,13 @@ class LPPLEngine:
         valid_windows = [w for w in LPPLConstants.WINDOWS_ALL if len(df) >= w]
         if not valid_windows:
             return []
-        if os.environ.get("LPPL_DISABLE_PARALLEL") == "1":
-            results = [self._process_window(df, w) for w in valid_windows]
+        if _in_parallel():
+            raw = [self._process_window(df, w) for w in valid_windows]
         else:
-            results = Parallel(n_jobs=-1, backend="loky")(
+            raw = Parallel(n_jobs=-1, backend="loky")(
                 delayed(self._process_window)(df, w) for w in valid_windows
             )
-        results = [r for r in results if r is not None]
+        results = [r for r in raw if r is not None]
         buckets = {
             "Short (100-300d)": lambda w: w <= 300,
             "Medium (300-600d)": lambda w: 300 < w <= 600,
@@ -986,7 +1006,45 @@ class LPPLEngine:
         return None
 
     def detect_bubble(self, df: pd.DataFrame, column: str = "close") -> Dict[str, Any]:
-        return self.calculator.fit(df, column)
+        result = self.calculator.fit(df, column)
+        if result:
+            result["out_of_sample_r_squared"] = self._calc_oos_r_squared(df, result, column)
+        return result
+
+    @staticmethod
+    def _calc_oos_r_squared(df: pd.DataFrame, result: Dict[str, Any], column: str = "close") -> float:
+        prices = df[column].to_numpy()
+        n = len(prices)
+        if n < 60 or "model_params" not in result:
+            return 0.0
+        params = result.get("model_params", {})
+        if not params:
+            return 0.0
+        tc = result.get("tc", n + 30)
+        m = params.get("m", 0.5)
+        w_val = params.get("w", 10)
+        log_ret = np.log(prices)
+        t = np.arange(n)
+        split = n - 30
+        t_train = t[:split]
+        log_train = log_ret[:split]
+        tau_train = np.maximum(tc - t_train, 1e-8)
+        f = tau_train ** m
+        g = f * np.cos(w_val * np.log(tau_train))
+        h = f * np.sin(w_val * np.log(tau_train))
+        X = np.column_stack([np.ones_like(t_train), f, g, h])
+        beta, _, _, _ = np.linalg.lstsq(X, log_train, rcond=None)
+        a, b1, c1, c2 = beta
+        t_hold = t[split:]
+        log_hold = log_ret[split:]
+        tau_hold = np.maximum(tc - t_hold, 1e-8)
+        f_hold = tau_hold ** m
+        g_hold = f_hold * np.cos(w_val * np.log(tau_hold))
+        h_hold = f_hold * np.sin(w_val * np.log(tau_hold))
+        fitted_hold = a + b1 * f_hold + c1 * g_hold + c2 * h_hold
+        ss_res = float(np.sum((log_hold - fitted_hold) ** 2))
+        ss_tot = float(np.sum((log_hold - np.mean(log_hold)) ** 2))
+        return round(1.0 - (ss_res / ss_tot) if ss_tot > 0 else 0.0, 4)
 
     def detect_bubble_confidence(self, df: pd.DataFrame, column: str = "close") -> Dict[str, Any]:
         windows = LPPLConstants.WINDOWS_LIST
@@ -1021,7 +1079,7 @@ class LPPLEngine:
                 risk_matrix[symbol] = {"tc": None, "status": "Safe", "confidence": 0.0, "is_bubble": False}
                 continue
             try:
-                result = self.calculator.fit(df, "close")
+                result = self.detect_bubble(df, "close")
                 risk_matrix[symbol] = {
                     "tc": result.get("tc"), "tc_days": max(0, result.get("days_to_tc", 45.0)),
                     "status": result.get("risk_level", "Safe"), "confidence": result.get("confidence", 0.0),

@@ -29,7 +29,7 @@ class TestSurvivorshipWarning:
         assert "survivorship_warning" not in result.metadata
 
     def test_metadata_baseline(self):
-        """基本 metadata 字段始终存在"""
+        """基本 metadata + 补充字段始终存在"""
         engine = UnifiedBacktestEngine()
         df = _make_df()
         signals = []
@@ -39,6 +39,45 @@ class TestSurvivorshipWarning:
         assert result.metadata["signal_count"] == 0
         assert "start_date" in result.metadata
         assert "end_date" in result.metadata
+
+    def test_metadata_config_params_present(self):
+        """回测配置参数在 metadata 中可追溯"""
+        engine = UnifiedBacktestEngine(
+            commission_rate=0.0003,
+            stamp_duty_rate=0.001,
+            slippage_rate=0.002,
+            min_commission=5.0,
+        )
+        df = _make_df()
+        result = engine.run(df, [], symbol="000001.SZ")
+        assert result.metadata["commission_rate"] == 0.0003
+        assert result.metadata["stamp_duty_rate"] == 0.001
+        assert result.metadata["slippage_rate"] == 0.002
+        assert result.metadata["min_commission"] == 5.0
+
+    def test_metadata_trading_days_count(self):
+        """trading_days_count 反映实际交易日数"""
+        engine = UnifiedBacktestEngine()
+        df = _make_df()
+        result = engine.run(df, [], symbol="000001.SZ")
+        assert result.metadata["trading_days_count"] == len(df)
+
+    def test_metadata_final_equity(self):
+        """final_equity 与 equity_curve 最后一笔一致"""
+        engine = UnifiedBacktestEngine()
+        df = _make_df()
+        result = engine.run(df, [], symbol="000001.SZ")
+        assert result.metadata["final_equity"] == result.equity_curve[-1]
+
+    def test_metadata_max_position(self):
+        """回测包含买入时 max_position 记录峰值"""
+        engine = UnifiedBacktestEngine(initial_capital=100_000)
+        df = _make_df()
+        from uniquant.shared.interfaces import TradingSignal
+        import datetime
+        signal = TradingSignal(action="BUY", reason="test", confidence=0.8, shares=100, symbol="000001.SZ", timestamp=datetime.datetime(2024, 1, 2))
+        result = engine.run(df, [signal], symbol="000001.SZ")
+        assert result.metadata["max_position"] >= 100
 
     def test_warning_when_delist_within_backtest_period(self):
         """有退市日期且回测覆盖退市日时，metadata 包含 survivorship_warning"""

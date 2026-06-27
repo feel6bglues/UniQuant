@@ -75,9 +75,11 @@ class SignalArbitrator:
         self,
         engine_priority: Optional[Dict[str, int]] = None,
         sell_priority: bool = True,
+        quality_threshold: float = 0.3,
     ):
         self._priority = engine_priority or ENGINE_PRIORITY.copy()
         self._sell_priority = sell_priority
+        self._quality_threshold = quality_threshold
         self._logs: List[ArbitrationLog] = []
 
     @property
@@ -125,67 +127,103 @@ class SignalArbitrator:
         symbol: str,
         date_key: str,
     ) -> Optional[TradingSignal]:
+        # 只考虑可执行信号 (BUY/SELL), 过滤 HOLD/未知动作
+        actionable = [s for s in day_signals if s.action in ("BUY", "SELL")]
+
         log = ArbitrationLog(
             symbol=symbol,
             date=date_key,
             total_signals=len(day_signals),
         )
 
-        if len(day_signals) == 1:
-            winner = day_signals[0]
+        if not actionable:
+            log.selected_action = "HOLD"
+            log.selected_reason = "no actionable signals"
+            self._logs.append(log)
+            return None
+
+        if len(actionable) == 1:
+            winner = actionable[0]
             log.selected_action = winner.action
             log.selected_reason = winner.reason
             log.selected_confidence = winner.confidence
             self._logs.append(log)
             return winner
 
+        # 规则 0: 质量阈值过滤 (P6.5)
+        if self._quality_threshold > 0.0:
+            filtered = []
+            for sig in actionable:
+                oos_r2 = sig.metadata.get("out_of_sample_r_squared", 1.0)
+                if oos_r2 < self._quality_threshold and sig.action == "SELL":
+                    log.rejection_reasons.append(
+                        f"quality_gate: rejected SELL from {sig.reason} "
+                        f"(OOS R²={oos_r2:.2f} < {self._quality_threshold})"
+                    )
+                    logger.info(
+                        "Quality gate rejected SELL %s OOS R²=%.2f for %s on %s",
+                        sig.reason, oos_r2, symbol, date_key,
+                    )
+                else:
+                    filtered.append(sig)
+            actionable = filtered
+
         # 规则 1: SELL 优先于 BUY
         if self._sell_priority:
-            sells = [s for s in day_signals if s.action == "SELL"]
+            sells = [s for s in actionable if s.action == "SELL"]
             if sells:
                 winner = self._highest_confidence(sells)
+                if winner is None:
+                    return None
                 log.selected_action = "SELL"
                 log.selected_reason = f"arbitrated: {winner.reason}"
                 log.selected_confidence = winner.confidence
-                log.conflicts_resolved = len(day_signals) - 1
+                log.conflicts_resolved = len(actionable) - 1
                 log.rejection_reasons.append(
-                    f"sell_priority: rejected {len(day_signals) - len(sells)} buy signal(s)"
+                    f"sell_priority: rejected {len(actionable) - len(sells)} buy signal(s)"
                 )
                 self._logs.append(log)
                 return winner
 
         # 规则 2: 同方向取最高 confidence
         action_groups: Dict[str, List[TradingSignal]] = {}
-        for sig in day_signals:
+        for sig in actionable:
             action_groups.setdefault(sig.action, []).append(sig)
 
         for action in ("BUY", "SELL"):
             if action in action_groups:
                 winner = self._highest_confidence(action_groups[action])
+                if winner is None:
+                    continue
                 log.selected_action = winner.action
                 log.selected_reason = f"arbitrated: {winner.reason}"
                 log.selected_confidence = winner.confidence
-                log.conflicts_resolved = len(day_signals) - 1
+                log.conflicts_resolved = len(actionable) - 1
                 self._logs.append(log)
                 return winner
 
         # 规则 3: 按引擎优先级
-        winner = self._by_engine_priority(day_signals)
+        winner = self._by_engine_priority(actionable)
         if winner:
             log.selected_action = winner.action
             log.selected_reason = f"arbitrated(engine_priority): {winner.reason}"
             log.selected_confidence = winner.confidence
-            log.conflicts_resolved = len(day_signals) - 1
+            log.conflicts_resolved = len(actionable) - 1
         self._logs.append(log)
         return winner
 
     @staticmethod
-    def _highest_confidence(signals: List[TradingSignal]) -> TradingSignal:
-        return max(signals, key=lambda s: s.confidence)
+    def _highest_confidence(signals: List[TradingSignal]) -> Optional[TradingSignal]:
+        valid = [s for s in signals if s.confidence is not None and s.confidence >= 0.0]
+        if not valid:
+            return signals[0] if signals else None
+        return max(valid, key=lambda s: s.confidence)
 
     def _by_engine_priority(self, signals: List[TradingSignal]) -> Optional[TradingSignal]:
-        candidates: List[TradingSignal] = []
+        candidates: List[Tuple[int, TradingSignal]] = []
         for sig in signals:
+            if sig.action not in ("BUY", "SELL"):
+                continue
             priority = self._get_engine_priority(sig.reason)
             candidates.append((priority, sig))
         candidates.sort(key=lambda x: x[0])

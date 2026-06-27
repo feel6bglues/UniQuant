@@ -2,6 +2,7 @@ import pandas as pd
 
 from uniquant.services.analysis.czsc_analysis_engine import CzscAnalysisEngine
 from uniquant.services.analysis.lppl_analysis_engine import LpplAnalysisEngine
+from uniquant.shared.interfaces import CZSCOutput, LPPLOutput
 from uniquant.services.analysis.regime_analysis_engine import RegimeAnalysisEngine
 
 
@@ -88,8 +89,8 @@ def test_lppl_engine_falls_back_on_runtime_error(monkeypatch):
 
     result = engine.run_lppl_analysis("000001.SZ", _sample_ohlc_df())
 
-    assert result["status"] == "success"
-    assert result["summary"] == "使用基本统计方法进行泡沫风险分析"
+    assert result.risk_level in ("Safe", "Warning")
+    assert isinstance(result.confidence, float)
 
 
 def test_czsc_engine_falls_back_on_runtime_error(monkeypatch):
@@ -105,5 +106,5 @@ def test_czsc_engine_falls_back_on_runtime_error(monkeypatch):
 
     result = engine.run_czsc_analysis("000001.SZ", _sample_ohlc_df())
 
-    assert result["status"] == "success"
-    assert result["summary"] == "使用基本技术分析方法进行判断"
+    assert isinstance(result, CZSCOutput)
+    assert isinstance(result.price, float)

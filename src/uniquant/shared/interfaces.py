@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import datetime
 from typing import Any, Dict, List, Optional, Protocol, runtime_checkable
 from dataclasses import dataclass, field
@@ -157,6 +159,7 @@ class TradingSignal:
     symbol: str = ""
     price: float = 0.0
     timestamp: Optional[datetime.datetime] = field(default=None, repr=False)
+    metadata: Dict[str, Any] = field(default_factory=dict)
 
     # 兼容旧接口：从 dict 构造
     @classmethod
@@ -196,12 +199,12 @@ class ResearchDataPack:
     symbol: str
     stock_df: Optional[pd.DataFrame] = None
     index_df: Optional[pd.DataFrame] = None
-    regime: Optional[Any] = None
-    lppl: Optional[Dict[str, Any]] = None
-    ntf: Optional[Dict[str, Any]] = None
-    czsc: Optional[Dict[str, Any]] = None
-    wyckoff: Optional[Dict[str, Any]] = None
-    alpha: Optional[Dict[str, Any]] = None
+    regime: Optional[RegimeOutput] = None
+    lppl: Optional[LPPLOutput] = None
+    ntf: Optional[NtfOutput] = None
+    czsc: Optional[CZSCOutput] = None
+    wyckoff: Optional[WyckoffOutput] = None
+    alpha: Optional[AlphaOutput] = None
     factors: Optional[Dict[str, float]] = None
     metadata: Dict[str, Any] = field(default_factory=dict)
 
@@ -210,7 +213,7 @@ class ResearchDataPack:
         return cls(
             symbol=symbol or data.get("symbol", ""),
             stock_df=data.get("stock"),
-            index_df=data.get("index"),
+            index_df=data.get("index") or data.get("bench"),
             regime=data.get("regime"),
             lppl=data.get("lppl"),
             ntf=data.get("ntf"),
@@ -222,10 +225,11 @@ class ResearchDataPack:
         )
 
     def to_dict(self) -> Dict[str, Any]:
-        return {
+        result = {
             "symbol": self.symbol,
             "stock": self.stock_df,
             "index": self.index_df,
+            "bench": self.index_df,
             "regime": self.regime,
             "lppl": self.lppl,
             "ntf": self.ntf,
@@ -235,6 +239,8 @@ class ResearchDataPack:
             "factors": self.factors,
             "metadata": self.metadata,
         }
+        result.update(self.metadata)
+        return result
 
 
 @dataclass
@@ -301,6 +307,8 @@ class LPPLOutput:
     confidence: float = 0.0
     days_to_tc: Optional[float] = None
     price: float = 0.0
+    r_squared: float = 0.0
+    out_of_sample_r_squared: float = 0.0
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -308,6 +316,8 @@ class LPPLOutput:
             "bubble_confidence": self.confidence,
             "lppl_days_to_tc": self.days_to_tc,
             "price": self.price,
+            "r_squared": self.r_squared,
+            "out_of_sample_r_squared": self.out_of_sample_r_squared,
         }
 
     @classmethod
@@ -317,6 +327,8 @@ class LPPLOutput:
             confidence=float(data.get("bubble_confidence", data.get("confidence", 0.0))),
             days_to_tc=data.get("lppl_days_to_tc"),
             price=float(data.get("price", 0.0)),
+            r_squared=float(data.get("r_squared", 0.0)),
+            out_of_sample_r_squared=float(data.get("out_of_sample_r_squared", 0.0)),
         )
 
 
@@ -368,6 +380,8 @@ class WyckoffOutput:
     spring: bool = False
     utad: bool = False
     price: float = 0.0
+    rr_ratio: float = 0.0
+    bypassed: bool = False
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -376,6 +390,8 @@ class WyckoffOutput:
             "wyckoff_spring": self.spring,
             "wyckoff_utad": self.utad,
             "price": self.price,
+            "rr_ratio": self.rr_ratio,
+            "bypassed": self.bypassed,
         }
 
     @classmethod
@@ -386,6 +402,8 @@ class WyckoffOutput:
             spring=bool(data.get("wyckoff_spring", False)),
             utad=bool(data.get("wyckoff_utad", False)),
             price=float(data.get("price", 0.0)),
+            rr_ratio=float(data.get("rr_ratio", 0.0)),
+            bypassed=bool(data.get("bypassed", False)),
         )
 
 

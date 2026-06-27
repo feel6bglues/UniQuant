@@ -3,9 +3,10 @@
 端到端编排：数据加载 → 因子计算 → IC/IR → 合成 → 扫描 → 输出
 """
 
+import json
 import logging
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
-from datetime import datetime
 from pathlib import Path
 from ..shared.time_provider import get_time_provider
 from typing import Dict, List, Optional, Any
@@ -58,6 +59,9 @@ class ScanConfig:
     exclude_delisted: bool = False
     batch_size: int = 500
     financial_subdir: str = "financial"
+    max_workers: int = 4
+    checkpoint_enabled: bool = False
+    checkpoint_dir: Optional[str] = None
     
     def __post_init__(self):
         if self.holding_periods is None:
@@ -108,8 +112,81 @@ class ScanPipeline:
         self.financial_data: Dict[str, pd.DataFrame] = {}
         self.combined_df: pd.DataFrame = pd.DataFrame()
         
-        logger.info(f"ScanPipeline initialized with top_n={self.config.top_n}")
+        cp_dir = self.config.checkpoint_dir
+        self._checkpoint_dir = Path(cp_dir) if cp_dir else Path(data_dir) / ".scan_cache"
+        self._max_workers = self.config.max_workers
+        
+        logger.info(f"ScanPipeline initialized with top_n={self.config.top_n}, "
+                     f"max_workers={self._max_workers}, "
+                     f"checkpoint_enabled={self.config.checkpoint_enabled}")
     
+    def _checkpoint_path(self, name: str) -> Path:
+        return self._checkpoint_dir / f"{name}.json"
+
+    def _save_checkpoint(self, name: str, data: Any) -> None:
+        if not self.config.checkpoint_enabled:
+            return
+        self._checkpoint_dir.mkdir(parents=True, exist_ok=True)
+        self._checkpoint_path(name).write_text(json.dumps(data, ensure_ascii=False))
+
+    def _load_checkpoint(self, name: str) -> Optional[Any]:
+        if not self.config.checkpoint_enabled:
+            return None
+        path = self._checkpoint_path(name)
+        if path.exists():
+            return json.loads(path.read_text(encoding="utf-8"))
+        return None
+
+    def _clear_checkpoints(self) -> None:
+        if self._checkpoint_dir.exists():
+            for f in self._checkpoint_dir.glob("*.json"):
+                f.unlink()
+
+    def _load_financial_data_batch(self, symbols: List[str]) -> Dict[str, pd.DataFrame]:
+        financial_dir = self.storage.lake_dir / self.config.financial_subdir
+        parquet_paths: Dict[str, Path] = {}
+        for symbol in symbols:
+            fin_path = financial_dir / f"{symbol}.parquet"
+            if fin_path.exists():
+                parquet_paths[symbol] = fin_path
+
+        if not parquet_paths:
+            logger.info("No financial parquet files found")
+            return {}
+
+        loaded_symbols: set = set()
+        if self.config.checkpoint_enabled:
+            cached = self._load_checkpoint("financial_loaded")
+            if cached:
+                loaded_symbols = set(cached)
+                loaded_count = len(loaded_symbols & parquet_paths.keys())
+                if loaded_count:
+                    logger.info(f"Checkpoint: {loaded_count} financial datasets already loaded, skipping")
+                    for sym in list(parquet_paths.keys()):
+                        if sym in loaded_symbols:
+                            del parquet_paths[sym]
+
+        if not parquet_paths:
+            logger.info("All financial data already loaded per checkpoint")
+            return self.financial_data
+
+        results: Dict[str, pd.DataFrame] = {}
+        logger.info(f"Loading {len(parquet_paths)} financial datasets with {self._max_workers} workers...")
+        with ThreadPoolExecutor(max_workers=self._max_workers) as executor:
+            future_to_sym = {
+                executor.submit(pd.read_parquet, str(path)): sym
+                for sym, path in parquet_paths.items()
+            }
+            for future in as_completed(future_to_sym):
+                sym = future_to_sym[future]
+                try:
+                    results[sym] = future.result()
+                except PARQUET_LOAD_ERRORS as e:
+                    logger.warning(f"Failed to load financial data for {sym}: {e}")
+
+        logger.info(f"Loaded {len(results)} financial datasets")
+        return results
+
     def load_data(self, symbols: Optional[List[str]] = None) -> None:
         """
         加载日线和财务数据
@@ -131,15 +208,13 @@ class ScanPipeline:
         if self.config.lightweight:
             logger.info("Lightweight mode: skipping financial data loading")
         else:
-            financial_dir = self.storage.lake_dir / self.config.financial_subdir
-            for symbol in symbols:
-                fin_path = financial_dir / f"{symbol}.parquet"
-                if fin_path.exists():
-                    try:
-                        df = pd.read_parquet(fin_path)
-                        self.financial_data[symbol] = df
-                    except PARQUET_LOAD_ERRORS as e:
-                        logger.warning(f"Failed to load financial data for {symbol}: {e}")
+            self.financial_data = self._load_financial_data_batch(symbols)
+        
+        if self.config.checkpoint_enabled:
+            all_loaded = list(self.daily_data.keys())
+            self._save_checkpoint("daily_symbols", all_loaded)
+            fin_loaded = list(self.financial_data.keys())
+            self._save_checkpoint("financial_loaded", fin_loaded)
         
         logger.info(f"Loaded {len(self.daily_data)} daily and {len(self.financial_data)} financial datasets")
     
@@ -186,22 +261,71 @@ class ScanPipeline:
         logger.info(f"成功计算 {len(factor_df.columns)} 个因子")
 
     def _merge_financial_metrics(self, combined_df: pd.DataFrame) -> pd.DataFrame:
-        """将财务因子桥接到日线主表"""
-        result_frames = []
+        """将财务因子桥接到日线主表（并行合并）"""
+        groups = list(combined_df.groupby("code", sort=False))
 
-        for symbol, daily_df in combined_df.groupby("code", sort=False):
+        if not groups:
+            return combined_df
+
+        merged_symbols: set = set()
+        if self.config.checkpoint_enabled:
+            cached = self._load_checkpoint("merged_symbols")
+            if cached:
+                merged_symbols = set(cached)
+
+        def merge_one(symbol: str, daily_df: pd.DataFrame) -> Optional[pd.DataFrame]:
             fin_df = self.financial_data.get(symbol)
             if fin_df is None or fin_df.empty:
-                result_frames.append(daily_df.copy())
-                continue
+                return daily_df.copy()
+            try:
+                merged = self.financial_bridge.process(daily_df.copy(), fin_df.copy(), price_col="close")
+                return merged if not merged.empty else daily_df.copy()
+            except Exception as e:
+                logger.warning(f"Merge failed for {symbol}: {e}")
+                return daily_df.copy()
 
-            merged = self.financial_bridge.process(daily_df.copy(), fin_df.copy(), price_col="close")
-            result_frames.append(merged if not merged.empty else daily_df.copy())
+        result_frames: List[pd.DataFrame] = []
+        pending_groups = [(s, df) for s, df in groups if s not in merged_symbols]
+
+        if merged_symbols:
+            loaded_count = len(merged_symbols)
+            logger.info(f"Checkpoint: {loaded_count} symbols already merged, skipping")
+
+        if not pending_groups:
+            logger.info("All financial metrics already merged per checkpoint")
+            return combined_df
+
+        logger.info(f"Merging financial metrics for {len(pending_groups)} symbols with {self._max_workers} workers...")
+        with ThreadPoolExecutor(max_workers=self._max_workers) as executor:
+            futures = {
+                executor.submit(merge_one, sym, df): sym
+                for sym, df in pending_groups
+            }
+            for future in as_completed(futures):
+                sym = futures[future]
+                try:
+                    result = future.result()
+                    if result is not None:
+                        result_frames.append(result)
+                except Exception as e:
+                    logger.warning(f"Unexpected merge error for {sym}: {e}")
+                    groups_dict = dict(pending_groups)
+                    result_frames.append(groups_dict[sym].copy())
+
+        if merged_symbols:
+            for s, df in groups:
+                if s in merged_symbols:
+                    result_frames.append(df.copy())
 
         if not result_frames:
             return combined_df
 
         merged_df = pd.concat(result_frames, ignore_index=True)
+
+        if self.config.checkpoint_enabled:
+            all_merged = list(set(s for s, _ in groups))
+            self._save_checkpoint("merged_symbols", all_merged)
+
         logger.info(f"财务因子合并完成，共 {len(merged_df)} 条记录")
         return merged_df
     

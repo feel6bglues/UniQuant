@@ -19,6 +19,16 @@ def _sig(action: str, reason: str = "", confidence: float = 0.5) -> TradingSigna
     )
 
 
+def _sig_no_ts(action: str, reason: str = "", confidence: float = 0.5) -> TradingSignal:
+    return TradingSignal(
+        action=action,
+        reason=reason,
+        confidence=confidence,
+        symbol="000001.SZ",
+        timestamp=None,
+    )
+
+
 class TestSignalArbitrator:
     def test_empty_signals(self):
         arb = SignalArbitrator()
@@ -78,6 +88,112 @@ class TestSignalArbitrator:
         assert len(result) == 1
         # Without sell_priority, highest confidence wins
         assert result[0].confidence == 0.8
+
+    # ── G-4a: None/negative confidence ────────────────────────
+    def test_none_confidence_does_not_crash(self):
+        arb = SignalArbitrator()
+        s = TradingSignal(action="BUY", reason="test", confidence=None, symbol="000001.SZ", timestamp=datetime.datetime(2024, 6, 1))
+        result = arb.arbitrate([s], symbol="000001.SZ")
+        assert len(result) == 1
+        assert result[0].action == "BUY"
+
+    def test_negative_confidence_does_not_crash(self):
+        arb = SignalArbitrator()
+        buy = _sig("BUY", "czsc", -0.5)
+        sell = _sig("SELL", "lppl", -0.3)
+        result = arb.arbitrate([buy, sell], symbol="000001.SZ")
+        assert len(result) == 1
+        # SELL should still win (sell_priority), negative confidence doesn't crash
+        assert result[0].action == "SELL"
+
+    def test_highest_confidence_skips_none(self):
+        arb = SignalArbitrator()
+        none_conf = TradingSignal(action="BUY", reason="alpha", confidence=None, symbol="000001.SZ", timestamp=datetime.datetime(2024, 6, 1))
+        high_conf = _sig("BUY", "czsc", 0.9)
+        result = arb.arbitrate([none_conf, high_conf], symbol="000001.SZ")
+        assert len(result) == 1
+        assert result[0].confidence == 0.9
+
+    # ── G-4g: HOLD-only signals ──────────────────────────────
+    def test_hold_only_signals_return_empty(self):
+        arb = SignalArbitrator()
+        s1 = _sig("HOLD", "no_trade", 0.5)
+        s2 = _sig("HOLD", "wait", 0.3)
+        result = arb.arbitrate([s1, s2], symbol="000001.SZ")
+        assert result == []
+
+    def test_mixed_hold_and_actionable_filters_hold(self):
+        arb = SignalArbitrator()
+        hold = _sig("HOLD", "wait", 0.5)
+        buy = _sig("BUY", "czsc", 0.8)
+        result = arb.arbitrate([hold, buy], symbol="000001.SZ")
+        assert len(result) == 1
+        assert result[0].action == "BUY"
+
+    # ── G-4d: No-timestamp signals ───────────────────────────
+    def test_no_timestamp_signals_grouped_under_unknown(self):
+        arb = SignalArbitrator()
+        s1 = _sig_no_ts("BUY", "czsc", 0.8)
+        s2 = _sig_no_ts("SELL", "lppl", 0.9)
+        result = arb.arbitrate([s1, s2], symbol="000001.SZ")
+        assert len(result) == 1
+        # SELL should win (sell_priority)
+        assert result[0].action == "SELL"
+        logs = arb.logs
+        assert logs[0].date == "unknown"
+
+    # ── G-4b: Unknown action ─────────────────────────────────
+    def test_unknown_action_filtered_out(self):
+        arb = SignalArbitrator()
+        unknown = TradingSignal(action="EXECUTE_BUY", reason="legacy", confidence=0.8, symbol="000001.SZ", timestamp=datetime.datetime(2024, 6, 1))
+        buy = _sig("BUY", "czsc", 0.7)
+        result = arb.arbitrate([unknown, buy], symbol="000001.SZ")
+        assert len(result) == 1
+        assert result[0].action == "BUY"
+
+    def test_all_unknown_actions_return_empty(self):
+        arb = SignalArbitrator()
+        s1 = TradingSignal(action="ADD", reason="legacy_1", confidence=0.8, symbol="000001.SZ", timestamp=datetime.datetime(2024, 6, 1))
+        s2 = TradingSignal(action="FORCE_WAIT", reason="legacy_2", confidence=0.7, symbol="000001.SZ", timestamp=datetime.datetime(2024, 6, 1))
+        result = arb.arbitrate([s1, s2], symbol="000001.SZ")
+        assert result == []
+
+    # ── G-4h: Sizer exception path ───────────────────────────
+    def test_sizer_exception_falls_back_to_default_shares(self):
+        arb = SignalArbitrator()
+        candidates = [CandidateSignal(source="wyckoff", action="BUY", confidence=0.8, direction=1, strength=0.7)]
+        mock_sizer = MagicMock()
+        mock_sizer.calculate_shares.side_effect = RuntimeError("sizer failed")
+        signals, report = arb.arbitrate_candidates(candidates, sizer=mock_sizer, symbol="000001.SZ")
+        assert len(signals) == 1
+        assert signals[0].shares == 100
+
+    # ── G-4i: CIRCUIT_BREAK ──────────────────────────────────
+    def test_circuit_break_veto(self):
+        arb = SignalArbitrator()
+        candidates = [CandidateSignal(source="czsc", action="BUY", confidence=0.8, direction=1, strength=0.7)]
+        decision = DecisionOutput(action="CIRCUIT_BREAK", reason="circuit", confidence=1.0)
+        signals, report = arb.arbitrate_candidates(candidates, decision_output=decision, symbol="000001.SZ")
+        assert signals == []
+        assert "CIRCUIT_BREAK" in report.veto_chain[0]
+
+    # ── G-4j: HOLD default path ──────────────────────────────
+    def test_no_actionable_candidates_returns_hold(self):
+        arb = SignalArbitrator()
+        signals, report = arb.arbitrate_candidates([], symbol="000001.SZ")
+        assert signals == []
+        assert report.final_action == "HOLD"
+        assert "no candidates" in report.final_reason
+
+    # ── G-4e/4f: Engine priority ties ────────────────────────
+    def test_engine_priority_tie_picks_first(self):
+        arb = SignalArbitrator()
+        s1 = _sig("BUY", "unknown_engine_a", 0.5)
+        s2 = _sig("BUY", "unknown_engine_b", 0.6)
+        result = arb.arbitrate([s1, s2], symbol="000001.SZ")
+        assert len(result) == 1
+        # Both have priority 99, so higher confidence wins (rule 2 before rule 3)
+        assert result[0].confidence == 0.6
 
 
 class TestSignalArbitratorCandidateSignals:

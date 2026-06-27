@@ -18,7 +18,7 @@ import logging
 import uuid
 from dataclasses import dataclass
 from ..shared.time_provider import get_time_provider
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 
@@ -40,6 +40,7 @@ from ..shared.config_models import load_refactoring_config
 from ..shared.logger_factory import get_logger
 from ..shared.observability import perf_section
 from .analysis.engine_factory import AnalysisEngineFactory
+from .analysis.pack_writer import DictPackWriter, RDPackWriter
 from .data_service import DataService
 from .market_cache import MarketLevelCache
 
@@ -59,7 +60,7 @@ logger = get_logger("AnalysisService")
 class TickerAnalysisResult:
     """单只股票的分析结果"""
     symbol: str
-    data_pack: Dict[str, Any]
+    data_pack: Union[Dict[str, Any], ResearchDataPack]
     decision: Dict[str, Any]
     signals: List[TradingSignal]
     success: bool = True
@@ -102,8 +103,6 @@ class AnalysisService:
 
         if engine_factory is None:
             engine_factory = AnalysisEngineFactory(orchestrator=self)
-        elif hasattr(engine_factory, "bind_orchestrator"):
-            engine_factory.bind_orchestrator(self)
         self._factory = engine_factory
 
     # ── 引擎属性 (延迟初始化) ──────────────────────────────
@@ -233,20 +232,33 @@ class AnalysisService:
         return result
 
     @staticmethod
+    def _get_writer(data_pack: Union[Dict[str, Any], ResearchDataPack]):
+        return RDPackWriter if isinstance(data_pack, ResearchDataPack) else DictPackWriter
+
+    @staticmethod
     def _mark_engine_status(
-        data_pack: Dict[str, Any],
+        data_pack: Union[Dict[str, Any], ResearchDataPack],
         engine_name: str,
         status: str,
         error: Optional[str] = None,
     ) -> None:
-        data_pack.setdefault("engine_status", {})[engine_name] = status
-        if error:
-            data_pack.setdefault("engine_errors", {})[engine_name] = error
+        if isinstance(data_pack, ResearchDataPack):
+            data_pack.metadata.setdefault("engine_status", {})[engine_name] = status
+            if error:
+                data_pack.metadata.setdefault("engine_errors", {})[engine_name] = error
+        else:
+            data_pack.setdefault("engine_status", {})[engine_name] = status
+            if error:
+                data_pack.setdefault("engine_errors", {})[engine_name] = error
 
     @staticmethod
-    def _attach_trace_id(data_pack: Dict[str, Any], trace_id: str) -> None:
-        data_pack["trace_id"] = trace_id
-        data_pack.setdefault("engine_status_meta", {})["trace_id"] = trace_id
+    def _attach_trace_id(data_pack: Union[Dict[str, Any], ResearchDataPack], trace_id: str) -> None:
+        if isinstance(data_pack, ResearchDataPack):
+            data_pack.metadata["trace_id"] = trace_id
+            data_pack.metadata.setdefault("engine_status_meta", {})["trace_id"] = trace_id
+        else:
+            data_pack["trace_id"] = trace_id
+            data_pack.setdefault("engine_status_meta", {})["trace_id"] = trace_id
 
     def run_ticker_analysis(
         self,
@@ -299,7 +311,7 @@ class AnalysisService:
 
     # ── 内部方法: 数据准备 ─────────────────────────────────
 
-    def _prepare_data(self, ticker: str) -> Optional[Dict[str, Any]]:
+    def _prepare_data(self, ticker: str) -> Optional[Union[Dict[str, Any], ResearchDataPack]]:
         """准备分析数据 — 委托 DataService"""
         try:
             research_pack: Optional[ResearchDataPack] = None
@@ -311,14 +323,22 @@ class AnalysisService:
                 logger.debug("ResearchDataPack feature flag check failed; falling back to dict path: %s", exc)
 
             if research_pack is not None:
-                data_pack = research_pack.to_dict()
+                data_pack: Union[Dict[str, Any], ResearchDataPack] = research_pack
             else:
                 data_pack = self.data_service.fetch_for_brain(ticker)
 
-            if not data_pack or data_pack.get("stock") is None:
+            if isinstance(data_pack, ResearchDataPack):
+                stock_df = data_pack.stock_df
+            else:
+                if not data_pack:
+                    logger.error(f"{ticker} 数据不足")
+                    return None
+                stock_df = data_pack.get("stock")
+
+            if stock_df is None:
                 logger.error(f"{ticker} 数据不足")
                 return None
-            if data_pack["stock"].empty:
+            if stock_df.empty:
                 logger.error(f"{ticker} 股票数据为空")
                 return None
             return data_pack
@@ -328,7 +348,7 @@ class AnalysisService:
 
     # ── 内部方法: 引擎编排 ─────────────────────────────────
 
-    def _run_engines(self, ticker: str, data_pack: Dict[str, Any]) -> bool:
+    def _run_engines(self, ticker: str, data_pack: Union[Dict[str, Any], ResearchDataPack]) -> bool:
         """运行所有 Brain 引擎"""
         try:
             bus = self._event_bus
@@ -367,15 +387,20 @@ class AnalysisService:
             if bus is not None:
                 bus.publish(EngineCompleted("derived", ticker, "OK"))
 
-            data_pack["symbol"] = ticker
-            data_pack["market"] = "CN"
+            if isinstance(data_pack, ResearchDataPack):
+                data_pack.symbol = ticker
+                data_pack.metadata["market"] = "CN"
+            else:
+                data_pack["symbol"] = ticker
+                data_pack["market"] = "CN"
             return True
         except RECOVERABLE_ERRORS as e:
             logger.error(f"引擎分析失败: {e}")
             return False
 
-    def _run_regime(self, ticker: str, data_pack: Dict[str, Any]) -> None:
+    def _run_regime(self, ticker: str, data_pack: Union[Dict[str, Any], ResearchDataPack]) -> None:
         """Regime 检测 (市场级缓存)"""
+        writer = self._get_writer(data_pack)
         try:
             cached = self._market_cache.get_regime()
             if cached is not None:
@@ -385,11 +410,8 @@ class AnalysisService:
                     entropy=float(details.get("entropy", 0.0)),
                     turnover_z=float(details.get("turnover_z", 0.0)),
                 )
-                data_pack["regime_output"] = output
-                data_pack["regime"] = output.regime
-                data_pack["entropy"] = output.entropy
-                data_pack["turnover_z"] = output.turnover_z
-                self._mark_engine_status(data_pack, "regime", "OK")
+                writer.write_regime(data_pack, output)
+                writer.mark_engine_status(data_pack, "regime", "OK")
                 return
 
             from ..brain.regime.regime_detector import RegimeDetector
@@ -401,73 +423,46 @@ class AnalysisService:
                 result = detector.get_typed_summary(df)
             else:
                 output = RegimeOutput(regime="UNKNOWN")
-                data_pack["regime_output"] = output
-                data_pack["regime"] = output.regime
-                data_pack["entropy"] = output.entropy
-                data_pack["turnover_z"] = output.turnover_z
-                self._mark_engine_status(
-                    data_pack,
-                    "regime",
-                    "DATA_UNAVAILABLE",
+                writer.write_regime(data_pack, output)
+                writer.mark_engine_status(
+                    data_pack, "regime", "DATA_UNAVAILABLE",
                     "HS300 index data unavailable",
                 )
                 return
 
             self._market_cache.set_regime(result.regime, result.to_dict())
-            data_pack["regime_output"] = result
-            data_pack["regime"] = result.regime
-            data_pack["entropy"] = result.entropy
-            data_pack["turnover_z"] = result.turnover_z
-            self._mark_engine_status(data_pack, "regime", "OK")
+            writer.write_regime(data_pack, result)
+            writer.mark_engine_status(data_pack, "regime", "OK")
         except RECOVERABLE_ERRORS as e:
             logger.warning(f"Regime 检测失败: {e}")
             output = RegimeOutput(regime="UNKNOWN")
-            data_pack["regime_output"] = output
-            data_pack["regime"] = output.regime
-            data_pack["entropy"] = output.entropy
-            data_pack["turnover_z"] = output.turnover_z
-            self._mark_engine_status(data_pack, "regime", "ENGINE_FAILED", str(e))
+            writer.write_regime(data_pack, output)
+            writer.mark_engine_status(data_pack, "regime", "ENGINE_FAILED", str(e))
 
-    def _run_lppl(self, data_pack: Dict[str, Any]) -> None:
+    def _run_lppl(self, data_pack: Union[Dict[str, Any], ResearchDataPack]) -> None:
         """LPPL 泡沫检测"""
+        writer = self._get_writer(data_pack)
         try:
-            symbol = data_pack.get("symbol", "unknown")
-            result = self.lppl_engine.run_lppl_analysis(
-                symbol=symbol, df=data_pack.get("stock"),
+            symbol = writer.get_symbol(data_pack)
+            stock_df = writer.get_stock_df(data_pack)
+            output = self.lppl_engine.run_lppl_analysis(
+                symbol=symbol, df=stock_df,
             )
-            if result.get("status") != "success" or "risk_level" not in result:
-                output = LPPLOutput(risk_level="ENGINE_FAILED", confidence=1.0)
-                data_pack["lppl_output"] = output
-                data_pack["risk"] = output.risk_level
-                data_pack["bubble_confidence"] = output.confidence
-                self._mark_engine_status(
-                    data_pack,
-                    "lppl",
-                    "ENGINE_FAILED",
-                    result.get("error", "LPPL risk_level unavailable"),
-                )
-                return
+            writer.write_lppl(data_pack, output)
 
-            output = LPPLOutput(
-                risk_level=result["risk_level"],
-                confidence=result.get("confidence", 0.0),
-                days_to_tc=result.get("days_to_tc"),
-                price=result.get("price", 0.0),
-            )
-            data_pack["lppl_output"] = output
-            data_pack["risk"] = output.risk_level
-            data_pack["bubble_confidence"] = output.confidence
-            self._mark_engine_status(data_pack, "lppl", "OK")
+            if output.risk_level == "ENGINE_FAILED":
+                writer.mark_engine_status(data_pack, "lppl", "ENGINE_FAILED", "LPPL analysis failed")
+            else:
+                writer.mark_engine_status(data_pack, "lppl", "OK")
         except RECOVERABLE_ERRORS as e:
             logger.warning(f"LPPL 检测失败: {e}")
             output = LPPLOutput(risk_level="ENGINE_FAILED", confidence=1.0)
-            data_pack["lppl_output"] = output
-            data_pack["risk"] = output.risk_level
-            data_pack["bubble_confidence"] = output.confidence
-            self._mark_engine_status(data_pack, "lppl", "ENGINE_FAILED", str(e))
+            writer.write_lppl(data_pack, output)
+            writer.mark_engine_status(data_pack, "lppl", "ENGINE_FAILED", str(e))
 
-    def _run_ntf(self, ticker: str, data_pack: Dict[str, Any]) -> None:
+    def _run_ntf(self, ticker: str, data_pack: Union[Dict[str, Any], ResearchDataPack]) -> None:
         """NTF 国家队检测 (市场级缓存)"""
+        writer = self._get_writer(data_pack)
         try:
             cached = self._market_cache.get_ntf()
             if cached is not None:
@@ -475,10 +470,7 @@ class AnalysisService:
                     side=str(cached.get("side", "NONE")),
                     intensity=float(cached.get("intensity", 0.0)),
                 )
-                data_pack["ntf_output"] = output
-                data_pack["ntf_side"] = output.side
-                data_pack["ntf_intensity"] = output.intensity
-                data_pack["ntf_action"] = cached.get("action", "")
+                writer.write_ntf(data_pack, output, action=cached.get("action", ""))
                 return
 
             from ..brain.ntf.ntf_engine import NTFEngine
@@ -499,22 +491,19 @@ class AnalysisService:
                 intensity=float(result.get("intensity", 0.0)),
             )
             self._market_cache.set_ntf(result)
-            data_pack["ntf_output"] = output
-            data_pack["ntf_side"] = output.side
-            data_pack["ntf_intensity"] = output.intensity
-            data_pack["ntf_action"] = result.get("action", "")
+            writer.write_ntf(data_pack, output, action=result.get("action", ""))
         except RECOVERABLE_ERRORS as e:
             logger.warning(f"NTF 检测失败: {e}")
             output = NtfOutput(side="NONE")
-            data_pack["ntf_output"] = output
-            data_pack["ntf_side"] = output.side
-            data_pack["ntf_intensity"] = output.intensity
+            writer.write_ntf(data_pack, output)
 
-    def _run_czsc(self, ticker: str, data_pack: Dict[str, Any]) -> None:
+    def _run_czsc(self, ticker: str, data_pack: Union[Dict[str, Any], ResearchDataPack]) -> None:
         """CZSC 缠论分析"""
+        writer = self._get_writer(data_pack)
         try:
+            stock_df = writer.get_stock_df(data_pack)
             result = self.czsc_engine.run_czsc_analysis(
-                symbol=ticker, df=data_pack.get("stock"),
+                symbol=ticker, df=stock_df,
             )
             output = CZSCOutput(
                 is_3rd_buy=bool(result.get("is_3rd_buy", False)),
@@ -522,21 +511,18 @@ class AnalysisService:
                 price=float(result.get("price", 0.0)),
                 bottom=result.get("czsc_bottom"),
             )
-            data_pack["czsc_output"] = output
-            data_pack["is_3rd_buy"] = output.is_3rd_buy
-            data_pack["bi_count"] = output.bi_count
+            writer.write_czsc(data_pack, output)
         except RECOVERABLE_ERRORS as e:
             logger.warning(f"CZSC 分析失败: {e}")
-            output = CZSCOutput()
-            data_pack["czsc_output"] = output
-            data_pack["is_3rd_buy"] = output.is_3rd_buy
-            data_pack["bi_count"] = output.bi_count
+            writer.write_czsc(data_pack, CZSCOutput())
 
-    def _run_wyckoff(self, ticker: str, data_pack: Dict[str, Any]) -> None:
+    def _run_wyckoff(self, ticker: str, data_pack: Union[Dict[str, Any], ResearchDataPack]) -> None:
         """Wyckoff 分析"""
+        writer = self._get_writer(data_pack)
         try:
+            stock_df = writer.get_stock_df(data_pack)
             result = self.wyckoff_engine.run_wyckoff_analysis(
-                symbol=ticker, df=data_pack.get("stock"),
+                symbol=ticker, df=stock_df,
             )
             output = WyckoffOutput(
                 phase=str(result.get("phase", "unknown")),
@@ -545,27 +531,19 @@ class AnalysisService:
                 utad=bool(result.get("utad_detected", False)),
                 price=float(result.get("price", 0.0)),
             )
-            data_pack["wyckoff_output"] = output
-            data_pack["wyckoff_phase"] = output.phase
-            data_pack["wyckoff_confidence"] = output.confidence
-            data_pack["wyckoff_spring"] = output.spring
-            data_pack["wyckoff_utad"] = output.utad
+            writer.write_wyckoff(data_pack, output)
         except RECOVERABLE_ERRORS as e:
             logger.warning(f"Wyckoff 分析失败: {e}")
-            output = WyckoffOutput()
-            data_pack["wyckoff_output"] = output
-            data_pack["wyckoff_phase"] = output.phase
-            data_pack["wyckoff_confidence"] = output.confidence
+            writer.write_wyckoff(data_pack, WyckoffOutput())
 
-    def _run_alpha(self, data_pack: Dict[str, Any]) -> None:
+    def _run_alpha(self, data_pack: Union[Dict[str, Any], ResearchDataPack]) -> None:
         """Alpha 分离度分析"""
+        writer = self._get_writer(data_pack)
         try:
             from ..brain.alpha_decoupler.alpha_decoupler import AlphaDecoupler
-            stock_df = data_pack.get("stock")
+            stock_df = writer.get_stock_df(data_pack)
             if stock_df is None or stock_df.empty:
-                output = AlphaOutput(score=0.0)
-                data_pack["alpha_output"] = output
-                data_pack["alpha_score"] = output.score
+                writer.write_alpha(data_pack, AlphaOutput(score=0.0))
                 return
 
             storage = self.data_service.lake
@@ -573,26 +551,20 @@ class AnalysisService:
             sector = storage.read_data("000905.SH", "index")
 
             if bench is None or bench.empty:
-                output = AlphaOutput(score=0.0)
-                data_pack["alpha_output"] = output
-                data_pack["alpha_score"] = output.score
+                writer.write_alpha(data_pack, AlphaOutput(score=0.0))
                 return
 
             score = float(AlphaDecoupler.get_alpha_score(
                 stock_df, bench, sector,
             ))
-            output = AlphaOutput(score=score)
-            data_pack["alpha_output"] = output
-            data_pack["alpha_score"] = output.score
+            writer.write_alpha(data_pack, AlphaOutput(score=score))
         except RECOVERABLE_ERRORS as e:
             logger.warning(f"Alpha 分析失败: {e}")
-            output = AlphaOutput(score=0.0)
-            data_pack["alpha_output"] = output
-            data_pack["alpha_score"] = output.score
+            writer.write_alpha(data_pack, AlphaOutput(score=0.0))
 
-    def _calculate_derived(self, data_pack: Dict[str, Any]) -> None:
+    def _calculate_derived(self, data_pack: Union[Dict[str, Any], ResearchDataPack]) -> None:
         """计算衍生指标 (MA状态, 价格, ATR止损)"""
-        stock_df = data_pack.get("stock")
+        stock_df = data_pack.stock_df if isinstance(data_pack, ResearchDataPack) else data_pack.get("stock")
         if stock_df is None or stock_df.empty:
             return
 
@@ -600,39 +572,61 @@ class AnalysisService:
             from ..brain.indicators.indicators import Indicators
             indicators = Indicators()
 
+            is_typed = isinstance(data_pack, ResearchDataPack)
+            meta = data_pack.metadata if is_typed else None
+
             # MA 状态
             ma_short = indicators.calc_ma(stock_df, window=20)
             ma_long = indicators.calc_ma(stock_df, window=60)
             if not ma_short.empty and not ma_long.empty:
                 if ma_short.iloc[-1] > ma_long.iloc[-1]:
-                    data_pack["ma_status"] = "MA20 > MA60"
+                    ma_status = "MA20 > MA60"
                 else:
-                    data_pack["ma_status"] = "MA20 <= MA60"
+                    ma_status = "MA20 <= MA60"
             else:
-                data_pack["ma_status"] = "DATA_INSUFFICIENT"
+                ma_status = "DATA_INSUFFICIENT"
+
+            if is_typed:
+                meta["ma_status"] = ma_status
+            else:
+                data_pack["ma_status"] = ma_status
 
             # 价格和止损
-            data_pack["price"] = float(stock_df.iloc[-1]["close"])
+            price = float(stock_df.iloc[-1]["close"])
+            if is_typed:
+                meta["price"] = price
+            else:
+                data_pack["price"] = price
+
             atr = indicators.calc_atr(stock_df)
             if not atr.empty:
-                data_pack["atr_stop"] = data_pack["price"] - float(atr.iloc[-1]) * 2
+                atr_stop = price - float(atr.iloc[-1]) * 2
             else:
-                data_pack["atr_stop"] = data_pack["price"] * 0.95
+                atr_stop = price * 0.95
 
-            # 收益率
-            data_pack["returns"] = stock_df["close"].pct_change().dropna()
+            if is_typed:
+                meta["atr_stop"] = atr_stop
+                meta["returns"] = stock_df["close"].pct_change().dropna()
+            else:
+                data_pack["atr_stop"] = atr_stop
+                data_pack["returns"] = stock_df["close"].pct_change().dropna()
         except RECOVERABLE_ERRORS as e:
             logger.warning(f"衍生指标计算失败: {e}")
 
     # ── 内部方法: 决策 ─────────────────────────────────────
 
     def _make_decision(
-        self, ticker: str, data_pack: Dict[str, Any],
+        self, ticker: str, data_pack: Union[Dict[str, Any], ResearchDataPack],
     ) -> Optional[Dict[str, Any]]:
         """调用 DecisionBrain 做出决策 (传入 MarketSignalContext)"""
         try:
             with perf_section("engine.decision"):
-                ctx = MarketSignalContext.from_dict(data_pack)
+                if isinstance(data_pack, ResearchDataPack):
+                    dict_pack = data_pack.to_dict()
+                    dict_pack.update(data_pack.metadata)
+                    ctx = MarketSignalContext.from_dict(dict_pack)
+                else:
+                    ctx = MarketSignalContext.from_dict(data_pack)
                 raw = self.brain.make_decision(ctx)
                 if raw:
                     decision_output = DecisionOutput.from_dict(raw)
