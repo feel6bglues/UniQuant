@@ -597,14 +597,15 @@ signal/db.py: 持久化已实现
 
 ## 4. 断裂点缝合方案: Adapter Blueprint
 
+> **状态: ✅ 已实现 (Phase 3+)** — 以下设计已在 `signal/adapters.py` 中完成, 非草案。
+
 ### 4.1 设计目标
 
-1. Brain 引擎输出 → 标准 `Signal` 对象 (自动归一化)
-2. `Signal` → `TradingSignal` (自动映射, 零信息丢失)
-3. `TradingSignal` → `BacktestEngine` (统一输入)
-4. 消除两套并行决策体系
+1. Brain 引擎输出 → 标准 `TradingSignal` 对象 (自动归一化, 见 `signal/adapters.py`)
+2. `TradingSignal` → `BacktestEngine` (统一输入)
+3. 消除两套并行决策体系
 
-### 4.2 接口设计草案
+### 4.2 接口实现 (当前代码)
 
 ```python
 # === Layer: signal/adapters.py (新建) ===

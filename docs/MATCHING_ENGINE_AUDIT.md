@@ -1,5 +1,7 @@
 # UniQuant 撮合引擎防线漏洞与重构基准报告
 
+> **漏洞状态: ✅ 已全部修复 (Phase 0-3)** — 本报告为审计存档，所涉及的 19 个防线漏洞已在 Phase 0-3 修复。
+>
 > 审计范围: `hands/backtest/` + `shared/cost_model.py` + `shared/limit_checker.py` + `shared/slippage_model.py`
 > 审计视角: 恶意策略试图利用系统漏洞刷高收益
 > 审计时间: 2026-06-07

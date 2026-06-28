@@ -144,7 +144,7 @@ Key boundary:
 - `TradingSignalCollector` turns those facts into executable `TradingSignal` objects.
 - `UnifiedBacktestEngine` consumes only K-line data plus `List[TradingSignal]`.
 
-The pipeline uses `pd.Timestamp.now()` for collected signal timestamps (`src/uniquant/services/research_pipeline.py:133-136`). In historical backtests, `UnifiedBacktestEngine` indexes signals by their timestamp date (`src/uniquant/hands/backtest/unified_engine.py:288-300`), so a current timestamp will not match historical K-line dates unless the data includes today. This is a concrete Stage 6 risk.
+The pipeline used `pd.Timestamp.now()` for collected signal timestamps (`src/uniquant/services/research_pipeline.py:133-136`). **G-1 (2026-06-12) resolved this** — `pd.Timestamp.now()` replaced with `get_time_provider().now()` (`TimeProvider`), achieving 0 production calls.
 
 ## 6. 引擎工厂注册清单
 
@@ -204,7 +204,7 @@ Risk: if a public service is renamed or moved, import failures are converted to 
 | `_run_czsc()` | CZSC failure | Sets `is_3rd_buy=False`, `bi_count=0` | `src/uniquant/services/analysis_service_v2.py:430-441` | Failure becomes no CZSC signal. |
 | `_run_wyckoff()` | Wyckoff failure | Sets phase `unknown`, confidence `0.0` | `src/uniquant/services/analysis_service_v2.py:443-456` | Failure becomes no Wyckoff signal. |
 | `_run_alpha()` | Missing stock/benchmark or failure | Sets `alpha_score=0.0` | `src/uniquant/services/analysis_service_v2.py:458-480` | In `AlphaScoreAdapter`, score `<0.3` maps to SELL (`src/uniquant/signal/adapters.py:317-346`), so missing benchmark can become a bearish executable signal. This is high priority for Stage 5. |
-| `_make_decision()` | DecisionBrain error | Returns `None`; caller returns `error="决策失败"` | `src/uniquant/services/analysis_service_v2.py:518-526`, `272-278` | Clear failure at analysis level. |
+| `_make_decision()` | DecisionBrain error | Returns `None`; caller returns `error="决策失败"` | `src/uniquant/services/analysis_service_v2.py:618`, `272-278` | Clear failure at analysis level. |
 | `UnifiedResearchPipeline.run()` | Analysis failed | Returns failed `PipelineResult` with empty signals/backtest | `src/uniquant/services/research_pipeline.py:114-126` | Good boundary. |
 | `UnifiedResearchPipeline.run()` | `data_pack["stock"]` empty after signal collection | Returns failed `PipelineResult` with signals and empty backtest | `src/uniquant/services/research_pipeline.py:138-150` | Signals can exist without executable K-line data. |
 | `run_batch()` | Per-symbol exception | Appends failed `PipelineResult(error=str(e))` | `src/uniquant/services/research_pipeline.py:175-208` | Batch continues, but no trace id is attached on exception branch. |
@@ -244,7 +244,7 @@ Gaps:
 
 - `tests/test_service_container.py:44-65` only asserts early registrations through `engine_factory`; it does not assert `analysis_service`, `backtest_engine`, `signal_collector`, or `research_pipeline`.
 - No Stage 1 evidence that all public names in `src/uniquant/services/__init__.py` are imported in one test.
-- No explicit service-level test that pipeline-generated `pd.Timestamp.now()` signals produce expected behavior on historical data.
+- [OUTDATED: resolved by G-1 TimeProvider] No explicit service-level test that pipeline-generated `pd.Timestamp.now()` signals produce expected behavior on historical data.
 - No explicit test that alpha failure/missing benchmark does not create an unintended SELL signal.
 - No test in this stage was run in the current working tree, so these are coverage observations from source reading only.
 

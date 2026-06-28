@@ -273,7 +273,7 @@ class AnalysisEngineFactory:
 
 ### 引擎注册表
 
-工厂通过 `@property` 暴露 8 个延迟加载的分析引擎，每个属性对应一个 `brain/` 或 `services/analysis/` 下的具体引擎类：
+工厂通过 `@property` 暴露 9 个延迟加载的分析引擎（含 Wyckoff），每个属性对应一个 `brain/` 或 `services/analysis/` 下的具体引擎类：
 
 | 属性名 | 引擎类 | 模块路径 | 功能描述 |
 |--------|--------|----------|----------|
@@ -284,6 +284,7 @@ class AnalysisEngineFactory:
 | `ntf` | `NtfAnalysisEngine` | `analysis.ntf_analysis_engine` | 国家队资金追踪，识别政策干预信号 |
 | `macro` | `MacroAnalysisEngine` | `analysis.macro_analysis_engine` | 宏观经济分析引擎 |
 | `report` | `ReportGeneratorEngine` | `analysis.report_generator_engine` | 分析报告自动生成 |
+| `wyckoff` | `WyckoffAnalysisEngine` | `analysis.wyckoff_analysis_engine` | Wyckoff 市场阶段分析，识别吸筹/派发/震荡阶段 |
 | `brain` | `DecisionBrain` | `brain.fsm` | 综合决策大脑，整合多引擎信号输出最终决策 |
 
 ### 延迟加载的优势

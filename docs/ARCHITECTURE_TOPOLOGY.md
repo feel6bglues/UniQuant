@@ -1,7 +1,7 @@
 # UniQuant 系统架构拓扑与接口抽提报告
 
 > 扫描时间: 2026-06-07 | 基于 `src/uniquant/` 物理结构 | 仅分析目录/类声明/函数签名/Import/DI
-> **注意**: 部分文件名在后续重构中已变更（`analysis_service.py`→`analysis_service_v2.py`, `constants.py`→`constants/` 等）。Mermaid 图反映的是扫描时结构，未更新。
+> **注意**: 部分文件名在后续重构中已变更（`analysis_service.py`→`analysis_service_v2.py`, `constants.py`→`constants/` 等）。Mermaid 图反映的是扫描时结构，未更新。文件统计数字仅反映扫描时状态。
 
 ---
 
@@ -361,7 +361,7 @@ CacheCoordinator ──→ ServiceContainer
 
 ## 3. 高危耦合点分析
 
-### 3.1 CRITICAL: AnalysisService — God Object (850+ 行)
+### 3.1 CRITICAL: AnalysisService — 曾为 God Object (原 ~1642 行, 已重构为 v2 648 行, legacy 尸体 1,649 行零引用)
 
 **文件**: `services/analysis_service.py`
 

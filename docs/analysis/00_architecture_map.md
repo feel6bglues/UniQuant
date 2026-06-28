@@ -25,9 +25,9 @@ Current dirty-worktree boundary:
 
 | Layer | Path | Current source scan | Primary responsibility | Current binding evidence |
 |---|---|---:|---|---|
-| `shared` | `src/uniquant/shared/` | 37 files | Cross-layer protocols, constants, exceptions, cache, logging, A-share market rules, cost/slippage/limit utilities. | `src/uniquant/shared/interfaces.py:41-169` defines `MarketSignalContext` and `TradingSignal`; `src/uniquant/hands/backtest/unified_engine.py:26-39` imports shared constants, cost model, limit checker, and market rules. |
-| `data` | `src/uniquant/data/` | 68 files | Data ingestion, data lake, source routing, parsers, cleaners, validators, adjusters, access services. | `src/uniquant/services/data_service.py:35-91` implements a facade over `DataFetcher`, `StorageManager`, `DataCleaner`, cache, quality, and stock query services. |
-| `brain` | `src/uniquant/brain/` | 47 files | Strategy and research engines: FSM/DecisionBrain, CZSC, LPPL, NTF, regime, Wyckoff, indicators, alpha decoupler, factors, screener. | `src/uniquant/services/analysis_service_v2.py:308-317` runs regime, LPPL, NTF, CZSC, Wyckoff, alpha, and derived indicators. |
+| `shared` | `src/uniquant/shared/` | 44 files | Cross-layer protocols, constants, exceptions, cache, logging, A-share market rules, cost/slippage/limit utilities. | `src/uniquant/shared/interfaces.py:41-169` defines `MarketSignalContext` and `TradingSignal`; `src/uniquant/hands/backtest/unified_engine.py:26-39` imports shared constants, cost model, limit checker, and market rules. |
+| `data` | `src/uniquant/data/` | 65 files | Data ingestion, data lake, source routing, parsers, cleaners, validators, adjusters, access services. | `src/uniquant/services/data_service.py:35-91` implements a facade over `DataFetcher`, `StorageManager`, `DataCleaner`, cache, quality, and stock query services. |
+| `brain` | `src/uniquant/brain/` | 55 files | Strategy and research engines: FSM/DecisionBrain, CZSC, LPPL, NTF, regime, Wyckoff, indicators, alpha decoupler, factors, screener. | `src/uniquant/services/analysis_service_v2.py:308-317` runs regime, LPPL, NTF, CZSC, Wyckoff, alpha, and derived indicators. |
 | `signal` | `src/uniquant/signal/` | 7 files | Convert heterogeneous brain/decision outputs into standard `TradingSignal` objects. | `src/uniquant/signal/adapters.py:405-416` registers adapters for LPPL, CZSC, Wyckoff, FSM, regime, NTF, alpha score, and MA status. |
 | `hands` | `src/uniquant/hands/` | 34 files | Backtesting, matching, portfolio and strategy execution, reports, robustness/tuning. | `src/uniquant/hands/backtest/unified_engine.py:88-124` defines `UnifiedBacktestEngine.run(df, signals, symbol, name)`. |
 | `risk` | `src/uniquant/risk/` | 7 files | Position sizing, drawdown, EVT, historical/structural risk, portfolio optimization. | `src/uniquant/shared/interfaces.py:193-228` defines risk and position sizing protocols used as cross-layer contracts. |
@@ -74,7 +74,7 @@ StorageManager
 3. Rejects missing or empty `data_pack["stock"]` with `success=False` and error `"数据不足"` (`src/uniquant/services/analysis_service_v2.py:254-262`).
 4. Runs engines in fixed order: regime, LPPL, NTF, CZSC, Wyckoff, alpha, derived indicators (`src/uniquant/services/analysis_service_v2.py:308-317`).
 5. Adds `symbol` and `market="CN"` to `data_pack` (`src/uniquant/services/analysis_service_v2.py:319-320`).
-6. Calls `DecisionBrain.make_decision(data_pack)` through `self.brain` (`src/uniquant/services/analysis_service_v2.py:518-526`).
+6. Calls `DecisionBrain.make_decision(data_pack)` through `self.brain` (`src/uniquant/services/analysis_service_v2.py:618`).
 7. Returns `TickerAnalysisResult`; its `signals` field remains empty because signals are filled at pipeline level (`src/uniquant/services/analysis_service_v2.py:280-286`).
 
 `DataService.fetch_for_brain()` currently returns:

@@ -15,7 +15,7 @@ Read these first when starting analysis or implementation:
 | [Root AGENTS.md](../AGENTS.md) | Current | First project control context for agents. |
 | [Analysis Prompt Playbook](ANALYSIS_PROMPT_PLAYBOOK.md) | Current | Direct-call staged prompts for system analysis, checkpoints, artifacts, and validation. |
 | [Reshaping Logs Index](reshaping_logs/README.md) | Current | Controlled state-machine logs and audit sequence. |
-| [Status](STATUS.md) | ⚠️ Archived 2026-05-26 | Historical snapshot, does NOT reflect current 269-file codebase. |
+| [Status](STATUS.md) | ⚠️ Archived 2026-05-26 | Historical snapshot, does NOT reflect current 254-file codebase. |
 
 Historical docs in this folder are still useful, but many describe target architecture or pre-remediation gaps. If a package page says `data`, `signal`, or `hands` are missing, that statement is stale.
 
