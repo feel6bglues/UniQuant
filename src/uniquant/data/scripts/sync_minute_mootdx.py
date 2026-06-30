@@ -8,7 +8,6 @@ mootdx 分钟线数据同步脚本
 
 import argparse
 import json
-from datetime import datetime
 from pathlib import Path
 
 from ...shared.time_provider import get_time_provider

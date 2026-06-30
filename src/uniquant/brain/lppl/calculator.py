@@ -447,8 +447,8 @@ class LPPLCalculator:
 
         w_lo, w_hi = self.w_min, self.w_max
         w_mid = (w_lo + w_hi) / 2
-        log_mean = np.mean(log_prices)
-        log_std = np.std(log_prices) if np.std(log_prices) > 0 else 0.01
+        np.mean(log_prices)
+        np.std(log_prices) if np.std(log_prices) > 0 else 0.01
 
         initial_guesses = [
             [current_max_t + 5, 0.5, w_mid],
@@ -542,7 +542,6 @@ class LPPLCalculator:
         logger.info("Starting L-BFGS-B optimization (DE fallback)")
         # 使用L-BFGS-B多点启动(快10-50倍), 失败时降级到DE
         result = self._fit_lbfgsb(t, log_prices, bounds, current_max_t)
-        used_de = False
         if result is None or not result.success:
             logger.info("L-BFGS-B failed, falling back to differential evolution")
             result = differential_evolution(
@@ -558,7 +557,6 @@ class LPPLCalculator:
                 seed=self.seed,
                 workers=self.workers,
             )
-            used_de = True
 
         if not result.success:
             logger.warning("Optimization failed, returning default result")

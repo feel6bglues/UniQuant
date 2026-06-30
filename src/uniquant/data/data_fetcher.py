@@ -26,7 +26,6 @@ from .sources.tdx import TdxSource
 from .sources.sina import SinaSource
 from .sources.tencent import TencentSource
 from .sources.ths import ThsSource
-from .data_ingestion_service import DataIngestionService
 from .data_pipeline_service import DataPipelineService
 
 # 新增的 Managers
@@ -99,7 +98,6 @@ class DataFetcher:
         self.market_coordinator = MarketDataCoordinator(self)
         self.stock_updater = StockDataUpdater(self)
 
-        self.ingestion = DataIngestionService(self)
         self.pipeline = (
             pipeline
             if pipeline is not None

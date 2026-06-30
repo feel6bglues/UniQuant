@@ -182,8 +182,8 @@ class PointAndFigure:
         if n < 8:
             return "unknown"
 
-        recent = slice(n // 2, n)
-        first_half = slice(0, n // 2)
+        slice(n // 2, n)
+        slice(0, n // 2)
 
         rising_lows_ratio = sum(1 for i in range(1, n) if lows[i] > lows[i - 1]) / (n - 1)
         falling_highs_ratio = sum(1 for i in range(1, n) if highs[i] < highs[i - 1]) / (n - 1)

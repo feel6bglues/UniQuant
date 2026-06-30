@@ -19,8 +19,6 @@ class TestDataFetcherGetPriceUsesOwnSourceRouter:
         })
         fetcher.source_router.fetch_with_fallback = MagicMock(return_value=mock_df)
 
-        fetcher.ingestion.fetch_price = MagicMock(side_effect=Exception("ingestion broken"))
-
         result = fetcher.get_price("000001.SZ")
 
         assert not result.empty

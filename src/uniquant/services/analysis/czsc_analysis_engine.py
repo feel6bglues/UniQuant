@@ -119,7 +119,7 @@ class CzscAnalysisEngine:
             latest_open = latest_data["open"]
 
             # 计算近期高低点
-            recent_highs = (
+            (
                 df["high"].tail(AnalysisServiceConstants.RECENT_HIGH_LOW_WINDOW).max()
             )
             recent_lows = (
@@ -141,31 +141,31 @@ class CzscAnalysisEngine:
                     .iloc[-1]
                 )
                 if short_ma > medium_ma:
-                    trend = "上升"
+                    pass
                 elif short_ma < medium_ma:
-                    trend = "下降"
+                    pass
                 else:
-                    trend = "震荡"
+                    pass
             else:
-                trend = "未知"
+                pass
 
             # 简单状态判断
             if (
                 latest_close
                 > latest_open * AnalysisServiceConstants.TREND_STRONG_UP_THRESHOLD
             ):
-                current_state = "STRONG_BUY"
+                pass
             elif latest_close > latest_open:
-                current_state = "BUY"
+                pass
             elif (
                 latest_close
                 < latest_open * AnalysisServiceConstants.TREND_STRONG_DOWN_THRESHOLD
             ):
-                current_state = "STRONG_SELL"
+                pass
             elif latest_close < latest_open:
-                current_state = "SELL"
+                pass
             else:
-                current_state = "NEUTRAL"
+                pass
 
             return CZSCOutput(
                 price=float(latest_close),

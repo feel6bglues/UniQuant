@@ -25,7 +25,6 @@ import json
 import argparse
 from pathlib import Path
 from typing import Optional, Tuple, Dict, List
-from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from ...shared.time_provider import get_time_provider

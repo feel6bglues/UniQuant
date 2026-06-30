@@ -65,7 +65,7 @@ def _get_stamp_tax(trade_date: str) -> float:
 MC_SIMS = 10000
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-STOCK_LIST_PATH = PROJECT_ROOT / "data" / "stock_list.csv"
+STOCK_LIST_PATH = PROJECT_ROOT / "data" / "all_stock_codes.csv"
 CSI300_CONST_PATH = PROJECT_ROOT / "data" / "csi300_constituents.csv"
 
 

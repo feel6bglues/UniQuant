@@ -1,5 +1,5 @@
 # Configure logging
-from datetime import datetime, timedelta
+from datetime import timedelta
 from typing import Any, Dict
 
 import numpy as np

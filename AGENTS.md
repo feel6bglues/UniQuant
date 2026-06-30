@@ -4,7 +4,7 @@
 >
 > UniQuant: A-share quantitative research and trading platform.
 >
-> Generated: 2026-06-30. Institutional closure review completed — P0-3/P0-4 Closed, P0-2/P0-5 Partially closed, P0-1 Open. Phases 4 (Wave 1a+1b+2) completed — pipeline typing, engine output typing, batch parallelization. Phase 6 completed — RegimeDetector fail-open fix, dead code cleanup, TOCTOU race fix. Full stock test (Phase 6): **5,934/5,934 (100%) — no regression**. See `docs/analysis/institutional/17_institutional_closure_review_report.md` for full status matrix. This file is the first local source context for Codex-style agents working in this repository.
+> Generated: 2026-06-30. Comprehensive re-analysis (Phases 0-9) completed — baseline audit, worktree diff, engine correctness, backtest trust, data pipeline, signal system, engineering health, production readiness, governance, and final roadmap. See `docs/reanalysis/` for 10 reports covering all phases. This file is the first local source context for agents working in this repository.
 
 ---
 
@@ -16,25 +16,18 @@ The repository is past the historical "migration target" phase. The eight declar
 
 `shared -> data -> brain/risk/signal -> hands -> services -> ui`
 
-Current worktree snapshot from 2026-06-30 (post-Phase-6-remediation):
+Current worktree snapshot from 2026-06-30 (post-0-9-reanalysis):
 
 | Metric | Current value |
 |---:|---:|
 | Python files under `src/uniquant/` | 254 |
-| Python LOC under `src/uniquant/` | 63,125 |
+| Python LOC under `src/uniquant/` | 62,389 |
 | Test files under `tests/` | 120 |
-| Approximate test functions | 1,437 |
+| Approximate test functions | 1,435 |
 
-Phase 5 + Phase 6 complete. Full stock test (5934 stocks) completed 2026-06-30 — **5934/5934 pipeline success (100%) — Phase 6 validation: no regression**. All engines operational (LPPL, CZSC, Alpha, Regime). 5 pre-existing test failures unchanged (survivorship_warning + unified_matching). Market regime detected as FROZEN — all decisions FORCE_WAIT (expected, no signals generated during low-volatility regime). Engine distributions identical pre/post Phase 6 (LPPL Safe 53.8%/Danger 37.1%/Warning 9.1%, CZSC normal 94.1%/3rd_buy 5.9%).
+Comprehensive re-analysis complete (Phases 0-9): full baseline audit, worktree diff, 8-engine correctness audit, 7-line backtest trust audit, data pipeline reliability, signal system, engineering health, production readiness, governance, and final roadmap. See `docs/reanalysis/` for full reports.
 
-| Metric | Phase 4 | Phase 5 | Phase 6 validation |
-|---|---|---|---|---|
-| Tests passing | 1,363 | 1,410 | 1,426 |
-| Test failures | 12 (wyckoff) + 5 (pre-existing) | 5 (pre-existing only) | 5 (pre-existing only) |
-| Test files | 115 | 119 | 120 |
-| Test functions | ~1,354 | 1,419 | 1,437 |
-| Source LOC | 62,816 | 63,109 | 63,125 |
-| Pipeline success (5934 stocks) | — | **100%** (5934/5934) | **100%** (5934/5934) — no regression |
+5 pre-existing test failures unchanged (survivorship_warning + unified_matching). 29 ruff issues (20 auto-fixable).
 
 ---
 
@@ -59,6 +52,7 @@ Read these first:
 | `src/uniquant/signal/arbitrator.py` | Sell-priority signal arbitration with confidence-based rules. |
 | `src/uniquant/shared/time_provider.py` | RealTimeProvider / FrozenTimeProvider for testable time. |
 | `docs/analysis/wyckoff_research_report.md` | Wyckoff WSO+WSS+Resonance — 7-phase empirical research report on 22,148 A-share observations. All findings traceable to Phase I–VII run output. |
+| `docs/reanalysis/` | 10 comprehensive re-analysis reports (Phases 0-9) covering baseline, worktree, engines, backtest trust, data pipeline, signals, engineering health, production readiness, governance, and final roadmap. |
 | `src/uniquant/shared/event_types.py` | Event/Command base and domain events. |
 | `src/uniquant/shared/factor_governance.py` | FactorManifest / FactorRegistry with admission gate. |
 | `src/uniquant/shared/config_models.py` | RefactoringConfig / FeatureFlags for staged migration. |
@@ -169,6 +163,23 @@ All phases verified: **1426 tests pass, baseline 100% consistent**. 5 pre-existi
 
 **Design**: All typed outputs coexist with legacy `Dict[str, Any]` keys for backward compatibility. Feature flags default ON for `use_research_data_pack` (flipped Phase 5 Thread A). `factor_gate: "block"` prevents unregistered factors.
 
+## Re-analysis (2026-06-30)
+
+Comprehensive 9-phase re-analysis completed. Reports in `docs/reanalysis/`:
+
+| Report | Phase | Trust Rating |
+|---|---|---|
+| `00_baseline_audit.md` | Baseline test/lint/import audit | ✅ 1426/1431 pass |
+| `01_worktree_diff_analysis.md` | Worktree diff + stash analysis | 46-file commit classified |
+| `02_engine_correctness_audit.md` | 8 engines graded | A- |
+| `03_backtest_trust_audit.md` | 7 A-share defense lines verified | A- |
+| `04_data_pipeline_reliability.md` | 5-source routing + pipeline | B+ |
+| `05_signal_system_audit.md` | 8 adapters + arbitrator | A |
+| `06_engineering_health.md` | Lint, TODOs, imports | A- |
+| `07_production_readiness.md` | Security, config, observability | B+ |
+| `08_governance_testing.md` | Test structure, CI gaps | B+ |
+| `09_final_roadmap.md` | Priority roadmap P0-P3 | — |
+
 ---
 
 ## Working Rules For Agents
@@ -250,23 +261,16 @@ Each stage requires a plan, concrete artifacts, checkpoint context, and verifica
 
 ## Known Gaps (Post-Phase 5) — Full Plan in `docs/GAP_REMEDIATION_PLAN.md`
 
-> **2026-06-12 update**: G-1 through G-4 have all been closed and verified in the institutional closure review. The gap table below is retained as historical reference. See `docs/analysis/institutional/17_institutional_closure_review_report.md` §Phase 6 Gap Review for the verified closure evidence.
-
-| ID | Gap | Priority | Status (2026-06-12) | Scope |
-|---|---|---|---|---|
-| G-1 | `TimeProvider` only deployed in 2 files; ~120 direct clock calls remain (`datetime.now`, `pd.Timestamp.now`, `time.time`) in 6 layers | P2 | ✅ **Closed** — 0 `pd.Timestamp.now`, 2 guarded `datetime.now`, 36 `time.time` for rate limiting | all layers |
-| G-2 | Two `FactorRegistry` classes (shared/ governance with 0 users, brain/ de facto with 16 imports); admission gate is dead code | P1 | ✅ **Closed** — shared/ has deprecation warning; brain/ has `check_access()` + `set_mode()` + `FactorAccessLevel` | `shared/`, `brain/` |
-| G-3 | Phase 0 deliverables (SELL priority, baseline scripts, golden lists, parquet data) exist only in working tree, never committed | **P0** | ✅ **Closed** — all files committed across 22-commit sequence | — |
-| G-4 | EventBus is sync-only; no async variant blocks hot-path scaling | P2 | ✅ **Closed** — `AsyncEventBus` + `ThreadPoolExecutor` deployed; 9 async + 10 sync + 6 integration tests pass | `shared/` |
+> **2026-06-12 update**: G-1 through G-4 have all been closed and verified in the institutional closure review. See `docs/analysis/institutional/17_institutional_closure_review_report.md` §Phase 6 Gap Review for the verified closure evidence.
 
 ### Quick Start For New Tasks
 
 | If working on... | Read this first | And be aware of |
 |---|---|---|
-| Time-dependent code | `shared/time_provider.py` + GAP_REMEDIATION_PLAN.md §G-1 | 2 guarded `datetime.now()` remain in `time_provider.py` FrozenTimeProvider fallback |
-| Factor registration/access | `brain/factors/registry.py` (actual) NOT `shared/factor_governance.py` (dead code) | GAP_REMEDIATION_PLAN.md §G-2 — shared/ deprecated with warning |
-| Baseline/regression testing | `scripts/capture_baseline.py` + `compare_baseline.py` | GAP_REMEDIATION_PLAN.md §G-3 — Phase 0 all committed |
-| Event-driven features | `shared/event_bus.py` (sync) + `shared/event_bus.py` (async) | GAP_REMEDIATION_PLAN.md §G-4 — AsyncEventBus deployed with 9 tests |
+| Time-dependent code | `shared/time_provider.py` | 2 guarded `datetime.now()` remain in `time_provider.py` FrozenTimeProvider fallback |
+| Factor registration/access | `brain/factors/registry.py` (actual) NOT `shared/factor_governance.py` (dead code) | shared/ deprecated with warning |
+| Baseline/regression testing | `scripts/capture_baseline.py` + `compare_baseline.py` | Phase 0 all committed |
+| Event-driven features | `shared/event_bus.py` (sync) + `shared/event_bus.py` (async) | AsyncEventBus deployed with 9 tests |
 | Pipeline typing / data pack | `shared/interfaces.py` `ResearchDataPack` + `services/analysis_service_v2.py` dual-path | Feature flag `use_research_data_pack: true` default (flipped Phase 5); `to_dict()` flattens `metadata` for signal collector |
 | Engine output typing | `shared/interfaces.py` (LPPLOutput/CZSCOutput/NtfOutput/WyckoffOutput) + engine files in `services/analysis/` | 4 engines return typed outputs; field annotations in ResearchDataPack are forward references |
 | Batch research | `services/research_pipeline.py` `run_batch()` | ThreadPoolExecutor + atomic checkpoint; input order preserved via result map |

@@ -7,7 +7,6 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from datetime import datetime
 from typing import Any, Dict, List
 
 from .models import Signal, SignalSource, SignalStrength, SignalType

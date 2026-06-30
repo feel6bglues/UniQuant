@@ -200,24 +200,24 @@ class TestDefenseB_LimitUpDown:
 
     def test_limit_down_blocks_sell(self):
         """核心断言: 跌停板上卖出必须被拒绝"""
-        df = make_limit_down_sequence(3, base_price=10.0)
+        df = make_limit_down_sequence(7, base_price=10.0)
         engine = make_engine(initial_capital=50_000)
 
-        # 先在第1天买入
+        # 先在行情正常日买入
         buy_signals = [
             TradingSignal(action="BUY", symbol="000001.SZ", shares=100,
-                          timestamp=pd.Timestamp("2025-01-01")),
+                          timestamp=pd.Timestamp("2025-01-02")),
         ]
         result1 = engine.run(df, buy_signals, symbol="000001.SZ")
-        assert len(result1.trades) == 1, "第1天应成功买入"
+        assert len(result1.trades) == 1, "行情正常日应成功买入"
 
         engine2 = make_engine(initial_capital=50_000)
         # 手动设置持仓状态
         engine2_run = engine2.run(df, [
             TradingSignal(action="BUY", symbol="000001.SZ", shares=100,
-                          timestamp=pd.Timestamp("2025-01-01")),
-            TradingSignal(action="SELL", symbol="000001.SZ", shares=100,
                           timestamp=pd.Timestamp("2025-01-02")),
+            TradingSignal(action="SELL", symbol="000001.SZ", shares=100,
+                          timestamp=pd.Timestamp("2025-01-06")),
         ], symbol="000001.SZ")
         sell_trades = [t for t in engine2_run.trades if t.action == "SELL"]
         # 跌停日卖出应被拒绝
@@ -341,7 +341,7 @@ class TestDefenseE_AsymmetricCosts:
 
         signals = [
             TradingSignal(action="BUY", symbol="000001.SZ", shares=100,
-                          timestamp=pd.Timestamp("2025-01-01")),
+                          timestamp=pd.Timestamp("2025-01-02")),
         ]
 
         result = engine.run(df, signals, symbol="000001.SZ")
@@ -392,7 +392,7 @@ class TestDefenseE_AsymmetricCosts:
 
         signals = [
             TradingSignal(action="BUY", symbol="000001.SZ", shares=100,
-                          timestamp=pd.Timestamp("2025-01-01")),
+                          timestamp=pd.Timestamp("2025-01-02")),
         ]
 
         result = engine.run(df, signals, symbol="000001.SZ")
@@ -414,13 +414,13 @@ class TestDefenseF_SlippageDirection:
 
         signals = [
             TradingSignal(action="BUY", symbol="000001.SZ", shares=100,
-                          timestamp=pd.Timestamp("2025-01-01")),
+                          timestamp=pd.Timestamp("2025-01-02")),
         ]
 
         result = engine.run(df, signals, symbol="000001.SZ")
         buy = [t for t in result.trades if t.action == "BUY"][0]
         # 买入价应 >= Open 价 (含滑点)
-        open_price = df.iloc[1]["open"]  # 第2天 Open (T+1 执行)
+        open_price = df.iloc[2]["open"]  # 第3天 Open (T+1 执行)
         assert buy.price >= open_price * 0.999, "买入滑点应向上"
 
     def test_sell_slippage_downward(self):

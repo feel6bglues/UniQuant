@@ -46,7 +46,7 @@ class StockMetadataManager:
             data_dir: 数据存储根目录
         """
         self.data_dir = Path(data_dir)
-        self._stock_list_path = self.data_dir / "stock_list.csv"
+        self._stock_list_path = self.data_dir / "all_stock_codes.csv"
         self._all_codes_path = self.data_dir / "all_stock_codes.csv"
         
         self._metadata_cache: Dict[str, StockMetadata] = {}
@@ -91,9 +91,9 @@ class StockMetadataManager:
             
             metadata.name = str(row.name)
             metadata.market = str(row.market)
-            metadata.sector = row.sector if pd.notna(row.sector) else metadata.sector
-            metadata.vol_unit = int(row.vol_unit) if pd.notna(row.vol_unit) else metadata.vol_unit
-            metadata.decimal_point = int(row.decimal_point) if pd.notna(row.decimal_point) else metadata.decimal_point
+            metadata.sector = getattr(row, 'sector', None) if pd.notna(getattr(row, 'sector', None)) else metadata.sector
+            metadata.vol_unit = int(getattr(row, 'vol_unit', None)) if pd.notna(getattr(row, 'vol_unit', None)) else metadata.vol_unit
+            metadata.decimal_point = int(getattr(row, 'decimal_point', None)) if pd.notna(getattr(row, 'decimal_point', None)) else metadata.decimal_point
             
             self._metadata_cache[code] = metadata
     

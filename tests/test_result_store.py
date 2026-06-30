@@ -7,7 +7,7 @@ from datetime import date
 
 import pytest
 
-from src.uniquant.shared.result_store import AnalysisRecord, ResultStore
+from uniquant.shared.result_store import AnalysisRecord, ResultStore
 
 
 @pytest.fixture

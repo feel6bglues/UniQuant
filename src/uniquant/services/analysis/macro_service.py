@@ -8,6 +8,7 @@ MacroAnalysisService: 宏观分析服务
 - 宏观健康分析
 """
 
+import datetime
 import logging
 from ...shared.time_provider import get_time_provider
 from typing import Any, Dict, Optional

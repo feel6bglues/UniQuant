@@ -13,7 +13,6 @@ import json
 import threading
 from pathlib import Path
 from typing import Dict, Optional, Tuple
-from datetime import datetime
 
 from uniquant.shared.logger_factory import get_logger
 from uniquant.shared.time_provider import get_time_provider

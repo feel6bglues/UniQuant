@@ -5,7 +5,7 @@ from uniquant.hands.backtest.unified_engine import UnifiedBacktestEngine
 
 def _make_df():
     """Create a simple stock dataframe for testing"""
-    dates = pd.bdate_range("2024-01-01", "2024-01-10")
+    dates = pd.bdate_range("2024-01-02", "2024-01-10")
     n = len(dates)
     return pd.DataFrame({
         "date": dates,
