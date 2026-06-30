@@ -399,40 +399,29 @@ class AnalysisService:
             return False
 
     def _run_regime(self, ticker: str, data_pack: Union[Dict[str, Any], ResearchDataPack]) -> None:
-        """Regime 检测 (市场级缓存)"""
+        """Regime 检测 (市场级缓存，TOCTOU-safe)"""
         writer = self._get_writer(data_pack)
         try:
-            cached = self._market_cache.get_regime()
-            if cached is not None:
-                details = self._market_cache.get_regime_details() or {}
-                output = RegimeOutput(
-                    regime=str(cached),
-                    entropy=float(details.get("entropy", 0.0)),
-                    turnover_z=float(details.get("turnover_z", 0.0)),
+            def _compute_regime():
+                from ..brain.regime.regime_detector import RegimeDetector
+                detector = RegimeDetector()
+                df = self.data_service.lake.read_data(
+                    MarketConstants.INDEX_HS300, data_type="index", market="cn",
                 )
-                writer.write_regime(data_pack, output)
-                writer.mark_engine_status(data_pack, "regime", "OK")
-                return
-
-            from ..brain.regime.regime_detector import RegimeDetector
-            detector = RegimeDetector()
-            df = self.data_service.lake.read_data(
-                MarketConstants.INDEX_HS300, data_type="index", market="cn",
-            )
-            if df is not None and not df.empty:
+                if df is None or df.empty:
+                    return "UNKNOWN", {}
                 result = detector.get_typed_summary(df)
-            else:
-                output = RegimeOutput(regime="UNKNOWN")
-                writer.write_regime(data_pack, output)
-                writer.mark_engine_status(
-                    data_pack, "regime", "DATA_UNAVAILABLE",
-                    "HS300 index data unavailable",
-                )
-                return
+                return result.regime, result.to_dict()
 
-            self._market_cache.set_regime(result.regime, result.to_dict())
-            writer.write_regime(data_pack, result)
-            writer.mark_engine_status(data_pack, "regime", "OK")
+            regime, details = self._market_cache.get_or_compute_regime(_compute_regime)
+            output = RegimeOutput(
+                regime=str(regime),
+                entropy=float(details.get("entropy", 0.0)),
+                turnover_z=float(details.get("turnover_z", 0.0)),
+            )
+            writer.write_regime(data_pack, output)
+            status = "OK" if regime != "UNKNOWN" else "DATA_UNAVAILABLE"
+            writer.mark_engine_status(data_pack, "regime", status)
         except RECOVERABLE_ERRORS as e:
             logger.warning(f"Regime 检测失败: {e}")
             output = RegimeOutput(regime="UNKNOWN")
@@ -506,10 +495,10 @@ class AnalysisService:
                 symbol=ticker, df=stock_df,
             )
             output = CZSCOutput(
-                is_3rd_buy=bool(result.get("is_3rd_buy", False)),
-                bi_count=int(result.get("bi_count", 0)),
-                price=float(result.get("price", 0.0)),
-                bottom=result.get("czsc_bottom"),
+                is_3rd_buy=bool(getattr(result, "is_3rd_buy", False)),
+                bi_count=int(getattr(result, "bi_count", 0)),
+                price=float(getattr(result, "price", 0.0)),
+                bottom=getattr(result, "bottom", None),
             )
             writer.write_czsc(data_pack, output)
         except RECOVERABLE_ERRORS as e:
@@ -525,11 +514,11 @@ class AnalysisService:
                 symbol=ticker, df=stock_df,
             )
             output = WyckoffOutput(
-                phase=str(result.get("phase", "unknown")),
-                confidence=float(result.get("confidence", 0.0)),
-                spring=bool(result.get("spring_detected", False)),
-                utad=bool(result.get("utad_detected", False)),
-                price=float(result.get("price", 0.0)),
+                phase=str(getattr(result, "phase", "unknown")),
+                confidence=float(getattr(result, "confidence", 0.0)),
+                spring=bool(getattr(result, "spring", False)),
+                utad=bool(getattr(result, "utad", False)),
+                price=float(getattr(result, "price", 0.0)),
             )
             writer.write_wyckoff(data_pack, output)
         except RECOVERABLE_ERRORS as e:

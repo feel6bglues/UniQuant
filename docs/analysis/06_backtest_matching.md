@@ -1,224 +1,329 @@
-# Stage 6 - Backtest And Matching
+# Stage 6 — 回测与撮合系统深度分析
 
-Generated: 2026-06-09
+> **日期**: 2026-06-29 | **状态**: ✅ 完成
+> **范围**: `hands/backtest/` (15 文件, 3,644 LOC)
+> **依赖**: `shared/` (cost_model, limit_checker, market_rules), `data/` (TradeCalendarManager)
 
-Scope: `hands/backtest` execution realism, A-share matching constraints, signal-to-order timing, cost model, and single-symbol versus portfolio behavior. No source code was modified and no tests were run in this stage.
+---
 
-## 1. 本阶段计划
+## 1. 总览
 
-1. Read Stage 0-5 artifacts and Stage 6 playbook requirements.
-2. Analyze `UnifiedBacktestEngine` as the current typed single-symbol engine.
-3. Analyze `UnifiedMatchingEngine` as the vectorized fill engine used by deprecated/portfolio paths.
-4. Check A-share constraints: T+1, limit-up/down, suspension, cash, costs, slippage, lot size.
-5. Compare single-symbol and portfolio paths.
-6. Identify backtest bias risks and concrete improvements.
+### 架构
 
-## 2. 已阅读文件
-
-| File | Purpose |
-|---|---|
-| `docs/analysis/00_architecture_map.md` through `05_signal_system.md` | Prior-stage context and signal handoff. |
-| `src/uniquant/hands/backtest/unified_engine.py` | Current typed `TradingSignal` single-symbol backtest engine. |
-| `src/uniquant/hands/backtest/unified_matching_engine.py` | Vectorized buy/sell fill engine. |
-| `src/uniquant/hands/backtest/portfolio_engine.py` | Deprecated portfolio engine using `UnifiedMatchingEngine`. |
-| `src/uniquant/hands/backtest/engine.py` | Deprecated old engine using `UnifiedMatchingEngine`. |
-| `src/uniquant/shared/cost_model.py` | Canonical cost constants and date-aware stamp duty. |
-| `src/uniquant/shared/market_rules.py` | Board detection, lot size, board limit metadata. |
-| `src/uniquant/shared/limit_checker.py` | Limit-up/down status and IPO/ST handling helper. |
-| `tests/test_unified_matching.py` | Unified engine defense tests. |
-| `tests/test_t1_constraint_boundary.py` | Vectorized matching T+1 boundary tests. |
-
-## 3. 回测流程图
-
-Current single-symbol execution flow:
-
-```text
-List[TradingSignal] + stock_df
-  -> _prepare_dataframe()
-       require date/open/high/low/close/volume
-       fill pre_close if absent
-       fill avg_daily_volume if absent
-  -> _index_signals_by_date()
-       timestamp date -> list of signals
-  -> for each K-line bar:
-       skip non-trading day for execution
-       execute previous pending order at today's open
-          reject suspension volume=0
-          BUY: limit-up check, slippage, lot rounding, cash check, costs
-          SELL: T+1 check, limit-down check, slippage, costs, pnl
-       update equity using close
-       read today's signals
-       create one pending order for next bar
-  -> BacktestResult(trades, equity_curve, daily_returns, final_cash)
+```
+TradingSignal (来自仲裁器)
+        │
+        ▼
+UnifiedBacktestEngine.run(df, signals, symbol)
+        │
+        ├─ _prepare_dataframe()
+        ├─ _index_signals_by_date()
+        │
+        ├─ bar 循环 (逐行遍历):
+        │   ├─ Step 1: 执行前日挂单
+        │   │   ├─ BUY  → _execute_buy()
+        │   │   └─ SELL → _execute_sell() → _check_t1()
+        │   │
+        │   ├─ Step 2: 更新权益
+        │   │
+        │   └─ Step 3: 收集当日信号 → 生成挂单
+        │       ├─ LPPL SELL（最高优先）
+        │       ├─ BUY（中间优先）
+        │       └─ 非LPPL SELL（最低优先）
+        │
+        └─ BacktestResult
 ```
 
-Evidence:
+### 7 道防线 (A-G)
 
-- Required fields and derived fields: `src/uniquant/hands/backtest/unified_engine.py:272-286`.
-- Signal date index: `unified_engine.py:288-300`.
-- Bar loop order: `unified_engine.py:157-258`.
-- T-day signal, next-bar open execution: `unified_engine.py:173-230`, `241-258`.
+| 防线 | 规则 | 位置 |
+|------|------|------|
+| **A. T+1 铁律** | 交易日序号差 ≥ 1 | `unified_engine.py:_check_t1()`, `unified_matching_engine.py:T+1 vectorized` |
+| **B. 涨跌停拦截** | 涨停不买入, 跌停不卖出 | `unified_engine.py:_check_limit()`, `matching:compute_limit_status_vectorized()` |
+| **C. 停牌拦截** | volume=0 不成交 | `unified_engine.py:195-197` |
+| **D. 资金不透支** | 实时 cash_available 全局扣减 | `unified_engine.py:_execute_buy()`, `matching:cash_shortfall_mask` |
+| **E. 非对称成本** | 印花税仅卖方, 最低佣金 5 元 | `unified_engine.py:_calc_commission/stamp_duty/transfer_fee()` |
+| **F. 滑点方向** | 买高卖低, 使用交易量而非日均量 | `unified_engine.py:_calc_slippage()`, `matching:compute_execution_prices()` |
+| **G. 整手取整** | A 股 100 股为一手 | `unified_engine.py:528-529`, matching:lot_size |
 
-## 4. 撮合规则表
+---
 
-| Rule | `UnifiedBacktestEngine` | `UnifiedMatchingEngine` |
-|---|---|---|
-| Input | `List[TradingSignal]` and one OHLCV DataFrame. | Arrays of prices, shares, cash/position, symbols, timestamps. |
-| Execution time | Signal date D creates pending order; order executes next trading bar open. | Caller supplies execution arrays directly; no signal-delay semantics inside the fill method. |
-| T+1 | Checked before sell when `buy_date` exists. | Checked in `fill_sell()` against `buy_dates` and `timestamps`. |
-| Limit-up/down | `_check_limit()` rejects BUY at limit-up and SELL at limit-down. | `compute_limit_status_vectorized()` rejects limit-up buys and limit-down sells. |
-| Suspension | Rejects pending order if execution bar `volume <= 0`. | No explicit rejected mask for `volume <= 0`; zero volume only reduces impact in slippage calculation. |
-| Cash | BUY reduces requested shares if cash is insufficient; final cost cannot exceed cash. | `fill_buy()` adjusts shares for cash shortfall. |
-| Lot size | BUY rounded down by board lot size. | BUY rounded by board lot size in cash-shortfall branch; requested shares are not always normalized when cash is sufficient. |
-| Sell size | Sell capped by current position. | `shares_clamped = min(requested, positions_held)`. |
-| Costs | Commission, transfer fee both sides; stamp duty sell side only. | Same categories; stamp duty sell side only. |
-| Slippage | Buy price higher, sell price lower; impact capped. | Same direction with vectorized impact. |
+## 2. 文件清单
 
-Evidence:
+| 文件 | LOC | 职责 | 状态 |
+|------|-----|------|------|
+| `unified_engine.py` | 604 | **统一回测引擎** (主) | ✅ 活跃 |
+| `unified_matching_engine.py` | 263 | 向量化撮合引擎 (主) | ✅ 活跃 |
+| `engine.py` | 747 | ~~旧版回测引擎~~ | ⚠️ 已弃用 |
+| `portfolio_engine.py` | 373 | ~~投资组合回测~~ | ⚠️ 已弃用 |
+| `result.py` | 175 | ~~旧版回测结果~~ | ⚠️ 已弃用 |
+| `signal_integrator.py` | 124 | Signal → 交易 DataFrame | ✅ 活跃 |
+| `benchmark.py` | 156 | 基准计算 | ✅ |
+| `report_generator.py` | 279 | 回测报告生成 | ✅ |
+| `monte_carlo.py` | 199 | 蒙特卡洛模拟 | ✅ |
+| `overfitting_detector.py` | 187 | 过拟合检测 | ✅ |
+| `param_validator.py` | 112 | 参数验证 | ✅ |
+| `robustness_checker.py` | 233 | 稳健性检查 | ✅ |
+| `sensitivity_analyzer.py` | 162 | 敏感性分析 | ✅ |
+| `trade_analysis/analyzer.py` | — | 交易分析 | ✅ |
+| `trade_analysis/statistics.py` | — | 交易统计 | ✅ |
 
-- Single engine T+1 and limits: `unified_engine.py:204-230`, `335-362`.
-- Single engine cash/lot/cost: `unified_engine.py:445-487`, `527-551`.
-- Matching limits: `unified_matching_engine.py:79-138`.
-- Matching buy fill: `unified_matching_engine.py:140-197`.
-- Matching sell fill and T+1: `unified_matching_engine.py:199-263`.
+---
 
-## 5. A 股交易约束校验表
+## 3. UnifiedBacktestEngine (`unified_engine.py`)
 
-| Constraint | Current status | Evidence | Notes |
-|---|---|---|---|
-| T 日信号、T+1 open 成交 | Implemented in `UnifiedBacktestEngine`. | `unified_engine.py:173-230`, `241-258` | Signal timestamp must match a bar date; Stage 5 found pipeline currently uses `now()`. |
-| T+1 sell restriction | Implemented in both engines. | `unified_engine.py:306-320`, `unified_matching_engine.py:220-235` | Matching tests cover same-day, weekend, holiday, empty calendar boundaries. |
-| 涨停不买 | Implemented. | `unified_engine.py:358-359`, `unified_matching_engine.py:156-157` | Uses board ratios from `MarketConstants.LIMIT_RATIO`. |
-| 跌停不卖 | Implemented. | `unified_engine.py:360-361`, `unified_matching_engine.py:217-218` | Single engine checks execution open against `pre_close`. |
-| 停牌 volume=0 | Implemented in single engine. | `unified_engine.py:180-183` | Vectorized matching does not explicitly reject zero-volume fills. |
-| 印花税只在卖出侧 | Implemented. | `unified_engine.py:482`, `529`; `unified_matching_engine.py:190`, `242-247` | Uses date-aware `get_stamp_tax_pct()`. |
-| 资金不能透支 | Implemented for BUY. | `unified_engine.py:457-473`, `unified_matching_engine.py:166-197` | Single engine reduces shares; matching reports `cash_shortfall_mask`. |
-| 整手 | Partially implemented. | `unified_engine.py:445-449`, `unified_matching_engine.py:167-178` | Single engine rounds every buy. Matching rounds only in cash-shortfall adjustment path. |
-| ST/STAR/GEM/BJ limits | Partially implemented. | `limit_checker.py`, `unified_matching_engine.py:105-138` | Single engine uses `get_board_type(symbol, name)` but not IPO listing-day exceptions. |
-| Price collar | Not clearly integrated in these execution paths. | `shared/price_collar.py` not observed in current engine flow. | Needs Stage 7/live readiness follow-up. |
+### 核心流程
 
-## 6. 成交成本模型
+```python
+run(df, signals, symbol) → BacktestResult
 
-Canonical constants are in `src/uniquant/shared/cost_model.py`:
+for each bar (逐行遍历):
+  Step 1: 执行前日挂单 (T+1 延迟成交)
+    ├─ BUY: 涨跌停检查 → 滑点计算 → 整手取整 → 现金扣减 → TradeRecord
+    └─ SELL: T+1 检查 → 涨跌停检查 → 滑点计算 → 印花税 → 现金回收
 
-| Cost | Current value / rule | Evidence |
-|---|---|---|
-| Commission | `0.0003`, minimum 5 CNY. | `cost_model.py:29-32` |
-| Stamp duty | `0.0005` after 2023-08-28; old `0.001` before cutoff. Sell side only. | `cost_model.py:30-45` |
-| Transfer fee | `0.00001`. | `cost_model.py:34` |
-| Slippage | Base `0.0005`. | `cost_model.py:33` |
+  Step 2: 更新权益曲线 equity = cash + position * close
 
-Single engine cost application:
+  Step 3: 收集当日信号 → 生成挂单
+    Priority 1: LPPL SELL (位置 > 0)
+    Priority 2: BUY (位置 == 0)
+    Priority 3: 其他 SELL (位置 > 0)
+```
 
-- Buy: `value + commission + transfer_fee`; `stamp_duty=0.0` (`unified_engine.py:451-487`).
-- Sell: `value - commission - stamp_duty - transfer_fee`; PnL uses net value minus cost basis (`unified_engine.py:527-551`).
-- Slippage: buy fills above raw open, sell fills below raw open; impact uses `trade_volume / avg_daily_volume` capped at `0.02` (`unified_engine.py:384-409`).
+### 信号优先级 (挂单生成)
 
-Cost-model inconsistency:
+与仲裁器不同，回测引擎内部运行独立的信号优先级规则：
 
-`cost_model.calculate_total_cost()` and `CostConfig` apply transfer fee only when `_has_transfer_fee(symbol)` returns true, currently `symbol.startswith("60")` (`cost_model.py:48-62`, `144-153`). Both `UnifiedBacktestEngine` and `UnifiedMatchingEngine` always apply `TRANSFER_FEE_PCT` without checking exchange (`unified_engine.py:380-382`, `unified_matching_engine.py:163`, `248`). This is conservative for Shenzhen names but inconsistent with the declared cost helper.
+```
+LPPL SELL (position > 0) → 立即挂单卖出全部持仓
+       ↓
+BUY (position == 0) → 挂单买入 (shares = sig.shares)
+       ↓
+其他 SELL (position > 0) → 挂单卖出全部持仓
+```
 
-## 7. 信号到订单到成交流程
+### 滑点计算
 
-Current single-symbol semantics:
+```python
+ratio = trade_volume / avg_daily_volume          # 使用本次交易量
+impact = min(0.001 * sqrt(ratio), 0.02)           # 非线性市场冲击
+total_slip = slippage_rate + impact               # 基础滑点 + 冲击成本
+exec_price = price * (1 + direction * total_slip) # 买高卖低
+```
 
-1. `TradingSignal.timestamp` is reduced to `YYYY-MM-DD`.
-2. On matching K-line date D, the engine reads all signals for D.
-3. It creates at most one pending order:
-   - first feasible BUY if flat;
-   - first feasible SELL if holding.
-4. That pending order executes at the next executable bar open.
-5. If the next bar is non-trading day, no execution happens on that row.
-6. If next execution bar has `volume <= 0`, the pending order is discarded.
+### 防止幸存者偏差
 
-Implications:
+```python
+# 在回测结束时检查股票是否已退市
+delist_date = StockMetadataManager().get_delist_date(symbol)
+if delist_date is not None and delist_date <= last_bar:
+    metadata["survivorship_warning"] = ...
+```
 
-- A same-day BUY and SELL pair does not execute both; collection order and current position decide which pending order survives.
-- If the signal is on the final K-line date, it has no next bar and never executes.
-- If signal timestamp is missing, it maps to `"unknown"` and never executes.
-- If the research pipeline uses `pd.Timestamp.now()` for historical data, signals often do not match historical bars.
+---
 
-## 8. 单票回测与组合回测差异
+## 4. UnifiedMatchingEngine (`unified_matching_engine.py`)
 
-| Area | `UnifiedBacktestEngine` | `PortfolioEngine` / vectorized path |
-|---|---|---|
-| Status | Current typed engine. | Deprecated but still present and uses `UnifiedMatchingEngine`. |
-| Signal input | `TradingSignal` list. | DataFrame/dict signals. |
-| Delay | Built in: signal D -> next bar open. | `PortfolioEngine.run()` stores `_pending_signals` and executes on later loop date. |
-| Suspension | Explicit `volume <= 0` rejection. | Volume dictionaries are built but current code does not clearly pass actual daily volume; matching has no explicit halt rejection. |
-| Cash | Single-symbol cash state. | Portfolio splits cash per candidate via `self.cash / n`, then deducts actual fills. |
-| Max positions | Not applicable. | Enforced by `max_positions`. |
-| Execution core | Local helper methods. | `UnifiedMatchingEngine`. |
+### 向量化接口
 
-Evidence:
+```python
+class UnifiedMatchingEngine:
+    fill_buy(prices, shares_requested, cash_available, pre_closes,
+             symbols, timestamps, volumes, avg_daily_volumes, ...) → FillResult
+    fill_sell(prices, shares_requested, positions_held, position_costs,
+              pre_closes, symbols, timestamps, buy_dates, volumes,
+              avg_daily_volumes, ...) → FillResult
+```
 
-- Deprecated portfolio warning: `src/uniquant/hands/backtest/portfolio_engine.py:1-23`.
-- Portfolio uses matching engine: `portfolio_engine.py:40-64`.
-- Portfolio pending signal execution: `portfolio_engine.py` run loop around pending signals and batch open/close.
+### FillResult
 
-The architectural intent is clear, but "single source of truth" is incomplete because single-symbol engine implements local matching logic instead of delegating to `UnifiedMatchingEngine`.
+```python
+@dataclass
+class FillResult:
+    executed_shares: np.ndarray     # 实际成交股数
+    exec_prices: np.ndarray          # 执行价格 (含滑点)
+    commissions: np.ndarray          # 佣金
+    stamp_duties: np.ndarray         # 印花税 (仅卖方)
+    slippages: np.ndarray            # 滑点成本
+    transfer_fees: np.ndarray        # 过户费
+    rejected_mask: np.ndarray        # 全局拒绝掩码
+    t1_violation_mask: np.ndarray    # T+1 违反掩码
+    limit_violation_mask: np.ndarray # 涨跌停违反掩码
+    cash_shortfall_mask: np.ndarray  # 资金不足掩码
+```
 
-## 9. 回测偏差风险
+### 向量化涨跌停计算
 
-1. Pipeline timestamp risk: Stage 5 found `UnifiedResearchPipeline` stamps signals with `pd.Timestamp.now()`, so historical backtests can produce no trades or one-date-only trades.
-2. Single-symbol backtest evaluates one final snapshot signal list, not a historically regenerated signal series across every bar.
-3. Signal conflicts are resolved by list order and current position, not by an explicit execution policy.
-4. Open-price next-day fills assume all queued orders can fill at open after only limit/volume checks; auction mechanics and partial fills are not modeled.
-5. `volume > 0` allows any requested fill after cash/lot checks; there is no maximum participation cap beyond slippage impact.
-6. Matching engine lacks explicit zero-volume halt rejection.
-7. Transfer fee exchange logic is inconsistent between `cost_model` helper and unified engines.
-8. Single engine does not model IPO first-days no-limit rules; vectorized matching has partial IPO logic.
-9. Corporate actions, ex-rights adjustment consistency, and survivorship-bias controls depend on upstream data and are not enforced here.
-10. Short-selling is not allowed by position checks, which is correct for common A-share cash trading, but sell intents while flat are silently ignored.
+```python
+compute_limit_status_vectorized(prices, pre_closes, symbols, names, trading_days_listed):
+  Fast path: 无 names/trading_days_listed → 纯向量化, board_types 预计算
+  Slow path: 含 ST 名称检测 + IPO 特殊规则（新股首日 44% 涨跌幅, 科创/创业前 5 日无限制）
+```
 
-## 10. 改进建议
+### 向量化滑点
 
-1. Generate historical signals per bar or per rebalance date before calling backtest; do not use `now()` for historical signal timestamps.
-2. Add a `TradingSignal` aggregation/execution policy before backtest so each symbol/date has at most one authoritative action.
-3. Move single-symbol fills onto `UnifiedMatchingEngine` or extract a common execution kernel to eliminate logic drift.
-4. Align transfer fee behavior with `CostConfig` and symbol exchange rules.
-5. Add explicit suspension rejection to `UnifiedMatchingEngine`.
-6. Normalize buy shares to board lot size in all matching paths, not only cash-shortfall paths.
-7. Add participation caps, partial fills, and liquidity rejection for large orders.
-8. Add tests for pipeline timestamp-to-backtest behavior.
-9. Add tests comparing single-engine and vectorized matching results on the same scenarios.
-10. Decide whether IPO special limit rules are required in the single-symbol engine and implement consistently if yes.
+```python
+compute_execution_prices(prices, volumes, avg_daily_volumes, is_buy):
+  vol_ratios = min(volumes / avg_daily_volumes, 1.0)
+  impact = min(0.001 * sqrt(vol_ratios), 0.02)
+  total_slip = slippage_rate + impact
+  direction = 1 if is_buy else -1
+  return prices * (1 + direction * total_slip)
+```
 
-## 11. 阶段结论
+### 向量化 T+1 检查
 
-`UnifiedBacktestEngine` captures the core A-share mechanics needed for a conservative single-symbol research backtest: signal delay to next open, T+1 selling, limit-up/down rejection, suspension rejection, cash protection, sell-side stamp duty, slippage direction, and lot rounding.
+```python
+for i in range(n):
+    if buy_dates[i] is None: continue
+    b_ts, c_ts = buy_dates[i], timestamps[i]
+    if c_ts.toordinal() <= b_ts.toordinal(): t1_violation[i] = True
+    next_td = _next_trading_day(b_ts)
+    if c_ts.toordinal() < next_td.toordinal(): t1_violation[i] = True
+```
 
-The execution layer is not yet fully unified. `UnifiedMatchingEngine` is used by deprecated/portfolio paths and has stronger vectorized limit/IPO/T+1 machinery, but differs from the single engine on halt handling, lot normalization, and call semantics. The next remediation should be to make one matching kernel authoritative and ensure the signal layer provides timestamp-correct historical signals.
+---
 
-## 12. 校验清单
+## 5. 执行方法细节
 
-| Check | Status |
-|---|---|
-| T 日信号、T+1 open 成交逻辑 | Verified by code path: pending order executes next bar open. |
-| 涨停不买、跌停不卖 | Verified in single and vectorized engines. |
-| 印花税只在卖出侧 | Verified in single and vectorized engines. |
-| 资金不能透支 | Verified: buy share reduction and final cash check. |
-| 停牌 volume=0 | Verified in single engine; gap in vectorized matching noted. |
-| 产物包含流程图、撮合规则、约束表、成本、信号流程、偏差、建议 | Done. |
+### _execute_buy
 
-## 13. 下一阶段输入
+```
+1. 涨跌停检查 (防线 B)
+2. 滑点计算 (防线 F)
+3. 整手取整 (防线 G)
+4. 总成本 = 股数 * 执行价格 + 佣金 + 过户费
+5. 资金检查 (防线 D)
+6. → TradeRecord(commission, transfer_fee, slippage)
+```
 
-Stage 7 should analyze whether risk controls affect actual sizing, signals, and execution:
+### _execute_sell
 
-- `src/uniquant/risk/sizer.py`
-- `src/uniquant/risk/drawdown_analyzer.py`
-- `src/uniquant/risk/evt_risk.py`
-- `src/uniquant/risk/historical_risk.py`
-- `src/uniquant/risk/portfolio_optimizer.py`
-- `src/uniquant/risk/structural.py`
-- `src/uniquant/services/portfolio_service.py`
-- `src/uniquant/services/health_service.py`
-- `src/uniquant/ui/dashboard.py`
-- Tests for sizer, drawdown, EVT, portfolio optimization, and health checks.
+```
+1. T+1 检查 (防线 A)
+2. 涨跌停检查 (防线 B)
+3. 滑点计算 (防线 F)
+4. 印花税 (仅卖方, 防线 E)
+5. 佣金 + 过户费
+6. PnL = 回收现金 - (持仓成本 * 股数)
+7. → TradeRecord(commission, stamp_duty, transfer_fee, slippage, pnl)
+```
 
-Key Stage 7 questions:
+---
 
-1. Does risk sizing feed into executable `TradingSignal.shares`, or is `default_shares` still dominant?
-2. Are invalid stop-loss inputs conservative failures or silent defaults?
-3. Does risk affect live/backtest orders after signal generation?
-4. What is the minimum remediation list before real-money use?
+## 6. 成本模型参数
+
+| 参数 | 值 | 说明 |
+|------|-----|------|
+| `COMMISSION_PCT` | 0.00025 (万 2.5) | 佣金费率 |
+| `MIN_COMMISSION` | 5.0 元 | 最低佣金 |
+| `STAMP_TAX_PCT` | 0.0005 (万 5) | 印花税 (卖方) |
+| `TRANSFER_FEE_PCT` | 0.00001 (万 0.1) | 过户费 |
+| `SLIPPAGE_PCT` | 0.001 (千 1) | 基础滑点率 |
+
+---
+
+## 7. 旧版弃用组件
+
+| 组件 | 替代 | 弃用原因 |
+|------|------|----------|
+| `BacktestEngine` (engine.py) | `UnifiedBacktestEngine` | 旧版接受 Callable 策略, 新引擎强类型 List[TradingSignal] |
+| `PortfolioEngine` | `UnifiedBacktestEngine` | 多标的回测移至上层 ; 新引擎每标的运行一次 |
+| `result.py TradeRecord` | `unified_engine.py TradeRecord` | 旧版缺少 stamp_duty/transfer_fee 字段 |
+| `result.py BacktestResult` | `unified_engine.py BacktestResult` | 旧版混合计算和存储职责 |
+
+---
+
+## 8. 辅助工具
+
+| 工具 | 用途 |
+|------|------|
+| `benchmark.py` | 基准收益/波动/夏普计算 |
+| `monte_carlo.py` | 随机路径模拟, 风险价值评估 |
+| `overfitting_detector.py` | 过拟合检测 (D-M 检验, 子区间一致性) |
+| `param_validator.py` | 参数合法性验证 |
+| `robustness_checker.py` | 市场状态稳定性, 参数敏感性, 子区间一致性, 成本敏感性 |
+| `sensitivity_analyzer.py` | 参数敏感性分析 |
+| `report_generator.py` | HTML/文本回测报告生成 |
+| `signal_integrator.py` | Signal 模型 → 交易 DataFrame 融合 |
+| `trade_analysis/analyzer.py` | 交易行为分析 |
+| `trade_analysis/statistics.py` | 交易统计指标 |
+
+---
+
+## 9. 关键观察
+
+### 架构风险
+
+| # | 风险 | 位置 | 影响 |
+|---|------|------|------|
+| R6-1 | **回测与匹配引擎有两套信号优先级规则**: UnifiedBacktestEngine 的 bar 循环内使用 LPPL→BUY→SELL 优先级, 与 SignalArbitrator 的规则不同 | `unified_engine.py:220-250` | 相同信号在仲裁器和回测引擎中可能产生不同交易行为 |
+| R6-2 | **向量化 T+1 未完全利用**: `fill_sell()` 中使用 Python for-loop 逐元素检查, 而非纯向量化 | `unified_matching_engine.py:198-209` | 性能瓶颈 |
+| R6-3 | **旧版代码体积大 (747 LOC)**: `engine.py` 虽弃用但仍可被引用, 维护负担 | `engine.py` | 需清理 |
+| R6-4 | **挂单一日期有多个信号时只执行第一个**: bar 循环 `break` 后忽略后续信号 | `unified_engine.py:230,237,244` | 同一天多个引擎触发时可能丢失交易机会 |
+| R6-5 | **缺失交易量约束**: 滑点计算使用 `trade_volume` 但不验证挂单量是否超过当日可交易量 | `unified_engine.py:_calc_slippage()` | 大单滑点可能低估 |
+
+### 设计亮点
+
+| # | 亮点 | 位置 |
+|---|------|------|
+| S6-1 | **7 道防线 (A-G)**: T+1、涨跌停、停牌、不透支、成本、滑点、整手 — A 股全约束覆盖 | 全部 `unified_engine.py` |
+| S6-2 | **向量化匹配引擎**: 支撑 PortfolioEngine 和 UnifiedBacktestEngine 两个引擎, 消除成本计算偏移 | `unified_matching_engine.py` |
+| S6-3 | **非线性滑点**: `0.001 * sqrt(vol_ratio)`, 使用 trade_volume 而非 daily_volume | `unified_engine.py:480-488` |
+| S6-4 | **IPO 新股规则**: 首日 44% 涨跌幅, 科创/创业板前 5 日无限制 | `matching.py:153-163` |
+| S6-5 | **印花税日期感知**: `get_stamp_tax_pct(timestamp.date())` 支持历史税率回溯 | `unified_engine.py:461-465` |
+| S6-6 | **幸存者偏差检测**: 自动检查退市日期 | `unified_engine.py:254-269` |
+| S6-7 | **涨跌停向量化快速路径/慢速路径**: 按数据情况自动选择最优路径 | `matching.py:110-170` |
+| S6-8 | **辅助工具丰富**: 8 个分析工具覆盖蒙特卡洛/过拟合/稳健性/敏感性/报告 |
+
+### 回测 vs 仲裁信号优先级对比
+
+| 阶段 | 优先级规则 |
+|------|-----------|
+| **SignalArbitrator** | DecisionOutput 硬约束 > SELL > FSM BUY > 非-FSM BUY > 引擎优先级 |
+| **UnifiedBacktestEngine** | LPPL SELL > BUY > 非LPPL SELL |
+
+两者独立运行, 可能导致:
+- 仲裁器选择 BUY → 回测引擎内部可能被非LPPL SELL 覆盖
+- 仲裁器选择 SELL (非LPPL) → 回测引擎中 LPPL SELL 优先级更高
+
+### 测试覆盖
+
+| 测试 | 函数数 | 覆盖 |
+|------|--------|------|
+| `tests/test_backtest_engine.py` | — | 旧版引擎测试 |
+| `tests/test_unified_backtest_engine.py` | — | 统一引擎测试 |
+| `tests/test_matching_engine.py` | — | 撮合引擎测试 |
+| `tests/test_portfolio_engine_v2.py` | 12+ | 组合引擎测试 |
+| `tests/benchmark/golden_20.txt/100.txt` | — | 基线回归黄金列表 |
+
+---
+
+## 10. 建议
+
+### P1
+1. **R6-1 (双重优先级)**: 统一回测引擎内部的信号优先级与仲裁器一致 — 让 `UnifiedBacktestEngine.run()` 使用仲裁后的信号, 不再重复仲裁
+
+### P2
+2. **R6-2 (T+1 向量化)**: 将 `fill_sell()` 中的 T+1 for-loop 转换为向量化 `numpy` 操作
+3. **R6-5 (交易量约束)**: 添加挂单量 vs 当日可交易量的检查
+
+### P3
+4. **R6-3 (旧版清理)**: 清除 `engine.py`, `portfolio_engine.py`, `result.py` 弃用代码
+5. **R6-4 (多信号覆盖)**: 考虑同一天多信号场景, 改为信号取并集而非仅执行第一个
+
+---
+
+## 11. 验证清单
+
+- [x] 读取 `unified_engine.py` (完整 bar 循环, 7 道防线, 3 步流程)
+- [x] 读取 `unified_matching_engine.py` (向量化 BUY/SELL, FillResult, 涨跌停/T+1)
+- [x] 读取 `engine.py` (弃用声明)
+- [x] 读取 `portfolio_engine.py` (弃用, 使用 UnifiedMatchingEngine)
+- [x] 读取 `result.py` (弃用, 双重 BacktestResult)
+- [x] 读取 `signal_integrator.py` (Signal → DataFrame 桥接)
+- [x] 读取 `robustness_checker.py` (市场状态/参数/子区间 4 检查)
+- [x] 检查 `cost_model.py` 参数 (佣金/印花税/过户费/滑点)
+- [x] 检查 `limit_checker.py` (涨跌停板规则)
+- [x] 检查 `market_rules.py` (lot_size, board rules)
+- [x] 检查基线回归测试 (golden_20.txt/100.txt)

@@ -18,6 +18,8 @@ __all__ = [  # pylint: disable=undefined-all-variable
     "strategies",
 ]
 
+import warnings
+
 from ..shared.logger_factory import get_logger
 
 logger = get_logger(__name__)
@@ -34,14 +36,29 @@ def __getattr__(name):
 
         return ResultsManager
     elif name == "BacktestEngine":
+        warnings.warn(
+            "BacktestEngine is deprecated, use UnifiedBacktestEngine",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         from uniquant.hands.backtest.engine import BacktestEngine
 
         return BacktestEngine
     elif name == "BacktestResult":
+        warnings.warn(
+            "BacktestResult (legacy) is deprecated, use unified_engine.BacktestResult",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         from uniquant.hands.backtest.result import BacktestResult
 
         return BacktestResult
     elif name == "TradeRecord":
+        warnings.warn(
+            "TradeRecord (legacy) is deprecated, use unified_engine.TradeRecord",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         from uniquant.hands.backtest.result import TradeRecord
 
         return TradeRecord

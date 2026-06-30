@@ -341,7 +341,7 @@ class DecisionBrain:
         sell_threshold = get_config().get("brain.fsm.sell_threshold", -0.5)
         if ctx.alpha_score < sell_threshold:
             sell_conditions.append("ALPHA_WEAK")
-        if ctx.regime.value in ["FROZEN", "STRESSED"]:
+        if ctx.regime.value == "STRESSED":
             sell_conditions.append("REGIME_RISK")
         
         sell_limit_blocked = False

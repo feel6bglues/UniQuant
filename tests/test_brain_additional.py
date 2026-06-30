@@ -85,11 +85,11 @@ class TestRegimeDetectorAdditional:
         assert detector._validate_input_data(valid) is True
 
         short = pd.DataFrame({"close": [1.0] * 5, "volume": [1.0] * 5})
-        assert detector.detect(short) is Regime.NORMAL
+        assert detector.detect(short) is Regime.UNKNOWN
 
         monkeypatch.setattr("uniquant.brain.regime.regime_detector.Indicators.calc_market_entropy", lambda df: pd.Series(dtype=float))
         monkeypatch.setattr("uniquant.brain.regime.regime_detector.Indicators.calc_turnover_z", lambda df: pd.Series(dtype=float))
-        assert detector.detect(valid) is Regime.NORMAL
+        assert detector.detect(valid) is Regime.UNKNOWN
 
     def test_detect_regime_paths_and_summary(self, monkeypatch):
         detector = RegimeDetector(min_data_points=10)
@@ -110,10 +110,10 @@ class TestRegimeDetectorAdditional:
         monkeypatch.setattr("uniquant.brain.regime.regime_detector.Indicators.calc_turnover_z", lambda _: pd.Series([np.nan]))
         summary = detector.get_summary(df)
         assert summary == {
-            "regime": "NORMAL",
+            "regime": "UNKNOWN",
             "entropy": 0.0,
             "turnover_z": 0.0,
-            "is_safe": True,
+            "is_safe": False,
         }
 
     def test_detect_from_data_handles_deprecated_path_and_empty_fetch(self, monkeypatch):

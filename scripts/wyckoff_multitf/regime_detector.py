@@ -12,7 +12,9 @@ Usage:
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional
+from typing import Dict, Optional
+
+from scripts.wyckoff_multitf.v_shape_detector import VShapedReversalDetector
 
 import numpy as np
 import pandas as pd
@@ -37,6 +39,7 @@ class MarketRegimeDetector:
         self._df: Optional[pd.DataFrame] = None
         self._ma50: Optional[np.ndarray] = None
         self._ma200: Optional[np.ndarray] = None
+        self.v_shape: Optional[VShapedReversalDetector] = None
         if df is not None:
             self.fit(df)
 
@@ -87,6 +90,15 @@ class MarketRegimeDetector:
 
     def regime_series(self, dates: list[str]) -> list[str]:
         return [self.classify(d) for d in dates]
+
+    def classify_with_vshape(self, date: str) -> Dict:
+        if self.v_shape is None:
+            self.v_shape = VShapedReversalDetector()
+        if self._df is None:
+            self.load_index_data()
+        v_info = self.v_shape.classify_date(date, self._df)
+        regime = self.classify(date)
+        return {"regime": regime, **v_info}
 
 
 def load_dates_from_results(results_path: str) -> list[str]:

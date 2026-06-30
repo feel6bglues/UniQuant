@@ -11,6 +11,8 @@ Usage:
 import numpy as np
 import pandas as pd
 
+from .phase_analysis import _obv_trend
+
 
 
 class MonthlyPhaseClassifier:
@@ -48,10 +50,7 @@ class MonthlyPhaseClassifier:
         r6 = (c[-1] / c[-7] - 1) * 100 if len(c) >= 7 else 0
         vp_c = float(np.corrcoef(c, v)[0, 1]) if len(c) > 2 and np.std(v) > 0 else 0
 
-        obv = 0
-        for j in range(1, len(c)):
-            obv += v[j] if c[j] > c[j-1] else -v[j] if c[j] < c[j-1] else 0
-        obv_t = obv / v.mean() / len(c) if v.mean() > 0 else 0
+        obv_t = _obv_trend(c, v)
 
         phase = self._rules(pp, tr, vt, rp, vr, r6, vp_c, obv_t)
         self._last_features = {

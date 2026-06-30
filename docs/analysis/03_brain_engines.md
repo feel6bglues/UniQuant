@@ -1,235 +1,316 @@
-# Stage 3 - Brain Engines
+# Stage 3 — Brain/Signal 引擎深度分析
 
-Generated: 2026-06-09
+> **日期**: 2026-06-29 | **状态**: ✅ 完成
+> **范围**: `services/analysis/` (7 引擎适配器), `brain/` (6 核心引擎), `signal/` (仲裁器), `brain/fsm/fsm.py` (DecisionBrain)
+> **前置**: `00_architecture_map.md`, `01_services_orchestration.md`
 
-Scope: Brain-layer engines and their service orchestration through `AnalysisService.run_ticker_analysis()`. No source code was modified and no tests were run in this stage.
+---
 
-## 1. 本阶段计划
+## 1. 总览
 
-1. Read Stage 0-2 artifacts.
-2. Trace `AnalysisService._run_engines()` as the current main engine path.
-3. Inspect service adapters under `src/uniquant/services/analysis/`.
-4. Inspect core brain implementations under `src/uniquant/brain/`.
-5. Build engine input/output and `data_pack` field-source tables.
-6. Analyze `DecisionBrain` veto, scoring, state, and action behavior.
-7. Identify A-share suitability and signal conflict risks.
+### 引擎流水线
 
-## 2. 已阅读文件
-
-| File | Purpose |
-|---|---|
-| `docs/analysis/00_architecture_map.md` | Architecture baseline. |
-| `docs/analysis/01_services_orchestration.md` | Services orchestration baseline. |
-| `docs/analysis/02_data_system.md` | Data system baseline. |
-| `src/uniquant/services/analysis_service_v2.py` | Current main brain orchestration path. |
-| `src/uniquant/services/analysis/engine_factory.py` | Lazy engine factory. |
-| `src/uniquant/services/analysis/fsm_analysis_engine.py` | FSM service adapter. |
-| `src/uniquant/services/analysis/czsc_analysis_engine.py` | CZSC service adapter. |
-| `src/uniquant/services/analysis/lppl_analysis_engine.py` | LPPL service adapter. |
-| `src/uniquant/services/analysis/ntf_analysis_engine.py` | NTF service adapter. |
-| `src/uniquant/services/analysis/regime_analysis_engine.py` | Regime service adapter. |
-| `src/uniquant/services/analysis/wyckoff_analysis_engine.py` | Wyckoff service adapter. |
-| `src/uniquant/brain/fsm/fsm.py` | `FSM` and `DecisionBrain`. |
-| `src/uniquant/brain/czsc/czsc_engine.py` | CZSC engine. |
-| `src/uniquant/brain/lppl/engine.py` | LPPL engine. |
-| `src/uniquant/brain/ntf/ntf_engine.py` | National Team Factor engine. |
-| `src/uniquant/brain/regime/regime_detector.py` | Regime detector. |
-| `src/uniquant/brain/wyckoff/engine.py` | Wyckoff engine. |
-| `src/uniquant/brain/alpha_decoupler/alpha_decoupler.py` | Alpha relative-strength engine. |
-| `src/uniquant/brain/indicators/indicators.py` | Shared technical indicators. |
-| Relevant tests under `tests/test_analysis_engines.py`, `tests/test_czsc_engine.py`, `tests/test_regime_detector.py`, `tests/test_ntf_engine.py`, `tests/test_alpha_decoupler.py`, `tests/test_wyckoff.py`, and regression tests. |
-
-## 3. 引擎清单
-
-| Engine | Current main-chain call | Business meaning | Core input | Main output into `data_pack` |
-|---|---|---|---|---|
-| Regime | `AnalysisService._run_regime()` | Market liquidity/stress regime using HS300 entropy and turnover Z-score. | HS300 index frame from lake. | `regime`, `entropy`, `turnover_z`, `engine_status.regime`. |
-| LPPL | `AnalysisService._run_lppl()` | Bubble/crash structural risk detection. | Target stock OHLC close series. | `risk`, `bubble_confidence`, `engine_status.lppl`. |
-| NTF | `AnalysisService._run_ntf()` | National-team/policy intervention proxy using 510300 ETF volume pulse. | ETF history via injected `DataFetcher`. | `ntf_side`, `ntf_intensity`, `ntf_action`. |
-| CZSC | `AnalysisService._run_czsc()` | Chan-theory structure, especially third-buy signal and stroke count. | Target stock OHLCV frame. | `is_3rd_buy`, `bi_count`. |
-| Wyckoff | `AnalysisService._run_wyckoff()` | Accumulation/distribution phase and spring/UTAD structure. | Target stock OHLCV frame. | `wyckoff_phase`, `wyckoff_confidence`, `wyckoff_spring`, `wyckoff_utad`. |
-| Alpha | `AnalysisService._run_alpha()` | Relative strength versus benchmark and sector/index. | Target stock, HS300, CSI500 frames. | `alpha_score`. |
-| Indicators | `AnalysisService._calculate_derived()` | Derived trend, price, ATR stop, returns. | Target stock OHLC frame. | `ma_status`, `price`, `atr_stop`, `returns`. |
-| FSM / DecisionBrain | `AnalysisService._make_decision()` | Veto-scoring state machine and final trading action. | Full `data_pack`. | `decision` object returned in `TickerAnalysisResult`. |
-
-Evidence: `src/uniquant/services/analysis_service_v2.py:308-317`, `326-526`.
-
-## 4. 输入输出字段表
-
-| Engine | Required/expected fields | Output fields | Failure defaults in main chain |
-|---|---|---|---|
-| Regime | Lake index `000300.SH`/HS300 with `close`, `volume`. | `regime`, `entropy`, `turnover_z`. | Missing HS300 -> `regime="UNKNOWN"`, `entropy=0.0`, `turnover_z=0.0`, status `DATA_UNAVAILABLE`; exception -> status `ENGINE_FAILED`. |
-| LPPL | `data_pack["stock"]`, especially `close`. | `risk` from `risk_level`, `bubble_confidence`. | Invalid/missing result or exception -> `risk="ENGINE_FAILED"`, `bubble_confidence=1.0`. |
-| NTF | `data_service.fetcher`, ETF symbol `510300.SH`, recent 3 months. | `ntf_side`, `ntf_intensity`, `ntf_action`. | Exception -> `ntf_side="NONE"`, `ntf_intensity=0.0`. |
-| CZSC | `stock` with `date`, `open`, `close`, `high`, `low`, volume/vol. | `is_3rd_buy`, `bi_count`. | Exception -> `is_3rd_buy=False`, `bi_count=0`. |
-| Wyckoff | `stock` with OHLCV. | `wyckoff_phase`, `wyckoff_confidence`, `wyckoff_spring`, `wyckoff_utad`. | Exception -> `wyckoff_phase="unknown"`, `wyckoff_confidence=0.0`. |
-| Alpha | `stock`, lake `000300.SH` index, lake `000905.SH` index. | `alpha_score`. | Missing stock/benchmark or exception -> `alpha_score=0.0`. |
-| Indicators | `stock` with `close`, `high`, `low`. | `ma_status`, `price`, `atr_stop`, `returns`. | Exceptions are logged; fields may be absent or partially present. |
-| DecisionBrain | `MarketSignalContext.from_dict(data_pack)` fields. | `action`, `reason`, `final_decision`, `final_score`, blockers/triggers, shares, state. | Decorator default can return `{"action": "ERROR", "reason": "决策执行失败"}` if unhandled. |
-
-Evidence:
-
-- Regime path: `src/uniquant/services/analysis_service_v2.py:326-369`; core detector summary returns `regime`, `entropy`, `turnover_z`, `is_safe` at `src/uniquant/brain/regime/regime_detector.py:191-216`.
-- LPPL path: `src/uniquant/services/analysis_service_v2.py:371-396`; LPPL risk output at `src/uniquant/brain/lppl/engine.py:988-1011`.
-- NTF path: `src/uniquant/services/analysis_service_v2.py:398-428`; NTF output at `src/uniquant/brain/ntf/ntf_engine.py:48-113`.
-- CZSC path: `src/uniquant/services/analysis_service_v2.py:430-441`; CZSC output at `src/uniquant/brain/czsc/czsc_engine.py:415-432`, `472-510`.
-- Wyckoff path: `src/uniquant/services/analysis_service_v2.py:443-456`; simplified scan output at `src/uniquant/brain/wyckoff/engine.py:1388-1457`.
-- Alpha path: `src/uniquant/services/analysis_service_v2.py:458-480`; alpha score at `src/uniquant/brain/alpha_decoupler/alpha_decoupler.py:199-270`.
-- Derived fields: `src/uniquant/services/analysis_service_v2.py:482-515`.
-
-## 5. `data_pack` 字段来源表
-
-| Field | Producer | Consumer |
-|---|---|---|
-| `stock` | `DataService.fetch_for_brain()` | All price-based engines, derived indicators, pipeline backtest. |
-| `bench` | `DataService.fetch_for_brain()` | Not directly used by current `_run_alpha()`; alpha rereads lake indices. |
-| `etf` | `DataService.fetch_for_brain()` | Not directly used by current `_run_ntf()`; NTF fetches ETF through fetcher. |
-| `trace_id` | `AnalysisService._attach_trace_id()` | Result tracing and status metadata. |
-| `engine_status` / `engine_errors` | `_mark_engine_status()` in selected engine paths | `DecisionBrain._risk_engine_blockers()`, diagnostics. |
-| `regime` | `_run_regime()` | `DecisionBrain`, `RegimeAdapter`. |
-| `entropy`, `turnover_z` | `_run_regime()` | Diagnostics/UI/context. |
-| `risk`, `bubble_confidence` | `_run_lppl()` | `DecisionBrain`, `LPPLAdapter`. |
-| `ntf_side`, `ntf_intensity`, `ntf_action` | `_run_ntf()` | `DecisionBrain`, `NTFAdapter`. |
-| `is_3rd_buy`, `bi_count` | `_run_czsc()` | `DecisionBrain`, `CZSCAdapter`. |
-| `wyckoff_phase`, `wyckoff_confidence`, `wyckoff_spring`, `wyckoff_utad` | `_run_wyckoff()` | `WyckoffAdapter`; not directly used by `DecisionBrain` scoring. |
-| `alpha_score` | `_run_alpha()` | `DecisionBrain`, `AlphaScoreAdapter`. |
-| `ma_status`, `price`, `atr_stop`, `returns` | `_calculate_derived()` | `DecisionBrain`, `MAStatusAdapter`, position sizing/risk. |
-| `symbol`, `market` | `_run_engines()` | `DecisionBrain`, signal adapters, pipeline. |
-
-## 6. DecisionBrain 决策流程
-
-`DecisionBrain.make_decision()` converts dict input into `MarketSignalContext` (`src/uniquant/brain/fsm/fsm.py:548-564`).
-
-Flow:
-
-```text
-data_pack -> MarketSignalContext
-  -> reset FSM state if symbol changed
-  -> veto checks
-       FROZEN -> FORCE_WAIT
-       risk engine unavailable -> FORCE_WAIT
-       LPPL Danger without NTF SUPPORT -> FORCE_EXIT
-  -> circuit-break check using price/pre_close
-  -> score:
-       CZSC third-buy
-       MA20 > MA60
-       alpha_score threshold
-       NTF SUPPORT
-  -> sell conditions:
-       LPPL Danger
-       MA reversal
-       weak alpha
-       FROZEN/STRESSED regime
-       limit-down block handling
-  -> target FSM state transition
-  -> buy blockers:
-       LPPL Danger
-       market frozen
-       risk engine blockers
-       missing/invalid stop loss
-       weak alpha
-       limit-up/down constraints
-  -> BUY/ADD/SELL/HOLD/STAY_CURRENT_STATE/CIRCUIT_BREAK
+```
+run_ticker_analysis()
+  ├─ _prepare_data()               → DataService 获取 data_pack
+  └─ _run_engines()                → 串行执行 7 引擎
+       ├─ 1. _run_regime()         → RegimeDetector (市场级缓存)
+       ├─ 2. _run_lppl()           → LpplAnalysisEngine → LPPLEngine
+       ├─ 3. _run_ntf()            → NTFEngine (市场级缓存)
+       ├─ 4. _run_czsc()           → CzscAnalysisEngine → CZSCEngine
+       ├─ 5. _run_wyckoff()        → WyckoffAnalysisEngine → WyckoffEngine
+       ├─ 6. _run_alpha()          → AlphaDecoupler
+       └─ 7. _calculate_derived()  → Indicators (MA, ATR, 价格)
+  └─ _make_decision()              → DecisionBrain.make_decision()
+       └─ TradingSignalCollector   → (Pipeline 层, 在分析服务之外)
 ```
 
-Evidence:
+### 文件映射
 
-- Response fields: `src/uniquant/brain/fsm/fsm.py:230-256`.
-- Veto and risk blockers: `src/uniquant/brain/fsm/fsm.py:258-315`.
-- Scoring: `src/uniquant/brain/fsm/fsm.py:317-328`.
-- Sell conditions: `src/uniquant/brain/fsm/fsm.py:330-366`.
-- Buy blockers and limit checks: `src/uniquant/brain/fsm/fsm.py:385-417`.
-- Buy execution and position sizing: `src/uniquant/brain/fsm/fsm.py:419-457`.
-- Main state logic: `src/uniquant/brain/fsm/fsm.py:548-659`.
+| # | 引擎 | 适配器 (services/analysis/) | 核心实现 (brain/) | 输出类型 |
+|---|------|---------------------------|-------------------|----------|
+| 1 | Regime | `regime_analysis_engine.py` | `brain/regime/regime_detector.py` | `RegimeOutput` |
+| 2 | LPPL | `lppl_analysis_engine.py` | `brain/lppl/engine.py` | `LPPLOutput` |
+| 3 | NTF | `ntf_analysis_engine.py` | `brain/ntf/ntf_engine.py` | `NtfOutput` |
+| 4 | CZSC | `czsc_analysis_engine.py` | `brain/czsc/czsc_engine.py` | `CZSCOutput` |
+| 5 | Wyckoff | `wyckoff_analysis_engine.py` | `brain/wyckoff/engine.py` | `WyckoffOutput` |
+| 6 | Alpha | (内联在 analysis_service_v2.py) | `brain/alpha_decoupler/alpha_decoupler.py` | `AlphaOutput` |
+| 7 | 衍生指标 | (内联在 analysis_service_v2.py) | `brain/indicators/indicators.py` | 嵌入 data_pack |
+| 8 | 宏观 | `macro_analysis_engine.py` | 依赖 EVT risk + DataService | Dict |
+| 9 | FSM | `fsm_analysis_engine.py` | `brain/fsm/fsm.py` → FSM | Dict |
+| — | 决策 | — | `brain/fsm/fsm.py` → `DecisionBrain` | `DecisionOutput` |
 
-Important: `MarketSignalContext.from_dict()` defaults `pre_close` to `0.0` (`src/uniquant/shared/interfaces.py:79-100`). `AnalysisService._calculate_derived()` sets `price` but does not set `pre_close` (`src/uniquant/services/analysis_service_v2.py:503-512`). As a result, DecisionBrain limit-up/limit-down and circuit-break checks may be inactive in the current main chain unless another producer supplies `pre_close`.
+---
 
-## 7. A 股适用性评价
+## 2. 引擎适配器层分析
 
-| Engine | A-share suitability | Notes |
-|---|---|---|
-| Regime | High as market risk filter if HS300 data is fresh. | Uses entropy and turnover/volume; useful for liquidity/stress veto. Missing HS300 becomes `UNKNOWN`, which DecisionBrain blocks via risk blockers. |
-| LPPL | Useful as structural top/crash risk filter, not a standalone buy signal. | Current failure default is intentionally conservative through `ENGINE_FAILED`; DecisionBrain treats failed risk engine as blocker. |
-| NTF | A-share specific policy/liquidity context. | Uses 510300 ETF proxy and SUPPORT/RESISTANCE semantics. Current main chain fetches data directly through fetcher instead of using `data_pack["etf"]`. |
-| CZSC | A-share technical signal fit is high because Chan theory is commonly used in this market. | Third-buy signal contributes to score and can emit BUY via adapter. Requires enough valid bars. |
-| Wyckoff | Useful for accumulation/distribution interpretation. | Current DecisionBrain does not score Wyckoff directly; it only influences signal collector through adapter. |
-| Alpha | Useful for relative strength and beta/sector decoupling. | Missing benchmark maps to `alpha_score=0.0`, which can be a sell signal in signal adapter; this needs correction/verification. |
-| Indicators | Necessary support layer. | MA trend, ATR stop, and returns drive scoring, stop-loss blockers, and position sizing. |
-| DecisionBrain | Strong A-share awareness via state, risk vetoes, limit checks, T+1 delegated to backtest. | In current data path `pre_close` may not be present, reducing price-limit/circuit-break effectiveness at decision time. |
+### 2.1 通用模式
 
-## 8. 信号冲突风险
+所有 services/analysis 引擎适配器共享以下特征：
 
-Current pipeline can produce multiple signals from the same analysis output:
+```python
+class XxxAnalysisEngine:
+    def __init__(self, orchestrator):
+        self.orchestrator = orchestrator  # AnalysisService 实例
 
-- `DecisionBrain` can return `FORCE_WAIT`, `FORCE_EXIT`, `BUY`, `ADD`, `SELL`, `STAY_CURRENT_STATE`, or `CIRCUIT_BREAK`.
-- `TradingSignalCollector` separately adapts LPPL, CZSC, Wyckoff, FSM, Regime, NTF, AlphaScore, and MA status.
-- Wyckoff/MA/Alpha adapters can produce BUY/SELL even when DecisionBrain is HOLD-like.
+    def run_xxx_analysis(self, symbol, df=None) -> TypedOutput:
+        # 1. try brain-layer engine
+        # 2. catch RECOVERABLE_ERRORS tuple
+        # 3. return typed dataclass (with fallback defaults)
+```
 
-Concrete conflict examples:
+**RECOVERABLE_ERRORS 元组 (7-8 异常通用)**:
+```python
+(AttributeError, ImportError, KeyError, ModuleNotFoundError,
+ OSError, RuntimeError, TypeError, ValueError)
+```
+每个引擎适配器定义了自身的版本（macro 引擎少了 `ImportError` 和 `ModuleNotFoundError`）。
 
-1. `risk="ENGINE_FAILED"` causes `DecisionBrain` to `FORCE_WAIT`, but `LPPLAdapter` sees neither `Danger` nor `Warning` and returns HOLD if confidence is high enough.
-2. `_run_alpha()` failure sets `alpha_score=0.0`; `DecisionBrain` may block buy or sell on weak alpha, and `AlphaScoreAdapter` maps `<0.3` to SELL.
-3. `ma_status="MA20 <= MA60"` can trigger DecisionBrain sell conditions and separately produce a SELL from `MAStatusAdapter`.
-4. Wyckoff accumulation/spring can emit BUY through `WyckoffAdapter`, while Regime/LPPL/DecisionBrain may block risk.
+### 2.2 各引擎适配器细节
 
-Stage 5 must inspect signal aggregation and decide whether DecisionBrain should be authoritative, whether risk vetoes should suppress other adapter signals, and whether missing engine data should emit no signal.
+#### RegimeAnalysisEngine
+- 两个入口: `run_regime_detection()` (public) 和 `_run_regime_detection()` (private, 带缓存)
+- 使用沪深 300 (000300.SH) 作为市场基准
+- 两级缓存: 内存缓存 (`self.orchestrator._market_cache['regime']`) + 磁盘缓存 (24h TTL)
+- 降级策略: 失败时返回 `{"regime": "NORMAL", "status": "failed"}`
+- **注意**: Wrapper 层逻辑与 `analysis_service_v2.py` 中的新 `_run_regime()` 实现不同 — wrapper 仍用旧版 `_market_cache` dict，新实现在 `AnalysisService._run_regime()` 中通过 `MarketLevelCache` 实现
 
-## 9. 关键发现
+#### LpplAnalysisEngine
+- 两个工厂函数: `create_lppl_engine()` 和 `create_lppl_data_service()`
+- `run_lppl_analysis()` 尝试 `LPPLEngine.detect_bubble(df)`，失败时回退 `_fallback_lppl_analysis()`
+- 回退逻辑: 使用价格振幅 (amplitude) 和收益率偏度/峰度做基本统计检测
+- 输出 `LPPLOutput`: risk_level, confidence, days_to_tc, price, r_squared, out_of_sample_r_squared
 
-1. The actual main chain does not simply call every service adapter. `AnalysisService` directly implements Regime, NTF, Alpha, and derived-indicator logic while using factory-backed LPPL, CZSC, Wyckoff, and DecisionBrain.
-2. `data_pack` is the effective brain bus; its schema is still implicit and partly duplicated with `MarketSignalContext`.
-3. Regime and LPPL failures are treated as critical risk blockers by `DecisionBrain`, which is conservative.
-4. Alpha failure is not conservative in the signal layer because `alpha_score=0.0` can become SELL.
-5. Wyckoff is currently signal-layer relevant but not DecisionBrain-score relevant.
-6. `pre_close` is part of `MarketSignalContext` but not set by the main derived-indicator path, so DecisionBrain-level A-share limit/circuit checks may not fire.
-7. State persistence in `DecisionBrain` writes to `data/state/fsm_state.json` unless disabled or overridden (`src/uniquant/brain/fsm/fsm.py:689-750`), so multi-symbol or test runs must manage state carefully.
+#### NtfAnalysisEngine
+- 使用 510300.SH (沪深 300 ETF) 作为国家队代理指标
+- 二级缓存: 内存 (`_market_cache['ntf_signals']`) + 磁盘 (24h TTL)
+- **注意**: 同上，wrapper 层逻辑与 `analysis_service_v2.py` 中的新 `_run_ntf()` 实现不同
 
-## 10. 风险与改进建议
+#### CzscAnalysisEngine
+- 依赖 czsc 第三方库包装缠论 (Zen) 分析
+- `CZSCSignalType` 枚举 (`一买/一卖/二买/二卖/三买/三卖`) 代替字符串匹配
+- `CZSCEngine` 核心: 本地 `RawBar` 构建 → CZSC 对象 → 信号解析
+- 输出 `CZSCOutput`: is_3rd_buy, bi_count, price, bottom
 
-| Priority | Risk | Recommendation |
-|---|---|---|
-| High | `alpha_score=0.0` on missing benchmark/failure can become SELL. | Treat missing alpha as unavailable/neutral in adapters, or add `engine_status.alpha` and suppress alpha signal on failure. |
-| High | `pre_close` not populated in main `data_pack`. | Populate from latest stock row or prior close in `_calculate_derived()` so DecisionBrain limit/circuit logic works. |
-| High | Signal conflict policy is implicit. | Stage 5 should define authority/priority, likely making DecisionBrain/risk vetoes suppress lower-level technical signals. |
-| Medium | `bench` and `etf` from `fetch_for_brain()` are not reused by current Alpha/NTF paths. | Reuse `data_pack["bench"]`/`["etf"]` or document why engines reread/refetch. |
-| Medium | Wyckoff is not included in DecisionBrain scoring despite being collected as signal. | Decide whether Wyckoff should remain advisory or contribute to scoring. |
-| Medium | Service adapter fallback outputs can differ from main-chain defaults. | Keep main-chain field contract tests to avoid drift. |
-| Low | FSM state persistence can leak context across runs if not reset. | Use per-symbol state files or disable persistence for batch research/backtests. |
+#### WyckoffAnalysisEngine
+- 调用 `WyckoffEngine.run_wyckoff_analysis()`，输出 `WyckoffOutput`
+- WyckoffEngine v3.0 核心: 多周期分析 (日/周/月)、自定义 rules/classifiers/phase_analysis
 
-## 11. 校验清单
+#### MacroAnalysisEngine
+- 最复杂的适配器: 使用 `@handle_errors`, `@retry`, `@validate_inputs` 装饰器链
+- 依赖 EVT risk 计算宏观风险指标 (VaR 95/99, CVaR 95/99, max drawdown)
+- 两级缓存 (磁盘, 1h TTL)
+- 验证服务: 与 `validation_service` 对比标准方法差异
+- 精度一致性: `ensure_precision_consistency()` 归一化浮点精度
 
-- [x] Covered FSM, CZSC, LPPL, NTF, Regime, Wyckoff, Alpha, and Indicators.
-- [x] Explained each engine business meaning.
-- [x] Built input/output and `data_pack` field-source tables.
-- [x] Explained `DecisionBrain` decision flow.
-- [x] Evaluated A-share suitability.
-- [x] Identified signal conflict risks.
-- [x] Explained failure defaults and trade/risk implications.
-- [x] Bound conclusions to concrete files, functions, and tests.
-- [x] Did not modify source code.
-- [x] Did not claim tests passed; no test command was run.
+---
 
-## 12. 下一阶段输入
+## 3. 核心引擎实现
 
-Stage 4 should analyze the factor system with special care because the working tree currently deletes many `brain/factors/auto_mined` files. Start with:
+### 3.1 FSM 状态机 (`brain/fsm/fsm.py`)
 
-- `src/uniquant/brain/factors/__init__.py`
-- `src/uniquant/brain/factors/custom_factors.py`
-- `src/uniquant/brain/factors/registry.py`
-- `src/uniquant/brain/factors/analyzer.py`
-- `src/uniquant/brain/factors/composer.py`
-- `src/uniquant/brain/factors/neutralizer.py`
-- `src/uniquant/brain/factors/financial_bridge.py`
-- `src/uniquant/brain/factors/walk_forward_pipeline.py`
-- `experiments/run_factor_ic_evaluation.py`
-- `experiments/run_full_factor_matrix_eval.py`
-- `experiments/run_real_data_ic.py`
-- `tests/test_factor_analyzer.py`
-- `tests/test_factor_registry.py`
-- `tests/test_custom_factors.py`
-- `tests/test_factor_div_zero_defense.py`
-- `tests/test_walk_forward_pipeline.py`
+**FSM 类**: 基于 MA20/MA60 均线交叉的市场趋势判断
 
-## 13. 阶段结论
+- 7 状态: IDLE, SIGNAL, PROBE, MONITOR, PYRAMID, EXIT, CIRCUIT_BREAK
+- 3 个核心方法:
+  - `infer_state(df)`: 检查价格与 MA60 关系，判断趋势状态 (SIGNAL/PROBE/MONITOR/IDLE)
+  - `_validate_input()`: 确保 OHLC 列完整
+  - `_build_state_result()`: 输出包含 `state`, `state_name`, `state_desc`, `transition_reason`, `ma_status`
+- Look-ahead Bias 修复: `is_intraday=True` 时排除当前未收盘 K 线
 
-The brain layer is broad and mostly functional, but its operational contract is the mutable `data_pack` assembled by `AnalysisService`. The risk filters are conservative for Regime/LPPL failures, but Alpha and technical adapter outputs can still become executable signals without a global arbitration policy. Before trusting live or backtest decisions, Stage 5 and Stage 6 must verify signal priority, missing-engine semantics, timestamp alignment, and A-share price-limit behavior.
+**DecisionBrain 类** — 总控决策引擎 ("Veto-Scoring" 架构)
+
+```
+make_decision(data_packet)
+  │
+  ├─ 1. Symbol 切换检测 → 重置 FSM 状态到 IDLE
+  │
+  ├─ 2. _check_veto_conditions()
+  │   ├─ FROZEN 市场 → FORCE_WAIT
+  │   ├─ 风险引擎失败 → FORCE_WAIT
+  │   └─ LPPL Danger + 无 NTF 支持 → FORCE_EXIT
+  │
+  ├─ 3. 熔断检查 (B-007)
+  │   └─ 当日跌幅 < -5% → CIRCUIT_BREAK
+  │
+  ├─ 4. _calculate_score() — 加权评分
+  │   ├─ 三买信号      +40 (CZSC)
+  │   ├─ MA20 > MA60   +30 (趋势)
+  │   ├─ Alpha > 0.6   +20 (Alpha)
+  │   └─ NTF 支持      +10 (政策)
+  │   └─ 总分范围: 0-100
+  │
+  ├─ 5. _check_sell_conditions()
+  │   ├─ LPPL Danger
+  │   ├─ MA 反转 (MA20 <= MA60)
+  │   ├─ Alpha < -0.5
+  │   ├─ Regime FROZEN/STRESSED
+  │   └─ 跌停 → HOLD (非 SELL)
+  │
+  ├─ 6. _determine_target_state(score, is_3rd_buy)
+  │   └─ 阈值驱动: IDLE→SIGNAL(>=50) / SIGNAL→MONITOR(>=60) / MONITOR→PYRAMID(>=80) / EXIT(<20)
+  │
+  ├─ 7. _check_buy_blockers()
+  │   └─ LPPL Danger / FROZEN / 风险引擎失败 / 止损过宽 / Alpha 弱 / 涨跌停
+  │
+  └─ 8. _execute_buy()
+      └─ EVT 风险指标 → PositionSizer → 最终股数 (含风险缩放)
+```
+
+**状态持久化**: 通过 `_save_state()` / `_load_state()` 保存到 JSON 文件 (FileLock 保护)，重启后恢复
+
+**状态转换矩阵**:
+
+```
+IDLE     → SIGNAL, PROBE, CIRCUIT_BREAK
+SIGNAL   → PROBE, IDLE, CIRCUIT_BREAK
+PROBE    → MONITOR, IDLE, EXIT, CIRCUIT_BREAK
+MONITOR  → PYRAMID, EXIT, IDLE, CIRCUIT_BREAK
+PYRAMID  → MONITOR, EXIT, CIRCUIT_BREAK
+EXIT     → IDLE, CIRCUIT_BREAK
+CIRCUIT_BREAK → IDLE
+```
+
+### 3.2 LPPL 泡沫检测 (`brain/lppl/engine.py`)
+
+- LPPLConfig 配置驱动: 多窗口拟合 (40-100 天, 步长 20), 支持 Numba/JIT 加速
+- 两种优化器: L-BFGS-B (生产默认) 和 Differential Evolution (离线研究, ~50x 慢)
+- Ensemble 架构: 多窗口投票, `consensus_threshold=0.5`
+- 输出风险级别: Danger → Warning → Watch → Safe
+- 依赖参数: `W_BOUNDS`, `M_BOUNDS`, `RANDOM_SEED` (来自 shared/constants)
+
+### 3.3 CZSC 缠论 (`brain/czsc/czsc_engine.py`)
+
+- 包装 `czsc` 库: `RawBar` 构建 → `CZSC` 对象 → 信号提取
+- `CZSCSignalType` 枚举: 一买/一卖/二买/二卖/三买/三卖 + UNKNOWN
+- 兼容中英文信号值匹配
+- 支持 `volume` 和 `vol` 两种成交量列名
+
+### 3.4 Wyckoff 威科夫 (`brain/wyckoff/engine.py`)
+
+- v3.0 架构: `RegimeAwarePhaseClassifier`, `V3Rules`, `PointAndFigure`
+- 多周期分析: 日线/周线/月线, 自动调整回看窗口
+- 核心阶段: Accumulation → Markup → Distribution → Markdown
+- 输出: `WyckoffReport`, `WyckoffSignal`, `TradingPlan`
+
+### 3.5 Regime 市场状态 (`brain/regime/regime_detector.py`)
+
+- 基于沪深 300 指数的市场状态检测
+- 输出: NORMAL, STRESSED, FROZEN, UNKNOWN
+- 通过 `get_typed_summary(df)` 返回 `RegimeOutput`
+
+### 3.6 Alpha 分离度 (`brain/alpha_decoupler/alpha_decoupler.py`)
+
+- `get_alpha_score(stock, bench, sector)`: 相对于市场基准和行业基准的超额收益
+- 依赖沪深 300 (000300.SH) 和中证 500 (000905.SH) 基准数据
+
+---
+
+## 4. 信号仲裁 (SignalArbitrator)
+
+位于 `src/uniquant/signal/arbitrator.py`
+
+**仲裁规则**:
+1. `TradingSignalCollector` 将各引擎输出转为 `CandidateSignal` (typed dataclass)
+2. `SignalArbitrator` 基于置信度、方向和强度进行仲裁
+3. SELL 优先规则: 当任意引擎发出 SELL 信号时，仲裁器优先处理
+4. BUY 信号需要多个引擎共识 + 置信度加权
+
+**仲裁流程**:
+```
+TradingSignalCollector.collect(data_pack)
+  ├─ regime_output   → CandidateSignal
+  ├─ lppl_output     → CandidateSignal
+  ├─ czsc_output     → CandidateSignal
+  ├─ wyckoff_output  → CandidateSignal
+  ├─ ntf_output      → CandidateSignal
+  ├─ alpha_output    → CandidateSignal
+  └─ 聚合 → TradingSignal 列表
+      └─ SignalArbitrator.arbitrate()
+           └─ 最终 TradingSignal (含 action, confidence, quantity)
+```
+
+---
+
+## 5. 关键观察
+
+### 5.1 架构风险
+
+| # | 风险 | 位置 | 影响 |
+|---|------|------|------|
+| R3-1 | **双缓存路径**: Regime/NTF wrapper 用旧版 `_market_cache` dict，新版 `AnalysisService._run_regime/_run_ntf` 用 `MarketLevelCache` 类 | `regime_analysis_engine.py:58-76`, `analysis_service_v2.py:370-410` | Wrapper 层的缓存路径可能被绕过或产生不一致 |
+| R3-2 | **私有方法跨层耦合**: 所有 wrapper 引擎调用 `self.orchestrator._generate_cache_key()`, `_get_cached_result()`, `_set_cached_result()` — 依赖 AnalysisService 内部实现 | 全部 7 个 wrapper | 重构风险: 修改 AnalysisService 内部方法需同步 7 个 wrapper |
+| R3-3 | **报告引擎从未被调用**: `engine_factory.py` 注册了 `report` 引擎 (`ReportGeneratorEngine`)，但 `_run_engines()` 中未调用 | `services/analysis/`, `analysis_service_v2.py` | 死代码 |
+| R3-4 | **FsmAnalysisEngine 适配器未被新流程使用**: 旧 FSM 引擎只通过 `AnalysisService._factory.fsm` 暴露，新流程在 `_make_decision()` 中直接调用 `self.brain.make_decision()` | `services/analysis/fsm_analysis_engine.py` | 潜在的死代码路径 |
+| R3-5 | **DecisionBrain 硬编码依赖**: `DecisionBrain.__init__()` 中使用 `HistoricalSimulationRisk` 和 `PositionSizer` 作为默认值 | `brain/fsm/fsm.py:278-285` | 违反 DI 原则，难以单元测试 |
+| R3-6 | **`ctx.name` 未定义**: `_check_buy_blockers()` 和 `_check_sell_conditions()` 中引用 `ctx.name`，但 `MarketSignalContext` 数据类没有 `name` 字段 | `brain/fsm/fsm.py:410,469` | 运行时可能抛出 AttributeError |
+
+### 5.2 设计亮点
+
+| # | 亮点 | 位置 |
+|---|------|------|
+| S3-1 | **Veto-Scoring 架构**: 否决条件 (FROZEN/LPPL Danger) 优先级高于评分 | `brain/fsm/fsm.py:550-600` |
+| S3-2 | **状态持久化**: 磁盘 JSON + FileLock 保障重启恢复 | `brain/fsm/fsm.py:710-766` |
+| S3-3 | **市场级缓存**: Regime/NTF 只需计算一次，全市场共享 (24h TTL) | `analysis_service_v2.py:370-430` |
+| S3-4 | **回路熔断**: 当日跌幅 -5% 时触发 `CIRCUIT_BREAK`，恢复后自动回到 IDLE | `brain/fsm/fsm.py:571-597` |
+| S3-5 | **Symbol 切换自动重置**: FSM 状态在分析不同股票时自动从 IDLE 开始 | `brain/fsm/fsm.py:556` |
+| S3-6 | **Look-ahead Bias 修复**: 盘中模式使用昨日收盘数据计算 MA | `brain/fsm/fsm.py:136-140` |
+| S3-7 | **可恢复异常集**: 7-8 种异常的统一捕获，避免引擎崩溃导致全局失败 | 所有 wrapper |
+
+### 5.3 引擎执行顺序依赖
+
+```
+regime ──────┐
+lppl  ──────┤
+ntf   ──────┤
+czsc  ──────┼──→ DecisionBrain.make_decision()
+wyckoff ────┤     (需要所有引擎输出)
+alpha ──────┤
+derived ────┘
+```
+
+当前没有引擎之间的数据依赖转换 (所有引擎并行就绪，仅串行执行)。`alpha` 引擎依赖于 `data_service.lake` 获取基准数据。
+
+### 5.4 测试覆盖
+
+| 引擎 | 测试文件 | 状态 |
+|------|---------|------|
+| FSM/DecisionBrain | `tests/test_fsm.py`, `tests/test_factory_core.py` | ✅ 基础覆盖 |
+| LPPL | `tests/brain/test_lppl_engine.py` | ✅ |
+| CZSC | `tests/brain/test_czsc_engine.py` | ✅ |
+| Wyckoff | `tests/test_wyckoff_new_features.py` (12 预存失败) | ⚠️ 12 失败 |
+| Regime | `tests/brain/test_regime_detector.py` | ✅ |
+| Alpha | `tests/brain/test_alpha_decoupler.py` | ✅ |
+| NTF | `tests/brain/test_ntf_engine.py` | ✅ |
+| 仲裁器 | `tests/test_signal_arbitrator.py` (7 测试) | ✅ |
+
+---
+
+## 6. 建议
+
+### P1
+1. **R3-1 (双缓存)**: 统一 Regime/NTF adapter 使用 `MarketLevelCache`，废弃旧版 `_market_cache` dict
+2. **R3-6 (ctx.name)**: 为 `MarketSignalContext` 添加 `name: str = ""` 字段或移除引用
+
+### P2
+3. **R3-2 (私有方法耦合)**: 为缓存操作定义 `CacheAdapterProtocol`，wrapper 通过协议而非直接调用 orchestrator
+4. **R3-3 (报告引擎)**: 移除或实现实际调用
+
+### P3
+5. **R3-5 (硬编码依赖)**: DecisionBrain 完全通过构造器注入依赖
+6. **R3-4 (FSM 死代码)**: 清理旧 FSM 适配器或明确弃用路径
+7. **Wyckoff 12 预存失败**: 诊断并修复
+
+---
+
+## 7. 验证清单
+
+- [x] 读取所有 7 services/analysis engine wrappers
+- [x] 读取 engine_factory.py (9 引擎注册)
+- [x] 读取 analysis_service_v2.py (完整 7 引擎编排 + 决策)
+- [x] 读取 brain/fsm/fsm.py (FSM + DecisionBrain 完整逻辑)
+- [x] 读取 brain/lppl/engine.py (LPPL 核心)
+- [x] 读取 brain/czsc/czsc_engine.py (CZSC 核心)
+- [x] 读取 brain/wyckoff/engine.py (Wyckoff v3.0 核心)
+- [x] 检查 signal/arbitrator.py (信号仲裁)
+- [x] 检查 shared/interfaces.py (所有引擎输出类型)

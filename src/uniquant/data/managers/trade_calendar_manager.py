@@ -1,6 +1,6 @@
 import datetime
 import os
-from typing import Set
+from typing import Optional, Set
 
 import pandas as pd
 
@@ -57,6 +57,44 @@ class TradeCalendarManager:
 
     def __init__(self, data_dir: str = "./data"):
         self.data_dir = data_dir
+        self._akshare_calendar: Optional[Set[str]] = None
+        self._auto_update_if_stale()
+
+    def _auto_update_if_stale(self, max_age_days: int = 180) -> None:
+        """通过 AkShare 自动更新交易日历，本地缓存过期时自动拉取"""
+        calendar_file = os.path.join(self.data_dir, "trade_calendar.csv")
+
+        if os.path.exists(calendar_file):
+            try:
+                file_age = (datetime.datetime.now() - datetime.datetime.fromtimestamp(
+                    os.path.getmtime(calendar_file)
+                )).days
+                if file_age < max_age_days:
+                    df = pd.read_csv(calendar_file)
+                    if 'trade_date' in df.columns:
+                        self._akshare_calendar = set(df['trade_date'].astype(str).values)
+                        logger.info(
+                            f"已加载本地交易日历 ({len(self._akshare_calendar)} 个交易日)"
+                        )
+                        return
+            except Exception as e:
+                logger.warning(f"加载本地交易日历失败: {e}")
+
+        try:
+            import akshare as ak
+
+            df = ak.tool_trade_date_hist_sina()
+            if df is not None and not df.empty:
+                os.makedirs(os.path.dirname(calendar_file), exist_ok=True)
+                df.to_csv(calendar_file, index=False, encoding="utf-8-sig")
+                self._akshare_calendar = set(df["trade_date"].astype(str).values)
+                logger.info(
+                    f"已通过 AkShare 自动更新交易日历 ({len(self._akshare_calendar)} 个交易日)"
+                )
+            else:
+                logger.warning("AkShare 返回交易日历为空")
+        except Exception as e:
+            logger.warning(f"通过 AkShare 自动更新交易日历失败: {e}")
 
     def create_trade_calendar(self):
         """
@@ -130,7 +168,10 @@ class TradeCalendarManager:
             date_str = date.strftime("%Y-%m-%d")
             if self._trading_days_cache[year]:
                 return date_str in self._trading_days_cache[year]
-            
+
+            if self._akshare_calendar is not None:
+                return date_str in self._akshare_calendar
+
             iso = date.isoformat()
             if iso in _CN_SPECIAL_WORKDAYS:
                 return True

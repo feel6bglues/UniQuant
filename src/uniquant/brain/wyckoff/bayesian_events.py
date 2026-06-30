@@ -90,7 +90,7 @@ class BayesianEventDetector:
         pseudo_count = max(1.0, confidence * 10.0)
 
         obs_success = max(0.0, score) * pseudo_count
-        obs_failure = max(0.0, -score) * pseudo_count + (1.0 - confidence) * pseudo_count
+        obs_failure = max(0.0, -score) * pseudo_count
 
         state.alpha += obs_success
         state.beta += obs_failure
@@ -105,7 +105,7 @@ class BayesianEventDetector:
         """
         for ev in events:
             raw = ev.features.get("score", 0)
-            norm = np.clip(raw / _MAX_RAW_SCORE, 0.0, 1.0)
+            norm = np.clip(raw / _MAX_RAW_SCORE, -1.0, 1.0)
             self.update(ev.event_type, norm, ev.confidence)
 
     # ------------------------------------------------------------------
@@ -189,6 +189,14 @@ class BayesianEventDetector:
             self._posteriors.pop(event_type, None)
         else:
             self._posteriors.clear()
+
+    def get_adjustment(self, event_type: str) -> float:
+        """Posterior-derived score adjustment in [-0.1, +0.1].
+
+        Maps posterior mean from [0, 1] to [-0.1, +0.1]: mean 0.5 → 0,
+        mean 1.0 → +0.1, mean 0.0 → -0.1.
+        """
+        return (self.posterior_mean(event_type) - 0.5) * 0.2
 
     def get_all_posteriors(self) -> Dict[str, Dict]:
         """Return all current posteriors as a serialisable dictionary."""

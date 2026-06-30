@@ -19,6 +19,22 @@ import pandas as pd
 from typing import Dict, Tuple, Optional
 
 
+def _obv_trend(close: np.ndarray, volume: np.ndarray) -> float:
+    """Vectorized OBV trend computation — float64 safe, no int64 overflow.
+
+    Args:
+        close: 1-D float64 or int64 array of close prices (n,).
+        volume: 1-D int64 or float64 array of volumes (n,).
+
+    Returns:
+        OBV normalized trend value: sum(direction * volume) / mean(volume) / len(close).
+        Returns 0.0 if mean volume is 0.
+    """
+    directions = np.sign(np.diff(close.astype(np.float64)))
+    obv = float(np.sum(volume[1:].astype(np.float64) * directions))
+    return obv / float(volume.mean()) / len(close) if volume.mean() > 0 else 0.0
+
+
 class WeeklyPhaseClassifier:
     """Classifies Wyckoff phase from 12 weekly OHLCV bars.
 
@@ -53,10 +69,7 @@ class WeeklyPhaseClassifier:
         r6 = (c[-1] / c[-7] - 1) * 100 if len(c) >= 7 else 0
         vp_c = float(np.corrcoef(c, v)[0, 1]) if len(c) > 2 and np.std(v) > 0 else 0
 
-        obv = 0
-        for j in range(1, len(c)):
-            obv += v[j] if c[j] > c[j-1] else -v[j] if c[j] < c[j-1] else 0
-        obv_t = obv / v.mean() / len(c) if v.mean() > 0 else 0
+        obv_t = _obv_trend(c, v)
 
         phase = self._rules(pp, tr, vt, rp, vr, r6, vp_c, obv_t)
         self._last_features = {
@@ -155,10 +168,7 @@ class DailyPhaseClassifier:
         if n >= 20 and np.std(volume[-20:]) > 0:
             vp_c = float(np.corrcoef(close[-20:], volume[-20:])[0, 1])
 
-        obv = 0
-        for j in range(1, n):
-            obv += volume[j] if close[j] > close[j-1] else -volume[j] if close[j] < close[j-1] else 0
-        obv_t = obv / volume.mean() / n if volume.mean() > 0 else 0
+        obv_t = _obv_trend(close, volume)
 
         phase = self._rules(pp, rp, above_ma20, tr_20, ma20_slope, vol_ratio, vol_trend, vp_c, obv_t)
         self._last_features = {
@@ -267,10 +277,7 @@ class RegimeAwarePhaseClassifier:
         r6 = (c[-1] / c[-7] - 1) * 100 if n >= 7 else 0
         vp_c = float(np.corrcoef(c, v)[0, 1]) if len(c) > 2 and np.std(v) > 0 else 0
 
-        obv = 0
-        for j in range(1, n):
-            obv += v[j] if c[j] > c[j-1] else -v[j] if c[j] < c[j-1] else 0
-        obv_t = obv / v.mean() / n if v.mean() > 0 else 0
+        obv_t = _obv_trend(c, v)
 
         return {
             'price_pos': pp, 'trend_pct': tr, 'vol_trend': vt,

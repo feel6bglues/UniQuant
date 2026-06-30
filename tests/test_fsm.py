@@ -262,6 +262,66 @@ class TestDecisionBrain:
         assert result["state"] == "CIRCUIT_BREAK"
         assert brain.get_state() == FSMState.CIRCUIT_BREAK
 
+    def test_stressed_regime_triggers_sell(self, brain):
+        """STRESSED 应触发 REGIME_RISK 卖出条件（非 veto）"""
+        data_packet = {
+            "regime": "STRESSED",
+            "risk": "Safe",
+            "ntf_side": "NONE",
+            "alpha_score": 0.5,
+            "is_3rd_buy": False,
+            "ma_status": "MA20 > MA60",
+            "bubble_confidence": 0.0,
+            "ntf_intensity": 0.0,
+            "bi_count": 0,
+            "price": 10.0,
+            "pre_close": 9.5,
+            "symbol": "600000.SH",
+        }
+        result = brain.make_decision(data_packet)
+        assert result["action"] == "SELL"
+        assert "REGIME_RISK" in result.get("sell_triggers", [])
+
+    def test_frozen_regime_vetoes_before_sell_check(self, brain):
+        """FROZEN 应由 veto 拦截，不走到 sell check"""
+        data_packet = {
+            "regime": "FROZEN",
+            "risk": "Safe",
+            "ntf_side": "NONE",
+            "alpha_score": 0.5,
+            "is_3rd_buy": False,
+            "ma_status": "MA20 > MA60",
+            "bubble_confidence": 0.0,
+            "ntf_intensity": 0.0,
+            "bi_count": 0,
+            "price": 10.0,
+            "pre_close": 9.5,
+            "symbol": "600000.SH",
+        }
+        result = brain.make_decision(data_packet)
+        assert result["action"] == "FORCE_WAIT"
+        assert "sell_triggers" not in result
+
+    def test_normal_regime_no_regime_risk(self, brain):
+        """NORMAL 不应触发 REGIME_RISK"""
+        data_packet = {
+            "regime": "NORMAL",
+            "risk": "Safe",
+            "ntf_side": "SUPPORT",
+            "alpha_score": 0.5,
+            "is_3rd_buy": True,
+            "ma_status": "MA20 > MA60",
+            "bubble_confidence": 0.0,
+            "ntf_intensity": 0.5,
+            "bi_count": 3,
+            "price": 10.0,
+            "pre_close": 9.5,
+            "symbol": "600000.SH",
+        }
+        result = brain.make_decision(data_packet)
+        if "sell_triggers" in result:
+            assert "REGIME_RISK" not in result["sell_triggers"]
+
     def test_reset_state(self, brain):
         """测试状态重置"""
         brain.state = FSMState.MONITOR

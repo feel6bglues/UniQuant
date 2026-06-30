@@ -426,7 +426,7 @@ refactoring:
     event_bus: true
     async_event_bus: false
     observability: false
-    use_research_data_pack: false
+    use_research_data_pack: true
   time:
     provider: "real"
 

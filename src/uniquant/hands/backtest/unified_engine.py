@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import datetime
+import math
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
@@ -80,6 +81,70 @@ class BacktestResult:
         if not self.equity_curve or self.initial_capital <= 0:
             return 0.0
         return (self.equity_curve[-1] - self.initial_capital) / self.initial_capital
+
+    @property
+    def sharpe(self) -> float:
+        if len(self.daily_returns) < 2:
+            return 0.0
+        arr = np.array(self.daily_returns, dtype=np.float64)
+        if np.std(arr) == 0:
+            return 0.0
+        return float(np.mean(arr) / np.std(arr) * np.sqrt(252))
+
+    @property
+    def max_drawdown(self) -> float:
+        if not self.equity_curve:
+            return 0.0
+        ec = np.array(self.equity_curve, dtype=np.float64)
+        rolling_max = np.maximum.accumulate(ec)
+        dd = (rolling_max - ec) / np.maximum(rolling_max, 1e-10)
+        return float(np.max(dd))
+
+    @property
+    def win_rate(self) -> float:
+        closed = [t for t in self.trades if t.action == "SELL"]
+        if not closed:
+            return 0.0
+        wins = sum(1 for t in closed if t.pnl > 0)
+        return wins / len(closed)
+
+    @property
+    def profit_factor(self) -> float:
+        closed = [t for t in self.trades if t.action == "SELL"]
+        if not closed:
+            return 0.0
+        total_profit = sum(t.pnl for t in closed if t.pnl > 0)
+        total_loss = abs(sum(t.pnl for t in closed if t.pnl < 0))
+        if total_loss == 0:
+            return float("inf") if total_profit > 0 else 0.0
+        return total_profit / total_loss
+
+    def compare(self, other: "BacktestResult") -> dict:
+        """比较两个回测结果, 返回差值字典。
+
+        参数敏感性分析:
+            r1 = engine.run(df, signals_a, symbol)
+            r2 = engine.run(df, signals_b, symbol)
+            diff = r1.compare(r2)
+        """
+        def _safe_sub(a: float | None, b: float | None) -> float:
+            if a is None and b is None:
+                return 0.0
+            a_val = a or 0.0
+            b_val = b or 0.0
+            result = a_val - b_val
+            if not math.isfinite(result):
+                return 0.0
+            return result
+
+        return {
+            "total_return_diff": _safe_sub(self.total_return, other.total_return),
+            "sharpe_diff": _safe_sub(self.sharpe, other.sharpe),
+            "max_drawdown_diff": _safe_sub(self.max_drawdown, other.max_drawdown),
+            "total_trades_diff": len(self.trades) - len(other.trades),
+            "win_rate_diff": _safe_sub(self.win_rate, other.win_rate),
+            "profit_factor_diff": _safe_sub(self.profit_factor, other.profit_factor),
+        }
 
 
 # ══════════════════════════════════════════════════════════════
@@ -244,8 +309,12 @@ class UnifiedBacktestEngine:
                 daily_returns.append(0.0)
             prev_equity = equity
 
-            # ── Step 3: 收集当日信号, 生成挂单 ──
+            # ── Step 3: 收集当日信号 → 生成挂单 ──
             # 规则: LPPL SELL > BUY > 非LPPL SELL
+            # 说明: 当仲裁器输出多个信号同天到达时, 按此顺序尝试执行。
+            #       这是一个执行层调度, 非仲裁层逻辑。
+            #       SignalArbitrator 决定"生成哪些信号",
+            #       此优先级决定"同天多个信号时先执行哪个"。
             day_signals = signal_map.get(date_key, [])
             for sig in day_signals:
                 if (sig.action == "SELL" and position > 0 and pending_order is None

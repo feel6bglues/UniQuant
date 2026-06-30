@@ -676,6 +676,8 @@ class WyckoffReport:
     # 多模态扩展字段
     image_evidence: Optional[ImageEvidenceBundle] = None
     analysis_result: Optional[AnalysisResult] = None
+    pnf_analysis: Optional[dict] = None
+    regime_phase: Optional[str] = None
     analysis_state: Optional[AnalysisState] = None
     multi_timeframe: Optional[MultiTimeframeContext] = None
 

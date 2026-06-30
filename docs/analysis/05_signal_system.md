@@ -1,265 +1,412 @@
-# Stage 5 - Signal System
+# Stage 5 — 信号系统深度分析
 
-Generated: 2026-06-09
+> **日期**: 2026-06-29 | **状态**: ✅ 完成
+> **范围**: `signal/` (8 文件, 2,669 LOC), `shared/interfaces.py` (TradingSignal, CandidateSignal)
+> **测试**: `tests/signal/test_arbitrator.py` (27), `tests/signal/test_adapters.py`, `tests/test_signal.py` (43)
 
-Scope: Brain output to `TradingSignal`, signal collection, conflict handling, timestamp semantics, and A-share live-readiness. No source code was modified and no tests were run in this stage.
+---
 
-## 1. 本阶段计划
+## 1. 总览
 
-1. Read Stage 0-4 artifacts and Stage 5 playbook requirements.
-2. Inspect `TradingSignal` in `shared.interfaces`.
-3. Inspect all `EngineAdapter` mappings in `signal.adapters`.
-4. Trace `TradingSignalCollector` into `UnifiedResearchPipeline`.
-5. Inspect generic `signal.models`, `normalizer`, `aggregator`, and `quality` boundaries.
-6. Trace how `UnifiedBacktestEngine` indexes timestamps and executes signals.
-7. Propose deterministic A-share signal priority and validation rules.
+### 信号流水线
 
-## 2. 已阅读文件
-
-| File | Purpose |
-|---|---|
-| `docs/analysis/00_architecture_map.md` | Architecture baseline. |
-| `docs/analysis/01_services_orchestration.md` | Service orchestration baseline. |
-| `docs/analysis/02_data_system.md` | Data-system baseline. |
-| `docs/analysis/03_brain_engines.md` | Brain engine outputs and conflict handoff. |
-| `docs/analysis/04_factor_system.md` | Factor output and future `composite_score` handoff. |
-| `src/uniquant/shared/interfaces.py` | Actual `TradingSignal` contract. |
-| `src/uniquant/signal/adapters.py` | Brain output to `TradingSignal` adapters and collector. |
-| `src/uniquant/signal/models.py` | Generic signal model, source, type, strength, consensus. |
-| `src/uniquant/signal/normalizer.py` | Generic raw signal to `Signal` normalizers. |
-| `src/uniquant/signal/aggregator.py` | Generic multi-signal aggregation algorithms. |
-| `src/uniquant/signal/quality.py` | Post-hoc signal quality metrics. |
-| `src/uniquant/services/research_pipeline.py` | Pipeline collection and backtest handoff. |
-| `src/uniquant/hands/backtest/unified_engine.py` | `TradingSignal` timestamp indexing and execution. |
-| `tests/test_signal.py` | Generic `Signal`/normalizer/aggregator/quality tests. |
-| `tests/test_e2e_pipeline.py` | Collector to backtest integration tests. |
-| `tests/test_phase4_2_contracts.py` | Pipeline contract test for FSM decision signal. |
-
-## 3. TradingSignal 字段说明
-
-The execution path uses `src/uniquant/shared/interfaces.py::TradingSignal`, not `src/uniquant/signal/models.py::Signal`.
-
-| Field | Type | Meaning | Current risk |
-|---|---|---|---|
-| `action` | `str` | Executable action: expected `BUY`, `SELL`, `HOLD`. | No enum validation; unknown strings can pass until ignored downstream. |
-| `reason` | `str` | Human-readable explanation. | No source/priority metadata, so audit trail is weak when multiple signals conflict. |
-| `confidence` | `float` | Adapter-specific confidence, intended `[0, 1]`. | Not clamped in `TradingSignal`; adapter formulas are inconsistent. |
-| `shares` | `int` | Requested trade size. | Defaults vary; sell signals often set `default_shares` but backtest sells full position anyway. |
-| `symbol` | `str` | Security code. | Collector uses `data_pack["symbol"]`; empty symbol is allowed. |
-| `price` | `float` | Signal reference price. | Backtest executes next open and does not use signal price for fill. |
-| `timestamp` | optional datetime | Date/time used by backtest to locate the signal bar. | Critical: missing timestamp maps to `"unknown"` and never matches K-line dates. |
-
-Evidence: `src/uniquant/shared/interfaces.py:127-169`.
-
-`TradingSignal.from_dict()` maps old action names to executable actions: `ADD`/`EXECUTE_BUY` -> `BUY`, `FORCE_EXIT`/`EXECUTE_SELL` -> `SELL`, and risk-wait states -> `HOLD` (`interfaces.py:143-169`).
-
-## 4. 两套信号模型边界
-
-There are currently two signal abstractions:
-
-| Model | Path | Role | Used by current pipeline? |
-|---|---|---|---|
-| `TradingSignal` | `shared.interfaces` | Brain-to-Hands execution contract. | Yes: `TradingSignalCollector` and `UnifiedBacktestEngine`. |
-| `Signal` / `AggregatedSignal` | `signal.models` | Richer research/quality/aggregation model with source/type/direction/strength. | Not in current research pipeline execution path. |
-
-`SignalAggregator` supports weighted average, majority vote, max confidence, and consensus threshold (`signal/aggregator.py:26-31`, `102-122`), but these operate on `Signal`, not `TradingSignal`. `UnifiedResearchPipeline.run()` sends the raw list from `TradingSignalCollector` directly to `UnifiedBacktestEngine` without calling `SignalAggregator` (`research_pipeline.py:128-157`).
-
-## 5. 引擎输出到信号的映射表
-
-| Source | Adapter | Input fields | Output rule | Evidence |
-|---|---|---|---|---|
-| LPPL | `LPPLAdapter` | `risk`/`risk_level`, `bubble_confidence`/`confidence` | `Danger` -> SELL; `Warning`/other -> HOLD; confidence `<0.05` -> None. | `adapters.py:61-98` |
-| CZSC | `CZSCAdapter` | `is_3rd_buy`, `bi_count` | third-buy -> BUY; non-third-buy with stroke count -> HOLD; no evidence -> None. | `adapters.py:105-135` |
-| Wyckoff | `WyckoffAdapter` | `wyckoff_phase`, `wyckoff_confidence`, `spring`, `utad` | accumulation/spring -> BUY; distribution/UTAD -> SELL; low confidence/unknown -> None. | `adapters.py:142-188` |
-| FSM / DecisionBrain | `FSMAdapter` | `final_decision` or `action`, `shares`, `confidence`, `reason` | Maps DecisionBrain action directly into BUY/SELL/HOLD. | `adapters.py:195-237` |
-| Regime | `RegimeAdapter` | `regime` | `FROZEN`/`STRESSED` -> HOLD; `NORMAL` -> None. | `adapters.py:244-276` |
-| NTF | `NTFAdapter` | `ntf_side`, `ntf_intensity` | `LONG` -> BUY; `SHORT` -> SELL; other non-NONE -> HOLD; intensity `<0.3` -> None. | `adapters.py:283-310` |
-| Alpha | `AlphaScoreAdapter` | `alpha_score` | `>0.6` -> BUY; `<0.3` -> SELL; else None. | `adapters.py:317-346` |
-| MA | `MAStatusAdapter` | `ma_status` | contains `>` -> BUY; contains `<=` -> SELL; else None. | `adapters.py:353-382` |
-
-Important NTF mismatch: `MarketSignalContext.NtfSide` defines `NONE`, `SUPPORT`, and `RESISTANCE` (`shared/interfaces.py:18-22`), and Stage 3 found `DecisionBrain` scores `SUPPORT`. `NTFAdapter` expects `LONG`/`SHORT` (`adapters.py:297-302`). Therefore current `ntf_side="SUPPORT"` with high intensity produces a HOLD signal, not BUY.
-
-## 6. 信号收集流程
-
-Current executable pipeline:
-
-```text
-AnalysisService.run_ticker_analysis(symbol)
-  -> TickerAnalysisResult(data_pack, decision)
-  -> UnifiedResearchPipeline._merge_decision_for_collection()
-  -> TradingSignalCollector.collect(collector_pack, timestamp=now)
-       LPPL
-       CZSC
-       Wyckoff
-       FSM / DecisionBrain
-       Regime
-       NTF
-       AlphaScore
-       MAStatus
-  -> List[TradingSignal]
-  -> UnifiedBacktestEngine.run(stock_df, signals)
+```
+Brain 引擎输出 (Dict/typed output)
+        │
+        ▼
+  TradingSignalCollector.collect(data_pack)
+        │
+        ├─ 8 EngineAdapters (适配器模式)
+        │   ├─ LPPLAdapter
+        │   ├─ CZSCAdapter
+        │   ├─ WyckoffAdapter
+        │   ├─ FSMAdapter
+        │   ├─ RegimeAdapter
+        │   ├─ NTFAdapter
+        │   ├─ AlphaScoreAdapter
+        │   └─ MAStatusAdapter
+        │
+        ▼
+  List[TradingSignal]            ← 标准信号列表
+        │
+        ▼
+  SignalArbitrator.arbitrate()   ← SELL 优先仲裁
+        │
+        ▼
+  Final TradingSignal(s)         ← 每日至多一个
+        │
+        ▼
+  → UnifiedBacktestEngine       ← 回测执行
 ```
 
-Evidence:
+### 并行信号流水线 (第二路径)
 
-- Pipeline collection and timestamp assignment: `src/uniquant/services/research_pipeline.py:128-136`.
-- Backtest handoff: `src/uniquant/services/research_pipeline.py:138-157`.
-- Decision merge behavior: `src/uniquant/services/research_pipeline.py:210-237`.
-- Collector adapter order: `src/uniquant/signal/adapters.py:453-525`.
-
-The collector appends every non-None adapter output. It does not aggregate, suppress, sort by priority, deduplicate, or enforce DecisionBrain risk vetoes.
-
-## 7. 回测时间戳与 T+1 影响
-
-`UnifiedBacktestEngine` indexes signals by `sig.timestamp.strftime("%Y-%m-%d")`; missing timestamps are assigned key `"unknown"` (`unified_engine.py:288-300`). During the daily loop, only signals whose date key equals the K-line date are considered (`unified_engine.py:241-258`).
-
-Execution timing:
-
-1. Signal on date D is collected during Step 3 of the D bar.
-2. It becomes a pending order.
-3. The order executes at the next trading bar open, D+1, before equity update (`unified_engine.py:173-230`).
-4. T+1 sell restriction is checked against `buy_date` (`unified_engine.py:204-228`, `306-315`).
-
-Current pipeline risk:
-
-`UnifiedResearchPipeline.run()` sets every collected signal timestamp to `pd.Timestamp.now()` (`research_pipeline.py:133-136`). For historical `stock_df`, this usually does not match any historical K-line date, so the backtest may produce zero trades even when signals exist. If the K-line data includes today's date, all engine signals are placed on one date only, which still does not represent a historical signal series.
-
-Tests show the intended backtest behavior by manually using a K-line date as timestamp before running the engine (`tests/test_e2e_pipeline.py`). That validates the engine contract, but not the pipeline default timestamp for historical research.
-
-## 8. 信号冲突案例
-
-Current collector can emit conflicting signals for one `data_pack`:
-
-| Case | Example outputs | Current behavior | Risk |
-|---|---|---|---|
-| Risk veto vs buy signal | DecisionBrain `FORCE_WAIT` -> HOLD, CZSC third-buy -> BUY, MA bull -> BUY | Collector returns all; backtest loops in collection order and may buy if position is zero. | Risk veto may not suppress lower-level BUY. |
-| LPPL danger vs trend buy | LPPL `Danger` -> SELL, CZSC third-buy -> BUY, MA bull -> BUY | If not holding, SELL is ignored and later BUY can create pending order. | Structural crash risk can be bypassed in flat state. |
-| Alpha failure as sell | Alpha engine failure can set `alpha_score=0.0`; adapter maps `<0.3` to SELL. | Collector emits SELL even if the value means missing/failure rather than bearish alpha. | Missing data becomes bearish executable intent. |
-| Regime stressed vs technical buy | Regime `STRESSED` -> HOLD, MA bull -> BUY. | HOLD does not block BUY. | Market stress warning is advisory only. |
-| NTF support lost | `ntf_side="SUPPORT"` with high intensity. | Adapter returns HOLD because it expects `LONG`. | A-share policy support signal is not reflected as BUY. |
-| Same-day BUY and SELL | Wyckoff distribution -> SELL, MA bull -> BUY, Alpha high -> BUY. | Backtest accepts first feasible action by list order and current position. | Outcome depends on adapter order, not policy. |
-
-The backtest processing order matters: it scans day signals and breaks after the first feasible BUY or SELL (`unified_engine.py:241-258`). Because collector order is LPPL, CZSC, Wyckoff, FSM, Regime, NTF, Alpha, MA (`adapters.py:453-525`), adapter ordering can change execution.
-
-## 9. 当前问题
-
-1. There is no deterministic `TradingSignal` aggregation step in the executable pipeline.
-2. `SignalAggregator` is not wired into `UnifiedResearchPipeline`, and it targets `Signal`, not `TradingSignal`.
-3. Risk veto signals are represented as HOLD, but HOLD does not block later BUY signals in `UnifiedBacktestEngine`.
-4. NTF enum semantics are inconsistent: `SUPPORT`/`RESISTANCE` vs `LONG`/`SHORT`.
-5. Missing or failed alpha can become SELL through `alpha_score=0.0`.
-6. Signal timestamp defaults to `now()`, which is unsuitable for historical backtests.
-7. `TradingSignal` lacks source, priority, blocker/veto flag, expiry, bar date, generated-at, and validity metadata.
-8. Confidence is not calibrated across adapters: LPPL uses bubble confidence, CZSC uses stroke count formula, MA is fixed 0.3, alpha uses distance from 0.5.
-9. Signal price is recorded but not used for fill, slippage, or stale-signal checks.
-10. No current rule prevents BUY at limit-up or SELL at limit-down at signal stage; only backtest execution checks price limits.
-
-## 10. 推荐信号优先级和聚合规则
-
-Recommended deterministic A-share policy for executable `TradingSignal`:
-
-```text
-Input: raw adapter outputs + engine_status + current position context
-
-1. Hard blockers:
-   - engine_status risk engine failed or data unavailable
-   - regime FROZEN
-   - LPPL Danger without NTF SUPPORT
-   - suspended / zero volume / invalid price / stale timestamp
-   - limit-up for BUY, limit-down for SELL
-
-2. Forced exits:
-   - LPPL Danger
-   - DecisionBrain FORCE_EXIT
-   - position risk stop / ATR stop breach
-
-3. Authoritative decision:
-   - DecisionBrain BUY/ADD/SELL/HOLD after blockers.
-
-4. Confirming signals:
-   - CZSC, Wyckoff, NTF, Alpha, MA, admitted factor composite.
-   - These can increase/decrease confidence and position size only if not blocked.
-
-5. Final output:
-   - At most one executable TradingSignal per symbol per bar.
-   - If blocked: emit HOLD/no-trade with blocker reason, not BUY/SELL.
-   - If conflicting and no forced exit: HOLD unless DecisionBrain authorizes action.
+```
+Candidates (各引擎原始输出)
+        │
+        ▼
+  SignalArbitrator.arbitrate_candidates()
+        │
+        ├─ Priority 1: DecisionOutput 硬约束
+        │   ├─ FORCE_WAIT / CIRCUIT_BREAK → HOLD
+        │   └─ FORCE_EXIT → SELL
+        │
+        ├─ Priority 2: SELL > BUY
+        │
+        ├─ Priority 3: FSM BUY → 直接通过
+        │
+        └─ Priority 4: 非-FSM BUY → PositionSizer 校验
 ```
 
-Concrete priority table:
+### 标准归一化流水线 (旧路径)
 
-| Priority | Source | Effect |
-|---:|---|---|
-| 100 | Suspension/limit/invalid data | Blocks execution side. |
-| 90 | Regime FROZEN / risk engine failed | Blocks new BUY; may allow risk-reducing SELL if tradable. |
-| 80 | LPPL Danger / DecisionBrain FORCE_EXIT | Force SELL if holding and sellable; otherwise HOLD. |
-| 70 | DecisionBrain BUY/ADD/SELL | Primary executable action. |
-| 50 | NTF SUPPORT/RESISTANCE | Macro/policy modifier; can confirm or reduce action. |
-| 40 | CZSC / Wyckoff | Technical structure confirmation. |
-| 30 | Alpha / factor composite | Ranking/strength modifier. |
-| 20 | MA status | Low-priority trend filter, not standalone execution. |
+```
+Engine Raw Output
+        │
+        ▼
+  SignalNormalizer (4 种实现)
+        ├─ LPPLSignalNormalizer
+        ├─ WyckoffSignalNormalizer
+        ├─ IndicatorSignalNormalizer
+        └─ CZSCSignalNormalizer
+        │
+        ▼
+  Signal (标准数据类)
+        │
+  SignalAggregator (4 种方法)
+        ├─ WEIGHTED_AVERAGE
+        ├─ MAJORITY_VOTE
+        ├─ MAX_CONFIDENCE
+        └─ CONSENSUS_THRESHOLD
+        │
+        ▼
+  AggregatedSignal / SignalConsensus
+        │
+  SignalQualityAssessor
+        │
+  SignalRecord (SQLAlchemy ORM → SQLite)
+```
 
-Implementation direction:
+---
 
-- Add a `TradingSignalDecision` or `ExecutableSignal` layer with source contributions and blocker reasons.
-- Convert adapter outputs into internal scored intents first; then emit one `TradingSignal`.
-- Preserve all raw adapter signals in diagnostics for reports.
-- Make `DecisionBrain` risk vetoes authoritative for executable BUY suppression.
+## 2. 文件清单
 
-## 11. 实盘信号校验标准
+| 文件 | LOC | 职责 |
+|------|-----|------|
+| `signal/__init__.py` | 113 | 包导出, 4 个子模块延迟导入 |
+| `signal/models.py` | 280 | Signal, SignalBatch, SignalConsensus, AggregatedSignal + 5 枚举 |
+| `signal/adapters.py` | 604 | 8 个 EngineAdapter + AdapterRegistry + TradingSignalCollector |
+| `signal/arbitrator.py` | 386 | SignalArbitrator (2 个仲裁入口) + ArbitrationLog/Report |
+| `signal/normalizer.py` | 315 | 4 个 SignalNormalizer + SignalNormalizerRegistry |
+| `signal/aggregator.py` | 367 | 4 聚合方法 + SourceWeightManager + TimeWindowAggregator |
+| `signal/quality.py` | 289 | SignalQualityAssessor + SignalQualityMetrics + SignalQualityTracker |
+| `signal/db.py` | 315 | SQLAlchemy ORM (SignalRecord) + SignalRepository |
 
-Before a signal can be submitted to backtest/live execution:
+---
 
-| Check | Requirement |
-|---|---|
-| Action | Must be one of `BUY`, `SELL`, `HOLD`; unknown action rejected. |
-| Symbol | Must be non-empty and match data symbol. |
-| Timestamp | Must map to a valid trading bar; no future timestamp for backtest; no stale timestamp for live. |
-| Price context | `price`, `pre_close`, and trade-date OHLC must be valid positive numbers. |
-| Tradability | Reject BUY on limit-up, SELL on limit-down, and all trades on suspension/zero volume. |
-| Position context | SELL requires position; BUY requires no conflicting hard blocker and enough cash after lot rounding. |
-| T+1 | SELL must satisfy A-share T+1 unless position was held before the simulation start. |
-| Shares | BUY shares must be positive and roundable to board lot size; SELL size capped by position. |
-| Confidence | Must be calibrated or source-specific; low-confidence signals should not become executable alone. |
-| Source audit | Final signal must record contributing sources, blocked sources, and final rule path. |
-| Missing data | Missing/failure values must produce no-signal/HOLD diagnostics, not bearish intent. |
+## 3. 数据模型 (`models.py`)
 
-## 12. 阶段结论
+### 枚举类
 
-The signal layer has a useful bridge from heterogeneous Brain outputs to a shared `TradingSignal`, and the backtest engine has a clear typed input. The main architectural gap is that executable `TradingSignal` collection is additive, not decisional. Multiple contradictory signals are passed downstream, while backtest execution resolves them implicitly by order and position state.
+| 枚举 | 值数 | 用途 |
+|------|------|------|
+| `SignalType` | 27 | 9 大类覆盖趋势/动量/波动/量能/形态/LPPL/Wyckoff/CZSC/复合 |
+| `SignalSource` | 10 | LPPL, Wyckoff, CZSC, NTF, FSM, Regime, Indicator, Screener, Factor, Ensemble |
+| `SignalStrength` | 4 | WEAK(1), MODERATE(2), STRONG(3), VERY_STRONG(4) |
 
-For A-share live-readiness, the project needs a deterministic executable-signal policy: risk vetoes first, forced exits second, DecisionBrain as the primary action source, and other adapters as confidence modifiers rather than independent executable orders.
+### 核心数据类
 
-## 13. 校验清单
+```python
+@dataclass
+class Signal:
+    signal_type: SignalType = TREND_NEUTRAL
+    source: SignalSource = INDICATOR
+    symbol: str = ""
+    id: str = uuid4
+    direction: int = 0       # 1=看多, -1=看空, 0=中性
+    strength: SignalStrength = MODERATE
+    confidence: float = 0.5  # [0, 1]
+    timestamp: datetime = now
+    expiration: datetime | None
+    price: float = 0.0
+    value: float = 0.0
+    metadata: dict = {}
+    parent_id: str | None
 
-| Check | Status |
-|---|---|
-| 覆盖 LPPL、CZSC、Wyckoff、FSM、Regime、NTF、Alpha、MA | Done in mapping table. |
-| 指出多个 BUY/SELL 同时出现的风险 | Done with concrete conflict cases and adapter-order risk. |
-| 检查 timestamp 对回测 T+1 的影响 | Done: timestamp date matching, pending next-open execution, T+1 boundary described. |
-| 给出确定性聚合规则 | Done: priority table and final single-signal policy proposed. |
-| 结论绑定到具体文件/函数 | Done with file and line references. |
+@dataclass
+class SignalBatch:         # 容器 + 过滤 (by_type, by_source, by_strength, by_direction)
+@dataclass
+class SignalConsensus:      # 共识方向/置信度/一致性比例
+@dataclass
+class AggregatedSignal:     # 聚合后的信号 + 贡献信号列表
+```
 
-## 14. 下一阶段输入
+---
 
-Stage 6 should inspect whether backtest and matching enforce the A-share execution assumptions that the signal layer should depend on:
+## 4. 适配器层 (`adapters.py`)
 
-- `src/uniquant/hands/backtest/unified_engine.py`
-- `src/uniquant/hands/backtest/unified_matching_engine.py`
-- `src/uniquant/hands/backtest/portfolio_engine.py`
-- `src/uniquant/hands/backtest/result.py`
-- `src/uniquant/hands/strategies/`
-- `src/uniquant/shared/cost_model.py`
-- `src/uniquant/shared/limit_checker.py`
-- `src/uniquant/shared/price_collar.py`
-- `src/uniquant/shared/market_rules.py`
-- `tests/test_unified_matching.py`
-- `tests/test_t1_constraint_boundary.py`
-- `tests/test_matching_engine.py`
+### 8 个适配器
 
-Key Stage 6 questions:
+| 适配器 | 输入 keys | 输出规则 |
+|--------|-----------|----------|
+| `LPPLAdapter` | risk_level, confidence | Danger→SELL, Warning/Warning→HOLD |
+| `CZSCAdapter` | is_3rd_buy, bi_count | 三买→BUY (conf=0.5+bi*0.05), 其他→None |
+| `WyckoffAdapter` | phase, confidence, spring, utad | Spring+accumulation→BUY, UTAD+distribution→SELL |
+| `FSMAdapter` | action, final_decision | BUY/SELL→同动作, HOLD→HOLD |
+| `RegimeAdapter` | regime | 冻结→SELL, 正常→HOLD |
+| `NTFAdapter` | ntf_side, ntf_intensity | RESISTANCE+intensity≥0.6→SELL, SUPPORT→HOLD |
+| `AlphaScoreAdapter` | alpha_score | >0.6→BUY, <0.3→SELL |
+| `MAStatusAdapter` | ma_status | ">"→BUY, "<="→SELL |
 
-1. Do both backtest engines consistently enforce T+1, limit-up/down, suspension, lot size, cash, slippage, commission, stamp duty, and transfer fee?
-2. Does signal date D always execute on D+1 open, and is this consistent across single-symbol and portfolio engines?
-3. How are multiple same-day signals handled in vectorized matching versus unified engine?
-4. Can the execution layer distinguish "risk-reducing sell" from ordinary sell under stressed market conditions?
+### TradingSignalCollector
+
+```python
+collect(data_pack) → List[TradingSignal]
+  # 从 data_pack 按 key 提取 8 个引擎输出 → 适配器转换
+  # 发布 SignalGenerated 事件到 EventBus
+```
+
+### 适配器注册表
+
+```python
+class AdapterRegistry:
+    _adapters: Dict[str, EngineAdapter]  # 8 个适配器
+    create_default_registry() → 注册全部 8 个
+```
+
+---
+
+## 5. 仲裁器 (`arbitrator.py`)
+
+### 引擎优先级 (数值 = 低优先)
+
+```python
+ENGINE_PRIORITY = {
+    "lppl": 0, "fsm": 1, "czsc": 2, "wyckoff": 3,
+    "regime": 4, "ntf": 5, "alpha_score": 6, "ma_status": 7,
+}
+```
+
+### 仲裁入口 1: `arbitrate(TradingSignal[])`
+
+```
+_pick_winner(day_signals, symbol, date_key):
+  │
+  ├─ 0. 质量阈值过滤 (OOS R² < 0.3 的 SELL 被拒)
+  │
+  ├─ 1. SELL 优先规则 → 有 SELL 则选最高置信度 SELL
+  │
+  ├─ 2. 同方向取最高置信度
+  │
+  └─ 3. 引擎优先级 → 选择优先级最高的信号
+```
+
+### 仲裁入口 2: `arbitrate_candidates(CandidateSignal[])`
+
+```
+  Priority 1: DecisionOutput 硬约束
+    ├─ FORCE_WAIT / CIRCUIT_BREAK → HOLD (空结果)
+    ├─ FORCE_EXIT → SELL (强制卖出)
+    └─ BUY + shares > 0 → 直接通过
+  Priority 2: SELL > BUY
+  Priority 3: FSM BUY → 直接通过
+  Priority 4: 非-FSM BUY → PositionSizer 校验/计算仓位
+```
+
+### 仲裁日志
+
+```python
+@dataclass class ArbitrationLog:    # arbitrate() 使用
+    symbol, date, total_signals, selected_action, selected_reason,
+    selected_confidence, conflicts_resolved, rejection_reasons
+
+@dataclass class ArbitrationReport:  # arbitrate_candidates() 使用
+    symbol, date, candidates_count, final_action, final_reason,
+    final_confidence, veto_chain, rejected
+```
+
+---
+
+## 6. 归一化器 (`normalizer.py`)
+
+### 4 个归一化实现
+
+| 归一化器 | 类型映射 | 强度计算 |
+|----------|----------|----------|
+| `LPPLSignalNormalizer` | bubble/crash/negative_bubble → SignalType | confidence → strength |
+| `WyckoffSignalNormalizer` | accumulation/distribution/spring/utad/lps/sow | confidence → strength |
+| `IndicatorSignalNormalizer` | rsi/macd/bb/ma → TREND/MOMENTUM/VOLATILITY | 规则计算 |
+| `CZSCSignalNormalizer` | 一买/二买/一卖/二卖/三买/三卖 | bi_count 加权 |
+
+### SignalNormalizerRegistry
+
+```python
+registry = SignalNormalizerRegistry()
+registry.register("lppl", LPPLSignalNormalizer())
+registry.get("lppl").normalize(raw_signal) → Signal
+```
+
+---
+
+## 7. 聚合器 (`aggregator.py`)
+
+### 4 种聚合方法
+
+| 方法 | 策略 | 适用场景 |
+|------|------|----------|
+| `WEIGHTED_AVERAGE` | 加权平均 | 多来源连续信号 |
+| `MAJORITY_VOTE` | 多数表决 | 分类决策 (BUY/SELL/HOLD) |
+| `MAX_CONFIDENCE` | 最高置信度 | 单个高可信引擎为主 |
+| `CONSENSUS_THRESHOLD` | 共识阈值 | 需要 75% 以上一致 |
+
+### SourceWeightManager
+
+- `set_weight(source, weight)`: 手动设置
+- `update_weights(performance)`: 基于绩效归一化
+- `get_weight(source)`: 默认 1.0，最低 0.1
+
+### TimeWindowAggregator
+
+- `aggregate(signals, window=timedelta(hours=4))`: 时间窗口内聚合
+- 支持滑动窗口多信号融合
+
+---
+
+## 8. 质量评估 (`quality.py`)
+
+### SignalQualityAssessor
+
+```python
+assess(signal, subsequent_prices, lookahead=20) → bool | None
+  # 看多: max(subsequent_prices) > trigger_price * 1.01 → True
+  # 看空: min(subsequent_prices) < trigger_price * 0.99 → True
+```
+
+### SignalQualityMetrics
+
+```python
+precision, recall, f1_score, accuracy, average_lead_time,
+hit_rate, false_positive_rate, sample_size, average_confidence,
+profit_factor, sharpe_ratio
+```
+
+### SignalQualityTracker
+
+- `record_signal(signal)`: 记录信号
+- `record_outcome(signal_id, outcome)`: 记录结果
+- `get_metrics(source=None, type=None)`: 按来源/类型查询质量指标
+- `get_summary()`: 汇总报告
+
+---
+
+## 9. 持久化 (`db.py`)
+
+### ORM 模型
+
+```python
+class SignalRecord(Base):  # 表: signals
+    id, symbol, signal_type, source, direction, strength,
+    confidence, timestamp, expiration, price, value,
+    metadata_json, parent_id
+```
+
+### SignalRepository
+
+```python
+save(signal)                    # 持久化
+find_by_symbol(symbol, limit)   # 按股票查询
+find_by_time_range(start, end)  # 按时间查询
+find_by_type(signal_type)       # 按类型查询
+get_statistics(source, days)    # 统计
+delete_old(before)              # 清理
+```
+
+### SQLAlchemy 优雅降级
+
+```python
+try:
+    from sqlalchemy import ...
+    _SQLA_AVAILABLE = True
+except ImportError:
+    Base = None
+    _SQLA_AVAILABLE = False
+```
+
+---
+
+## 10. 关键观察
+
+### 架构风险
+
+| # | 风险 | 位置 | 影响 |
+|---|------|------|------|
+| R5-1 | **两套并行信号体系**: `adapters.py` (TradingSignalCollector → TradingSignal) 和 `normalizer.py` (→ Signal) 运行独立的信号转换路径 | `adapters.py`, `normalizer.py` | 运维复杂度, 信号流分裂, 需保持两套逻辑同步 |
+| R5-2 | **TradingSignalCollector 适配 key 名不匹配**: `_extract_lppl()` 期望 `risk` + `bubble_confidence`, 但 `LPPLOutput` 输出 `risk_level` | `adapters.py:540-548` | 下游 data_pack 结构调整可能导致信号遗漏 |
+| R5-3 | **仲裁器依赖字符串匹配**: `_get_engine_priority()` 通过 `reason.lower()` 包含匹配判断引擎 | `arbitrator.py:235-240` | 脆弱, 改变 reason 字符串格式会破坏仲裁 |
+| R5-4 | **质量评估器需要事后价格数据**: `assess()` 依赖 `subsequent_prices` 列表, 在线交易场景不可用 | `quality.py:59-60` | 仅适用于回测/离线分析 |
+| R5-5 | **归一化+聚合+质量+DB 路径无运行时调用**: `normalizer`, `aggregator`, `quality`, `db` 4 个模块在主流程中未被调用 | 全部 4 文件 | 可能是死代码或仅用于离线研究 |
+| R5-6 | **SQLAlchemy 可选依赖**: 未安装时 `SignalRecord` 类不存在, `from .db import SignalRecord` 会失败 | `db.py:30-37` | import 时可能 AttributeError |
+
+### 设计亮点
+
+| # | 亮点 | 位置 |
+|---|------|------|
+| S5-1 | **双仲裁入口**: `arbitrate()` 处理 TradingSignal, `arbitrate_candidates()` 处理 CandidateSignal+DecisionOutput — 覆盖两代接口 | `arbitrator.py` |
+| S5-2 | **SELL 优先 + 质量门**: OOS R² < 0.3 的低质量 SELL 信号被过滤 | `arbitrator.py:130-148` |
+| S5-3 | **Veto 链记录**: 仲裁报告包含完整的 veto_chain 和 rejection_reasons | `arbitrator.py:270-280` |
+| S5-4 | **8 适配器注册表**: 可扩展的适配器模式, 新引擎只需注册新 Adapter | `adapters.py:480-520` |
+| S5-5 | **SourceWeightManager 自适应**: 基于绩效的权重更新 | `aggregator.py:55-80` |
+| S5-6 | **Signal 数据类完整**: 27 种类型, 10 个来源, 4 级强度 — 覆盖全场景 | `models.py` |
+
+### 信号流对比
+
+| 维度 | TradingSignalCollector (主) | Normalizer + Aggregator (副) |
+|------|---------------------------|------------------------------|
+| 输入 | `Dict[str, Any]` data_pack | `Dict[str, Any]` raw signal |
+| 输出 | `TradingSignal` | `Signal` |
+| 适配器数 | 8 | 4 |
+| 聚合 | 仲裁器 (SELL优先) | 4 种聚合方法 |
+| 质量 | 无 | SignalQualityAssessor |
+| 持久化 | 无 | SQLAlchemy ORM |
+| 运行时调用 | 是 (Pipeline/TradingSignalCollector) | 否 |
+
+### 测试覆盖
+
+| 测试文件 | 函数数 | 覆盖 |
+|----------|--------|------|
+| `tests/signal/test_arbitrator.py` | 27 | 空信号/单信号/SELL优先/质量门/仲裁日志/候选仲裁 |
+| `tests/signal/test_adapters.py` | 未知 | 适配器单元测试 |
+| `tests/test_signal.py` | 43 | 模型创建/序列化/批次过滤/归一化 |
+| `tests/test_research_pipeline_checkpoint.py` | 7 | Pipeline 仲裁集成 |
+
+---
+
+## 11. 建议
+
+### P1
+1. **R5-1 (信号体系分裂)**: 统一两条信号路径 — 选择 TradingSignalCollector 为主路径，正常化/聚合/质量评估可叠加为可选中间件
+
+### P2
+2. **R5-3 (字符串匹配仲裁)**: 在 `TradingSignal` 中添加 `source` 字段替代基于 reason 字符串的引擎识别
+3. **R5-2 (key 名不匹配)**: 统一 `LPPLOutput.risk_level` vs data_pack `risk` 的 key 名
+
+### P3
+4. **R5-4 (质量评估离线)**: 保持离线, 文档标注适用场景
+5. **R5-5 (死代码路径)**: 确认 normalizer/aggregator/quality/db 是否被使用, 否则标记弃用
+6. **R5-6 (SQLAlchemy 可选)**: `db.py` 中所有 `from .db import SignalRecord` 需用 try/except 包裹
+
+---
+
+## 12. 验证清单
+
+- [x] 读取 `signal/__init__.py` (4 子模块延迟导入)
+- [x] 读取 `signal/models.py` (5 枚举 + 4 数据类)
+- [x] 读取 `signal/adapters.py` (8 EngineAdapter + Registry + Collector)
+- [x] 读取 `signal/arbitrator.py` (2 仲裁入口 + Priority 规则)
+- [x] 读取 `signal/normalizer.py` (4 Normalizer + Registry)
+- [x] 读取 `signal/aggregator.py` (4 聚合方法 + SourceWeightManager)
+- [x] 读取 `signal/quality.py` (QualityAssessor + Metrics + Tracker)
+- [x] 读取 `signal/db.py` (SQLAlchemy ORM + Repository + 降级)
+- [x] 检查 `shared/interfaces.py` TradingSignal / CandidateSignal 定义
+- [x] 检查 `shared/interfaces.py` DecisionOutput (仲裁器硬约束)
+- [x] 检查测试覆盖

@@ -382,6 +382,11 @@ class WyckoffOutput:
     price: float = 0.0
     rr_ratio: float = 0.0
     bypassed: bool = False
+    pnf_phase_hint: str = "neutral"
+    pnf_breakout: bool = False
+    pnf_count_target: float = 0.0
+    regime_phase: Optional[str] = None
+    vshape_detected: bool = False
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -392,6 +397,11 @@ class WyckoffOutput:
             "price": self.price,
             "rr_ratio": self.rr_ratio,
             "bypassed": self.bypassed,
+            "pnf_phase_hint": self.pnf_phase_hint,
+            "pnf_breakout": self.pnf_breakout,
+            "pnf_count_target": self.pnf_count_target,
+            "regime_phase": self.regime_phase,
+            "vshape_detected": self.vshape_detected,
         }
 
     @classmethod
@@ -404,6 +414,11 @@ class WyckoffOutput:
             price=float(data.get("price", 0.0)),
             rr_ratio=float(data.get("rr_ratio", 0.0)),
             bypassed=bool(data.get("bypassed", False)),
+            pnf_phase_hint=str(data.get("pnf_phase_hint", "neutral")),
+            pnf_breakout=bool(data.get("pnf_breakout", False)),
+            pnf_count_target=float(data.get("pnf_count_target", 0.0)),
+            regime_phase=data.get("regime_phase"),
+            vshape_detected=bool(data.get("vshape_detected", False)),
         )
 
 

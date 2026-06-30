@@ -1,6 +1,14 @@
 """Tests for new Wyckoff features — pnf, bayesian_events, v_shape_detector,
 ashare_constraints, sequence EMA smoothing."""
 
+import os
+import sys
+
+# Project root for scripts.wyckoff_multitf namespace imports
+_project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _project_root not in sys.path:
+    sys.path.insert(0, _project_root)
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -121,6 +129,89 @@ class TestBayesianEventState:
         assert s.n_observations == 0
 
 
+class TestBayesianExactPosterior:
+    """Exact posterior mean assertions for the Beta-Bayesian update.
+
+    After removing the spurious (1.0 - confidence) * pseudo_count term
+    from obs_failure, the posterior must satisfy:
+      - positive score + high conf → mean > 0.5, adj > 0
+      - negative score + high conf → mean < 0.5, adj < 0
+      - zero score → mean = 0.5, adj = 0 (no bias)
+      - sequential updates converge monotonically
+    """
+
+    def test_positive_score_exact_posterior(self):
+        from uniquant.brain.wyckoff.bayesian_events import BayesianEventDetector
+        d = BayesianEventDetector(prior_alpha=1.0, prior_beta=1.0)
+        d.update("PS", score=0.8, confidence=0.9)
+        # pseudo_count = max(1.0, 0.9 * 10.0) = 9.0
+        # obs_success = 0.8 * 9.0 = 7.2
+        # obs_failure = max(0, -0.8) * 9.0 = 0.0
+        # alpha = 1.0 + 7.2 = 8.2, beta = 1.0 + 0.0 = 1.0
+        # mean = 8.2 / 9.2 = 0.891304...
+        assert d.posterior_mean("PS") == pytest.approx(0.8913, abs=0.001)
+        assert d.get_adjustment("PS") == pytest.approx(0.07826, abs=0.001)
+
+    def test_negative_score_exact_posterior(self):
+        from uniquant.brain.wyckoff.bayesian_events import BayesianEventDetector
+        d = BayesianEventDetector(prior_alpha=1.0, prior_beta=1.0)
+        d.update("SOS", score=-0.5, confidence=0.8)
+        # pseudo_count = max(1.0, 0.8 * 10.0) = 8.0
+        # obs_success = max(0, -0.5) * 8.0 = 0.0
+        # obs_failure = max(0, 0.5) * 8.0 = 4.0
+        # alpha = 1.0 + 0.0 = 1.0, beta = 1.0 + 4.0 = 5.0
+        # mean = 1.0 / 6.0 = 0.1667
+        assert d.posterior_mean("SOS") == pytest.approx(0.1667, abs=0.001)
+        assert d.get_adjustment("SOS") == pytest.approx(-0.06667, abs=0.001)
+
+    def test_zero_score_no_bias(self):
+        from uniquant.brain.wyckoff.bayesian_events import BayesianEventDetector
+        d = BayesianEventDetector(prior_alpha=1.0, prior_beta=1.0)
+        d.update("PS", score=0.0, confidence=0.5)
+        # pseudo_count = max(1.0, 0.5 * 10.0) = 5.0
+        # obs_success = max(0, 0.0) * 5.0 = 0.0
+        # obs_failure = max(0, 0.0) * 5.0 = 0.0
+        # alpha = 1.0, beta = 1.0 (unchanged from prior!)
+        assert d.posterior_mean("PS") == pytest.approx(0.5, abs=0.001)
+        assert d.get_adjustment("PS") == pytest.approx(0.0, abs=0.001)
+
+    def test_sequential_positive_convergence(self):
+        from uniquant.brain.wyckoff.bayesian_events import BayesianEventDetector
+        d = BayesianEventDetector(prior_alpha=1.0, prior_beta=1.0)
+        for i in range(5):
+            d.update("PS", score=0.8, confidence=0.9)
+        # After 5 updates at score=0.8, conf=0.9:
+        # alpha = 1.0 + 5 * 7.2 = 37.0
+        # beta = 1.0 + 5 * 0.0 = 1.0
+        # mean = 37.0 / 38.0 = 0.9737
+        assert d.posterior_mean("PS") == pytest.approx(0.9737, abs=0.001)
+        assert d.get_adjustment("PS") == pytest.approx(0.09474, abs=0.001)
+
+    def test_get_adjustment_unknown_event(self):
+        from uniquant.brain.wyckoff.bayesian_events import BayesianEventDetector
+        d = BayesianEventDetector()
+        adj = d.get_adjustment("NONEXISTENT")
+        assert adj == pytest.approx(-0.1, abs=0.001)  # mean=0.0 → (0-0.5)*0.2 = -0.1
+
+    def test_update_from_events_negative_score(self):
+        """Verify that negative scores depress the posterior mean (clip -1.0..1.0)."""
+        from uniquant.brain.wyckoff.bayesian_events import BayesianEventDetector
+
+        class _MockWyckoffEvent:
+            def __init__(self, event_type, score, confidence):
+                self.event_type = event_type
+                self.features = {"score": score}
+                self.confidence = confidence
+
+        events = [
+            _MockWyckoffEvent("SOS", -2.0, 0.6),
+        ]
+        d = BayesianEventDetector()
+        d.update_from_events(events)
+        mean = d.posterior_mean("SOS")
+        assert mean < 0.5, f"Negative score should depress posterior, got {mean}"
+
+
 class TestBayesianEventDetector:
     def test_default_init(self):
         from uniquant.brain.wyckoff.bayesian_events import BayesianEventDetector
@@ -216,6 +307,7 @@ class TestBayesianEventDetector:
         d.update_from_events(events)
         assert d.posterior_mean("PS") > 0.5
         assert d.posterior_mean("SC") > 0.5
+        assert d.posterior_mean("SOS") < 0.5, "Negative score should depress posterior"
         posteriors = d.get_all_posteriors()
         assert "PS" in posteriors
         assert "SC" in posteriors

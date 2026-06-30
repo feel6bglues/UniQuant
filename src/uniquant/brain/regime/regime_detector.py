@@ -138,8 +138,8 @@ class RegimeDetector:
         Returns:
             Regime: 市场状态枚举值
         """
-        if len(df) < self.min_data_points:
-            return Regime.NORMAL
+        if not self._validate_input_data(df):
+            return Regime.UNKNOWN
 
         # 1. Entropy Check (Shannon Entropy of price changes)
         entropy_series = Indicators.calc_market_entropy(df)
@@ -150,8 +150,8 @@ class RegimeDetector:
             or entropy_series.iloc[-1] is None
             or np.isnan(entropy_series.iloc[-1])
         ):
-            logger.warning("Empty entropy series detected, defaulting to NORMAL regime")
-            return Regime.NORMAL
+            logger.warning("Empty entropy series detected, defaulting to UNKNOWN regime")
+            return Regime.UNKNOWN
 
         curr_entropy = entropy_series.iloc[-1]
 
@@ -170,9 +170,9 @@ class RegimeDetector:
         # Handle empty series
         if z_series.empty or z_series.iloc[-1] is None or np.isnan(z_series.iloc[-1]):
             logger.warning(
-                "Empty turnover Z-series detected, defaulting to NORMAL regime"
+                "Empty turnover Z-series detected, defaulting to UNKNOWN regime"
             )
-            return Regime.NORMAL
+            return Regime.UNKNOWN
 
         curr_z = z_series.iloc[-1]
 

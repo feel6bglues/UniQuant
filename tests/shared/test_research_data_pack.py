@@ -101,7 +101,7 @@ def test_feature_flag_exists():
     from uniquant.shared.config_models import FeatureFlags
     flags = FeatureFlags()
     assert hasattr(flags, "use_research_data_pack")
-    assert flags.use_research_data_pack is False
+    assert flags.use_research_data_pack is True
 
 
 def test_config_yaml_has_flag():
@@ -109,7 +109,7 @@ def test_config_yaml_has_flag():
     cfg = get_config()
     ff = cfg.get("refactoring", {}).get("feature_flags", {})
     assert "use_research_data_pack" in ff
-    assert ff["use_research_data_pack"] is False
+    assert ff["use_research_data_pack"] is True
 
 
 def test_fetch_research_pack_returns_typed():
@@ -143,21 +143,27 @@ def test_fetch_research_pack_returns_from_dict():
     assert pack.stock_df is None
 
 
-def test_prepare_data_default_path_uses_dict():
-    from unittest.mock import Mock
+def test_prepare_data_default_path_uses_research_pack():
+    from unittest.mock import Mock, patch
     from uniquant.services.analysis_service_v2 import AnalysisService
 
     mock_data = Mock()
     analysis = AnalysisService(data_service=mock_data)
     stock_df = pd.DataFrame({"date": ["2025-01-01"], "close": [10.0]})
-    mock_data.fetch_for_brain = Mock(return_value={"stock": stock_df})
-    mock_data.fetch_research_pack = Mock()
+    typed_pack = ResearchDataPack(symbol="000001.SZ", stock_df=stock_df)
+    mock_data.fetch_research_pack = Mock(return_value=typed_pack)
 
-    result = analysis._prepare_data("000001.SZ")
+    with patch(
+        "uniquant.services.analysis_service_v2.load_refactoring_config"
+    ) as mock_cfg:
+        from uniquant.shared.config_models import FeatureFlags, RefactoringConfig
+        mock_cfg.return_value = RefactoringConfig(
+            feature_flags=FeatureFlags(use_research_data_pack=True),
+        )
+        result = analysis._prepare_data("000001.SZ")
     assert result is not None
-    assert result["stock"] is stock_df
-    mock_data.fetch_for_brain.assert_called_once_with("000001.SZ")
-    mock_data.fetch_research_pack.assert_not_called()
+    assert result.stock_df is stock_df
+    mock_data.fetch_research_pack.assert_called_once_with("000001.SZ")
 
 
 def test_prepare_data_typed_path_uses_research_pack():

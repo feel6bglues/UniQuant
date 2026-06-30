@@ -99,7 +99,7 @@ class DataFetcher:
         self.market_coordinator = MarketDataCoordinator(self)
         self.stock_updater = StockDataUpdater(self)
 
-        self.ingestion = DataIngestionService(data_dir)
+        self.ingestion = DataIngestionService(self)
         self.pipeline = (
             pipeline
             if pipeline is not None
@@ -117,7 +117,10 @@ class DataFetcher:
             return cached
 
         logger.info(f"获取 {symbol} 数据，复权类型: {adjust}")
-        df = self.ingestion.fetch_price(symbol)
+        try:
+            df = self.source_router.fetch_with_fallback(symbol, "fetch")
+        except Exception:
+            df = None
         if df is None or df.empty:
             logger.warning(f"未获取到 {symbol} 的数据")
             return pd.DataFrame()

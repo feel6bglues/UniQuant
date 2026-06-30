@@ -30,7 +30,9 @@ class WyckoffEvent:
 
 
 def _sigmoid_confidence(raw_score: float, midpoint: float = 3.0, scale: float = 1.0) -> float:
-    return float(1.0 / (1.0 + np.exp(-(raw_score - midpoint) / scale)))
+    with np.errstate(over='ignore'):
+        exp_arg = -(raw_score - midpoint) / scale
+        return float(1.0 / (1.0 + np.exp(exp_arg)))
 
 
 def _vol_ma20(volume: np.ndarray) -> float:

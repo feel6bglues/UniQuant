@@ -21,13 +21,15 @@ import os
 import tempfile
 import uuid
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import date, datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
+import numpy as np
 import pandas as pd
 
 from ..hands.backtest.unified_engine import BacktestResult, UnifiedBacktestEngine
+from ..shared.result_store import AnalysisRecord, ResultStore
 from ..shared.event_bus import EventBus
 from ..shared.event_types import (
     BacktestCompleted as BacktestCompletedEvent,
@@ -56,9 +58,13 @@ logger = get_logger(__name__)
 
 
 def _checkpoint_json_default(obj: Any) -> str:
-    """JSON encoder default for datetime objects in checkpoints."""
+    """JSON encoder default for datetime and typed objects in checkpoints."""
     if isinstance(obj, datetime):
         return obj.isoformat()
+    if hasattr(obj, "to_dict"):
+        return obj.to_dict()
+    if hasattr(obj, "__dataclass_fields__"):
+        return {f: getattr(obj, f) for f in obj.__dataclass_fields__}
     raise TypeError(f"Object of type {type(obj)} is not JSON serializable")
 
 
@@ -124,6 +130,7 @@ class UnifiedResearchPipeline:
         event_bus: Optional[EventBus] = None,
         metrics: Optional[InMemoryMetricsRecorder] = None,
         max_workers: Optional[int] = None,
+        result_store_path: Optional[str] = None,
     ):
         self._analysis = analysis_service
         self._engine = backtest_engine or UnifiedBacktestEngine()
@@ -136,6 +143,7 @@ class UnifiedResearchPipeline:
         self._event_bus = event_bus
         self._metrics = metrics or InMemoryMetricsRecorder()
         self._max_workers = max_workers
+        self._result_store = ResultStore(path=result_store_path or "./results")
 
     # ──────────────────────────────────────────────────────────
     # Batch checkpoint helpers
@@ -410,6 +418,8 @@ class UnifiedResearchPipeline:
                 metrics=metrics,
             )
 
+            self._persist_result(result)
+
         if bus is not None:
             bus.publish(RunCompleted(
                 symbol=symbol,
@@ -545,3 +555,47 @@ class UnifiedResearchPipeline:
             )
 
         return collector_pack
+
+    # ── result persistence ───────────────────────────────────
+
+    @staticmethod
+    def _compute_backtest_sharpe(daily_returns: List[float]) -> Optional[float]:
+        if len(daily_returns) < 2:
+            return None
+        arr = np.array(daily_returns, dtype=np.float64)
+        std = arr.std(ddof=1)
+        if std == 0.0:
+            return None
+        return float(arr.mean() / std * np.sqrt(252))
+
+    @staticmethod
+    def _compute_backtest_mdd(equity_curve: List[float]) -> Optional[float]:
+        if len(equity_curve) < 2:
+            return None
+        arr = np.array(equity_curve, dtype=np.float64)
+        peak = np.maximum.accumulate(arr)
+        dd = (arr - peak) / peak
+        return float(dd.min())
+
+    def _persist_result(self, result: PipelineResult) -> None:
+        try:
+            decision = result.decision
+            bt = result.backtest
+            record = AnalysisRecord(
+                symbol=result.symbol,
+                analysis_date=date.today(),
+                regime=decision.get("regime"),
+                lppl_score=decision.get("lppl_score"),
+                ntf_detected=decision.get("ntf_detected"),
+                czsc_signal=decision.get("czsc_signal"),
+                wyckoff_signal=decision.get("wyckoff_signal"),
+                action=decision.get("action"),
+                confidence=decision.get("confidence"),
+                backtest_sharpe=self._compute_backtest_sharpe(bt.daily_returns),
+                backtest_return=bt.total_return,
+                backtest_mdd=self._compute_backtest_mdd(bt.equity_curve),
+                metadata={"trace_id": result.trace_id},
+            )
+            self._result_store.save(result.symbol, record)
+        except Exception as e:
+            logger.warning(f"Failed to persist result for {result.symbol}: {e}")

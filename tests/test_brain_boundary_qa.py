@@ -561,21 +561,18 @@ class TestWalkForwardBoundary:
 
 class TestRegimeDetectorBoundary:
 
-    def test_short_data_returns_normal(self):
+    def test_short_data_returns_unknown(self):
         from uniquant.brain.regime.regime_detector import RegimeDetector, Regime
         detector = RegimeDetector(min_data_points=30)
         df = _make_ohlcv(10)
         result = detector.detect(df)
-        assert result == Regime.NORMAL
+        assert result == Regime.UNKNOWN
 
-    def test_empty_data_handled(self):
+    def test_empty_data_returns_unknown(self):
         from uniquant.brain.regime.regime_detector import RegimeDetector, Regime
         detector = RegimeDetector()
-        # BUG: detect() 对空 DataFrame 返回 Regime.NORMAL 而非 Regime.UNKNOWN
-        # 因为 len(df)=0 < min_data_points 时直接返回 NORMAL
-        # @handle_errors 装饰器仅在异常时返回 UNKNOWN, 但此处无异常
         result = detector.detect(pd.DataFrame())
-        assert result in (Regime.NORMAL, Regime.UNKNOWN)
+        assert result == Regime.UNKNOWN
 
     def test_none_data_handled(self):
         from uniquant.brain.regime.regime_detector import RegimeDetector, Regime

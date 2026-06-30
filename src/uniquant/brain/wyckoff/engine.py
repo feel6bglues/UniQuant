@@ -58,6 +58,8 @@ from uniquant.brain.wyckoff.models import (
     WyckoffStructure,
 )
 from uniquant.brain.wyckoff.rules import V3Rules
+from uniquant.brain.wyckoff.pnf import PointAndFigure
+from uniquant.brain.wyckoff.phase_analysis import RegimeAwarePhaseClassifier
 from uniquant.brain.indicators.indicators import Indicators
 
 logger = get_logger(__name__)
@@ -227,6 +229,28 @@ class WyckoffEngine:
         # A 股铁律最终检查
         v3_plan = self._apply_a_stock_rules(step1, v3_plan)
 
+        # P&F 点图分析
+        pnf_result: Optional[dict] = None
+        try:
+            pnf = PointAndFigure(box_size=0.02, reversal=2)
+            pnf.build(frame)
+            pnf_result = {
+                "phase_hint": pnf.wyckoff_phase_hint(),
+                "breakout": pnf.breakout_detected(),
+                "count_target": pnf.count_target(),
+            }
+        except Exception:
+            pnf_result = {"phase_hint": "neutral", "breakout": False, "count_target": 0.0}
+
+        # Regime-aware enhanced phase
+        regime_phase: Optional[str] = None
+        try:
+            rpc = RegimeAwarePhaseClassifier()
+            phase_str, _ = rpc.classify(frame, pd.Timestamp(df['date'].iloc[-1]), period='monthly')
+            regime_phase = phase_str
+        except Exception:
+            regime_phase = None
+
         # 构建最终报告
         return self._build_report(
             symbol,
@@ -240,6 +264,8 @@ class WyckoffEngine:
             rr_result,
             confidence,
             v3_plan,
+            pnf_result,
+            regime_phase,
         )
 
     def _step0_bc_tr_scan(self, df: pd.DataFrame) -> Rule0Result:
@@ -1081,6 +1107,8 @@ class WyckoffEngine:
         rr: RiskRewardResult,
         confidence: ConfidenceResult,
         v3_plan: V3TradingPlan,
+        pnf_result: Optional[dict] = None,
+        regime_phase: Optional[str] = None,
     ) -> WyckoffReport:
         """构建最终报告"""
         current_price = float(df.iloc[-1]["close"])
@@ -1250,6 +1278,8 @@ class WyckoffEngine:
             limit_moves=limit_moves,
             stress_tests=stress_tests,
             chip_analysis=chip_analysis,
+            pnf_analysis=pnf_result,
+            regime_phase=regime_phase,
             engine_version="v3.0",
             ruleset_version="v3.0",
         )
@@ -1350,7 +1380,8 @@ class WyckoffEngine:
         if not bc_candidates.empty:
             best_bc = bc_candidates.iloc[0]
             score = float(best_bc["bc_score"])
-            prob_confidence = 1.0 / (1.0 + np.exp(-(score - 3.0)))
+            with np.errstate(over='ignore'):
+                prob_confidence = 1.0 / (1.0 + np.exp(-(score - 3.0)))
             
             volume_level = self._classify_volume(best_bc["volume"], df["volume"])
             bc_point = BCPoint(
@@ -1364,7 +1395,8 @@ class WyckoffEngine:
         if not sc_candidates.empty:
             best_sc = sc_candidates.iloc[0]
             score = float(best_sc["sc_score"])
-            prob_confidence = 1.0 / (1.0 + np.exp(-(score - 3.0)))
+            with np.errstate(over='ignore'):
+                prob_confidence = 1.0 / (1.0 + np.exp(-(score - 3.0)))
             
             volume_level = self._classify_volume(best_sc["volume"], df["volume"])
             sc_point = SCPoint(
@@ -1475,6 +1507,19 @@ class WyckoffEngine:
                 else:
                     action = 'HOLD'
             
+            # P&F 点图分析
+            pnf_signal = {}
+            try:
+                pnf = PointAndFigure(box_size=0.02, reversal=2)
+                pnf.build(df)
+                pnf_signal = {
+                    "phase_hint": pnf.wyckoff_phase_hint(),
+                    "breakout": pnf.breakout_detected(),
+                    "count_target": pnf.count_target(),
+                }
+            except Exception:
+                pnf_signal = {"phase_hint": "neutral", "breakout": False, "count_target": 0.0}
+
             return {
                 "symbol": symbol,
                 "date": df['date'].iloc[-1] if 'date' in df.columns else None,
@@ -1484,6 +1529,8 @@ class WyckoffEngine:
                 "confidence": confidence,
                 "spring_detected": spring_detected,
                 "utad_detected": utad_detected,
+                "pnf_analysis": pnf_signal,
+                "regime_phase": getattr(report, 'regime_phase', None),
             }
         except Exception as e:
             logger.warning(f"scan_signal 失败 {symbol}: {e}")
@@ -1496,6 +1543,7 @@ class WyckoffEngine:
                 "confidence": 0.0,
                 "spring_detected": False,
                 "utad_detected": False,
+                "regime_phase": None,
             }
 
 

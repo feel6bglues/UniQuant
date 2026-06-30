@@ -58,6 +58,27 @@ class MarketLevelCache:
             self._date = self._today()
         logger.debug(f"Market regime cached: {regime}")
 
+    def get_or_compute_regime(
+        self, compute_fn
+    ) -> tuple[Optional[str], Optional[Dict[str, Any]]]:
+        """原子化的 get-or-compute，避免批处理时的 TOCTOU 竞态。
+
+        Args:
+            compute_fn: 无参可调用对象，返回 (regime, details) 元组
+
+        Returns:
+            (regime, details) 元组，取自缓存或新计算的结果
+        """
+        with self._lock:
+            if self._date == self._today() and self._regime is not None:
+                return self._regime, self._regime_details
+            regime, details = compute_fn()
+            self._regime = regime
+            self._regime_details = details
+            self._date = self._today()
+        logger.debug(f"Market regime computed and cached: {regime}")
+        return regime, details
+
     def get_ntf(self) -> Optional[Dict[str, Any]]:
         with self._lock:
             if self._date == self._today():

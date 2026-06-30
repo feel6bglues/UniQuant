@@ -2,7 +2,7 @@
 
 > Unified Quantitative Trading Platform for China A-share research, backtesting, and trading workflows.
 >
-> Updated: 2026-06-17. Phases 0-6 closure; audit_logs→archive, Phase 6 gaps closed, institutional closure review completed. See [Closure Review Report](analysis/institutional/17_institutional_closure_review_report.md) for P0/P1 status matrix. This page is a documentation state boundary. Prefer current source code and control documents over historical migration notes.
+> Updated: 2026-06-29. Phases 0-6 closure; audit_logs→archive, Phase 6 gaps closed, institutional closure review completed. See [Closure Review Report](analysis/institutional/17_institutional_closure_review_report.md) for P0/P1 status matrix. This page is a documentation state boundary. Prefer current source code and control documents over historical migration notes.
 
 ---
 

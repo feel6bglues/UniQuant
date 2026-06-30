@@ -1,245 +1,207 @@
-# Stage 0 - Global Architecture Map
+# Stage 0 — UniQuant 全局架构识别
 
-Generated: 2026-06-09
+> 生成日期: 2026-06-29
+> 基于当前工作树 (commit c1e0eb1, 254 文件, 62,816 LOC)
+> 方法: 阅读 AGENTS.md, docs/index.md, pyproject.toml, config/config.yaml, 扫描 src/uniquant/ 全目录, 阅读核心流程文件
 
-Scope: Current source code and control documents only. Historical architecture and migration documents under `docs/` are treated as background unless confirmed by source.
+---
 
 ## 1. 系统定位
 
-UniQuant is a Python 3.12+ A-share quantitative research and trading platform. The current runtime system covers market data ingestion, data lake storage, data cleaning, multi-engine analysis, signal normalization, A-share constrained backtesting/matching, risk modules, service orchestration, reporting, and Streamlit UI.
+UniQuant 是一个面向中国 A 股的量化投研与交易平台。Python 3.12+，254 个源文件，覆盖：
 
-Evidence:
+- 多源数据接入与数据湖存储（TDX 本地、AKShare、mootdx 在线/离线、东方财富、新浪等）
+- 因子研究（注册、计算、IC/IR 分析、组合、中性化、滚动验证）
+- 信号生成（FSM、CZSC 缠论、LPPL、NTF 国家队、Regime 市场状态、Wyckoff 威科夫、Alpha 选股）
+- 风险度量（仓位、回撤、EVT、组合优化）
+- 回测与撮合（T+1、涨跌停、停牌、滑点、费用）
+- 服务编排（DAG 依赖注入容器）
+- Streamlit 仪表盘
 
-- `pyproject.toml:1-28` defines package `uniquant`, Python `>=3.12`, and core dependencies including `pandas`, `numpy`, `scipy`, `pyarrow`, `duckdb`, `akshare`, `mootdx`, `streamlit`, and `plotly`.
-- `config/config.yaml:4-21` defines the main data lake, logging, and TDX runtime paths.
-- `AGENTS.md:10-23` and `docs/index.md:17-33` state the repository is past the old migration-target phase and that the eight runtime layers are present.
-- Current source scan confirms top-level runtime packages under `src/uniquant/`: `shared`, `data`, `brain`, `signal`, `hands`, `risk`, `services`, `ui`.
-
-Current dirty-worktree boundary:
-
-- `git status --short` shows uncommitted changes in `AGENTS.md`, `docs/index.md`, reshaping logs, `src/uniquant/brain/factors/__init__.py`, `src/uniquant/brain/factors/custom_factors.py`, and `src/uniquant/hands/backtest/engine.py`.
-- Many files under `src/uniquant/brain/factors/auto_mined/` are deleted in the working tree. Stage 4 must analyze the factor system from current files, not from old factor docs.
-- `docs/ANALYSIS_PROMPT_PLAYBOOK.md` itself is untracked in this working tree but is the user-selected analysis control document.
+---
 
 ## 2. 八层模块职责表
 
-| Layer | Path | Current source scan | Primary responsibility | Current binding evidence |
-|---|---|---:|---|---|
-| `shared` | `src/uniquant/shared/` | 44 files | Cross-layer protocols, constants, exceptions, cache, logging, A-share market rules, cost/slippage/limit utilities. | `src/uniquant/shared/interfaces.py:41-169` defines `MarketSignalContext` and `TradingSignal`; `src/uniquant/hands/backtest/unified_engine.py:26-39` imports shared constants, cost model, limit checker, and market rules. |
-| `data` | `src/uniquant/data/` | 65 files | Data ingestion, data lake, source routing, parsers, cleaners, validators, adjusters, access services. | `src/uniquant/services/data_service.py:35-91` implements a facade over `DataFetcher`, `StorageManager`, `DataCleaner`, cache, quality, and stock query services. |
-| `brain` | `src/uniquant/brain/` | 55 files | Strategy and research engines: FSM/DecisionBrain, CZSC, LPPL, NTF, regime, Wyckoff, indicators, alpha decoupler, factors, screener. | `src/uniquant/services/analysis_service_v2.py:308-317` runs regime, LPPL, NTF, CZSC, Wyckoff, alpha, and derived indicators. |
-| `signal` | `src/uniquant/signal/` | 7 files | Convert heterogeneous brain/decision outputs into standard `TradingSignal` objects. | `src/uniquant/signal/adapters.py:405-416` registers adapters for LPPL, CZSC, Wyckoff, FSM, regime, NTF, alpha score, and MA status. |
-| `hands` | `src/uniquant/hands/` | 34 files | Backtesting, matching, portfolio and strategy execution, reports, robustness/tuning. | `src/uniquant/hands/backtest/unified_engine.py:88-124` defines `UnifiedBacktestEngine.run(df, signals, symbol, name)`. |
-| `risk` | `src/uniquant/risk/` | 7 files | Position sizing, drawdown, EVT, historical/structural risk, portfolio optimization. | `src/uniquant/shared/interfaces.py:193-228` defines risk and position sizing protocols used as cross-layer contracts. |
-| `services` | `src/uniquant/services/` | 31 files | Dependency injection, orchestration, data service, analysis service, research pipeline, cache coordination, reports, scans, health. | `src/uniquant/services/service_container.py:74-127` initializes and registers the DAG services. |
-| `ui` | `src/uniquant/ui/` | 8 files | Streamlit dashboard, UI manager logic, health check, visualization. | `docs/index.md:35-47` lists UI as present; Stage 7 should inspect dashboard and live-readiness details. |
+| 层 | 路径 | 文件数 | 职责 | 关键依赖方向 |
+|---|------|-------|------|-------------|
+| `shared` | `src/uniquant/shared/` | 44 | 协议接口、常量、配置、异常、缓存、日志、A 股规则、费用、滑点、价格约束、时间提供器、事件总线、因子治理、特征标记 | 所有层依赖 shared |
+| `data` | `src/uniquant/data/` | 65 | 多源数据接入 (TDX/AKShare/东方财富/新浪/腾讯)、数据湖 (DuckDB + Parquet)、清洗、校验、复权、对齐 | → services (DataService 封装) |
+| `brain` | `src/uniquant/brain/` | 55 | 7 个策略引擎: FSM 状态机、CZSC 缠论、LPPL 泡沫、NTF 国家队、Regime 市场状态、Wyckoff 威科夫、Alpha 选股 + 因子系统 + 指标 | → services (AnalysisEngine 封装) |
+| `signal` | `src/uniquant/signal/` | 8 | TradingSignal 模型、引擎输出适配器、聚合、归一化、质量检查、仲裁器 | → services (research_pipeline) |
+| `hands` | `src/uniquant/hands/` | 34 | 回测引擎 (typed unified + legacy)、向量化撮合、投资组合、策略框架、报告、稳健性/敏感性工具 | → services (research_pipeline) |
+| `risk` | `src/uniquant/risk/` | 7 | 仓位 sizing、回撤分析、EVT 极值、历史风险、组合优化、结构风险 | → services (portfolio_service) |
+| `services` | `src/uniquant/services/` | 32 | 服务 DAG 容器、分析编排、数据服务、缓存协调、投研流水线、扫描、健康检查、报告 | 编排所有下层 |
+| `ui` | `src/uniquant/ui/` | 8 | Streamlit 仪表盘、健康检查、LPPL 可视化、组合分析 | → services (health/portfolio) |
 
-The intended dependency direction is:
+**依赖方向 (DAG)**: `shared ← data ← brain ← services → signal → hands`
+`shared` 被所有层依赖，不存在循环依赖。
 
-`shared -> data -> brain/risk/signal -> hands -> services -> ui`
+**当前状态验证**: 八层全部存在，import 烟雾测试通过 ✅
 
-Concrete orchestration, however, is service-centered: `services` imports lower layers and wires them together. Lower layers should not import `services` for runtime work unless specifically documented and tested.
+---
 
-## 3. 核心数据流和控制流
+## 3. 核心数据流
 
-### Service Initialization DAG
+### 3.1 单标的投研流水线 (Main Path)
 
-`ServiceContainer.initialize()` is the top-level runtime composition point:
-
-1. Creates `StorageManager`, `TradeCalendarManager`, and `CacheCoordinator` (`src/uniquant/services/service_container.py:78-83`).
-2. Creates `DataService(storage_manager=storage)` and registers `storage`, `calendar`, `cache`, and `data_service` (`src/uniquant/services/service_container.py:85-91`).
-3. Creates `AnalysisEngineFactory(orchestrator=data_svc)` and `MarketLevelCache`, then attaches the cache to `DataService` (`src/uniquant/services/service_container.py:93-100`).
-4. Creates `AnalysisService(data_service, engine_factory, market_cache)`. Its constructor rebinds the factory orchestrator to the `AnalysisService` and clears any cached engines through `bind_orchestrator()` (`src/uniquant/services/analysis_service_v2.py:81-97`; `src/uniquant/services/analysis/engine_factory.py:20-32`).
-5. Creates `UnifiedBacktestEngine` and `TradingSignalCollector(create_default_registry())` (`src/uniquant/services/service_container.py:102-117`).
-6. Creates `UnifiedResearchPipeline(analysis_service, backtest_engine, signal_collector)` and registers `research_pipeline` (`src/uniquant/services/service_container.py:119-124`).
-
-Text topology:
-
-```text
-StorageManager
-  -> DataFetcher / DataService
-  -> AnalysisEngineFactory + MarketLevelCache
-  -> AnalysisService
-  -> TradingSignalCollector
-  -> UnifiedBacktestEngine
-  -> UnifiedResearchPipeline
+```
+ServiceContainer.initialize()
+    ↓
+DataService.fetch_for_brain(symbol)
+    → 返回 data_pack (Dict[str, Any]) 或 ResearchDataPack (typed, feature-gated)
+    ↓
+AnalysisService.run_ticker_analysis()
+    → AnalysisEngineFactory.lazy_init() 加载各引擎
+        → FsmAnalysisEngine.run()
+        → CzscAnalysisEngine.run()
+        → LpplAnalysisEngine.run()
+        → RegimeAnalysisEngine.run()
+        → NtfAnalysisEngine.run()
+        → WyckoffAnalysisEngine.run()
+        → macro + report + technical engines
+        → DecisionBrain.make_decision()
+    → 写入 data_pack
+    ↓
+TradingSignalCollector.collect()
+    → adapters 将各引擎 Dict 输出转为 TradingSignal
+    → signal/arbitrator.py 仲裁多信号冲突
+    → 返回 List[TradingSignal]
+    ↓
+UnifiedBacktestEngine.run()
+    → UnifiedMatchingEngine 向量化撮合
+    → 返回 BacktestResult (含 metadata)
+    ↓
+PipelineResult (data_pack + decision + signals + BacktestResult)
 ```
 
-### Single Ticker Analysis Flow
+### 3.2 批处理研究流水线
 
-`AnalysisService.run_ticker_analysis()` is the current single-ticker analysis orchestrator:
+```
+research_pipeline.run_batch(symbols)
+    → ThreadPoolExecutor(max_workers) 并行执行单标的流水线
+    → 原子检查点: 每个标的完成后写入 checkpoint
+    → 返回 PipelineResult 列表
+```
 
-1. Generates or receives a trace id (`src/uniquant/services/analysis_service_v2.py:240-253`).
-2. Calls `DataService.fetch_for_brain(ticker)` via `_prepare_data()` (`src/uniquant/services/analysis_service_v2.py:291-301`).
-3. Rejects missing or empty `data_pack["stock"]` with `success=False` and error `"数据不足"` (`src/uniquant/services/analysis_service_v2.py:254-262`).
-4. Runs engines in fixed order: regime, LPPL, NTF, CZSC, Wyckoff, alpha, derived indicators (`src/uniquant/services/analysis_service_v2.py:308-317`).
-5. Adds `symbol` and `market="CN"` to `data_pack` (`src/uniquant/services/analysis_service_v2.py:319-320`).
-6. Calls `DecisionBrain.make_decision(data_pack)` through `self.brain` (`src/uniquant/services/analysis_service_v2.py:618`).
-7. Returns `TickerAnalysisResult`; its `signals` field remains empty because signals are filled at pipeline level (`src/uniquant/services/analysis_service_v2.py:280-286`).
+### 3.3 配置与特征标记
 
-`DataService.fetch_for_brain()` currently returns:
+`config/config.yaml` → `RefactoringConfig` + `FeatureFlags` 控制:
 
-- `stock`: target stock K-line data.
-- `bench`: HS300 benchmark from `sh000300`.
-- `etf`: ETF data loaded through `_load_etf_data()`.
+| 标记 | 默认值 | 作用 |
+|------|--------|------|
+| `signal_arbitration` | true | 是否启用仲裁器 |
+| `typed_contracts` | false | 是否启用类型化合约 |
+| `factor_gate` | "block" | 因子准入: block/warn/off |
+| `use_research_data_pack` | false | 是否使用 ResearchDataPack |
+| `async_event_bus` | false | 是否使用异步事件总线 |
+| `event_bus` | true | 事件总线开关 |
 
-Evidence: `src/uniquant/services/data_service.py:397-407`.
-
-### Research Pipeline Flow
-
-`UnifiedResearchPipeline.run()` creates the end-to-end research/backtest result:
-
-1. Calls `AnalysisService.run_ticker_analysis(symbol, trace_id)` (`src/uniquant/services/research_pipeline.py:112-116`).
-2. On analysis failure, returns `PipelineResult(success=False)` with empty signals and empty `BacktestResult` (`src/uniquant/services/research_pipeline.py:116-126`).
-3. Merges `DecisionBrain` output back into a collector pack (`src/uniquant/services/research_pipeline.py:128-136`, `210-237`).
-4. Uses `TradingSignalCollector.collect()` to produce `List[TradingSignal]`.
-5. Reads `data_pack["stock"]`; if empty, returns failure `"K线数据为空"` (`src/uniquant/services/research_pipeline.py:138-150`).
-6. Calls `UnifiedBacktestEngine.run(df=stock_df, signals=signals, symbol=symbol, name=name)` (`src/uniquant/services/research_pipeline.py:152-157`).
-7. Returns `PipelineResult` with `data_pack`, decision, signals, and `BacktestResult` (`src/uniquant/services/research_pipeline.py:165-173`).
-
-### Signal and Backtest Boundary
-
-`TradingSignal` is the typed bridge between brain outputs and hands/backtest:
-
-- `src/uniquant/shared/interfaces.py:127-169` defines `TradingSignal(action, reason, confidence, shares, symbol, price, timestamp)` and maps legacy actions like `EXECUTE_BUY`, `EXECUTE_SELL`, `FORCE_EXIT`, and `CIRCUIT_BREAK`.
-- `src/uniquant/signal/adapters.py:423-520` collects LPPL, CZSC, Wyckoff, FSM/DecisionBrain, regime, NTF, alpha score, and MA status signals from `data_pack`.
-- `src/uniquant/hands/backtest/unified_engine.py:118-124` accepts `List[TradingSignal]` as its execution input.
-
-`UnifiedBacktestEngine` enforces A-share execution constraints:
-
-- T+1 pending-order execution and sell restriction: `src/uniquant/hands/backtest/unified_engine.py:173-230`, `306-320`.
-- Required K-line columns and derived `pre_close`, `avg_daily_volume`: `src/uniquant/hands/backtest/unified_engine.py:272-286`.
-- Cost/rule imports: `src/uniquant/hands/backtest/unified_engine.py:26-39`.
-- Vectorized matching also includes limit, T+1, volume, commission, stamp duty, transfer fee, lot size, and slippage handling (`src/uniquant/hands/backtest/unified_matching_engine.py:145-261`).
+---
 
 ## 4. 关键入口文件清单
 
-| File | Role | Why it matters |
-|---|---|---|
-| `AGENTS.md` | Project control context | Defines current truth boundary, eight layers, high-risk files, and workflow rules. |
-| `docs/index.md` | Documentation state boundary | Marks which docs are current and which package docs may be stale. |
-| `docs/ANALYSIS_PROMPT_PLAYBOOK.md` | Staged analysis control | Defines stages 0-7, required artifacts, validation, and no-source-modification rule. |
-| `pyproject.toml` | Package metadata | Defines Python version, dependencies, optional extras, and pytest settings. |
-| `config/config.yaml` | Main runtime config | Defines data lake, cache, network, TDX, and source routing settings. |
-| `src/uniquant/shared/interfaces.py` | Cross-layer contracts | Defines `MarketSignalContext`, `TradingSignal`, and protocols. |
-| `src/uniquant/services/service_container.py` | Runtime DAG | Initializes and registers data, analysis, signal, backtest, and pipeline services. |
-| `src/uniquant/services/data_service.py` | Data facade | Produces `data_pack` through `fetch_for_brain()`. |
-| `src/uniquant/services/analysis_service_v2.py` | Single-ticker orchestrator | Runs engines and DecisionBrain; defines failure defaults. |
-| `src/uniquant/services/analysis/engine_factory.py` | Lazy engine factory | Lazily imports engines and rebinds orchestrator after `AnalysisService` construction. |
-| `src/uniquant/services/research_pipeline.py` | End-to-end pipeline | Connects analysis, signal collection, and backtest into `PipelineResult`. |
-| `src/uniquant/signal/adapters.py` | Signal bridge | Converts engine and decision fields into `TradingSignal`. |
-| `src/uniquant/hands/backtest/unified_engine.py` | Typed backtest engine | Executes `TradingSignal` against K-line data with A-share constraints. |
-| `src/uniquant/hands/backtest/unified_matching_engine.py` | Vectorized matching | Handles vectorized A-share execution constraints. |
-| `src/uniquant/shared/limit_checker.py` | Limit rules | Used by backtest/matching to identify board and limit behavior. |
-| `src/uniquant/shared/market_rules.py` | Market rules | Provides board lot size and rule metadata. |
-| `src/uniquant/shared/cost_model.py` | Cost model | Defines commission, stamp tax, transfer fee, and slippage constants/functions. |
-| `tests/test_engine_factory.py` | Engine factory tests | Stage 1 should use it to verify lazy factory behavior. |
-| `tests/test_service_container.py` | Container tests | Verifies DI container singleton and initialization behavior. |
-| `tests/test_e2e_pipeline.py` | Pipeline boundary tests | Exercises signal collector and backtest integration. |
-| `tests/test_unified_matching.py` | Backtest/matching tests | Exercises A-share execution constraints and unified engine behavior. |
+| 优先级 | 文件 | 角色 |
+|--------|------|------|
+| ⭐⭐⭐ | `services/service_container.py` | DAG 容器, 系统初始化入口 |
+| ⭐⭐⭐ | `services/analysis_service_v2.py` | 单标分析编排, 引擎调用 |
+| ⭐⭐⭐ | `services/research_pipeline.py` | 端到端研究流水线 |
+| ⭐⭐ | `services/data_service.py` | 数据服务封装, fetch_for_brain |
+| ⭐⭐ | `services/analysis/engine_factory.py` | 懒加载引擎工厂 |
+| ⭐⭐ | `signal/adapters.py` | 引擎输出→TradingSignal 适配器 |
+| ⭐⭐ | `signal/arbitrator.py` | 多信号仲裁 |
+| ⭐⭐ | `hands/backtest/unified_engine.py` | 类型化回测引擎 |
+| ⭐⭐ | `hands/backtest/unified_matching_engine.py` | 向量化 A 股撮合 |
+| ⭐⭐ | `shared/interfaces.py` | 跨层类型契约 |
+| ⭐⭐ | `shared/config_models.py` | 特征标记 + 重构配置 |
+| ⭐ | `brain/wyckoff/engine.py` | Wyckoff 主引擎 |
+| ⭐ | `brain/lppl/engine.py` | LPPL 泡沫检测 |
+| ⭐ | `brain/factors/registry.py` | 因子注册器 (实际使用的) |
+| ⭐ | `ui/dashboard.py` | Streamlit 入口 |
+
+---
 
 ## 5. 高风险文件清单
 
-| File | Risk | Stage to inspect deeply |
-|---|---|---|
-| `src/uniquant/services/__init__.py` | Public lazy import contract for services; import drift can break CLI/UI/test imports. | Stage 1 |
-| `src/uniquant/shared/interfaces.py` | Cross-layer contract for `TradingSignal`, context, and protocols; changes can break brain, signal, backtest, and risk together. | Stages 1, 5, 6, 7 |
-| `src/uniquant/shared/constants/__init__.py` | Aggregated constants used broadly; import/export mistakes become global runtime failures. | Stage 7 |
-| `src/uniquant/services/service_container.py` | Service lifetime and dependency graph; wrong initialization order can create stale factory orchestrators or hidden coupling. | Stage 1 |
-| `src/uniquant/services/data_service.py` | Data facade and `fetch_for_brain()` producer; malformed `data_pack` affects all engines. | Stage 2 |
-| `src/uniquant/services/analysis_service_v2.py` | Main single-ticker flow; default/failure values can create false signals or suppress real failures. | Stages 1, 3 |
-| `src/uniquant/services/analysis/engine_factory.py` | Lazy imports and `bind_orchestrator()` behavior; factory caches engines and clears them on orchestrator rebind. | Stage 1 |
-| `src/uniquant/data/sources/tdx.py` | TDX path is central to local A-share data workflows. | Stage 2 |
-| `src/uniquant/data/pipeline/data_validator.py` | OHLC correctness guardrail; failure here can contaminate backtests. | Stage 2 |
-| `src/uniquant/signal/adapters.py` | Converts diverse engine outputs to executable signals; action mapping errors directly affect trades. | Stage 5 |
-| `src/uniquant/hands/backtest/unified_engine.py` | User-facing signal-driven backtest; A-share rules and capital logic are high impact. | Stage 6 |
-| `src/uniquant/hands/backtest/unified_matching_engine.py` | Vectorized execution constraints; any vectorization mismatch can create silent incorrect fills. | Stage 6 |
-| `src/uniquant/shared/limit_checker.py` | Board and limit-up/down detection; errors distort execution feasibility. | Stage 6 |
-| `src/uniquant/shared/market_rules.py` | Lot size and board rules; affects order sizing and limit rules. | Stage 6 |
-| `config/config.yaml` | Global data/cache/network/source behavior; stale source classes or paths can break production runs. | Stages 2, 7 |
+| 文件 | 风险原因 | 验证状态 |
+|------|---------|---------|
+| `services/__init__.py` | 懒加载导入契约 | ✅ 存在 |
+| `shared/interfaces.py` | 跨层类型契约, 修改影响所有层 | ✅ 存在 |
+| `shared/constants/__init__.py` | 聚合常量, 广泛引用 | ✅ 存在 |
+| `services/service_container.py` | DAG 容器, 依赖图正确性 | ✅ DAG 零循环 |
+| `services/analysis_service_v2.py` | 核心编排逻辑, 1642→300 行重构 | ✅ 已重构 |
+| `services/analysis/engine_factory.py` | 引擎注册 + 懒加载行为 | ✅ 存在 |
+| `data/sources/tdx.py` | TDX 数据通路 | ✅ 存在 |
+| `data/pipeline/data_validator.py` | OHLC 正确性看门狗 | ✅ 存在 |
+| `signal/adapters.py` | 异构引擎→统一信号转换 | ✅ 存在 |
+| `hands/backtest/unified_engine.py` | 回测行为准确性 | ✅ 存在 |
+| `hands/backtest/unified_matching_engine.py` | A 股撮合约束 | ✅ 存在 |
+| `config/config.yaml` | 全局运行时行为 | ✅ 存在 |
+
+---
 
 ## 6. 当前架构优点
 
-1. The runtime has a clear composition root. `ServiceContainer.initialize()` constructs data, engine factory, analysis service, signal collector, backtest engine, and research pipeline in one place (`src/uniquant/services/service_container.py:74-127`).
-2. The main research path uses explicit typed result objects: `TickerAnalysisResult` (`src/uniquant/services/analysis_service_v2.py:49-58`) and `PipelineResult` (`src/uniquant/services/research_pipeline.py:37-50`).
-3. The brain-to-hands boundary is normalized through `TradingSignal`, reducing action string mismatch risk (`src/uniquant/shared/interfaces.py:127-169`).
-4. Signal conversion is centralized in `TradingSignalCollector` and adapter classes (`src/uniquant/signal/adapters.py:32-54`, `423-520`).
-5. A-share execution rules are not left to strategy code; the backtest/matching layers enforce T+1, limit constraints, suspension/volume checks, costs, slippage, and lot sizing (`src/uniquant/hands/backtest/unified_engine.py:7-15`, `173-286`; `src/uniquant/hands/backtest/unified_matching_engine.py:145-261`).
-6. Engine construction is lazy and isolated through `AnalysisEngineFactory`, reducing import-time cost and making engine initialization failures fail fast (`src/uniquant/services/analysis/engine_factory.py:33-48`).
-7. The main docs now explicitly warn that historical package pages may be stale, reducing the chance of architecture decisions based on migration-era documents (`docs/index.md:93-124`).
+1. **DAG 依赖方向清晰** — shared ← data ← brain/services → signal → hands，无循环依赖
+2. **服务容器隔离** — ServiceContainer 依赖注入解耦了层间直接 import
+3. **类型化契约演进** — 6 个引擎输出已类型化 (LPPLOutput/CZSCOutput/NtfOutput/WyckoffOutput/RegimeOutput/AlphaOutput)，向后兼容
+4. **特征标记系统** — FeatureFlags 控制新功能灰度发布
+5. **懒加载引擎工厂** — AnalysisEngineFactory 延迟初始化降低启动开销
+6. **A 股规则独立封装** — limit_checker/market_rules/cost_model/slippage_model/price_collar 各自独立
+7. **测试覆盖增长** — 115 测试文件, 1354 测试函数, 1363 通过
+8. **批处理并行** — ThreadPoolExecutor + 原子检查点
+
+---
 
 ## 7. 当前架构风险
 
-1. `AnalysisEngineFactory` is first created with `DataService` as orchestrator and later rebound to `AnalysisService`. This is intentional and implemented through `bind_orchestrator()` (`src/uniquant/services/service_container.py:96-107`; `src/uniquant/services/analysis/engine_factory.py:20-32`), but Stage 1 must verify tests cover stale-engine clearing and adapter expectations.
-2. `data_pack` remains a mutable dictionary across data, analysis, decision, signal, and pipeline layers. Although `MarketSignalContext` exists (`src/uniquant/shared/interfaces.py:41-124`), `AnalysisService` and `TradingSignalCollector` still use dict fields directly, so field drift is a real risk.
-3. Failure defaults may affect trading behavior. Examples: LPPL failure sets `risk="ENGINE_FAILED"` and `bubble_confidence=1.0` (`src/uniquant/services/analysis_service_v2.py:378-396`); alpha failure sets `alpha_score=0.0` (`src/uniquant/services/analysis_service_v2.py:458-480`); CZSC/Wyckoff failures become neutral defaults (`src/uniquant/services/analysis_service_v2.py:430-456`). Stage 3 must classify which defaults are conservative versus signal-distorting.
-4. `TradingSignalCollector.collect()` applies multiple adapters to the same `data_pack`, so conflicting BUY/SELL/HOLD signals can coexist before backtest selection (`src/uniquant/signal/adapters.py:450-520`). Stage 5 must inspect aggregation/priority behavior beyond collection.
-5. `UnifiedBacktestEngine` indexes signals by `timestamp`; signals with no timestamp are grouped under `"unknown"` and will not naturally match a trading date (`src/uniquant/hands/backtest/unified_engine.py:288-300`). Stage 6 must verify intended behavior for pipeline-generated timestamps.
-6. `config/config.yaml` still contains relative class paths like `data.sources.stock_sources.StockDataSource` (`config/config.yaml:109-121`) while runtime imports use package paths under `src/uniquant`; Stage 2 must verify source routing resolves these correctly.
-7. The factor subsystem is currently in flux: many `brain/factors/auto_mined` files are deleted in the working tree. Stage 4 must avoid relying on historical factor audit reports without checking current source.
-8. UI and live-readiness are only lightly covered in Stage 0. Stage 7 must inspect dashboard behavior, secrets/config handling, operational failure paths, and whether live trading is only simulated or executable.
+| ID | 风险 | 严重度 | 说明 |
+|----|------|--------|------|
+| R1 | **brain 层文件数骤减 (74→55)** | 高 | 删除了 19 个文件但无明确记录。可能是合法的重构删除，也可能丢失了功能 |
+| R2 | **G-1 TimeProvider 未完全覆盖** | 中 | 仍含 1 个 `pd.Timestamp.now()` (注释中)、2 个 `datetime.now()`、~38 个 `time.time()` |
+| R3 | **12 个 Wyckoff 测试预存失败** | 中 | `test_wyckoff_new_features.py` 中 VShape 和 AShareLimitPct 测试失败，存在功能偏差 |
+| R4 | **文档大量过时** | 中 | 归档了 ~60+ 个历史分析文档，但 `docs/` 中仍混有大量过时分析报告 |
+| R5 | **双 FactorRegistry** | 低 | `shared/factor_governance.py` 已废弃 (带 deprecation 警告)，`brain/factors/registry.py` 是实际在使用 |
+| R6 | **ResearchDataPack 默认关闭** | 低 | `use_research_data_pack: false`，类型化 DataPack 尚未默认启用 |
+| R7 | **ui 层薄** | 低 | 仅 8 文件 Streamlit 面板，大量分析能力未在前端暴露 |
 
-## 8. 当前事实、历史文档、待验证假设
+---
 
-### 当前事实
+## 8. 文档状态区分
 
-- Eight runtime packages exist under `src/uniquant/`.
-- `ServiceContainer.initialize()` registers `storage`, `calendar`, `cache`, `data_service`, `engine_factory`, `market_cache`, `analysis_service`, `backtest_engine`, `signal_collector`, and `research_pipeline`.
-- `DataService.fetch_for_brain()` returns `stock`, `bench`, and `etf`.
-- `AnalysisService.run_ticker_analysis()` is the current single-ticker orchestrator.
-- `UnifiedResearchPipeline.run()` is the current end-to-end analysis/signal/backtest pipeline.
-- `TradingSignal` is the typed bridge between signal and backtest.
+| 类别 | 说明 | 推荐使用 |
+|------|------|---------|
+| ✅ 当前事实 | AGENTS.md (已更新), docs/index.md (已更新), pyproject.toml, config/config.yaml | **优先使用** |
+| ✅ 产物文档 | `docs/analysis/00-07_*.md` (已有历史分析报告) | **交叉参考**, 但需用当前代码验证 |
+| ⚠️ 最新分析 | `docs/analysis/comprehensive_architect_analysis.md`, `docs/analysis/comprehensive_docs_analysis_report.md` (2026-06-28) | **最新分析, 可参考** |
+| ⚠️ 指南 | `docs/guides/*`, `docs/packages/*` (可能过时) | 用前确认 |
+| 📦 归档 | `docs/archive/` (~80+ 文件) | 不直接信任, 仅当需要追溯历史时 |
+| 🔄 重构日志 | `docs/reshaping_logs/` (16 个日志) | 变更历史参考 |
+| 🧪 研究笔记 | `docs/analysis/wyckoff_*.md`, `docs/research/*` | Wyckoff 专项参考 |
 
-### 历史文档不可直接信任
-
-- Any document under `docs/packages/` that says `data`, `signal`, or `hands` is missing is stale according to `docs/index.md:93-124` and current source layout.
-- Older audit or migration reports under `docs/` may describe target state, pre-remediation gaps, or old module locations. Use them only as background after checking source.
-- Factor reports generated before the current `auto_mined` deletions cannot be treated as current Stage 4 evidence.
-
-### 待验证假设
-
-- Source routing in `config/config.yaml` still matches actual import paths and data source implementations.
-- Engine defaults in `AnalysisService` are conservative for trading and do not create hidden false positives/negatives.
-- Signal conflict resolution is deterministic and tested beyond simple collection.
-- Backtest signal timestamps produced by pipeline are aligned with historical K-line dates or intentionally generate no historical trades.
-- Service container initialization tests cover the current `engine_factory` rebind behavior.
+---
 
 ## 9. Stage 1 输入清单
 
-Stage 1 should start from this artifact and inspect:
+Stage 1 (Services Orchestration) 需要:
 
-- `src/uniquant/services/service_container.py`
-- `src/uniquant/services/__init__.py`
-- `src/uniquant/services/analysis_service_v2.py`
-- `src/uniquant/services/research_pipeline.py`
-- `src/uniquant/services/analysis/engine_factory.py`
-- `src/uniquant/services/data_service.py`
-- `src/uniquant/signal/adapters.py`
-- `tests/test_engine_factory.py`
-- `tests/test_service_container.py`
-- `tests/test_phase4_2_contracts.py`
-- `tests/test_e2e_pipeline.py`
+- [x] `AGENTS.md` — 项目控制上下文 (✓ 已读)
+- [x] `docs/index.md` — 文档入口 (✓ 已读)
+- [x] `config/config.yaml` — 运行时配置 (✓ 已读)
+- [ ] `services/service_container.py` — 完整读取 initialize() 方法
+- [ ] `services/analysis_service_v2.py` — 完整读取 run_ticker_analysis 流程
+- [ ] `services/research_pipeline.py` — 完整读取 run() 和 run_batch()
+- [ ] `services/analysis/engine_factory.py` — 完整读取懒加载注册
+- [ ] `services/data_service.py` — fetch_for_brain 接口
+- [ ] `services/__init__.py` — 懒加载导入
+- [ ] `tests/test_engine_factory.py` — 引擎工厂测试
 
-Questions for Stage 1:
+---
 
-1. Does `ServiceContainer.initialize()` have a fully acyclic and test-covered initialization order?
-2. Does `AnalysisEngineFactory.bind_orchestrator()` always run before any engine is accessed in production?
-3. Do analysis, data, cache, and market cache boundaries remain explicit?
-4. Are failure paths in `run_ticker_analysis()` and `UnifiedResearchPipeline.run()` observable enough for batch runs and UI?
-5. Are services imported lazily and safely through `src/uniquant/services/__init__.py`?
+## 校验清单 (Stage 0)
 
-## 10. 校验清单
-
-- [x] Covered all eight modules: `shared`, `data`, `brain`, `signal`, `hands`, `risk`, `services`, `ui`.
-- [x] Explained the DAG direction and the concrete `ServiceContainer.initialize()` sequence.
-- [x] Listed more than 10 key files and tied each to a runtime concern.
-- [x] Clearly marked old docs under `docs/packages/` and historical audit/migration reports as not directly trustworthy.
-- [x] Bound architecture conclusions to concrete files, classes, functions, config keys, or tests.
-- [x] Did not modify source code.
-- [x] Did not claim test results; no tests were run for Stage 0.
-
-## 11. 阶段结论
-
-The current UniQuant architecture is service-orchestrated rather than package-autonomous: lower layers provide capabilities, while `services` composes the runtime path from data to brain, signal, hands/backtest, and UI-facing pipeline results. The most important architecture boundary is the mutable `data_pack` plus `TradingSignal` bridge. The clearest near-term analysis risks are service factory rebinding, data_pack field drift, signal conflict behavior, and historical backtest timestamp alignment.
-
-Stage 1 should now verify the services layer in detail, starting with the initialization topology, lazy import/rebind behavior, and failure paths.
+- [x] 覆盖八层模块 (shared/data/brain/signal/hands/risk/services/ui)
+- [x] 说明 DAG 依赖方向 (shared ← data ← brain ← services → signal → hands)
+- [x] 列出至少 10 个关键文件 (实际列出 15 个)
+- [x] 明确哪些旧文档不可直接信任 (archive/ 目录 + 部分 guides/packages)
+- [x] 结论绑定到具体文件 (所有表格均使用实际文件路径)
+- [x] 区分了当前事实、历史文档、待验证假设

@@ -55,11 +55,37 @@ class WyckoffAnalysisEngine:
                 conf_str = str(tp_conf.value) if hasattr(tp_conf, "value") else str(tp_conf)
                 confidence = _CONFIDENCE_TO_FLOAT.get(conf_str, confidence)
 
+        pnf_phase_hint = "neutral"
+        pnf_breakout = False
+        pnf_count_target = 0.0
+        regime_phase: Optional[str] = None
+        vshape_detected = False
+
+        if hasattr(result, "pnf_analysis") and result.pnf_analysis is not None:
+            pnf = result.pnf_analysis
+            if isinstance(pnf, dict):
+                pnf_phase_hint = str(pnf.get("phase_hint", "neutral"))
+                pnf_breakout = bool(pnf.get("breakout", False))
+                pnf_count_target = float(pnf.get("count_target", 0.0))
+            elif isinstance(pnf, str):
+                pnf_phase_hint = pnf
+
+        if hasattr(result, "regime_phase") and result.regime_phase is not None:
+            regime_phase = str(result.regime_phase)
+
+        if hasattr(result, "vshape_detected") and result.vshape_detected:
+            vshape_detected = bool(result.vshape_detected)
+
         return WyckoffOutput(
             phase=phase, confidence=confidence,
             spring=spring, utad=utad,
             price=price, rr_ratio=rr_ratio,
             bypassed=bypassed,
+            pnf_phase_hint=pnf_phase_hint,
+            pnf_breakout=pnf_breakout,
+            pnf_count_target=pnf_count_target,
+            regime_phase=regime_phase,
+            vshape_detected=vshape_detected,
         )
 
     def run_wyckoff_analysis(self, symbol: str, df: Optional[pd.DataFrame] = None) -> "WyckoffOutput":

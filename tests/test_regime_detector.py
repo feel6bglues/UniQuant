@@ -74,6 +74,52 @@ class TestRegimeDetector:
         with pytest.raises(ValueError):
             RegimeDetector(min_data_points=5)
 
+    def test_detect_normal_market(self, detector, sample_market_data):
+        """正常市场数据应返回非UNKNOWN的合法结果"""
+        result = detector.detect(sample_market_data)
+        assert result in (Regime.NORMAL, Regime.STRESSED, Regime.FROZEN)
+
+    def test_detect_none_input(self, detector):
+        """None输入应返回UNKNOWN"""
+        result = detector.detect(None)
+        assert result == Regime.UNKNOWN
+
+    def test_detect_empty_dataframe(self, detector):
+        """空DataFrame应返回UNKNOWN（防止fail-open）"""
+        empty_df = pd.DataFrame()
+        result = detector.detect(empty_df)
+        assert result == Regime.UNKNOWN
+
+    def test_detect_missing_close_column(self, detector):
+        """缺少close列应返回UNKNOWN"""
+        df = pd.DataFrame({"open": [1.0, 2.0], "volume": [100, 200]})
+        result = detector.detect(df)
+        assert result == Regime.UNKNOWN
+
+    def test_detect_all_nan_close(self, detector):
+        """close列全为NaN应返回UNKNOWN（防止fail-open）"""
+        df = pd.DataFrame({
+            "close": [np.nan, np.nan, np.nan],
+            "volume": [100, 200, 300],
+        })
+        result = detector.detect(df)
+        assert result == Regime.UNKNOWN
+
+    def test_detect_short_data_causes_nan_entropy(self, detector):
+        """数据点不足60天导致entropy为NaN时应返回UNKNOWN（防止fail-open）"""
+        np.random.seed(42)
+        n = 45
+        dates = pd.date_range("2024-01-01", periods=n, freq="D")
+        prices = [3000.0]
+        for i in range(1, n):
+            prices.append(prices[-1] * (1 + np.random.uniform(-0.02, 0.02)))
+        df = pd.DataFrame({
+            "close": prices,
+            "volume": [1e9] * n,
+        }, index=dates)
+        result = detector.detect(df)
+        assert result == Regime.UNKNOWN
+
 
 class TestRegimeEnum:
     """Test suite for Regime enum"""

@@ -19,6 +19,8 @@ Usage:
 from typing import Dict, List, Optional, Tuple
 import json
 
+from uniquant.brain.wyckoff.bayesian_events import BayesianEventDetector
+
 
 class WSOScorer:
     """Wyckoff Score Oscillator — rule-based scoring.
@@ -28,9 +30,10 @@ class WSOScorer:
 
     EMA_SPAN: int = 5
 
-    def __init__(self) -> None:
+    def __init__(self, bayesian: Optional[BayesianEventDetector] = None) -> None:
         self._last_score: float = 0.0
         self._is_warm: bool = False
+        self._bayesian = bayesian
 
     EVENT_WEIGHTS: Dict[str, float] = {
         'PS':  0.0105,
@@ -59,6 +62,7 @@ class WSOScorer:
         event_types: List[str],
         has_spring: bool = False,
         spring_event_count: int = 0,
+        confidence: float = 0.5,
     ) -> float:
         if not event_types:
             return 0.0
@@ -90,6 +94,12 @@ class WSOScorer:
         alpha = 2.0 / (self.EMA_SPAN + 1)
         smoothed = raw * alpha + self._last_score * (1.0 - alpha)
         self._last_score = smoothed
+        if self._bayesian is not None and event_types:
+            adj_total = 0.0
+            for et in event_types:
+                adj_total += self._bayesian.get_adjustment(et)
+                self._bayesian.update(et, raw, confidence)
+            smoothed += adj_total
         return smoothed
 
     @classmethod
@@ -143,8 +153,9 @@ class WyckoffScorer:
         wss_path: Optional[str] = None,
         alpha: float = 0.3,
         beta: float = 0.7,
+        bayesian: Optional[BayesianEventDetector] = None,
     ):
-        self.wso = WSOScorer()
+        self.wso = WSOScorer(bayesian=bayesian)
         self.wss = WSSScorer(wss_lookup or {})
         if wss_path:
             loaded = WSSScorer.from_json(wss_path)
