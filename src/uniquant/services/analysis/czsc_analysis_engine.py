@@ -118,8 +118,9 @@ class CzscAnalysisEngine:
             latest_close = latest_data["close"]
             latest_open = latest_data["open"]
 
+            # TODO: wire these into CZSCOutput fields when real CZSC adapter is ready
             # 计算近期高低点
-            (
+            recent_highs = (                             # noqa: F841
                 df["high"].tail(AnalysisServiceConstants.RECENT_HIGH_LOW_WINDOW).max()
             )
             recent_lows = (
@@ -140,32 +141,34 @@ class CzscAnalysisEngine:
                     .mean()
                     .iloc[-1]
                 )
+                # TODO: wire trend into CZSCOutput (computed but not consumed)
                 if short_ma > medium_ma:
-                    pass
+                    trend = "上升"                           # noqa: F841
                 elif short_ma < medium_ma:
-                    pass
+                    trend = "下降"                           # noqa: F841
                 else:
-                    pass
+                    trend = "震荡"                           # noqa: F841
             else:
-                pass
+                trend = "未知"                               # noqa: F841
 
+            # TODO: wire current_state into CZSCOutput (computed but not consumed)
             # 简单状态判断
             if (
                 latest_close
                 > latest_open * AnalysisServiceConstants.TREND_STRONG_UP_THRESHOLD
             ):
-                pass
+                current_state = "STRONG_BUY"                # noqa: F841
             elif latest_close > latest_open:
-                pass
+                current_state = "BUY"                       # noqa: F841
             elif (
                 latest_close
                 < latest_open * AnalysisServiceConstants.TREND_STRONG_DOWN_THRESHOLD
             ):
-                pass
+                current_state = "STRONG_SELL"               # noqa: F841
             elif latest_close < latest_open:
-                pass
+                current_state = "SELL"                      # noqa: F841
             else:
-                pass
+                current_state = "NEUTRAL"                   # noqa: F841
 
             return CZSCOutput(
                 price=float(latest_close),

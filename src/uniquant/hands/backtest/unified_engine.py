@@ -31,6 +31,7 @@ from ...shared.cost_model import (
     SLIPPAGE_PCT,
     STAMP_TAX_PCT,
     TRANSFER_FEE_PCT,
+    calculate_sharpe_ratio,
     get_stamp_tax_pct,
 )
 from ...shared.interfaces import TradingSignal
@@ -86,10 +87,7 @@ class BacktestResult:
     def sharpe(self) -> float:
         if len(self.daily_returns) < 2:
             return 0.0
-        arr = np.array(self.daily_returns, dtype=np.float64)
-        if np.std(arr) == 0:
-            return 0.0
-        return float(np.mean(arr) / np.std(arr) * np.sqrt(252))
+        return calculate_sharpe_ratio(self.daily_returns, period_days=1)
 
     @property
     def max_drawdown(self) -> float:

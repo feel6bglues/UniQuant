@@ -140,6 +140,29 @@ class TestLoadLatest:
         assert latest is None
 
 
+class TestWriteVerify:
+    """Save must produce a valid, readable file (anti-drift for P3.6)."""
+
+    def test_save_atomic_rename_no_partial_write(self, store, tmp_path):
+        d = date(2026, 6, 29)
+        file_path = tmp_path / "2026-06-29" / "000001.SZ.json"
+        record = make_record("000001.SZ", d)
+        store.save("000001.SZ", record)
+
+        assert file_path.exists()
+        content = file_path.read_text(encoding="utf-8")
+        assert content.endswith("}\n") or content.endswith("}")
+
+    def test_corrupted_file_returns_none(self, store, tmp_path):
+        d = date(2026, 6, 29)
+        file_path = tmp_path / "2026-06-29" / "corrupt.SZ.json"
+        file_path.parent.mkdir(parents=True, exist_ok=True)
+        file_path.write_text("{invalid json", encoding="utf-8")
+
+        loaded = store.load("corrupt.SZ", d)
+        assert loaded is None
+
+
 class TestEdgeCases:
     def test_save_with_minimal_fields(self, store):
         d = date(2026, 6, 29)

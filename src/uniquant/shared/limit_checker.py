@@ -25,6 +25,9 @@ class LimitStatus:
     price_ratio: float
 
 
+# NOTE: Parallel board-detection system exists in market_rules.detect_board()
+# (enum + exchange-suffix logic vs string-based code-prefix here).
+# Keep in sync — both must classify the same stock identically.
 def get_board_type(symbol: str, name: Optional[str] = None) -> str:
     """
     根据股票代码和名称识别板块类型

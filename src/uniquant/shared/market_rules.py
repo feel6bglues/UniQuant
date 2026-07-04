@@ -35,6 +35,9 @@ BOARD_RULES = {
 }
 
 
+# NOTE: Parallel board-detection system exists in limit_checker.get_board_type()
+# (string-based, code-prefix logic vs enum + exchange-suffix here).
+# Keep in sync — both must classify the same stock identically.
 def detect_board(symbol: str, name: str = "") -> BoardType:
     if name and ("ST" in name.upper()):
         return BoardType.ST

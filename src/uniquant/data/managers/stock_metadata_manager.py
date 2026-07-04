@@ -60,7 +60,6 @@ class StockMetadataManager:
             bool: 是否加载成功
         """
         try:
-            self._load_stock_list()
             self._load_all_codes()
             self._loaded = True
             logger.info(f"成功加载 {len(self._metadata_cache)} 个股票元数据")
@@ -68,34 +67,6 @@ class StockMetadataManager:
         except (OSError, ValueError, KeyError, pd.errors.ParserError) as e:
             logger.error(f"加载股票元数据失败: {e}")
             return False
-    
-    def _load_stock_list(self) -> None:
-        """加载股票列表数据"""
-        if not self._stock_list_path.exists():
-            logger.warning(f"股票列表文件不存在: {self._stock_list_path}")
-            return
-        
-        df = pd.read_csv(self._stock_list_path, encoding='utf-8-sig')
-        df = self._normalize_columns(df)
-        
-        for row in df.itertuples(index=False):
-            code = str(row.code)
-            if not code:
-                continue
-            
-            metadata = self._metadata_cache.get(code, StockMetadata(
-                code=code,
-                name='',
-                market=''
-            ))
-            
-            metadata.name = str(row.name)
-            metadata.market = str(row.market)
-            metadata.sector = getattr(row, 'sector', None) if pd.notna(getattr(row, 'sector', None)) else metadata.sector
-            metadata.vol_unit = int(getattr(row, 'vol_unit', None)) if pd.notna(getattr(row, 'vol_unit', None)) else metadata.vol_unit
-            metadata.decimal_point = int(getattr(row, 'decimal_point', None)) if pd.notna(getattr(row, 'decimal_point', None)) else metadata.decimal_point
-            
-            self._metadata_cache[code] = metadata
     
     def _load_all_codes(self) -> None:
         """加载全量股票代码数据"""
@@ -201,36 +172,19 @@ class StockMetadataManager:
         return ''
     
     def get_stock_info(self, code: str) -> Optional[StockMetadata]:
-        """
-        获取股票完整信息
-        
-        Args:
-            code: 股票代码
-            
-        Returns:
-            StockMetadata: 股票元数据，不存在返回None
-        """
         if not self._loaded:
             self.load()
-        
         clean_code = code.replace('.SH', '').replace('.SZ', '').replace('.BJ', '')
-        
         for suffix in ['', '.SH', '.SZ', '.BJ']:
             lookup_code = clean_code + suffix
             if lookup_code in self._metadata_cache:
                 return self._metadata_cache[lookup_code]
-        
         return None
-    
+
     def get_name(self, code: str) -> Optional[str]:
         """获取股票名称"""
         info = self.get_stock_info(code)
         return info.name if info else None
-    
-    def get_sector(self, code: str) -> Optional[str]:
-        """获取所属板块"""
-        info = self.get_stock_info(code)
-        return info.sector if info else None
     
     def get_ipo_date(self, code: str) -> Optional[date]:
         """获取IPO日期"""
@@ -283,24 +237,6 @@ class StockMetadataManager:
         if not self._loaded:
             self.load()
         return list(self._metadata_cache.keys())
-    
-    def get_codes_by_sector(self, sector: str) -> List[str]:
-        """
-        获取指定板块的所有股票代码
-        
-        Args:
-            sector: 板块名称
-            
-        Returns:
-            List[str]: 股票代码列表
-        """
-        if not self._loaded:
-            self.load()
-        
-        return [
-            code for code, meta in self._metadata_cache.items()
-            if meta.sector == sector
-        ]
     
     def get_active_stocks(self, as_of: Optional[date] = None) -> List[str]:
         """

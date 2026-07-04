@@ -6,6 +6,8 @@ from typing import Any, Dict, List, Optional
 import numpy as np
 import pandas as pd
 
+from ...shared.cost_model import calculate_sharpe_ratio
+
 
 @dataclass
 class TradeRecord:
@@ -111,7 +113,7 @@ class BacktestResult:
             if self.daily_returns:
                 returns = np.array(self.daily_returns)
                 if len(returns) > 1 and np.std(returns) > 0:
-                    self.sharpe_ratio = np.mean(returns) / np.std(returns) * np.sqrt(252)
+                    self.sharpe_ratio = calculate_sharpe_ratio(returns, period_days=1)
 
                 trading_days = len(returns)
                 if trading_days > 0:
