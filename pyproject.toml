@@ -57,6 +57,7 @@ where = ["src"]
 testpaths = ["tests"]
 python_files = ["test_*.py"]
 addopts = "-q --cov=src/uniquant --cov-fail-under=50 --cov-report=term-missing"
+norecursedirs = ["archive", ".*", "build", "dist", "node_modules"]
 
 [tool.mypy]
 strict = false

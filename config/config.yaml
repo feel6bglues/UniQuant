@@ -3,10 +3,11 @@
 
 # 基础配置
 base:
+  # 数据源配置
   data_lake:
     path: "data/lake"
     compression: "snappy"
-    engine: "duckdb"
+    engine: "duckdb"  # NOTE: StorageManager uses parquet/pandas; duckdb engine not yet consumed (#TODO: phase-in)
   
   logging:
     level: "INFO"
@@ -117,37 +118,78 @@ network:
     client_cert: null         # 客户端证书路径
     client_key: null          # 客户端密钥路径
 
+# 多周期数据配置
+multi_period:
+  # 周线/月线合成配置（从日线数据聚合）
+  synthetic:
+    weekly:
+      enabled: true
+      source: "daily"
+      agg_rules:
+        open: "first"
+        high: "max"
+        low: "min"
+        close: "last"
+        volume: "sum"
+        amount: "sum"
+    monthly:
+      enabled: true
+      source: "daily"
+      agg_rules:
+        open: "first"
+        high: "max"
+        low: "min"
+        close: "last"
+        volume: "sum"
+        amount: "sum"
+
+  # 分钟线数据源配置（需要TDX本地数据或AkShare在线数据）
+  intraday:
+    1min:
+      enabled: false
+      source: "tdx"        # 可选: tdx, akshare
+      tdx_path: "/home/james/.local/share/tdxcfv/drive_c/tc"  # 通达信分钟线数据路径
+      note: "TDX stores 1min K-line under export/ directory; use tdx.get_security_bars(1, ...)"
+    5min:
+      enabled: false
+      source: "tdx"
+      tdx_path: "/home/james/.local/share/tdxcfv/drive_c/tc"
+      note: "TDX stores 5min K-line under export/ directory; use tdx.get_security_bars(5, ...)"
+
 # 数据源配置
 data_sources:
   # 数据源配置
   sources:
-    # 新合并数据源 - 优先使用
+    # 新合并数据源 - NOT YET IMPLEMENTED (no files under data/sources/)
     StockDataSource:
       class: data.sources.stock_sources.StockDataSource
       priority: 1
       timeout: 10
-      enabled: true
+      enabled: false  # NOT YET IMPLEMENTED
       config:
         retry_times: 3
         retry_delay: 1.0
-    
+      note: "stock_sources.py does not exist — placeholder for future refactor"
+
     IndexDataSource:
       class: data.sources.index_sources.IndexDataSource
       priority: 2
       timeout: 10
-      enabled: true
+      enabled: false  # NOT YET IMPLEMENTED
       config:
         retry_times: 3
         retry_delay: 1.0
-    
+      note: "index_sources.py does not exist — placeholder for future refactor"
+
     EtfDataSource:
       class: data.sources.etf_sources.EtfDataSource
       priority: 3
       timeout: 10
-      enabled: true
+      enabled: false  # NOT YET IMPLEMENTED
       config:
         retry_times: 3
         retry_delay: 1.0
+      note: "etf_sources.py does not exist — placeholder for future refactor"
     
     # 传统数据源 - 已禁用
     BaoStockSource:
@@ -194,6 +236,7 @@ data_sources:
       config:
         retry_times: 3
         retry_delay: 1.0
+      note: "efinance.py does not exist — placeholder for future refactor"
     
     ThsSource:
       class: data.sources.ths.ThsSource

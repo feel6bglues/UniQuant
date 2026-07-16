@@ -1,0 +1,92 @@
+name: Benchmark
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[all]"
+      - name: Run benchmark smoke test
+        run: |
+          python -c "
+          import time, uniquant
+          start = time.time()
+          from uniquant.services import ServiceContainer
+          sc = ServiceContainer()
+          sc.initialize()
+          elapsed = time.time() - start
+          print(f'Container init: {elapsed:.3f}s')
+          assert elapsed < 30, f'Init too slow: {elapsed:.3f}s'
+          "
+      - name: Benchmark backtest engine
+        run: |
+          python -c "
+          import time, numpy as np, pandas as pd
+          from uniquant.hands.backtest.unified_engine import UnifiedBacktestEngine
+          from uniquant.shared.interfaces import TradingSignal
+
+          n = 1000
+          dates = pd.bdate_range('2024-01-01', periods=n)
+          df = pd.DataFrame({
+              'date': dates,
+              'open': np.random.uniform(9, 11, n),
+              'high': np.random.uniform(10, 12, n),
+              'low': np.random.uniform(8, 10, n),
+              'close': np.random.uniform(9, 11, n),
+              'volume': np.random.randint(100000, 10000000, n).astype(float),
+              'pre_close': np.random.uniform(9, 11, n),
+              'avg_daily_volume': np.full(n, 5000000.0),
+          })
+          signals = [
+              TradingSignal(action='BUY', reason='test', confidence=0.8, shares=100,
+                            symbol='000001', timestamp=dates[0]),
+              TradingSignal(action='SELL', reason='test', confidence=0.9,
+                            symbol='000001', timestamp=dates[n//2]),
+          ]
+
+          start = time.time()
+          engine = UnifiedBacktestEngine(initial_capital=100_000)
+          for _ in range(10):
+              engine.run(df, signals, symbol='000001')
+          elapsed = time.time() - start
+          print(f'10 backtest runs: {elapsed:.3f}s')
+          assert elapsed < 30, f'Backtest too slow: {elapsed:.3f}s'
+          "
+      - name: Benchmark matching engine
+        run: |
+          python -c "
+          import time, numpy as np
+          from uniquant.hands.backtest.unified_matching_engine import UnifiedMatchingEngine
+
+          n = 10000
+          engine = UnifiedMatchingEngine()
+
+          prices = np.random.uniform(9, 11, n).astype(np.float64)
+          shares = np.full(n, 100, dtype=np.int64)
+          cash = np.full(n, 100_000, dtype=np.float64)
+          pre_closes = np.random.uniform(9, 11, n).astype(np.float64)
+          symbols = np.array(['000001'] * n)
+          timestamps = np.array(['2024-01-22'] * n, dtype='datetime64[ns]')
+          volumes = np.full(n, 1_000_000, dtype=np.float64)
+          avg_daily = np.full(n, 2_000_000, dtype=np.float64)
+
+          start = time.time()
+          for _ in range(10):
+              engine.fill_buy(prices, shares, cash, pre_closes, symbols, timestamps, volumes, avg_daily)
+          elapsed = time.time() - start
+          print(f'10 matching runs (n={n}): {elapsed:.3f}s')
+          assert elapsed < 30, f'Matching too slow: {elapsed:.3f}s'
+          "
