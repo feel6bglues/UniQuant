@@ -1,97 +1,110 @@
-# Phase 9 — 最终建议路线图
+# Phase 9 — 最终建议路线图 (v2.0)
 
-> 日期: 2026-06-30 | 基于 Phase 0-8 审计结论
+> 日期: 2026-07-06 (roadmap) / 2026-07-09 (live system map corrections)
+> 基于 Phase A-K v2.0 深度审计结论 + Phase I live system map 验证
+> **纠正项**: Wyckoff 76→40, signal/db 0%→93%, eastmoney 1094→3, 源文件 251→256, LOC 62,300→62,465, 测试 1,461→1,591
 
 ---
 
-## 当前评级总览
+## 当前评级总览 (v2.0)
 
 | Phase | 领域 | 评级 |
 |---|---|---|
-| 0 | 基线审计 | ✅ 1426 pass / 5 pre-existing |
-| 1 | 工作树分析 | ✅ 46 文件提交, 3 stash |
-| 2 | 引擎正确性 | A- (7/8 引擎 A 级, Wyckoff B⚠️) |
-| 3 | 回测信任 | A- (7 防线全部通过) |
-| 4 | 数据管道 | B+ (架构好, 轻度碎片化) |
-| 5 | 信号系统 | A (8 适配器, 仲裁逻辑清晰) |
-| 6 | 工程健康 | A- (低技术债, 29 lint, 5 TODO) |
-| 7 | 生产就绪 | B+ (安全好, 可观测待增强) |
-| 8 | 治理测试 | B+ (测试好, CI/CD 缺失) |
+| A | 代码质量 | Fair (3.0/5) — 116 处重复, Wyckoff 复杂度 40 (class total 285), hands 层 5 处非法反向依赖 |
+| B | 测试质量 | Fair (2.0/5) — mutmut 基线运行失败, 56 测试无 assert (47 用 raises, 9 真弱), 无击杀率基线 |
+| C | 数据质量 | B+ (3.5/5) — 5934/5934 100% 可读, 28 天延迟, 5542 .tmp.lock 残留 |
+| D | 引擎正确性 | B+ (3.8/5) — 2 致命 BUG(FSM/Wyckoff), 3 次要, 7 引擎全量采样 0 错误 |
+| E | 回测信任 | B+ (3.5/5) — 7 防线全部 PASS, 缺敏感性扫描和 A 股基准 |
+| F | 信号系统 | A- (3.8/5) — signal/db.py 93% 覆盖 (35 tests), 适配器层 29% 覆盖 |
+| G | 性能 | A- (4.0/5) — I/O 64.4MB/s, GIL 限制 ThreadPoolExecutor |
+| H | 安全 | B+ (3.5/5) — 0 严重, 1 高危 eastmoney SSL verify=False |
+| I | 可观测性 | C (2.0/5) — 指标系统 F 级完全缺失 |
+| J | 综合评分 | **3.29/5.0 — B (有条件就绪)** |
 
 ---
 
 ## 建议优先级
 
-### P0 (立即处理)
+### P0 — 立即修复 (5 项)
 
-| 项目 | 文件 | 类型 |
+| 项目 | 来源 | 类型 | 预估工时 |
+|---|---|---|---|
+| 修复 FSM 空 DataFrame `df.iloc[-1]` IndexError 崩溃 | Phase D | Bug | 1h |
+| 修复 Wyckoff Inf 数据 OverflowError 崩溃 (WYCKOFF_RECOVERABLE_ERRORS 缺 OverflowError) | Phase D | Bug | 1h |
+| 修复 eastmoney.py:76 SSL verify=False | Phase H | 安全 | 0.5h |
+| ~~添加 signal/db.py 测试覆盖~~ ✅ 已完成 (35 tests) | Phase F | 测试 | 4h |
+| 添加 Prometheus/OpenTelemetry 指标暴露 | Phase I | 可观测 | 8h |
+
+### P1 — 本周修复 (8 项)
+
+| 项目 | 来源 | 类型 |
 |---|---|---|
-| 修复 `macro_service.py:214` 未定义 `datetime` | `src/.../macro_service.py` | Bug |
-| 添加 CI 配置 (GitHub Actions) | — | 基础设施 |
-| 设置测试覆盖率门禁 (80%) | `pyproject.toml` | 测试 |
+| 清理 .tmp.lock 文件残留 (5542 个) | Phase C | 运维 |
+| 修复 mutmut 路径错位 (config_loader.py _root_dir 在 mutants/src/ 下失效) | Phase B | 测试 |
+| ProcessPoolExecutor 替代 ThreadPoolExecutor (GIL 加速 3-6x) | Phase G | 性能 |
+| 添加 Adapter 层单元测试 (当前仅 NTFAdapter 29% 覆盖) | Phase F | 测试 |
+| 清理 116 处重复代码块 (data/sources 间 78 行优先) | Phase A | 重构 |
+| 添加滑点/费用敏感性扫描到回测 | Phase E | 回测 |
+| TradingSignal 添加 to_dict() 序列化方法 | Phase F | 功能 |
+| 集成 A 股基准指数到回测结果 | Phase E | 功能 |
 
-### P1 (本周)
+### P2 — 本月修复 (10 项)
+
+| 项目 | 来源 | 类型 |
+|---|---|---|
+| WyckoffEngine._step1_phase_determine 圈复杂度 40 → ≤20 拆分 | Phase A | 重构 |
+| hands 层 5 处非法反向依赖 (hands→data/brain) | Phase A | 重构 |
+| LPPL Inf 数据假阳性 (confidence=0.6 Danger) | Phase D | Bug |
+| Regime 引擎接口不匹配 (string 符号 vs DataFrame) | Phase D | Bug |
+| CZSC fallback 4 处 TODO 接线 | Phase D | 功能 |
+| 配置 schema 验证 (Pydantic) | Phase A | 健壮性 |
+| 统一 board_type 注册表 (双系统合并) ✅ 已完成 via board_registry.py | Phase K | 重构 |
+| 数据延迟从 28 天降至 <1 天 | Phase C | 运维 |
+| 添加 E2E 测试 (Pipeline→Brain→Signal→Backtest) ✅ 已完成 (task #33) | Phase B | 测试 |
+| 数据湖高频数据接入 (分钟/周/月线) | Phase C | 数据 |
+
+### P3 — Q3 目标 (8 项)
 
 | 项目 | 类型 |
 |---|---|
-| ~~删除 `DataIngestionService` 僵尸代码~~ | ✅ `bc6337bc` |
-| 统一 `all_stock_codes.csv` / `stock_list.csv` | 数据 |
-| 添加 `ruff check --fix` 修复 20 个 F401 未使用 import | Lint |
-| 添加健康检查端点 `ServiceContainer.health()` | 运维 |
-
-### P2 (未来 2 周)
-
-| 项目 | 类型 |
-|---|---|
-| 添加 E2E 测试 (Pipeline → Brain → Signal → Backtest) | 测试 |
-| 修复 5 个 pre-existing 测试失败 | 测试 |
-| 拆分 `eastmoney.py` (1090 LOC) | 重构 |
-| 添加配置 schema 验证 (Pydantic) | 健壮性 |
-| 添加 Prometheus/OpenTelemetry 指标 | 可观测 |
-
-### P3 (未来 1-2 月)
-
-| 项目 | 类型 |
-|---|---|
-| 添加性能基准测试 | 测试 |
-| 添加 CODEOWNERS | 治理 |
-| 替换 `limit_checker.get_board_type()` / `detect_board()` 为统一注册表 | 重构 |
-| 集成 `SlippageModel` 抽象类到引擎 | 一致性 |
-| 添加无风险利率参数到 `BacktestResult.sharpe` | 正确性 |
+| 变异测试击杀率基线 ≥80% | 测试 |
+| CODEOWNERS + PR 模板 | 治理 |
+| 替换 rate limiting 为强制配置 | 安全 |
+| 性能基准测试 CI 集成 | 测试 |
+| 清理 12 处 100% 置信度死代码 | 重构 |
+| Grafana 仪表盘配置 | 可观测 |
+| 覆盖门禁 50% → 60% → 70% → 80% 阶梯提升 | 测试 |
+| 所有模块裸 except 和过度捕获清理 | 异常处理 |
 
 ---
 
-## 架构改进建议
+## 架构改进建议 (v2.0 新增)
 
-### 1. 统一板块类型注册表
-当前两个识别路径 (`limit_checker.get_board_type()` + `market_rules.detect_board()`) 独立。
-建议创建 `BoardTypeRegistry` 作为单一真相源, 所有组件从此引用。
+### 5. ProcessPoolExecutor 替代 ThreadPoolExecutor
+`run_batch()` 使用 `ThreadPoolExecutor` 受 GIL 限制。在纯 CPU 密集型引擎计算场景，`ProcessPoolExecutor` 可提供 3-6x 加速。需注意进程间 `ServiceContainer` 实例隔离。
 
-### 2. 适配器自动发现
-`TradingSignalCollector.collect()` 手动列出 8 个引擎提取方法。建议改为
-通过 `AdapterRegistry` 自动发现已注册的引擎方法。
+### 6. Adapter 层测试覆盖率门禁
+当前仅 NTFAdapter 有单元测试 (29%)。建议对 8 个 Adapter 每个增加至少 3 个测试用例（正常/边界/异常），目标 ≥80%。
 
-### 3. 仓位计算标准化
-当前仓位计算分布在 `SignalArbitrator.arbitrate_candidates()` (使用 `PositionSizerProtocol`)
-和 `UnifiedBacktestEngine._execute_buy()` (硬编码 lot 取整)。建议统一仓位策略。
+### 7. signal/db.py 持久化层守卫
+315 行 93% 覆盖的持久化层 (35 tests)是生产环境最高风险点。建议: (1) 添加完整 CRUD 测试 (2) 添加连接池超时/重试 (3) 添加事务保护。
 
-### 4. 配置 schema 验证
-当前配置 (`config.yaml`) 无 schema 验证。建议添加 Pydantic model 验证,
-捕获缺失/类型错误的配置项在初始化时, 而非运行时。
+### 8. 异常处理标准化
+Phase A 发现 1 处裸 except (research_pipeline.py:237)、hands 层 64% except Exception 过度捕获、data 层 49%。建议制定异常处理规范: 顶层捕获、区分可恢复/不可恢复、各层异常互见。
 
 ---
 
 ## 最终结论
 
-UniQuant 是一个 **成熟的 A 股量化研究平台**:
+UniQuant v2.0 深度审计完成:
 
-- **254 源文件, 62,389 LOC** — 规模适中
-- **1,435 测试, 99.4% 通过** — 测试覆盖充足
-- **8 引擎, 7 防线, 5 源路由** — 架构鲁棒
-- **5 TODO, 29 lint, 0 FIXME** — 技术债务极低
+- **256 源文件, 62,465 LOC** — 规模稳定
+- **1,591 测试, 1,666 通过 (99.8%)** — 测试覆盖充足
+- **综合评分 3.29/5.0 — B (有条件就绪)**
+- **阻塞条件**: 5 项 P0 修复 + 指标系统 + signal/db.py 覆盖
 
-**当前就绪状态: Beta → 生产过渡期**
+**当前就绪状态: Beta → 生产过渡期 (v2.0)**
 
-核心量化逻辑 (引擎 + 回测 + 信号) 已达到生产质量。
-主要缺口在运维基础设施 (CI/CD, 健康检查, 指标, 日志聚合)。
-填补这些缺口后, 可称为生产就绪。
+核心量化逻辑 (引擎 + 回测 + 信号) 评级 B+ ~ A-。
+阻塞生产就绪的 5 项 P0 修复预计 15 工时可完成。
+修复后预估评级升至 **4.0/5.0 — A- (建议实盘)**。

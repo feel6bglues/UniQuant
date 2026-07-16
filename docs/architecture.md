@@ -1,6 +1,6 @@
 # UniQuant 系统架构文档
 
-> **⚠️ 部分文件路径已过时**: 此文档中的文件路径树（§文件结构）基于早期模块布局。自 Phase 0-3 重构后，部分文件已重命名（如 `analysis_service.py` → `analysis_service_v2.py`）或重组（如 `constants.py` → `constants/` 子包, `czsc_engine.py` → `czsc/` 子包）。整体架构描述仍然有效。
+> **⚠️ 部分内容已过时**: 此文档中的文件路径树（§文件结构）基于早期模块布局。自 Phase 0-6 重构后，部分文件已重命名/重组。**2026-07-10 更新**: 要点修正见 `docs/reanalysis/I_live_system_map.md`，含实际文件计数（256 文件 / 62,549 LOC / 1,673 测试）和 ~2,298 LOC 死代码/归档清单。主要过时点: (1) `price_collar.py` 已归档（零生产调用）; (2) `slippage_model.py:DynamicSlippage` 默认回测路径未实例化; (3) `analysis_service.py` 已拆分为 `v2` (活跃) + `legacy` (1649 LOC 已归档)。整体架构描述基本有效。
 
 本文档详细描述 UniQuant 量化交易平台的整体架构设计、核心组件、数据流转以及关键设计决策。
 
@@ -95,7 +95,7 @@ UniQuant 采用四层架构，自下而上分别为基础设施层、数据层�
 
 **分析层 (`brain/` + `signal/` + `risk/`)**
 
-核心量化分析引擎层。`brain/` 包含 10 个分析子模块（FSM、CZSC、LPPL、Regime、NTF、Wyckoff、AlphaDecoupler、Factors、Indicators、Screener）。`signal/` 负责信号归一化、聚合和质量评估。`risk/` 提供风险度量（回撤分析、极值理论、结构性风险）和仓位管理。
+核心量化分析引擎层。`brain/` 包含 9 个延迟加载分析引擎（FSM、CZSC、LPPL、Regime、NTF、Macro、Report、Wyckoff、Brain/Decision）及 Indicators、Factors、Screener。`signal/` 负责信号归一化、聚合和质量评估。`risk/` 提供风险度量（回撤分析、极值理论、结构性风险）和仓位管理。
 
 **应用层 (`hands/` + `services/` + `ui/`)**
 
@@ -277,7 +277,7 @@ class AnalysisEngineFactory:
 
 | 属性名 | 引擎类 | 模块路径 | 功能描述 |
 |--------|--------|----------|----------|
-| `fsm` | `FsmAnalysisEngine` | `analysis.fsm_analysis_engine` | 有限状态机分析，基于均线状态判断市场趋势 |
+| `fsm` | ~~`FsmAnalysisEngine`~~ | `analysis.fsm_analysis_engine` | ⚠️ V2 管道未调用此引擎，由 DecisionBrain 替代 |
 | `czsc` | `CzscAnalysisEngine` | `analysis.czsc_analysis_engine` | 缠中说禅分析，笔/段/中枢识别与买卖点判定 |
 | `lppl` | `LpplAnalysisEngine` | `analysis.lppl_analysis_engine` | 对数周期幂律模型，泡沫检测与崩盘预警 |
 | `regime` | `RegimeAnalysisEngine` | `analysis.regime_analysis_engine` | 市场状态检测（NORMAL/STRESSED/FROZEN） |
@@ -1000,7 +1000,7 @@ src/uniquant/
   risk/             # 分析层 - 风险
     drawdown_analyzer.py  # 回撤分析
     evt_risk.py           # 极值理论风险
-    historical_risk.py    # 历史风险度量
+    # historical_risk.py — 不存在 (已移除)
     portfolio_optimizer.py# 组合优化
     sizer.py              # 仓位管理
     structural.py         # 结构性风险
@@ -1026,7 +1026,7 @@ src/uniquant/
   services/         # 应用层 - 服务编排
     service_container.py  # DAG 依赖注入容器
     data_service.py       # 数据服务
-    analysis_service.py   # 分析服务
+    analysis_service_v2.py   # 分析服务 (V2 活跃) — legacy 版本已归档为 analysis_service_legacy.py (1,649 LOC 死代码)
     analysis/             # 分析引擎适配层
       engine_factory.py   #   延迟加载工厂
       fsm_analysis_engine.py

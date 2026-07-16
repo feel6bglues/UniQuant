@@ -1,13 +1,15 @@
 # Phase 6 — 工程健康度审计
 
-> 日期: 2026-06-30 | 方法: 静态分析 + 导入测试 + lint + 代码规模追踪
+> 日期: 2026-06-30 (base) / 2026-07-09 (corrected)
+> 方法: 静态分析 + 导入测试 + lint + 代码规模追踪
+> **纠正项**: eastmoney.py 已拆分为 4 文件; 文件数 254→256; 测试 1,435→1,666; 5 失败→0
 
 ---
 
 ## 报告摘要
 
-代码库工程健康度良好: 1435 测试收集, 仅 29 个 ruff 问题 (20 可自动修复),
-5 个 TODO (全库), 8 层导入通过, 254 源文件 / 62,389 LOC。
+代码库工程健康度良好: 1,666 测试通过, 仅 29 个 ruff 问题 (20 可自动修复),
+5 个 TODO (全库), 8 层导入通过, 256 源文件 / 62,465 LOC。
 
 **健康评级: A-** (低技术债, 高可维护性)
 
@@ -46,7 +48,7 @@
 | `risk` | 7 | × |
 | `services` | 32 | × |
 | `ui` | 8 | × |
-| **总计** | **254** | **62,389** |
+| **总计** | **256** | **62,465** |
 
 ---
 
@@ -54,21 +56,15 @@
 
 | 指标 | 值 |
 |---|---|
-| 测试文件 | 120 |
-| 测试函数 | 1,435 |
-| Passing | 1,426 (99.4%) |
-| Failed | 5 (pre-existing) |
+| 测试文件 | 126 |
+| 测试函数 | 1,666 |
+| Passing | 1,666 (100%) |
+| Failed | 0 |
 | Skipped | 8 |
 
-### Pre-existing 失败 (5)
+### Pre-existing 失败 ✅ 全部已修复 (bc6337bc)
 
-1. `survivorship_warning::test_metadata_trading_days_count`
-2. `test_unified_matching::test_limit_down_blocks_sell`
-3. `test_unified_matching::test_buy_no_stamp_duty`
-4. `test_unified_matching::test_min_commission_enforced`
-5. `test_unified_matching::test_buy_slippage_upward`
-
-**全部均为测试断言边界问题, 非引擎 bug。**
+所有 5 个 pre-existing 失败已在 bc6337bc 中修复, 当前 0 失败。
 
 ---
 
@@ -89,8 +85,8 @@
 `datetime.timedelta` 引用缺少 `import datetime`。运行时可能崩溃。
 在其他文件中已正确导入 (如 `cost_model.py:15` `import datetime`), 但该文件缺少。
 
-### 2. `eastmoney.py` — 1090 行巨型类
-`data/sources/eastmoney.py:27` 自述 TODO, 建议拆分为 2-3 个文件。
+### 2. ~~`eastmoney.py` — 1090 行巨型类~~ ✅ 已完成重构
+`data/sources/eastmoney.py` 已拆分为 4 个文件: `eastmoney.py` (3 LOC, re-export only), `eastmoney_base.py`, `eastmoney_financial.py`, `eastmoney_quote.py`. 建议删除原 TODO 注释。
 
 ### 3. 无长期 TODO 标记
 仅 5 个 TODO 标记, 全库无 FIXME/HACK/XXX/BUG 标记。
@@ -106,4 +102,4 @@
 | 技术债标记 | A | 5 TODO, 无 FIXME/BUG/XXX |
 | 导入健康 | A | 8 层 + config + container 全部通过 |
 | 测试通过率 | A- | 99.4% (1426/1435) |
-| 文件规模 | B+ | 1 个巨型文件 (1090 LOC), 其余合理 |
+| 文件规模 | A- | 最大文件: analysis_service_legacy.py (1,649 LOC, 死代码), eastmoney 已拆分为 4 文件 |

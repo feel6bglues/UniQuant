@@ -2,7 +2,7 @@
 
 > Unified Quantitative Trading Platform for China A-share research, backtesting, and trading workflows.
 >
-> Updated: 2026-06-29. Phases 0-6 closure; audit_logs→archive, Phase 6 gaps closed, institutional closure review completed. See [Closure Review Report](analysis/institutional/17_institutional_closure_review_report.md) for P0/P1 status matrix. This page is a documentation state boundary. Prefer current source code and control documents over historical migration notes.
+> Updated: 2026-07-10. Phase A-K v2.0 deep audit completed, plus live system map (I_live_system_map.md) verifying all 256 source files against documented state. 5-round adversarial analysis completed: 256 files, 62,549 LOC, 1,606 test functions, 1,673 passing. See `docs/reanalysis/` for 16 reports total. This page is a documentation state boundary. Prefer current source code and control documents over historical migration notes.
 
 ---
 
@@ -12,10 +12,11 @@ Read these first when starting analysis or implementation:
 
 | Document | Status | Purpose |
 |---|---|---|
-| [Root AGENTS.md](../AGENTS.md) | Current | First project control context for agents. |
+| [Root AGENTS.md](../AGENTS.md) | Current | First project control context for agents. Updated 2026-07-09 with live system map ref. |
+| [Live System Map](reanalysis/I_live_system_map.md) | Current (2026-07-09) | Verified architecture: 256 files, dead code inventory, active bugs ranked, data path heat map. |
 | [Analysis Prompt Playbook](ANALYSIS_PROMPT_PLAYBOOK.md) | Current | Direct-call staged prompts for system analysis, checkpoints, artifacts, and validation. |
 | [Reshaping Logs Index](reshaping_logs/README.md) | Current | Controlled state-machine logs and audit sequence. |
-| [Status](STATUS.md) | ⚠️ Archived 2026-05-26 | Historical snapshot, does NOT reflect current 254-file codebase. |
+| [Status](STATUS.md) | ⚠️ Archived 2026-05-26 | Historical snapshot, does NOT reflect current 256-file codebase. |
 
 Historical docs in this folder are still useful, but many describe target architecture or pre-remediation gaps. If a package page says `data`, `signal`, or `hands` are missing, that statement is stale.
 
@@ -60,6 +61,22 @@ Use [Analysis Prompt Playbook](ANALYSIS_PROMPT_PLAYBOOK.md) to run staged analys
 | 5 | Signal system | `docs/analysis/05_signal_system.md` |
 | 6 | Backtest and matching | `docs/analysis/06_backtest_matching.md` |
 | 7 | Risk and live-readiness | `docs/analysis/07_risk_live_readiness.md` |
+
+### v2.0 Deep Audit (2026-07-06)
+
+| Phase | Topic | Artifact |
+|---|---|---|
+| A | Code quality audit | `docs/reanalysis/A_code_quality.md` |
+| B | Test quality audit | `docs/reanalysis/B_test_quality.md` |
+| C | Data reliability audit | `docs/reanalysis/C_data_quality.md` |
+| D | Engine runtime behavior | `docs/reanalysis/D_engine_behavior.md` |
+| E | Backtest trust audit | `docs/reanalysis/E_backtest_trust.md` |
+| F | Signal audit | `docs/reanalysis/F_signal_audit.md` |
+| G | Performance audit | `docs/reanalysis/G_performance.md` |
+| H | Security audit | `docs/reanalysis/H_security.md` |
+| I | Observability audit | `docs/reanalysis/I_observability.md` |
+| J | Scorecard | `docs/reanalysis/J_scorecard.md` |
+| K | Roadmap v2 | `docs/reanalysis/09_final_roadmap.md` |
 
 Each stage includes:
 

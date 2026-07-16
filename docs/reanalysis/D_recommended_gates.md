@@ -30,7 +30,7 @@
 | 当前门禁 | 50% (`pyproject.toml` `--cov-fail-under=50`) |
 | 当前实际 | 50.77% (余量 0.77pp) |
 | 建议路径 | 50% → 60% → 70% → 80% |
-| 阻断文件 | `signal/db.py` (0%, 真正风险), `perf.py` (0%) |
+| 阻断文件 | ~~`signal/db.py` (0%)~~ ✅ 35 tests, 93% coverage, `perf.py` (0%) |
 | 备注 | `price_collar.py` (32 行包装函数, 逻辑在 `market_rules.get_board_rule()` 中已测); `slippage_model.py` (44 行抽象死代码, 未接入任何引擎) — 这两个的 0% 不是风险 |
 
 ### G4. Import 链完整性

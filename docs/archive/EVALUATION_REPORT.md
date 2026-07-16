@@ -583,7 +583,7 @@ src/uniquant/
 
 | 包 | 文件 | 行数 |
 |----|------|------|
-| `data/` | 40+ 文件 (StorageManager, DataFetcher, SourceRouter, 7 数据源, 12 管理器, 3 管道, 6 导入服务, TDX 解析器, 7 utils, 4 脚本) | ~14000 |
+| `data/` | 40+ 文件 (StorageManager, DataFetcher, SourceRouter, 8 数据源, 12 管理器, 3 管道, 6 导入服务, TDX 解析器, 7 utils, 4 脚本) | ~14000 |
 | `brain/` | 15+ 文件 (indicators, NTF, Regime, Factors x8, screener, Wyckoff x11, LPPL x6) | ~7000 |
 | `hands/` | 19+ 文件 (BacktestEngine, UnifiedMatchingEngine, PortfolioEngine, MonteCarlo, OD, RC, SA, TradeAnalysis, 策略 x5, Reporter) | ~4700 |
 | `services/` | 12 文件 (DataService, CacheCoordinator, ScanService, PortfolioService, 4 分析引擎适配器, 2 signal 服务) | ~3000 |

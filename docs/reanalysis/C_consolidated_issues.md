@@ -11,8 +11,8 @@
 分析纪元: 6 个 (archive, analysis, institutional, reshaping_logs, reanalysis, 本报告)
 源报告:   10+ 份
 问题总数: 22 项
-已解决:    5 项 (bc6337bc)
-待处理:   17 项
+已解决:    7 项 (bc6337bc + BoardType P0.2 closed + signal/db 0% 报告错误纠正)
+待处理:   15 项
 ```
 
 ---
@@ -39,19 +39,19 @@
 | 当前实际 | 50.77% |
 | 目标 | 80% |
 | 风险 | 门禁几乎无意义 — 差 0.77% 即触发失败 |
-| 关键未覆盖路径 | `price_collar.py` (0%), `slippage_model.py` (0%), `perf.py` (0%), `signal/db.py` (0%) |
+| 关键未覆盖路径 | `price_collar.py` (0%), `slippage_model.py` (0%), `perf.py` (0%) — `signal/db.py` **93%（此前 0% 报告错误）** |
 
-### P0.2 板块类型双系统 (BoardType)
+### ~~P0.2 板块类型双系统 (BoardType)~~ ✅ CLOSED (2026-07-09)
 
 | 字段 | 值 |
-|---|---|
+|---|---|---|
 | 系统 A | `limit_checker.get_board_type()` → string: `'main'/'gem'/'sci_tech'/'beijing'/'st'` |
 | 系统 B | `market_rules.detect_board()` → `BoardType` enum: `MAIN_SH/MAIN_SZ/GEM/STAR/BEIJING/ST` |
 | 被引用 | A: 3 处 (unified_engine, matching_engine, limit_checker 自身); B: 2 处 (market_rules, shared/__init__) |
-| 当前一致性 | ✅ 所有测试代码语义一致 (已验证 6 个代码) |
-| 风险 | 修改一端忘改另一端 → A 股板块判断静默错误 |
-| 建议 | 创建 `BoardTypeRegistry` 统一注册表 |
-| 工作树 | 已添加 NOTE 注释警告双系统问题 (未提交) |
+| 当前一致性 | ✅ **已通过 `board_registry.py` 统一注册表解决** (116 LOC, unified BoardType API) |
+| 风险 | ✅ 已消除 — `board_registry.py` 提供双向映射 |
+| 建议 | ✅ 已实现 — `BoardTypeRegistry` 统一注册表 |
+| 工作树 | 已提交, `board_registry.py` 在 `shared/` 中 |
 
 ### P0.3 TradeCalendar 硬编码到期
 
@@ -102,14 +102,13 @@
 | 工作树 | `_load_stock_list()` 已删除 |
 | 剩余 | 确认 `stock_list.csv` 是否可删除或合并 |
 
-### P1.4 EastMoney 巨型文件
+### ~~P1.4 EastMoney 巨型文件~~ ✅ CLOSED
 
 | 来源 | `reanalysis/09_final_roadmap.md` P2 |
-|---|---|
-| 文件 | `src/uniquant/data/sources/eastmoney.py` |
-| 行数 | 1090 |
-| 文件中 TODO | 第 27 行: `TODO(refactor): 巨型类` |
-| 建议 | 拆分 17+ 方法为多个模块 |
+|---|---|---|
+| 文件 | ~~`src/uniquant/data/sources/eastmoney.py` (1090 LOC)~~ ✅ 已拆分为 4 模块: eastmoney.py (3 LOC re-export), eastmoney_base.py, eastmoney_financial.py, eastmoney_quote.py |
+| 原 TODO | 已处理 |
+| 建议 | ✅ 已完成 |
 
 ### P1.5 GitHub Actions CI 未含基线对比
 
