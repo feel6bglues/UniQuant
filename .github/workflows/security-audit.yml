@@ -1,0 +1,31 @@
+name: Security Audit
+
+on:
+  schedule:
+    - cron: "0 6 * * 1"   # 每周一早 6:00 UTC
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+jobs:
+  pip-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install pip-audit
+        run: pip install pip-audit
+      - name: Install project dependencies
+        run: pip install -e ".[all]"
+      - name: Run pip-audit
+        continue-on-error: true
+        run: pip-audit --local --desc
+      - name: Upload audit report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pip-audit-report
+          path: ~/.local/share/pip-audit/
+          retention-days: 30

@@ -21,6 +21,11 @@ jobs:
       - name: Install dependencies
         run: pip install -e ".[all]"
 
+      - name: Audit dependencies
+        run: |
+          pip install pip-audit
+          pip-audit --local
+
       - name: Lint with ruff
         run: ruff check src/uniquant/
 
