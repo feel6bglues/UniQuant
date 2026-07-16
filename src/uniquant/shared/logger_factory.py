@@ -3,12 +3,39 @@ Logger工厂模块
 提供统一的Logger创建和管理
 """
 
+import json
 import logging
 import logging.handlers
 import sys
 import threading
+import traceback
+from datetime import datetime
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Any, Dict, Optional
+
+
+class JsonFormatter(logging.Formatter):
+    """JSON log formatter for structured logging."""
+
+    def format(self, record: logging.LogRecord) -> str:
+        log_entry: Dict[str, Any] = {
+            "timestamp": datetime.fromtimestamp(record.created).isoformat(),
+            "level": record.levelname,
+            "name": record.name,
+            "message": record.getMessage(),
+            "module": record.module,
+            "function": record.funcName,
+            "line": record.lineno,
+        }
+        if record.exc_info and record.exc_info[0]:
+            log_entry["exception"] = {
+                "type": record.exc_info[0].__name__,
+                "value": str(record.exc_info[1]),
+                "traceback": "".join(traceback.format_exception(*record.exc_info)),
+            }
+        if hasattr(record, "extra_fields") and record.extra_fields:
+            log_entry.update(record.extra_fields)
+        return json.dumps(log_entry, ensure_ascii=False)
 
 
 class LoggerFactory:
@@ -62,6 +89,7 @@ class LoggerFactory:
         self.backup_count = config.get("base.logging.backup_count", 5)
         self.console_output = config.get("base.logging.console", True)
         self.file_output = config.get("base.logging.file", True)
+        self.json_format = config.get("base.logging.json_format", False) or config.get("observability.json_logging", False)
 
     def _setup_root_logger(self):
         """配置根Logger"""
@@ -72,7 +100,10 @@ class LoggerFactory:
         root_logger.handlers = []
 
         # 创建格式化器
-        formatter = logging.Formatter(self.log_format, self.date_format)
+        if self.json_format:
+            formatter = JsonFormatter()
+        else:
+            formatter = logging.Formatter(self.log_format, self.date_format)
 
         # 控制台处理器
         if self.console_output:

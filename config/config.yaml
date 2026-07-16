@@ -446,6 +446,18 @@ markets:
     - id: "399006.SZ"
       name: "创业板指"
 
+# 执行配置
+execution:
+  trading_enabled: true
+  kill_switch_reason: ""
+
+# 可观测性配置
+observability:
+  enabled: false
+  prometheus_port: 9100
+  json_logging: false
+  health_check_interval: 30
+
 # 风险配置
 risk:
   default_risk_pct: 0.1

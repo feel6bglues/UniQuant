@@ -1,12 +1,13 @@
 import json
 import time
-from ..shared.time_provider import get_time_provider
 from typing import Dict, List, Any
 
 import pandas as pd
 
 from ..shared.config_loader import get_config
+from ..shared.kill_switch import get_kill_switch
 from ..shared.logger_factory import get_logger
+from ..shared.time_provider import get_time_provider
 from .data_service import DataService
 from .analysis_service_v2 import AnalysisService
 from ..brain.fsm import DecisionBrain
@@ -99,11 +100,19 @@ class HealthService:
         except Exception as e:
             issues.append(f"Config validation error: {e}")
 
+        ks = get_kill_switch()
+        trading_enabled = not ks.is_killed
+        if ks.is_killed:
+            issues.append(f"Trading stopped by kill switch: {ks.reason}")
+
         ready = len(issues) == 0
         return {
             "status": "ready" if ready else "not_ready",
             "timestamp": get_time_provider().now().isoformat(),
             "issues": issues,
+            "trading_enabled": trading_enabled,
+            "kill_switch_active": ks.is_killed,
+            "kill_switch_reason": ks.reason,
             "cache_hit_ratio": self._cache_hit_ratio(),
             "last_fetch_times": dict(self._last_fetch_time),
         }

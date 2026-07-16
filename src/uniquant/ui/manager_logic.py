@@ -5,6 +5,7 @@ from typing import Any, Dict, List, Optional
 import pandas as pd
 
 from ..services.analysis_service_v2 import AnalysisService
+from ..shared.kill_switch import get_kill_switch
 from ..shared.time_provider import get_time_provider
 
 # Import New Services
@@ -518,6 +519,27 @@ class AssetManager:
 
     def export_report_to_pdf(self, file_path: str, output_path: Optional[str] = None) -> str:
         return self.report_service.export_report_to_pdf(file_path, output_path)
+
+    def is_trading_enabled(self) -> bool:
+        try:
+            from ..shared.config_loader import get_config
+            return get_config().get("execution.trading_enabled", True)
+        except Exception:
+            return True
+
+    def stop_trading(self, reason: str = "manual_override") -> None:
+        get_kill_switch().kill(reason)
+        from ..shared.config_loader import get_config
+        get_config().set("execution.trading_enabled", False)
+        get_config().set("execution.kill_switch_reason", reason)
+        logger.warning("TRADING STOPPED via kill switch: %s", reason)
+
+    def resume_trading(self) -> None:
+        get_kill_switch().reset()
+        from ..shared.config_loader import get_config
+        get_config().set("execution.trading_enabled", True)
+        get_config().set("execution.kill_switch_reason", "")
+        logger.info("Trading resumed after kill switch reset")
 
     def compare_reports(self, file_path1: str, file_path2: str) -> Dict[str, Any]:
         return self.report_service.compare_reports(file_path1, file_path2)

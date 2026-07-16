@@ -107,12 +107,6 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# --- 顶部退出按钮 ---
-# 使用Streamlit的原生按钮和状态管理
-if st.button("🚪 退出程序", key="exit_btn", help="点击退出Alpha-Tactician Pro"):
-    st.success("应用已停止。您可以关闭浏览器窗口。")
-    st.stop()
-
 # --- 侧边栏 ---
 st.sidebar.header("🚀 Alpha-Tactician Pro V1.0")
 st.sidebar.markdown("---")
@@ -299,6 +293,27 @@ def validate_date_range(start_date, end_date):
         raise ValueError("日期范围不能超过一年")
     return True
 
+
+# --- 顶部操作按钮 ---
+col_status, col_exit = st.columns([3, 1])
+with col_status:
+    try:
+        if asset_mgr.is_trading_enabled():
+            st.success("✅ 交易引擎运行中")
+        else:
+            st.error("🛑 交易已暂停 (紧急停止)")
+            if st.button("🟢 恢复交易", key="resume_btn", help="解除停止状态"):
+                asset_mgr.resume_trading()
+                st.rerun()
+    except Exception:
+        pass
+
+with col_exit:
+    if st.button("🚪 退出程序", key="exit_btn", help="点击退出Alpha-Tactician Pro"):
+        st.success("应用已停止。您可以关闭浏览器窗口。")
+        st.stop()
+
+st.markdown("---")
 
 # --- 主工作区 ---
 # Tabs are loaded on demand when selected

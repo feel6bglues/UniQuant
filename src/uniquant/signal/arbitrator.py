@@ -18,6 +18,7 @@ from typing import Dict, List, Optional, Tuple
 
 from ..shared.interfaces import CandidateSignal, DecisionOutput, MarketSignalContext, PositionSizerProtocol
 from ..shared.interfaces import TradingSignal
+from ..shared.kill_switch import get_kill_switch
 from ..shared.logger_factory import get_logger
 from ..shared.time_provider import get_time_provider
 
@@ -106,6 +107,10 @@ class SignalArbitrator:
             仲裁后的最终信号列表 (每日至多一个)
         """
         if not signals:
+            return []
+
+        if get_kill_switch().is_killed:
+            logger.info("All signals dropped: kill switch active (%s)", get_kill_switch().reason)
             return []
 
         now = get_time_provider().now()
@@ -282,6 +287,14 @@ class SignalArbitrator:
             return [], ArbitrationReport(
                 symbol=symbol, date="", candidates_count=0,
                 final_action="HOLD", final_reason="no candidates",
+            )
+
+        if get_kill_switch().is_killed:
+            return [], ArbitrationReport(
+                symbol=symbol, date="", candidates_count=len(candidates),
+                final_action="HOLD",
+                final_reason=f"kill_switch: {get_kill_switch().reason}",
+                veto_chain=[f"kill_switch={get_kill_switch().reason}"],
             )
 
         report = ArbitrationReport(

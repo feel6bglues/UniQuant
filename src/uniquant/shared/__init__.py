@@ -27,7 +27,23 @@ from .utils import (
     with_timeout,
 )
 
+from .kill_switch import KillSwitchError, SharedKillSwitch, get_kill_switch
+from .config_schema import AppConfig, ConfigValidationError
+from .secret_manager import SecretManager, get_secret_manager
+from .prometheus_metrics import MetricsRegistry, get_metrics, measure, ensure_prometheus_server
+
 __all__ = [
+    "KillSwitchError",
+    "SharedKillSwitch",
+    "get_kill_switch",
+    "AppConfig",
+    "ConfigValidationError",
+    "SecretManager",
+    "get_secret_manager",
+    "MetricsRegistry",
+    "get_metrics",
+    "measure",
+    "ensure_prometheus_server",
     # Utils
     "with_timeout",
     "safe_execute",
