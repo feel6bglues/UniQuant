@@ -496,7 +496,7 @@ def detect_all_events(df: pd.DataFrame) -> List[WyckoffEvent]:
     return all_events
 
 
-def event_sequence_key(events: List[WyckoffEvent], max_gap_days: int = 120) -> str:
+def event_sequence_key(events: List[WyckoffEvent], _max_gap_days: int = 120) -> str:
     """Summarize an event list as a sequence key (e.g. 'PS>SC>AR>ST').
 
     Only includes events within max_gap_days and with confidence > 0.3.

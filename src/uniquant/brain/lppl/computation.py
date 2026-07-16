@@ -70,8 +70,8 @@ def fit_single_window_task(args: Tuple[int, pd.Series, np.ndarray]) -> Optional[
             "r_squared": result["r_squared"],
             "last_date": last_date,
         }
-    except Exception as e:
-        logger.error("fit_single_window_task failed: %s", e)
+    except (ValueError, TypeError, KeyError) as e:
+        logger.error("fit_single_window_task failed: %s", e, exc_info=True)
         return None
 
 
@@ -220,7 +220,7 @@ class LPPLComputation:
                                 pass
                         except FuturesTimeoutError:
                             logger.warning("Task timeout for window %s", window)
-                        except Exception as e:
+                        except (ValueError, TypeError, KeyError, RuntimeError) as e:
                             logger.warning("Error processing window %s: %s", window, e)
 
         elapsed_time = time.time() - start_time
@@ -256,7 +256,7 @@ class LPPLComputation:
 
     @performance_monitor
     def run_computation(
-        self, data_dict: Dict[str, Dict[str, Any]], close_executor: bool = False
+        self, data_dict: Dict[str, Dict[str, Any]]
     ) -> List:
         if not data_dict:
             logger.warning("Empty data_dict provided")
@@ -290,7 +290,7 @@ class LPPLComputation:
                     all_report_data.extend(rows)
                     all_params_data.extend(params)
                     logger.info("Completed processing %s (%s)", name, symbol)
-            except Exception as e:
+            except (ValueError, TypeError, KeyError, RuntimeError) as e:
                 logger.error("Error processing %s (%s): %s", name, symbol, e)
 
         if all_report_data:

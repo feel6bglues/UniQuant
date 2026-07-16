@@ -46,7 +46,9 @@ def get_stamp_tax_pct(trade_date: datetime.date) -> float:
 
 
 def _has_transfer_fee(symbol: str) -> bool:
-    """沪市(60xxxx)收过户费，深市免收。"""
+    """沪市(60xxxx)收过户费，深市免收。
+    # 标量版。向量化版在 unified_matching_engine.py:186(buy),275(sell)
+    """
     return symbol.startswith("60")
 
 

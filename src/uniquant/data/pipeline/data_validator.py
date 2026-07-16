@@ -10,6 +10,7 @@ class DataValidator:
 
     def validate(self, df: pd.DataFrame) -> bool:
         """验证数据"""
+        df = df.copy()
         if df.empty:
             logger.warning("空DataFrame传入validate方法")
             return False

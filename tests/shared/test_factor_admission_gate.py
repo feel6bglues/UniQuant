@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from uniquant.shared.factor_governance import (
+from uniquant.shared.archive.factor_governance import (
     FactorAdmissionGate, FactorManifest, AdmissionResult, CheckResult,
 )
 

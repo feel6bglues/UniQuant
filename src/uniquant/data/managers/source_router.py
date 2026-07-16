@@ -229,7 +229,7 @@ class SourceRouter:
                 count += 1
         return count
 
-    def fetch_with_fallback(self, symbol: str, method: str = "fetch", **kwargs):
+    def fetch_with_fallback(self, symbol: str, **kwargs):
         last_error = None
         for adapter in self.adapters:
             try:

@@ -195,6 +195,52 @@ class TestSignalArbitrator:
         # Both have priority 99, so higher confidence wins (rule 2 before rule 3)
         assert result[0].confidence == 0.6
 
+    # ── SELL priority regardless of confidence ───────────────
+    def test_sell_priority_regardless_of_confidence(self):
+        arb = SignalArbitrator()
+        buy = _sig("BUY", "czsc_3rd_buy", 0.9)
+        sell = _sig("SELL", "lppl_exit", 0.1)
+        result = arb.arbitrate([buy, sell], symbol="000001.SZ")
+        assert len(result) == 1
+        assert result[0].action == "SELL"
+
+    # ── Quality gate (OOS R² filter) ─────────────────────────
+    def test_quality_gate_filters_low_quality_sell(self):
+        arb = SignalArbitrator(quality_threshold=0.2)
+        low = TradingSignal(
+            action="SELL", reason="lppl", confidence=0.8,
+            symbol="000001.SZ", timestamp=datetime.datetime(2024, 6, 1),
+            metadata={"out_of_sample_r_squared": 0.1},
+        )
+        buy = _sig("BUY", "czsc", 0.7)
+        result = arb.arbitrate([low, buy], symbol="000001.SZ")
+        assert len(result) == 1
+        assert result[0].action == "BUY"
+
+    def test_quality_gate_allows_high_quality_sell(self):
+        arb = SignalArbitrator(quality_threshold=0.2)
+        high = TradingSignal(
+            action="SELL", reason="lppl", confidence=0.8,
+            symbol="000001.SZ", timestamp=datetime.datetime(2024, 6, 1),
+            metadata={"out_of_sample_r_squared": 0.5},
+        )
+        buy = _sig("BUY", "czsc", 0.7)
+        result = arb.arbitrate([high, buy], symbol="000001.SZ")
+        assert len(result) == 1
+        assert result[0].action == "SELL"
+
+    # ── Timeout disabled ─────────────────────────────────────
+    def test_timeout_disabled_allows_aged_signals(self):
+        arb = SignalArbitrator(max_signal_age_seconds=0.0)
+        old = TradingSignal(
+            action="BUY", reason="czsc", confidence=0.8,
+            symbol="000001.SZ",
+            timestamp=datetime.datetime(2020, 1, 1),
+        )
+        result = arb.arbitrate([old], symbol="000001.SZ")
+        assert len(result) == 1
+        assert result[0].action == "BUY"
+
 
 class TestSignalArbitratorCandidateSignals:
     def test_empty_candidates(self):

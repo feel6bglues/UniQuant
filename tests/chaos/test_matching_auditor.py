@@ -314,7 +314,7 @@ class TestAsymmetricCosts:
         )
 
     def test_buy_commission_exact(self, engine):
-        """Verify exact buy commission: max(value * 0.03%, 5) + transfer_fee."""
+        """Verify exact buy commission: max(value * 0.03%, 5). SZ stocks have no transfer fee."""
         buy = engine.execute_buy(
             price=10.0, shares=1000, timestamp=datetime(2024, 1, 15),
             pre_close=10.0, symbol="000001.SZ",
@@ -323,13 +323,12 @@ class TestAsymmetricCosts:
         exec_price = buy.price
         value = exec_price * 1000
         expected_commission = max(value * COMMISSION_PCT, MIN_COMMISSION)
-        expected_total = expected_commission + value * TRANSFER_FEE_PCT
-        assert buy.commission == pytest.approx(expected_total, abs=0.01), (
-            f"Buy commission {buy.commission:.4f} != expected {expected_total:.4f}"
+        assert buy.commission == pytest.approx(expected_commission, abs=0.01), (
+            f"Buy commission {buy.commission:.4f} != expected {expected_commission:.4f}"
         )
 
     def test_sell_commission_includes_stamp_duty(self, engine):
-        """Verify sell commission = max(value * 0.03%, 5) + value * 0.05% + transfer_fee."""
+        """Verify sell commission = max(value * 0.03%, 5) + value * 0.05%. SZ stocks have no transfer fee."""
         _mock_trade_calendar(engine, [datetime(2024, 1, 15), datetime(2024, 1, 16)])
 
         engine.execute_buy(
@@ -345,11 +344,10 @@ class TestAsymmetricCosts:
         value = exec_price * 1000
         expected_commission = max(value * COMMISSION_PCT, MIN_COMMISSION)
         expected_stamp_duty = value * STAMP_TAX_PCT
-        expected_transfer = value * TRANSFER_FEE_PCT
-        expected_total = expected_commission + expected_stamp_duty + expected_transfer
+        expected_total = expected_commission + expected_stamp_duty
         assert sell.commission == pytest.approx(expected_total, abs=0.01), (
             f"Sell commission {sell.commission:.4f} != "
-            f"commission {expected_commission:.4f} + stamp {expected_stamp_duty:.4f} + transfer {expected_transfer:.4f}"
+            f"commission {expected_commission:.4f} + stamp {expected_stamp_duty:.4f}"
         )
 
     def test_minimum_commission_enforced(self, engine):

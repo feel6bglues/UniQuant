@@ -16,6 +16,8 @@
 from __future__ import annotations
 
 import concurrent.futures
+import threading
+
 import json
 import os
 import tempfile
@@ -24,6 +26,8 @@ from dataclasses import dataclass
 from datetime import date, datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
+
+import random
 
 import numpy as np
 import pandas as pd
@@ -142,6 +146,9 @@ class UnifiedResearchPipeline:
         self._time_provider = time_provider or RealTimeProvider()
         self._event_bus = event_bus
         self._metrics = metrics or InMemoryMetricsRecorder()
+        self._metrics_lock = threading.Lock()
+        self._event_bus_lock = threading.Lock()
+        self._save_lock = threading.Lock()
         self._max_workers = max_workers
         self._result_store = ResultStore(path=result_store_path or "./results")
 
@@ -234,7 +241,7 @@ class UnifiedResearchPipeline:
             tmp.write(json.dumps(data, default=_checkpoint_json_default, ensure_ascii=False))
             tmp.close()
             os.replace(tmp.name, str(path))
-        except:
+        except (OSError, PermissionError, json.JSONDecodeError):
             os.unlink(tmp.name)
             raise
 
@@ -268,7 +275,9 @@ class UnifiedResearchPipeline:
         symbol: str,
         name: Optional[str] = None,
         default_shares: int = 100,
+        seed: Optional[int] = None,
         trace_id: Optional[str] = None,
+        _local_metrics: Optional[InMemoryMetricsRecorder] = None,
     ) -> PipelineResult:
         """运行完整研报流水线
 
@@ -276,18 +285,25 @@ class UnifiedResearchPipeline:
             symbol: 股票代码 (如 "000001.SZ")
             name: 股票名称 (用于 ST 识别)
             default_shares: 默认交易股数
+            seed: 随机种子（可复现结果）
 
         Returns:
             PipelineResult 包含全链路输出
         """
+        if seed is not None:
+            np.random.seed(seed)
+            random.seed(seed)
+
         trace_id = trace_id or uuid.uuid4().hex
 
         bus = self._event_bus
-        metrics = self._metrics
+        bus_lock = self._event_bus_lock
+        metrics = _local_metrics or self._metrics
 
         with perf_section("pipeline.total", recorder=metrics):
             if bus is not None:
-                bus.publish(RunStarted(symbol=symbol, trace_id=trace_id))
+                with bus_lock:
+                    bus.publish(RunStarted(symbol=symbol, trace_id=trace_id))
 
             # Step 1-2: 运行 Brain 引擎分析
             with perf_section("pipeline.analysis", recorder=metrics):
@@ -300,7 +316,8 @@ class UnifiedResearchPipeline:
                 stock_df = dp.stock_df if isinstance(dp, ResearchDataPack) else dp.get("stock")
                 data_ok = bool(analysis.success and stock_df is not None)
                 rows = len(stock_df) if data_ok else 0
-                bus.publish(DataLoaded(symbol=symbol, success=data_ok, rows=rows))
+                with bus_lock:
+                    bus.publish(DataLoaded(symbol=symbol, success=data_ok, rows=rows))
 
             if not analysis.success:
                 bus_result = PipelineResult(
@@ -315,7 +332,8 @@ class UnifiedResearchPipeline:
                     metrics=metrics,
                 )
                 if bus is not None:
-                    bus.publish(RunCompleted(symbol=symbol, success=False))
+                    with bus_lock:
+                        bus.publish(RunCompleted(symbol=symbol, success=False))
                 return bus_result
 
             # Step 3: 收集信号
@@ -338,11 +356,12 @@ class UnifiedResearchPipeline:
                 )
 
             if bus is not None:
-                bus.publish(DecisionProduced(
-                    symbol=symbol,
-                    action=analysis.decision.get("action", "HOLD"),
-                    confidence=float(analysis.decision.get("confidence", 0.0)),
-                ))
+                with bus_lock:
+                    bus.publish(DecisionProduced(
+                        symbol=symbol,
+                        action=analysis.decision.get("action", "HOLD"),
+                        confidence=float(analysis.decision.get("confidence", 0.0)),
+                    ))
 
             # Step 3b: 信号仲裁 (特性开关控制)
             with perf_section("pipeline.arbitrate", recorder=metrics):
@@ -366,7 +385,8 @@ class UnifiedResearchPipeline:
                         )
 
             if bus is not None:
-                bus.publish(SignalsCollected(symbol=symbol, count=len(signals)))
+                with bus_lock:
+                    bus.publish(SignalsCollected(symbol=symbol, count=len(signals)))
 
             # Step 4: 回测撮合
             stock_df = data_pack.stock_df if isinstance(data_pack, ResearchDataPack) else data_pack.get("stock")
@@ -383,7 +403,8 @@ class UnifiedResearchPipeline:
                     metrics=metrics,
                 )
                 if bus is not None:
-                    bus.publish(RunCompleted(symbol=symbol, success=False))
+                    with bus_lock:
+                        bus.publish(RunCompleted(symbol=symbol, success=False))
                 return bus_result
 
             with perf_section("pipeline.backtest", recorder=metrics):
@@ -395,11 +416,12 @@ class UnifiedResearchPipeline:
                 )
 
             if bus is not None:
-                bus.publish(BacktestCompletedEvent(
-                    symbol=symbol,
-                    trades=backtest_result.total_trades,
-                    total_return=backtest_result.total_return,
-                ))
+                with bus_lock:
+                    bus.publish(BacktestCompletedEvent(
+                        symbol=symbol,
+                        trades=backtest_result.total_trades,
+                        total_return=backtest_result.total_return,
+                    ))
 
             logger.info(
                 f"Pipeline 完成: trace_id={trace_id} | {symbol} | "
@@ -418,15 +440,17 @@ class UnifiedResearchPipeline:
                 metrics=metrics,
             )
 
-            self._persist_result(result)
+            with self._save_lock:
+                self._persist_result(result)
 
         if bus is not None:
-            bus.publish(RunCompleted(
-                symbol=symbol,
-                success=True,
-                total_return=backtest_result.total_return,
-                total_trades=backtest_result.total_trades,
-            ))
+            with bus_lock:
+                bus.publish(RunCompleted(
+                    symbol=symbol,
+                    success=True,
+                    total_return=backtest_result.total_return,
+                    total_trades=backtest_result.total_trades,
+                ))
 
         return result
 
@@ -435,6 +459,7 @@ class UnifiedResearchPipeline:
         symbols: List[str],
         names: Optional[Dict[str, str]] = None,
         default_shares: int = 100,
+        seed: Optional[int] = None,
         checkpoint_dir: Optional[Path] = None,
         max_workers: Optional[int] = None,
     ) -> List[PipelineResult]:
@@ -481,10 +506,15 @@ class UnifiedResearchPipeline:
 
         def _run_single(symbol: str) -> PipelineResult:
             name = names.get(symbol) if names else None
+            local_metrics = InMemoryMetricsRecorder()
+            rng_state = np.random.get_state()
             try:
-                return self.run(symbol, name=name, default_shares=default_shares)
-            except Exception as e:
-                logger.error(f"Pipeline 失败: {symbol}: {e}")
+                return self.run(
+                    symbol, name=name, default_shares=default_shares,
+                    seed=None, _local_metrics=local_metrics,
+                )
+            except (ValueError, TypeError, KeyError, RuntimeError, OSError) as e:
+                logger.error(f"Pipeline 失败: {symbol}: {e}", exc_info=True)
                 return PipelineResult(
                     symbol=symbol,
                     data_pack={},
@@ -494,6 +524,15 @@ class UnifiedResearchPipeline:
                     success=False,
                     error=str(e),
                 )
+            finally:
+                np.random.set_state(rng_state)
+                with self._metrics_lock:
+                    for k, v in local_metrics._counters.items():
+                        self._metrics._counters[k] += v
+                    for k, vals in local_metrics._histograms.items():
+                        self._metrics._histograms[k].extend(vals)
+                    for k, v in local_metrics._gauges.items():
+                        self._metrics._gauges[k] = v
 
         result_map: Dict[str, PipelineResult] = {}
         with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
@@ -506,7 +545,8 @@ class UnifiedResearchPipeline:
                 result = future.result()
                 result_map[symbol] = result
                 if checkpoint_dir is not None:
-                    self._save_batch_checkpoint(result, checkpoint_dir)
+                    with self._save_lock:
+                        self._save_batch_checkpoint(result, checkpoint_dir)
 
         results.extend(result_map[s] for s in symbols if s not in completed)
         return results
@@ -521,7 +561,7 @@ class UnifiedResearchPipeline:
         try:
             data = json.loads(path.read_text(encoding="utf-8"))
             return UnifiedResearchPipeline._result_from_checkpoint_dict(data)
-        except Exception as e:
+        except (OSError, json.JSONDecodeError) as e:
             logger.warning(f"Failed to load checkpoint for {symbol}: {e}")
             return None
 
@@ -597,5 +637,5 @@ class UnifiedResearchPipeline:
                 metadata={"trace_id": result.trace_id},
             )
             self._result_store.save(result.symbol, record)
-        except Exception as e:
+        except (OSError, KeyError, TypeError) as e:
             logger.warning(f"Failed to persist result for {result.symbol}: {e}")

@@ -38,6 +38,15 @@ _CN_HOLIDAYS: Set[str] = {
     "2026-09-26", "2026-09-27", "2026-09-28",
     "2026-10-01", "2026-10-02", "2026-10-03", "2026-10-04",
     "2026-10-05", "2026-10-06", "2026-10-07",
+    "2027-01-01",
+    "2027-02-15", "2027-02-16", "2027-02-17", "2027-02-18",
+    "2027-02-19", "2027-02-20", "2027-02-21",
+    "2027-04-04", "2027-04-05",
+    "2027-05-01", "2027-05-02", "2027-05-03", "2027-05-04", "2027-05-05",
+    "2027-06-12", "2027-06-13", "2027-06-14",
+    "2027-09-19", "2027-09-20", "2027-09-21",
+    "2027-10-01", "2027-10-02", "2027-10-03", "2027-10-04",
+    "2027-10-05", "2027-10-06", "2027-10-07",
 }
 
 _CN_SPECIAL_WORKDAYS: Set[str] = {
@@ -50,6 +59,13 @@ _CN_SPECIAL_WORKDAYS: Set[str] = {
     "2025-02-08",
     "2025-09-28",
     "2025-10-11",
+    "2026-01-24",
+    "2026-02-14",
+    "2026-09-20",
+    "2026-10-10",
+    "2027-02-14",
+    "2027-09-26",
+    "2027-10-09",
 }
 
 class TradeCalendarManager:
@@ -88,6 +104,10 @@ class TradeCalendarManager:
                 os.makedirs(os.path.dirname(calendar_file), exist_ok=True)
                 df.to_csv(calendar_file, index=False, encoding="utf-8-sig")
                 self._akshare_calendar = set(df["trade_date"].astype(str).values)
+                for year in df["trade_date"].dt.year.unique():
+                    year_file = os.path.join(self.data_dir, f"trade_calendar_{year}.csv")
+                    year_df = df[df["trade_date"].dt.year == year]
+                    year_df.to_csv(year_file, index=False, encoding="utf-8-sig")
                 logger.info(
                     f"已通过 AkShare 自动更新交易日历 ({len(self._akshare_calendar)} 个交易日)"
                 )
@@ -115,10 +135,16 @@ class TradeCalendarManager:
             calendar = baostock.fetch_calendar(start_date=start_date, end_date=end_date)
             
             if not calendar.empty:
-                output_path = os.path.join(self.data_dir, "trade_calendar.csv")
-                os.makedirs(os.path.dirname(output_path), exist_ok=True)
-                calendar.to_csv(output_path, index=False, encoding='utf-8-sig')
-                logger.info(f"保存成功，文件大小: {os.path.getsize(output_path) / 1024:.2f} KB")
+                if 'trade_date' in calendar.columns:
+                    calendar['trade_date'] = pd.to_datetime(calendar['trade_date'])
+                    os.makedirs(self.data_dir, exist_ok=True)
+                    for year in calendar['trade_date'].dt.year.unique():
+                        year_file = os.path.join(self.data_dir, f"trade_calendar_{year}.csv")
+                        year_df = calendar[calendar['trade_date'].dt.year == year]
+                        year_df.to_csv(year_file, index=False, encoding='utf-8-sig')
+                    logger.info(f"按年保存成功 (共 {len(calendar)} 行, {calendar['trade_date'].dt.year.nunique()} 年)")
+                else:
+                    logger.error("创建交易日历失败，缺少 trade_date 列")
             else:
                 logger.error("获取交易日历失败，返回空数据")
                 
@@ -170,7 +196,16 @@ class TradeCalendarManager:
                 return date_str in self._trading_days_cache[year]
 
             if self._akshare_calendar is not None:
-                return date_str in self._akshare_calendar
+                if date_str in self._akshare_calendar:
+                    return True
+                # 检查 AkShare 是否包含该年份的数据
+                # 如果有该年份的日期但当前日期不在集合中 → 非交易日
+                # 如果没有该年份的数据 → 回退到硬编码假日表
+                year_prefix = str(year)
+                has_year_data = any(d.startswith(year_prefix) for d in self._akshare_calendar)
+                if has_year_data:
+                    return False
+                # 未覆盖的年份, 回退到硬编码假日表
 
             iso = date.isoformat()
             if iso in _CN_SPECIAL_WORKDAYS:

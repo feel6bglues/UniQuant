@@ -80,7 +80,7 @@ class AkShareWrapper:
                 try:
                     ak.set_option("use_ssl", True)
                     ak.set_option("timeout", 30)
-                except Exception as e:
+                except (ValueError, TypeError) as e:
                     logger.warning(f"Error setting AkShare options: {e}")
 
                 # 设置请求头
@@ -96,16 +96,13 @@ class AkShareWrapper:
                     try:
                         ak.set_headers(headers)
                         logger.info("已设置优化后的请求头")
-                    except Exception as e:
+                    except (ValueError, TypeError) as e:
                         logger.warning(f"Error setting AkShare headers: {e}")
 
             self._initialized = True
             logger.info("AkShare initialized successfully")
         except (ImportError, KeyError, ValueError, TypeError) as e:
             logger.error(f"Failed to initialize akshare: {e}")
-            self._initialized = False
-        except Exception as e:
-            logger.error(f"Unexpected error initializing akshare: {e}")
             self._initialized = False
 
     def is_initialized(self) -> bool:
@@ -213,11 +210,11 @@ class AkShareWrapper:
             self._update_method_stats(method_name, False)
             return None
         except Exception as e:
-            logger.error(f"Error calling ak.{method_name}: {e}")
+            logger.error(f"Error calling ak.{method_name}: {e}", exc_info=True)
             self._initialized = False
             self._update_method_stats(method_name, False)
             time.sleep(random.uniform(2, 5))
-            return None
+            raise
 
     def get_method_stats(self, method_name: Optional[str] = None) -> Dict[str, Any]:
         """

@@ -69,6 +69,8 @@ class ResultStore:
             tmp.close()
             os.replace(tmp.name, str(target))
         except BaseException:
+            # Intentional: cleanup temp file on any failure (incl. KeyboardInterrupt),
+            # then re-raise so the caller sees the original exception.
             os.unlink(tmp.name)
             raise
 

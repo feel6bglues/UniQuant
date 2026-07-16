@@ -459,12 +459,14 @@ class PortfolioSizer:
         if daily_pnl < -self._max_daily_loss:
             return PortfolioAllocation(remaining_cash=portfolio_equity)
 
+        import dataclasses
         capped = {}
         for sym, sig in signals.items():
             max_notional = portfolio_equity * self._max_single
             if sig.notional > max_notional:
-                sig.notional = max_notional
-            capped[sym] = sig
+                capped[sym] = dataclasses.replace(sig, notional=max_notional)
+            else:
+                capped[sym] = sig
 
         total_risk = sum(s.risk_amount for s in capped.values())
         if total_risk <= 0:

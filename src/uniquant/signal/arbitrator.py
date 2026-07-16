@@ -17,9 +17,9 @@ from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Tuple
 
 from ..shared.interfaces import CandidateSignal, DecisionOutput, MarketSignalContext, PositionSizerProtocol
-
 from ..shared.interfaces import TradingSignal
 from ..shared.logger_factory import get_logger
+from ..shared.time_provider import get_time_provider
 
 logger = get_logger(__name__)
 
@@ -34,6 +34,9 @@ ENGINE_PRIORITY: Dict[str, int] = {
     "alpha_score": 6,
     "ma_status": 7,
 }
+
+# 信号过期时间 (秒) — 0 表示不启用过期检查
+DEFAULT_MAX_SIGNAL_AGE_SECONDS: float = 0.0  # 0=禁用; 回测模式下应保持禁用，信号时间戳 vs 壁钟时间不匹配  # 默认禁用
 
 
 @dataclass
@@ -76,10 +79,12 @@ class SignalArbitrator:
         engine_priority: Optional[Dict[str, int]] = None,
         sell_priority: bool = True,
         quality_threshold: float = 0.3,
+        max_signal_age_seconds: float = DEFAULT_MAX_SIGNAL_AGE_SECONDS,
     ):
         self._priority = engine_priority or ENGINE_PRIORITY.copy()
         self._sell_priority = sell_priority
         self._quality_threshold = quality_threshold
+        self._max_signal_age_seconds = max_signal_age_seconds
         self._logs: List[ArbitrationLog] = []
 
     @property
@@ -103,8 +108,18 @@ class SignalArbitrator:
         if not signals:
             return []
 
+        now = get_time_provider().now()
         by_date: Dict[str, List[TradingSignal]] = {}
         for sig in signals:
+            # 信号超时检查
+            if sig.timestamp is not None and self._max_signal_age_seconds > 0:
+                age = (now - sig.timestamp).total_seconds()
+                if age > self._max_signal_age_seconds:
+                    logger.info(
+                        "Signal dropped (expired): age=%.1fs max=%.1fs for %s",
+                        age, self._max_signal_age_seconds, sig.reason,
+                    )
+                    continue
             key = (
                 str(sig.timestamp.date())
                 if sig.timestamp
@@ -142,15 +157,7 @@ class SignalArbitrator:
             self._logs.append(log)
             return None
 
-        if len(actionable) == 1:
-            winner = actionable[0]
-            log.selected_action = winner.action
-            log.selected_reason = winner.reason
-            log.selected_confidence = winner.confidence
-            self._logs.append(log)
-            return winner
-
-        # 规则 0: 质量阈值过滤 (P6.5)
+        # 规则 0: 质量阈值过滤 (P6.5) — 在任何仲裁之前进行
         if self._quality_threshold > 0.0:
             filtered = []
             for sig in actionable:
@@ -167,6 +174,20 @@ class SignalArbitrator:
                 else:
                     filtered.append(sig)
             actionable = filtered
+
+        if not actionable:
+            log.selected_action = "HOLD"
+            log.selected_reason = "no actionable signals after quality filter"
+            self._logs.append(log)
+            return None
+
+        if len(actionable) == 1:
+            winner = actionable[0]
+            log.selected_action = winner.action
+            log.selected_reason = winner.reason
+            log.selected_confidence = winner.confidence
+            self._logs.append(log)
+            return winner
 
         # 规则 1: SELL 优先于 BUY
         if self._sell_priority:
@@ -361,7 +382,8 @@ class SignalArbitrator:
                         symbol=symbol,
                     )
                     sized_shares = int(sized.get("suggested_shares", 100))
-                except Exception:
+                except Exception as e:
+                    logger.warning("Sizer sizing failed for %s: %s", symbol, e)
                     sized_shares = 100
                 report.final_action = "BUY"
                 report.final_reason = f"sizer approved: {best_non_fsm.source}"

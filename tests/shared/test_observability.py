@@ -96,8 +96,10 @@ class TestPerfSection:
         assert h["min"] > 0
 
     def test_perf_section_without_recorder(self):
-        with perf_section("noop"):
+        section_name = "noop"
+        with perf_section(section_name):
             pass
+        assert section_name == "noop"
 
     def test_perf_section_records_on_exception(self):
         m = InMemoryMetricsRecorder()

@@ -137,7 +137,7 @@ class AssetManager:
                 if df is not None and not df.empty:
                     etf_data.append({"code": etf, "close": df.iloc[-1]["close"], "volume": df.iloc[-1]["volume"], "date": str(df.iloc[-1]["date"])})
             return pd.DataFrame(etf_data)
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, RuntimeError, OSError) as e:
             logger.error(f"ETF扫描失败: {e}")
             return pd.DataFrame()
 

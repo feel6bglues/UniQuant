@@ -618,7 +618,7 @@ with tabs[2]:
                     ServiceContainer.instance().initialize()
                     _factory = ServiceContainer.instance().get("engine_factory")
                 czsc_engine = _factory.czsc if _factory else None
-            except Exception:
+            except (LookupError, RuntimeError, ImportError, AttributeError):
                 logger.warning("Failed to get CZSC engine from factory", exc_info=True)
                 czsc_engine = None
             czsc_result = czsc_engine.run_czsc_analysis(symbol=ticker, df=df_g) if czsc_engine else None

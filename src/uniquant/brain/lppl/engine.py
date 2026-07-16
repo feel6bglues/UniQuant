@@ -27,6 +27,7 @@ from uniquant.shared.constants import RANDOM_SEED, W_BOUNDS, M_BOUNDS
 from ...shared.constants import LPPLConstants
 from ...shared.logger_factory import get_logger
 
+logger = get_logger(__name__)
 
 try:
     from numba import njit
@@ -951,8 +952,6 @@ _config = DEFAULT_CONFIG
 def get_default_config() -> LPPLConfig:
     return _config
 
-
-logger = get_logger(__name__)
 
 LPPL_ENGINE_RECOVERABLE_ERRORS = (
     AttributeError, KeyError, OSError, RuntimeError, TypeError, ValueError,

@@ -187,7 +187,23 @@ class TradingSignal:
             symbol=data.get("symbol", ""),
             price=data.get("price", 0.0),
             timestamp=ts,
+            metadata=data.get("metadata", {}),
         )
+
+    def to_dict(self) -> Dict[str, Any]:
+        ts = self.timestamp
+        if isinstance(ts, datetime.datetime):
+            ts = ts.isoformat()
+        return {
+            "action": self.action,
+            "reason": self.reason,
+            "confidence": self.confidence,
+            "shares": self.shares,
+            "symbol": self.symbol,
+            "price": self.price,
+            "timestamp": ts,
+            "metadata": dict(self.metadata),
+        }
 
 
 @dataclass
@@ -239,7 +255,6 @@ class ResearchDataPack:
             "factors": self.factors,
             "metadata": self.metadata,
         }
-        result.update(self.metadata)
         return result
 
 
@@ -338,6 +353,9 @@ class CZSCOutput:
     bi_count: int = 0
     price: float = 0.0
     bottom: Optional[float] = None
+    trend: str = "未知"
+    current_state: str = "NEUTRAL"
+    recent_highs: Optional[float] = None
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -345,6 +363,9 @@ class CZSCOutput:
             "bi_count": self.bi_count,
             "price": self.price,
             "czsc_bottom": self.bottom,
+            "trend": self.trend,
+            "current_state": self.current_state,
+            "recent_highs": self.recent_highs,
         }
 
     @classmethod
@@ -354,6 +375,9 @@ class CZSCOutput:
             bi_count=int(data.get("bi_count", 0)),
             price=float(data.get("price", 0.0)),
             bottom=data.get("czsc_bottom"),
+            trend=str(data.get("trend", "未知")),
+            current_state=str(data.get("current_state", "NEUTRAL")),
+            recent_highs=data.get("recent_highs"),
         )
 
 

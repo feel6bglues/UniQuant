@@ -23,6 +23,12 @@ from uniquant.brain.wyckoff.models import (
     WyckoffStructure,
 )
 from uniquant.brain.wyckoff.rules import V3Rules
+from uniquant.brain.wyckoff.constants import (
+    ANALYSIS_LOOKBACK,
+    DIVERGENCE_WINDOW,
+    MONEY_FLOW_LOOKBACK,
+    PRICE_DEVIATION_LOOKBACK,
+)
 
 
 def analyze_chips(df: pd.DataFrame, structure: WyckoffStructure) -> ChipAnalysis:
@@ -36,7 +42,7 @@ def analyze_chips(df: pd.DataFrame, structure: WyckoffStructure) -> ChipAnalysis
     4. 计算资金流向趋势
     """
     analysis = ChipAnalysis()
-    recent = df.tail(20)
+    recent = df.tail(ANALYSIS_LOOKBACK)
 
     if len(recent) < 10:
         return analysis
@@ -92,7 +98,7 @@ def analyze_chips(df: pd.DataFrame, structure: WyckoffStructure) -> ChipAnalysis
     # ---- 3. 连续背离评分（滑动窗口） ----
     divergence_scores = []
     amount_div_scores = []
-    window = 5
+    window = DIVERGENCE_WINDOW
     for i in range(window, len(recent)):
         p = (recent["close"].iloc[i] - recent["close"].iloc[i - window]) / recent["close"].iloc[
             i - window
@@ -125,7 +131,7 @@ def compute_avg_price_deviation(df: pd.DataFrame) -> float:
     """计算收盘价偏离成交均价的程度"""
     if "amount" not in df.columns:
         return 0.0
-    recent = df.tail(5)
+    recent = df.tail(PRICE_DEVIATION_LOOKBACK)
     avg_prices = recent["amount"] / recent["volume"].replace(0, 1)
     current_avg = avg_prices.iloc[-1]
     if current_avg == 0:
@@ -138,7 +144,7 @@ def compute_money_flow_trend(df: pd.DataFrame) -> float:
     """计算资金流向趋势 [-1, 1]"""
     if "amount" not in df.columns:
         return 0.0
-    recent = df.tail(10)
+    recent = df.tail(MONEY_FLOW_LOOKBACK)
     if len(recent) < 5:
         return 0.0
     # 资金流向: (close - avg_price) * volume，正值表示资金流入

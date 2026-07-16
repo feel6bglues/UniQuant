@@ -14,6 +14,15 @@ import numpy as np
 import pandas as pd
 
 from uniquant.shared.constants import SPRING_CLOSE_FACTOR, SPRING_LOW_FACTOR
+from uniquant.brain.wyckoff.constants import (
+    ENGINE_WEEKLY_MIN_ROWS,
+    ENGINE_MONTHLY_MIN_ROWS,
+    ENGINE_DEFAULT_LOOKBACK_DAYS,
+    ENGINE_DEFAULT_WEEKLY_LOOKBACK,
+    ENGINE_DEFAULT_MONTHLY_LOOKBACK,
+    ENGINE_DEFAULT_RANGE_THRESHOLD,
+    ENGINE_DEFAULT_TREND_THRESHOLD,
+)
 from uniquant.brain.wyckoff.analysis import (
     analyze_chips,
     analyze_multiframe,
@@ -69,13 +78,13 @@ class WyckoffEngine:
     """v3.0 威科夫分析引擎 - 唯一入口"""
 
     def __init__(
-        self, lookback_days: int = 120, weekly_lookback: int = 180, monthly_lookback: int = 120,
-        is_st: bool = False, range_threshold: float = 0.20, trend_threshold: float = 0.05,
+        self, lookback_days: int = ENGINE_DEFAULT_LOOKBACK_DAYS, weekly_lookback: int = ENGINE_DEFAULT_WEEKLY_LOOKBACK, monthly_lookback: int = ENGINE_DEFAULT_MONTHLY_LOOKBACK,
+        is_st: bool = False, range_threshold: float = ENGINE_DEFAULT_RANGE_THRESHOLD, trend_threshold: float = ENGINE_DEFAULT_TREND_THRESHOLD,
     ):
         self._is_st = is_st
         self.lookback_days = lookback_days
-        self.weekly_min_rows = 20
-        self.monthly_min_rows = 12
+        self.weekly_min_rows = ENGINE_WEEKLY_MIN_ROWS
+        self.monthly_min_rows = ENGINE_MONTHLY_MIN_ROWS
         self.weekly_lookback = weekly_lookback  # 周线回看行数
         self.monthly_lookback = monthly_lookback  # 月线回看行数
         self.range_threshold = range_threshold  # 价格范围阈值（TR判定用）
@@ -239,7 +248,8 @@ class WyckoffEngine:
                 "breakout": pnf.breakout_detected(),
                 "count_target": pnf.count_target(),
             }
-        except Exception:
+        except (ValueError, TypeError, KeyError):
+            logger.warning("Point and Figure analysis failed", exc_info=True)
             pnf_result = {"phase_hint": "neutral", "breakout": False, "count_target": 0.0}
 
         # Regime-aware enhanced phase
@@ -248,7 +258,8 @@ class WyckoffEngine:
             rpc = RegimeAwarePhaseClassifier()
             phase_str, _ = rpc.classify(frame, pd.Timestamp(df['date'].iloc[-1]), period='monthly')
             regime_phase = phase_str
-        except Exception:
+        except (ValueError, TypeError, KeyError, RuntimeError):
+            logger.warning("Regime-aware phase classification failed", exc_info=True)
             regime_phase = None
 
         # 构建最终报告
@@ -299,8 +310,8 @@ class WyckoffEngine:
             confidence_base=fallback["confidence_base"],
         )
 
-    def _step1_phase_determine(self, df: pd.DataFrame, rule0: Rule0Result) -> Step1Result:
-        """Step 1: 大局观与阶段判定（保留 analyzer.py 核心逻辑）"""
+    def _compute_step1_context(self, df: pd.DataFrame, rule0: Rule0Result) -> dict:
+        """Compute preliminary metrics shared by all phase detectors."""
         recent_60 = df.tail(60)
         price_high = float(recent_60["high"].max())
         price_low = float(recent_60["low"].min())
@@ -314,7 +325,6 @@ class WyckoffEngine:
             else 0.5
         )
 
-        # 近 20 日 vs 前 20 日均价变化
         if len(df) >= 40:
             recent_mean = float(df.shift(1).tail(20)["close"].mean())
             prev_mean = float(df.iloc[-40:-20]["close"].mean())
@@ -323,12 +333,10 @@ class WyckoffEngine:
             prev_mean = float(df.head(10)["close"].mean())
         short_trend_pct = (recent_mean - prev_mean) / prev_mean if prev_mean > 0 else 0.0
 
-        is_in_trading_range = (total_range_pct <= self.range_threshold) and (abs(short_trend_pct) < self.trend_threshold)
+        is_in_trading_range = (
+            total_range_pct <= self.range_threshold
+        ) and (abs(short_trend_pct) < self.trend_threshold)
 
-        phase = WyckoffPhase.UNKNOWN
-        unknown_candidate = ""
-
-        # 统一计算前趋势涨跌幅（TR 内和非 TR 分支都需要）
         prior_window = df.iloc[:-60] if len(df) > 60 else pd.DataFrame()
         if len(prior_window) >= 10:
             prior_first = float(prior_window["close"].iloc[0])
@@ -339,92 +347,168 @@ class WyckoffEngine:
         else:
             prior_trend_pct = 0.0
 
-        if is_in_trading_range:
+        return {
+            "price_high": price_high,
+            "price_low": price_low,
+            "current_price": current_price,
+            "ma5": ma5,
+            "ma20": ma20,
+            "total_range_pct": total_range_pct,
+            "relative_position": relative_position,
+            "short_trend_pct": short_trend_pct,
+            "is_in_trading_range": is_in_trading_range,
+            "prior_trend_pct": prior_trend_pct,
+        }
 
-            # 使用放宽后的阈值（原 -5% 过于严格，已通过验证脚本确认）
-            if prior_trend_pct < -0.03:  # 原 -0.05
-                phase = WyckoffPhase.ACCUMULATION
-            elif prior_trend_pct > 0.05:
-                phase = WyckoffPhase.DISTRIBUTION
-            else:
-                if (relative_position >= 0.55 or short_trend_pct >= 0.03) and (
-                    (current_price > ma20 * 0.97 and ma5 >= ma20 * 0.96)
-                    or (current_price > ma5 and relative_position >= 0.50)
-                ):
-                    phase = WyckoffPhase.MARKUP
-                elif relative_position <= 0.40 and rule0.bc_found:
-                    phase = WyckoffPhase.ACCUMULATION
-                elif (
-                    rule0.bc_found
-                    and rule0.bc_position is not None
-                    and current_price <= rule0.bc_position.price * 0.85
-                    and current_price < ma20 * 0.95
-                    and ma5 <= ma20
-                    and short_trend_pct <= -0.02
-                ):
-                    phase = WyckoffPhase.MARKDOWN
-                else:
-                    phase = WyckoffPhase.UNKNOWN
+    def _detect_accumulation(self, df: pd.DataFrame, ctx: dict, rule0: Rule0Result) -> Optional[dict]:
+        if ctx["is_in_trading_range"]:
+            if ctx["prior_trend_pct"] < -0.03:
+                return {"phase": WyckoffPhase.ACCUMULATION}
+            if ctx["relative_position"] <= 0.40 and rule0.bc_found:
+                return {"phase": WyckoffPhase.ACCUMULATION}
         else:
-            # 非 TR，按短期趋势方向判定
-            if short_trend_pct >= 0.03 and (
-                (current_price > ma20 and ma5 >= ma20)
-                or (current_price > ma5 and relative_position >= 0.50)
+            if (
+                ctx["short_trend_pct"] <= -0.02
+                and ctx["current_price"] < ctx["ma20"]
+                and ctx["ma5"] <= ctx["ma20"]
+                and (rule0.bc_found or rule0.sc_found)
             ):
-                phase = WyckoffPhase.MARKUP
-            elif (
-                short_trend_pct >= 0.015
-                and current_price > ma20
-                and ma5 >= ma20 * 0.98
-                and relative_position >= 0.70
+                return {"phase": WyckoffPhase.ACCUMULATION}
+        return None
+
+    def _detect_markup(self, df: pd.DataFrame, ctx: dict, rule0: Rule0Result) -> Optional[dict]:
+        cp = ctx["current_price"]
+        ma5 = ctx["ma5"]
+        ma20 = ctx["ma20"]
+        rp = ctx["relative_position"]
+        st = ctx["short_trend_pct"]
+
+        if ctx["is_in_trading_range"]:
+            if (rp >= 0.55 or st >= 0.03) and (
+                (cp > ma20 * 0.97 and ma5 >= ma20 * 0.96)
+                or (cp > ma5 and rp >= 0.50)
             ):
-                phase = WyckoffPhase.MARKUP
-            elif (
-                short_trend_pct >= 0.05
-                and ma5 >= ma20
-                and current_price >= ma20 * 0.99
-                and relative_position >= 0.65
+                return {"phase": WyckoffPhase.MARKUP}
+        else:
+            if st >= 0.03 and (
+                (cp > ma20 and ma5 >= ma20)
+                or (cp > ma5 and rp >= 0.50)
             ):
-                phase = WyckoffPhase.MARKUP
-            # 使用最佳版本阈值(a438a32)
-            elif short_trend_pct <= -0.05 and current_price < ma20 * 0.95:
-                phase = WyckoffPhase.MARKDOWN
-            elif (
+                return {"phase": WyckoffPhase.MARKUP}
+            if st >= 0.015 and cp > ma20 and ma5 >= ma20 * 0.98 and rp >= 0.70:
+                return {"phase": WyckoffPhase.MARKUP}
+            if st >= 0.05 and ma5 >= ma20 and cp >= ma20 * 0.99 and rp >= 0.65:
+                return {"phase": WyckoffPhase.MARKUP}
+        return None
+
+    def _detect_distribution(self, df: pd.DataFrame, ctx: dict, rule0: Rule0Result) -> Optional[dict]:
+        if ctx["is_in_trading_range"] and ctx["prior_trend_pct"] > 0.05:
+            return {"phase": WyckoffPhase.DISTRIBUTION}
+        return None
+
+    def _detect_markdown(self, df: pd.DataFrame, ctx: dict, rule0: Rule0Result) -> Optional[dict]:
+        cp = ctx["current_price"]
+        ma5 = ctx["ma5"]
+        ma20 = ctx["ma20"]
+        rp = ctx["relative_position"]
+        st = ctx["short_trend_pct"]
+
+        if ctx["is_in_trading_range"]:
+            if (
                 rule0.bc_found
                 and rule0.bc_position is not None
-                and current_price <= rule0.bc_position.price * 0.90
-                and current_price < ma20
+                and cp <= rule0.bc_position.price * 0.85
+                and cp < ma20 * 0.95
                 and ma5 <= ma20
-                and short_trend_pct <= 0
+                and st <= -0.02
             ):
-                phase = WyckoffPhase.MARKDOWN
-            elif (
+                return {"phase": WyckoffPhase.MARKDOWN}
+        else:
+            if st <= -0.05 and cp < ma20 * 0.95:
+                return {"phase": WyckoffPhase.MARKDOWN}
+            if (
                 rule0.bc_found
                 and rule0.bc_position is not None
-                and short_trend_pct <= -0.04
-                and relative_position <= 0.25
-                and current_price <= rule0.bc_position.price * 0.75
+                and cp <= rule0.bc_position.price * 0.90
+                and cp < ma20
+                and ma5 <= ma20
+                and st <= 0
             ):
-                phase = WyckoffPhase.MARKDOWN
-            # 新增：非TR分支的Accumulation检测（放宽relative_position要求）
-            elif (short_trend_pct <= -0.02
-                  and current_price < ma20
-                  and ma5 <= ma20
-                  and (rule0.bc_found or rule0.sc_found)):
-                phase = WyckoffPhase.ACCUMULATION
-            else:
-                phase = WyckoffPhase.UNKNOWN
+                return {"phase": WyckoffPhase.MARKDOWN}
+            if (
+                rule0.bc_found
+                and rule0.bc_position is not None
+                and st <= -0.04
+                and rp <= 0.25
+                and cp <= rule0.bc_position.price * 0.75
+            ):
+                return {"phase": WyckoffPhase.MARKDOWN}
+        return None
+
+    def _detect_spring(self, df: pd.DataFrame, ctx: dict, rule0: Rule0Result) -> Optional[dict]:
+        """Detect spring/Selling Climax pattern as an accumulation hint."""
+        if not (ctx["short_trend_pct"] <= -0.02 and ctx["relative_position"] <= 0.55):
+            return None
+        last_row = df.iloc[-1]
+        close_val = float(last_row["close"])
+        open_val = float(last_row["open"])
+        high_val = float(last_row["high"])
+        low_val = float(last_row["low"])
+        body_val = abs(close_val - open_val)
+        lower_wick_val = min(close_val, open_val) - low_val
+        close_loc = (close_val - low_val) / max(high_val - low_val, 0.01)
+        amplitude = (high_val - low_val) / max(low_val, 0.01)
+        is_new_low = (low_val == df.iloc[-11:-1]["low"].min())
+        wick_ratio = lower_wick_val / max(body_val, 0.01)
+        rebound_ratio = (close_val - low_val) / max(low_val, 0.01)
+        if amplitude >= 0.02:
+            if (close_loc >= 0.58 and lower_wick_val > body_val) or (
+                is_new_low and rebound_ratio >= 0.01 and wick_ratio >= 0.6
+            ):
+                return {"phase": WyckoffPhase.UNKNOWN, "unknown_candidate": "sc_st_candidate"}
+        return None
+
+    def _detect_utad(self, df: pd.DataFrame, ctx: dict, rule0: Rule0Result) -> Optional[dict]:
+        """Detect UTAD (Upthrust After Distribution) pattern."""
+        return None
+
+    def _detect_sos(self, df: pd.DataFrame, ctx: dict, rule0: Rule0Result) -> Optional[dict]:
+        """Detect SOS (Sign of Strength) pattern."""
+        return None
+
+    def _step1_phase_determine(self, df: pd.DataFrame, rule0: Rule0Result) -> Step1Result:
+        """Step 1: 大局观与阶段判定（分派到7个检测器）"""
+        ctx = self._compute_step1_context(df, rule0)
+
+        detectors: List = [
+            self._detect_markup,
+            self._detect_markdown,
+            self._detect_accumulation,
+            self._detect_distribution,
+            self._detect_spring,
+            self._detect_utad,
+            self._detect_sos,
+        ]
+
+        phase = WyckoffPhase.UNKNOWN
+        unknown_candidate = ""
+        for detector in detectors:
+            result = detector(df, ctx, rule0)
+            if result is not None:
+                phase = result["phase"]
+                unknown_candidate = result.get("unknown_candidate", "")
+                break
 
         # UNKNOWN 子状态分类
-        if phase == WyckoffPhase.UNKNOWN:
+        if phase == WyckoffPhase.UNKNOWN and not unknown_candidate:
             unknown_candidate = self._classify_unknown_candidate(df, phase, rule0)
 
-        # Phase A/B/C/D/E 细分（创建临时Step1Result用于分类）
+        # Phase A/B/C/D/E 细分
         sub_phase = ""
         temp_step1 = Step1Result(
             phase=phase,
-            boundary_upper=rule0.tr_upper if rule0.tr_upper else price_high,
-            boundary_lower=rule0.tr_lower if rule0.tr_lower else price_low,
+            boundary_upper=rule0.tr_upper if rule0.tr_upper else ctx["price_high"],
+            boundary_lower=rule0.tr_lower if rule0.tr_lower else ctx["price_low"],
         )
         if phase == WyckoffPhase.ACCUMULATION:
             sub_phase = self._classify_accumulation_sub_phase(df, temp_step1, rule0)
@@ -432,53 +516,24 @@ class WyckoffEngine:
             sub_phase = self._classify_distribution_sub_phase(df, temp_step1, rule0)
 
         # 边界锚定
-        boundary_upper = rule0.tr_upper if rule0.tr_upper else price_high
-        boundary_lower = rule0.tr_lower if rule0.tr_lower else price_low
+        boundary_upper = rule0.tr_upper if rule0.tr_upper else ctx["price_high"]
+        boundary_lower = rule0.tr_lower if rule0.tr_lower else ctx["price_low"]
         boundary_source = []
         if rule0.bc_found:
             boundary_source.append("BC")
         if rule0.tr_source == "rolling_range":
             boundary_source.append("rolling_30d")
 
-        # 检测是否满足 SC (Selling Climax) 的特异性探底特征：
-        # 1. 处于短期下跌趋势中 short_trend_pct <= -0.02
-        # 2. 收盘位置处于下半部或极低位 relative_position <= 0.55
-        # 3. 发生了放量、探底或符合该股恐慌砸盘特征：
-        is_sc_candidate = False
-        if short_trend_pct <= -0.02 and relative_position <= 0.55:
-            last_row = df.iloc[-1]
-            close_val = float(last_row["close"])
-            open_val = float(last_row["open"])
-            high_val = float(last_row["high"])
-            low_val = float(last_row["low"])
-            body_val = abs(close_val - open_val)
-            lower_wick_val = min(close_val, open_val) - low_val
-            close_loc = (close_val - low_val) / max(high_val - low_val, 0.01)
-            # Generalized Selling Climax (SC) / Selling Climax Candidate rules:
-            # Must have non-trivial daily volatility to represent climax panic (amplitude >= 2.0%)
-            amplitude = (high_val - low_val) / max(low_val, 0.01)
-            is_new_low = (low_val == df.iloc[-11:-1]["low"].min())
-            wick_ratio = lower_wick_val / max(body_val, 0.01)
-            rebound_ratio = (close_val - low_val) / max(low_val, 0.01)
-
-            if amplitude >= 0.02:
-                if (close_loc >= 0.58 and lower_wick_val > body_val) or (is_new_low and rebound_ratio >= 0.01 and wick_ratio >= 0.6):
-                    is_sc_candidate = True
-
-        if phase == WyckoffPhase.MARKDOWN and is_sc_candidate:
-            phase = WyckoffPhase.UNKNOWN
-            unknown_candidate = "sc_st_candidate"
-
         return Step1Result(
             phase=phase,
             sub_phase=sub_phase,
             unknown_candidate=unknown_candidate,
-            prior_trend_pct=prior_trend_pct,
-            is_in_tr=is_in_trading_range,
-            short_trend_pct=short_trend_pct,
-            relative_position=relative_position,
-            ma5=ma5,
-            ma20=ma20,
+            prior_trend_pct=ctx["prior_trend_pct"],
+            is_in_tr=ctx["is_in_trading_range"],
+            short_trend_pct=ctx["short_trend_pct"],
+            relative_position=ctx["relative_position"],
+            ma5=ctx["ma5"],
+            ma20=ctx["ma20"],
             boundary_upper=boundary_upper,
             boundary_lower=boundary_lower,
             boundary_source=boundary_source,
@@ -1517,7 +1572,8 @@ class WyckoffEngine:
                     "breakout": pnf.breakout_detected(),
                     "count_target": pnf.count_target(),
                 }
-            except Exception:
+            except (ValueError, TypeError, KeyError):
+                logger.warning("scan_signal Point & Figure analysis failed", exc_info=True)
                 pnf_signal = {"phase_hint": "neutral", "breakout": False, "count_target": 0.0}
 
             return {
@@ -1532,8 +1588,8 @@ class WyckoffEngine:
                 "pnf_analysis": pnf_signal,
                 "regime_phase": getattr(report, 'regime_phase', None),
             }
-        except Exception as e:
-            logger.warning(f"scan_signal 失败 {symbol}: {e}")
+        except (ValueError, TypeError, KeyError, RuntimeError) as e:
+            logger.warning(f"scan_signal 失败 {symbol}: {e}", exc_info=True)
             return {
                 "symbol": symbol,
                 "date": df['date'].iloc[-1] if 'date' in df.columns else None,

@@ -30,22 +30,6 @@ class ThsSource(DataSource):
         super().__init__()
         self.session = self._create_session()
 
-    def _create_session(self):
-        """创建请求会话"""
-        session = requests.Session()
-        adapter = requests.adapters.HTTPAdapter(
-            max_retries=requests.adapters.Retry(
-                total=5,
-                backoff_factor=1,
-                status_forcelist=[429, 500, 502, 503, 504],
-                allowed_methods=["HEAD", "GET", "OPTIONS"],
-            )
-        )
-        session.mount("http://", adapter)
-        session.mount("https://", adapter)
-        session.timeout = NetworkConstants.LONG_TIMEOUT
-        return session
-
     @retry(
         max_retries=DataSourceConstants.MAX_RETRIES,
         delay=DataSourceConstants.RETRY_DELAY,
@@ -80,118 +64,6 @@ class ThsSource(DataSource):
             logger.error(f"同花顺原生 API 返回空数据，无法获取 {symbol} 数据")
             raise DataFetchError(f"同花顺原生 API 返回空数据，无法获取 {symbol} 数据")
 
-    def _normalize_date_column(self, df: pd.DataFrame) -> pd.DataFrame:
-        """处理日期列"""
-        date_col = None
-        for possible_col in ["date", "日期", "trade_date", "交易日期", "时间"]:
-            if possible_col in df.columns:
-                date_col = possible_col
-                break
-
-        if date_col is None:
-            if isinstance(df.index, pd.DatetimeIndex):
-                df["date"] = df.index.date
-                date_col = "date"
-            else:
-                raise ValueError(f"找不到日期列. 列名: {df.columns.tolist()}")
-
-        if date_col != "date":
-            df = df.rename(columns={date_col: "date"})
-
-        df["date"] = pd.to_datetime(df["date"]).dt.date
-        return df
-
-    def _filter_by_date_range(
-        self, df: pd.DataFrame, start_date: str, end_date: str
-    ) -> pd.DataFrame:
-        """过滤日期范围"""
-        start = pd.to_datetime(start_date).date()
-        end = pd.to_datetime(end_date).date()
-        df = df[(df["date"] >= start) & (df["date"] <= end)]
-
-        if df.empty:
-            raise ValueError("日期范围内无数据")
-        return df
-
-    def _ensure_required_columns(self, df: pd.DataFrame) -> pd.DataFrame:
-        """确保标准列存在"""
-        required_cols = ["date", "open", "high", "low", "close", "volume"]
-        for col in required_cols:
-            if col not in df.columns:
-                if col in ["open", "high", "low"] and "close" in df.columns:
-                    df[col] = df["close"]
-                elif col == "volume":
-                    df["volume"] = 0
-                else:
-                    df[col] = 0
-
-        if "amount" not in df.columns:
-            df["amount"] = df.get("close", 0) * df.get("volume", 0)
-
-        numeric_cols = ["open", "high", "low", "close", "volume", "amount"]
-        for col in numeric_cols:
-            if col in df.columns:
-                df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0)
-        return df
-
-    def _calculate_metrics(self, df: pd.DataFrame) -> pd.DataFrame:
-        """计算振幅和涨跌幅"""
-        if "close" in df.columns and "high" in df.columns and "low" in df.columns:
-            if "preclose" in df.columns:
-                df["amplitude"] = (
-                    (df["high"] - df["low"]) / df["preclose"] * 100
-                ).fillna(0)
-            elif "open" in df.columns:
-                df["amplitude"] = (
-                    (df["high"] - df["low"]) / df["open"] * 100
-                ).fillna(0)
-            else:
-                df["amplitude"] = 0
-        else:
-            df["amplitude"] = 0
-
-        if "close" in df.columns:
-            if "preclose" in df.columns:
-                df["change_rate"] = (
-                    (df["close"] - df["preclose"]) / df["preclose"] * 100
-                ).fillna(0)
-            elif "open" in df.columns:
-                df["change_rate"] = (
-                    (df["close"] - df["open"]) / df["open"] * 100
-                ).fillna(0)
-            else:
-                df["change_rate"] = 0
-        else:
-            df["change_rate"] = 0
-        return df
-
-    def _finalize_dataframe(
-        self, df: pd.DataFrame, clean_symbol: str
-    ) -> pd.DataFrame:
-        """最终处理和标准化"""
-        if "code" not in df.columns:
-            df["code"] = clean_symbol
-
-        df = df.sort_values("date").reset_index(drop=True)
-
-        from ..utils.normalizer import normalize_stock_data
-
-        df = normalize_stock_data(df, "ths")
-
-        final_cols = [
-            "date",
-            "code",
-            "open",
-            "high",
-            "low",
-            "close",
-            "volume",
-            "amount",
-            "amplitude",
-            "change_rate",
-        ]
-        return df[final_cols]
-
     def _fetch_using_akshare(
         self, clean_symbol: str, start_date: str, end_date: str
     ) -> pd.DataFrame:
@@ -205,7 +77,7 @@ class ThsSource(DataSource):
             df = self._filter_by_date_range(df, start_date, end_date)
             df = self._ensure_required_columns(df)
             df = self._calculate_metrics(df)
-            return self._finalize_dataframe(df, clean_symbol)
+            return self._finalize_dataframe(df, clean_symbol, source_name="ths")
         except (requests.exceptions.RequestException, ValueError, KeyError, TypeError, ImportError) as e:
             logger.error(f"使用 akshare 获取同花顺数据失败: {e}")
             raise
@@ -251,7 +123,7 @@ class ThsSource(DataSource):
             df = self._filter_by_date_range(df, start_date, end_date)
             df = self._ensure_required_columns(df)
             df = self._calculate_metrics(df)
-            return self._finalize_dataframe(df, clean_symbol)
+            return self._finalize_dataframe(df, clean_symbol, source_name="ths")
         except requests.exceptions.RequestException as e:
             logger.error(f"THS API request failed: {e}")
             return self._fetch_using_akshare(clean_symbol, start_date, end_date)
@@ -348,9 +220,13 @@ class ThsSource(DataSource):
         clean_symbol = symbol.replace(".SH", "").replace(".SZ", "")
         market_prefix = "SH" if clean_symbol.startswith("60") else "SZ"
         xq_symbol = f"{market_prefix}{clean_symbol}"
-        stock_info = akshare_wrapper.call(
-            "stock_individual_spot_xq", symbol=xq_symbol
-        )
+        try:
+            stock_info = akshare_wrapper.call(
+                "stock_individual_spot_xq", symbol=xq_symbol
+            )
+        except Exception as e:
+            logger.warning(f"AkShare 获取 {symbol} 实时数据失败: {e}")
+            return pd.DataFrame()
         if stock_info is None:
             return pd.DataFrame()
 

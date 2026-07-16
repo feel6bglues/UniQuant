@@ -2,7 +2,15 @@
 
 提供信号质量的事后评估能力，包括精确率、召回率、F1 分数、
 命中率、盈利因子等指标的计算，以及持续质量跟踪。
+
+# DEPRECATED: SignalQualityAssessor 和 SignalQualityTracker 当前未被任何生产代码调用。
+# adapters.py/arbitrator.py/unified_engine.py 均不导入此模块。
+# 保留以供参考和未来信号质量研究使用。
+# 详见 docs/reanalysis/Z_7round_conversation_summary.md §5 信号系统审计。
 """
+
+# DEPRECATED — not called by any production code.
+# Kept for reference. Use signal/arbitrator.py and signal/adapters.py instead.
 
 from __future__ import annotations
 

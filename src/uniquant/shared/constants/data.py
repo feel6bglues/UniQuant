@@ -122,7 +122,7 @@ class _CacheTTLAlias:
     """描述符,将 DataServiceConstants 的 TTL 属性访问委托到 CacheConstants"""
     def __init__(self, name: str):
         self._name = name
-    def __get__(self, obj, objtype):
+    def __get__(self, obj, _objtype):
         return getattr(CacheConstants, self._name)
 
 

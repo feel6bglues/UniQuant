@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Dict, Optional
 
 from uniquant.brain.wyckoff.models import AnalysisResult, AnalysisState
+from uniquant.brain.wyckoff.constants import STATE_SPRING_FREEZE_DAYS
 from ...shared.time_provider import get_time_provider
 
 logger = get_logger(__name__)
@@ -21,7 +22,7 @@ class StateManager:
     """状态管理器 - 管理分析状态的持久化和连续性"""
 
     def __init__(self):
-        self.spring_freeze_days = 3  # Spring 冷冻期天数（T+3）
+        self.spring_freeze_days = STATE_SPRING_FREEZE_DAYS
 
     def update_state(
         self,

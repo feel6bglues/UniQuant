@@ -17,6 +17,9 @@ class DefaultSlippage(SlippageModel):
         return SLIPPAGE_PCT
 
 
+# NOTE: NOT instantiated in default backtest path. Use SlippageModel directly.
+# All "dynamic" methods return hardcoded constants. No market data is fetched.
+# Renamed to reflect the actual behavior: consider this HardcodedSlippage.
 class DynamicSlippage(SlippageModel):
     def estimate(self, symbol: str, quantity: int, direction: str,
                  price: float, timestamp: datetime) -> float:

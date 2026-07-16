@@ -43,6 +43,7 @@ class RiskCalculationConstants:
 
     # 最大回撤阈值
     MAX_DRAWDOWN_THRESHOLD = 0.2  # 最大回撤阈值 20%
+    MAX_DRAWDOWN_CRISIS = 0.3  # 极端回撤阈值 30%
 
     # 压力测试场景
     CRASH_SCENARIOS = {

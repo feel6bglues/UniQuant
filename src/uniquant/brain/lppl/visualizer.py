@@ -98,7 +98,7 @@ class LPPLVisualizer:
             plt.close()
 
             return img_name
-        except Exception as e:
+        except (IOError, OSError, ValueError) as e:
             logger.error(f"Error visualizing fit: {e}")
             return None
 
@@ -179,6 +179,6 @@ class LPPLVisualizer:
             plt.close()
 
             return img_name
-        except Exception as e:
+        except (IOError, OSError, ValueError) as e:
             logger.error(f"Error plotting risk matrix: {e}")
             return None

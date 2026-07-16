@@ -1,4 +1,7 @@
 # -*- coding: utf-8 -*-
+# DEPRECATED — This module's only caller is param_validator.py, which itself has zero
+# production callers across the entire codebase. Both are unused dead code retained
+# for reference. Do not import in new code.
 from __future__ import annotations
 
 from pathlib import Path

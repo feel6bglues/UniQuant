@@ -62,3 +62,26 @@ scripts/wyckoff_verification/output/
 *.lock
 **/__pycache__/
 src/uniquant/shared/__pycache__/
+
+# Coverage artifacts (regenerable)
+.coverage
+*,cover
+mutants/
+
+# Runtime results
+results/
+failed_downloads.txt
+
+# ECC / AI agent configuration
+.opencode/
+
+# Regenerable data
+data/trade_calendar.csv
+data/baostock_factors/
+src/data/
+
+# Dead code archives (not for tracking)
+src/uniquant/hands/backtest/archive/
+src/uniquant/services/archive/
+src/uniquant/shared/archive/
+tests/archive/

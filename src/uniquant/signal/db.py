@@ -6,6 +6,8 @@
 from __future__ import annotations
 
 import json
+import time
+import functools
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 
@@ -26,12 +28,33 @@ try:
         func,
     )
     from sqlalchemy.orm import Session, declarative_base, sessionmaker
+    from sqlalchemy.exc import OperationalError, TimeoutError
 
     Base = declarative_base()
     _SQLA_AVAILABLE = True
 except ImportError:
     Base = None  # type: ignore[assignment]
     _SQLA_AVAILABLE = False
+
+
+_RETRY_MAX_ATTEMPTS = 3
+_RETRY_BASE_DELAY = 0.1
+
+
+def _retry_on_db_failure(func):
+    """重试装饰器：对 transient DB 失败重试"""
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        last_exc = None
+        for attempt in range(_RETRY_MAX_ATTEMPTS):
+            try:
+                return func(*args, **kwargs)
+            except (OperationalError, TimeoutError) as e:
+                last_exc = e
+                if attempt < _RETRY_MAX_ATTEMPTS - 1:
+                    time.sleep(_RETRY_BASE_DELAY * (2 ** attempt))
+        raise last_exc  # type: ignore[misc]
+    return wrapper
 
 
 # ───────────────────────── ORM 模型 ─────────────────────────
@@ -58,14 +81,17 @@ if _SQLA_AVAILABLE:
 
         def to_signal(self) -> Signal:
             """转换为 Signal 数据类"""
-            meta = json.loads(self.metadata_json) if self.metadata_json else {}
+            try:
+                meta = json.loads(self.metadata_json) if self.metadata_json else {}
+            except (json.JSONDecodeError, TypeError):
+                meta = {}
             return Signal(
                 id=self.id,
                 symbol=self.symbol,
-                signal_type=SignalType(self.signal_type),
-                source=SignalSource(self.source),
+                signal_type=SignalType(self.signal_type) if self.signal_type in SignalType._value2member_map_ else SignalType.TREND_NEUTRAL,
+                source=SignalSource(self.source) if self.source in SignalSource._value2member_map_ else SignalSource.INDICATOR,
                 direction=self.direction,
-                strength=SignalStrength(self.strength),
+                strength=SignalStrength(self.strength) if self.strength in SignalStrength._value2member_map_ else SignalStrength.MODERATE,
                 confidence=self.confidence,
                 timestamp=self.timestamp,
                 expiration=self.expiration,
@@ -111,13 +137,18 @@ class SignalDatabase:
             raise ImportError(
                 "SQLAlchemy 未安装，请执行: pip install sqlalchemy"
             )
-        self._engine = create_engine(connection_string, echo=False)
+        self._engine = create_engine(
+            connection_string,
+            echo=False,
+            pool_pre_ping=True,
+        )
         Base.metadata.create_all(self._engine)
         self._session_factory = sessionmaker(bind=self._engine)
 
     def _get_session(self) -> Session:
         return self._session_factory()
 
+    @_retry_on_db_failure
     def save_signal(self, signal: Signal) -> str:
         """保存单个信号
 
@@ -133,6 +164,7 @@ class SignalDatabase:
             session.commit()
             return signal.id
 
+    @_retry_on_db_failure
     def save_batch(self, batch: SignalBatch) -> List[str]:
         """批量保存 SignalBatch
 
@@ -151,6 +183,7 @@ class SignalDatabase:
             session.commit()
         return ids
 
+    @_retry_on_db_failure
     def get_by_id(self, signal_id: str) -> Optional[Signal]:
         """按 ID 查询
 
@@ -164,6 +197,7 @@ class SignalDatabase:
             record = session.get(SignalRecord, signal_id)
             return record.to_signal() if record else None
 
+    @_retry_on_db_failure
     def query_by_symbol(
         self,
         symbol: str,
@@ -191,6 +225,7 @@ class SignalDatabase:
             records = q.order_by(SignalRecord.timestamp.desc()).limit(limit).all()
             return [r.to_signal() for r in records]
 
+    @_retry_on_db_failure
     def query_by_source(
         self,
         source: SignalSource,
@@ -218,6 +253,7 @@ class SignalDatabase:
             records = q.order_by(SignalRecord.timestamp.desc()).limit(limit).all()
             return [r.to_signal() for r in records]
 
+    @_retry_on_db_failure
     def query_by_type(
         self,
         signal_type: SignalType,
@@ -242,6 +278,7 @@ class SignalDatabase:
             )
             return [r.to_signal() for r in records]
 
+    @_retry_on_db_failure
     def get_recent_signals(self, minutes: int = 60) -> List[Signal]:
         """获取最近 N 分钟内的信号
 
@@ -261,6 +298,7 @@ class SignalDatabase:
             )
             return [r.to_signal() for r in records]
 
+    @_retry_on_db_failure
     def get_statistics(self) -> Dict[str, Any]:
         """统计信息
 
@@ -296,6 +334,7 @@ class SignalDatabase:
                 "unique_symbols": unique_symbols,
             }
 
+    @_retry_on_db_failure
     def delete_old(self, before: datetime) -> int:
         """删除指定时间之前的旧信号
 
@@ -309,7 +348,7 @@ class SignalDatabase:
             count = (
                 session.query(SignalRecord)
                 .filter(SignalRecord.timestamp < before)
-                .delete()
+                .delete(synchronize_session='fetch')
             )
             session.commit()
             return count

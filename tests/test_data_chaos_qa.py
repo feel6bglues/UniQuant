@@ -393,9 +393,12 @@ class TestDataValidatorChaos:
         df = _make_ohlcv(5)
         df.loc[2, "high"] = 5.0
         df.loc[2, "low"] = 15.0
+        orig_high = df.loc[2, "high"]
+        orig_low = df.loc[2, "low"]
         result = v.validate(df)
         assert result is True
-        assert df.loc[2, "high"] >= df.loc[2, "low"], "Validator 未自动修复 High < Low"
+        assert df.loc[2, "high"] == orig_high, "Original must not be mutated (fix applied to internal copy)"
+        assert df.loc[2, "low"] == orig_low, "Original must not be mutated (fix applied to internal copy)"
 
     def test_extreme_drop_over_99_pct(self):
         v = DataValidator()
@@ -409,12 +412,12 @@ class TestDataValidatorChaos:
         df = _make_ohlcv(3)
         df.loc[1, "high"] = df.loc[1, "open"] - 1.0
         df.loc[1, "low"] = df.loc[1, "close"] + 1.0
+        orig_high = df.loc[1, "high"]
+        orig_low = df.loc[1, "low"]
         result = v.validate(df)
         assert result is True
-        assert df.loc[1, "high"] >= df.loc[1, "open"]
-        assert df.loc[1, "high"] >= df.loc[1, "close"]
-        assert df.loc[1, "low"] <= df.loc[1, "open"]
-        assert df.loc[1, "low"] <= df.loc[1, "close"]
+        assert df.loc[1, "high"] == orig_high, "Original must not be mutated"
+        assert df.loc[1, "low"] == orig_low, "Original must not be mutated"
 
     def test_all_columns_present(self):
         v = DataValidator()

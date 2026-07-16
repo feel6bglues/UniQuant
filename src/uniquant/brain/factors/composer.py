@@ -180,7 +180,7 @@ class FactorComposer:
 
         std = factor_df.std(ddof=0).replace(0, np.nan)
         z_df = (factor_df - factor_df.mean()) / std
-        return z_df.replace([np.inf, -np.inf], np.nan).fillna(0.0)
+        return z_df.replace([np.inf, -np.inf], np.nan)
 
     def _normalize_factors(
         self,
@@ -201,7 +201,7 @@ class FactorComposer:
             normalized_parts.append(self._zscore_frame(group_factors))
 
         normalized = pd.concat(normalized_parts).loc[factor_df.index]
-        return normalized.fillna(0.0)
+        return normalized
 
     def _build_composite_frame(
         self,
@@ -273,8 +273,8 @@ class FactorComposer:
             orth_std = orth_df.std(ddof=0).replace(0, np.nan)
             orth_df = (orth_df - orth_df.mean()) / orth_std
             
-            return orth_df.replace([np.inf, -np.inf], np.nan).fillna(0.0)
-            
+            return orth_df.replace([np.inf, -np.inf], np.nan)
+
         except linalg.LinAlgError as e:
             logger.warning(f"对称正交化失败，使用原始因子: {e}")
             self.last_diagnostics["orthogonalization_failed"] = True

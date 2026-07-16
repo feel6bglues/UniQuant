@@ -47,7 +47,8 @@ class TestIndicatorsValidation:
 
     def test_validate_input_valid(self, valid_df):
         """测试有效输入"""
-        Indicators._validate_input(valid_df)
+        result = Indicators._validate_input(valid_df)
+        assert result is None
 
 
 class TestMA:

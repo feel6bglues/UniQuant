@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from uniquant.shared.factor_governance import FactorManifest
+from uniquant.shared.archive.factor_governance import FactorManifest
 from uniquant.brain.factors.registry import FactorAccessLevel
 
 

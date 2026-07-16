@@ -115,7 +115,7 @@ class LPPLCalculator:
             self.cache_precision = config.get("lppl.performance.cache_precision", 4)
 
             logger.debug("LPPL配置加载完成")
-        except Exception as e:
+        except (KeyError, TypeError, ValueError) as e:
             logger.error(f"加载LPPL配置时发生错误: {e}")
             # 使用默认值
             logger.info("使用默认LPPL配置")
@@ -477,7 +477,7 @@ class LPPLCalculator:
                 if res.fun < best_cost:
                     best_cost = res.fun
                     best_result = res
-            except Exception:
+            except (ValueError, RuntimeError):
                 continue
 
         if best_result is not None:
@@ -516,7 +516,7 @@ class LPPLCalculator:
         # 准备数据
         prices = df[column].to_numpy()
 
-        if np.any(prices <= 0) or np.any(np.isnan(prices)):
+        if np.any(prices <= 0) or np.any(np.isnan(prices)) or np.any(np.isinf(prices)):
             logger.warning(
                 f"Price data contains zero, negative, or NaN values. "
                 f"Min={np.nanmin(prices)}, Max={np.nanmax(prices)}"

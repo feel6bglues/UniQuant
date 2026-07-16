@@ -5,7 +5,9 @@ A股特有微观结构防御：检查涨停/跌停状态
 
 from dataclasses import dataclass
 from typing import Any, Dict, Optional
+import math
 
+from .board_registry import get_board_type
 from .constants import MarketConstants
 from .logger_factory import get_logger
 
@@ -25,48 +27,8 @@ class LimitStatus:
     price_ratio: float
 
 
-# NOTE: Parallel board-detection system exists in market_rules.detect_board()
-# (enum + exchange-suffix logic vs string-based code-prefix here).
-# Keep in sync — both must classify the same stock identically.
-def get_board_type(symbol: str, name: Optional[str] = None) -> str:
-    """
-    根据股票代码和名称识别板块类型
-    
-    Args:
-        symbol: 股票代码（如 "000001.SZ"）
-        name: 股票名称（可选，用于识别ST股）
-    
-    Returns:
-        str: 板块类型 ("main", "sci_tech", "gem", "st", "beijing")
-    """
-    if not symbol:
-        return "main"
-    
-    code = symbol.split(".")[0] if "." in symbol else symbol
-    
-    # 检查ST股（优先级最高）
-    if name:
-        name_upper = name.upper()
-        for st_prefix in MarketConstants.BOARD_PREFIX["st"]:
-            if name_upper.startswith(st_prefix):
-                return "st"
-    
-    # 检查科创板
-    for prefix in MarketConstants.BOARD_PREFIX["sci_tech"]:
-        if code.startswith(prefix):
-            return "sci_tech"
-    
-    # 检查创业板
-    for prefix in MarketConstants.BOARD_PREFIX["gem"]:
-        if code.startswith(prefix):
-            return "gem"
-    
-    # 检查北交所
-    for prefix in MarketConstants.BOARD_PREFIX["beijing"]:
-        if code.startswith(prefix):
-            return "beijing"
-    
-    return "main"
+# Delegated to BoardTypeRegistry in board_registry.py
+# (consolidated from the former parallel system with market_rules.detect_board())
 
 
 def _round_limit_price(price: float, tick_size: float = 0.01) -> float:
@@ -95,7 +57,7 @@ def check_limit_status(
     Returns:
         LimitStatus: 涨跌停状态对象
     """
-    if pre_close <= 0:
+    if pre_close <= 0 or math.isinf(pre_close) or math.isnan(pre_close):
         logger.warning(f"Invalid pre_close: {pre_close}, symbol: {symbol}")
         return LimitStatus(
             is_limit_up=False,

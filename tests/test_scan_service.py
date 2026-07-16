@@ -170,6 +170,8 @@ def test_merge_financial_metrics_checkpoint_skips_merged(tmp_path):
     # 第二次 build_factors 不再重复合并
     pipeline.build_factors()
 
+    assert "000001.SZ" in pipeline.combined_df["code"].values
+
 
 def test_concurrent_load_and_merge_backward_compatible(tmp_path):
     """并行加载+合并与旧版行为一致（结果结构不变）"""

@@ -402,7 +402,7 @@ class BaostockSource(DataSource):
         self._login()
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(self, *args):
         """上下文管理器退出方法"""
         self._logout()
         return False

@@ -1,0 +1,20 @@
+"""
+Wyckoff analysis constants — centralized magic numbers
+
+All Wyckoff modules should import from here instead of hardcoding values.
+"""
+
+ANALYSIS_LOOKBACK: int = 20
+MONEY_FLOW_LOOKBACK: int = 10
+PRICE_DEVIATION_LOOKBACK: int = 5
+DIVERGENCE_WINDOW: int = 5
+
+ENGINE_WEEKLY_MIN_ROWS: int = 20
+ENGINE_MONTHLY_MIN_ROWS: int = 12
+ENGINE_DEFAULT_LOOKBACK_DAYS: int = 120
+ENGINE_DEFAULT_WEEKLY_LOOKBACK: int = 180
+ENGINE_DEFAULT_MONTHLY_LOOKBACK: int = 120
+ENGINE_DEFAULT_RANGE_THRESHOLD: float = 0.20
+ENGINE_DEFAULT_TREND_THRESHOLD: float = 0.05
+
+STATE_SPRING_FREEZE_DAYS: int = 3

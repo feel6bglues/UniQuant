@@ -14,6 +14,7 @@ from ...shared.constants import BacktestConstants, MarketConstants
 from ...shared.cost_model import TRANSFER_FEE_PCT, get_stamp_tax_pct
 from ...shared.limit_checker import get_board_type
 from ...shared.market_rules import get_board_rule
+from ...shared.slippage_model import SlippageModel
 from ...data.managers.trade_calendar_manager import TradeCalendarManager
 
 
@@ -39,6 +40,7 @@ class UnifiedMatchingEngine:
         min_commission: float = BacktestConstants.DEFAULT_MIN_COMMISSION,
         slippage_rate: float = BacktestConstants.DEFAULT_SLIPPAGE_RATE,
         trade_calendar: Optional[TradeCalendarManager] = None,
+        slippage_model: Optional[SlippageModel] = None,
     ):
         assert 0 < commission_rate < 1
         assert 0 <= stamp_duty_rate < 1
@@ -49,6 +51,7 @@ class UnifiedMatchingEngine:
         self.stamp_duty_rate = stamp_duty_rate
         self.min_commission = min_commission
         self.slippage_rate = slippage_rate
+        self.slippage_model = slippage_model
         self.trade_calendar = trade_calendar or TradeCalendarManager()
 
     def _next_trading_day(self, date: pd.Timestamp) -> pd.Timestamp:
@@ -65,6 +68,9 @@ class UnifiedMatchingEngine:
         volumes: np.ndarray,
         avg_daily_volumes: np.ndarray,
         is_buy: bool,
+        symbols: np.ndarray | None = None,
+        quantities: np.ndarray | None = None,
+        timestamps: np.ndarray | None = None,
     ) -> np.ndarray:
         vol_ratios = np.where(
             (avg_daily_volumes > 0) & (volumes > 0),
@@ -72,7 +78,23 @@ class UnifiedMatchingEngine:
             0.0,
         )
         impact = np.minimum(0.001 * np.sqrt(vol_ratios), 0.02)
-        total_slip = self.slippage_rate + impact
+
+        if self.slippage_model is not None and symbols is not None and quantities is not None and timestamps is not None:
+            direction_str = "buy" if is_buy else "sell"
+            model_rates = np.array([
+                self.slippage_model.estimate(
+                    symbol=s,
+                    quantity=int(q),
+                    direction=direction_str,
+                    price=float(p),
+                    timestamp=pd.Timestamp(t),
+                )
+                for s, q, p, t in zip(symbols, quantities, prices, timestamps)
+            ])
+            total_slip = model_rates + impact
+        else:
+            total_slip = self.slippage_rate + impact
+
         direction = 1.0 if is_buy else -1.0
         return prices * (1.0 + direction * total_slip)
 
@@ -155,12 +177,14 @@ class UnifiedMatchingEngine:
 
         limit_status = self.compute_limit_status_vectorized(prices, pre_closes, symbols, names, trading_days_listed)
         limit_rejected = limit_status["is_limit_up"]
+        volume_zero = np.array([vol <= 0 for vol in volumes], dtype=bool)
 
-        exec_prices = self.compute_execution_prices(prices, volumes, avg_daily_volumes, is_buy=True)
+        exec_prices = self.compute_execution_prices(prices, volumes, avg_daily_volumes, is_buy=True, symbols=symbols, quantities=shares_requested, timestamps=timestamps)
 
         values = exec_prices * shares_requested
         commissions = np.maximum(values * self.commission_rate, self.min_commission)
-        transfer_fees = values * TRANSFER_FEE_PCT  # 过户费
+        sh_mask = np.array([s.startswith("60") for s in symbols], dtype=bool)  # 向量化版。标量版在 cost_model.py:48
+        transfer_fees = np.where(sh_mask, values * TRANSFER_FEE_PCT, 0.0)  # 过户费(仅沪市)
         total_costs = values + commissions + transfer_fees
 
         cash_shortfall = total_costs > cash_available
@@ -179,10 +203,11 @@ class UnifiedMatchingEngine:
 
         values = exec_prices * shares_adj
         commissions = np.maximum(values * self.commission_rate, self.min_commission)
-        transfer_fees = values * TRANSFER_FEE_PCT
+        transfer_fees = np.where(sh_mask, values * TRANSFER_FEE_PCT, 0.0)
         total_costs = values + commissions + transfer_fees
 
-        rejected_mask = limit_rejected | (shares_adj <= 0)
+        rejected_mask = limit_rejected | volume_zero | (shares_adj <= 0)
+        shares_adj = np.where(rejected_mask, 0, shares_adj)
         return FillResult(
             executed_shares=shares_adj,
             exec_prices=exec_prices,
@@ -216,6 +241,7 @@ class UnifiedMatchingEngine:
 
         limit_status = self.compute_limit_status_vectorized(prices, pre_closes, symbols, names, trading_days_listed)
         limit_rejected = limit_status["is_limit_down"]
+        volume_zero = np.array([vol <= 0 for vol in volumes], dtype=bool)
 
         t1_violation = np.zeros(n, dtype=bool)
         for i in range(n):
@@ -235,7 +261,8 @@ class UnifiedMatchingEngine:
                     t1_violation[i] = True
 
         shares_clamped = np.minimum(shares_requested, positions_held)
-        exec_prices = self.compute_execution_prices(prices, volumes, avg_daily_volumes, is_buy=False)
+        _ = position_costs  # acknowledged unused — PnL tracked at engine level
+        exec_prices = self.compute_execution_prices(prices, volumes, avg_daily_volumes, is_buy=False, symbols=symbols, quantities=shares_requested, timestamps=timestamps)
 
         values = exec_prices * shares_clamped
         commissions = np.maximum(values * self.commission_rate, self.min_commission)
@@ -245,9 +272,10 @@ class UnifiedMatchingEngine:
         date_to_rate = {d: get_stamp_tax_pct(d) for d in unique_dates}
         rates = np.array([date_to_rate[d.date()] for d in stamp_dates])
         stamp_duties = values * rates
-        transfer_fees = values * TRANSFER_FEE_PCT  # 过户费
+        sh_mask = np.array([s.startswith("60") for s in symbols], dtype=bool)  # 向量化版。标量版在 cost_model.py:48
+        transfer_fees = np.where(sh_mask, values * TRANSFER_FEE_PCT, 0.0)  # 过户费(仅沪市)
 
-        rejected = limit_rejected | t1_violation | (shares_clamped <= 0)
+        rejected = limit_rejected | volume_zero | t1_violation | (shares_clamped <= 0)
 
         return FillResult(
             executed_shares=np.where(rejected, 0, shares_clamped),

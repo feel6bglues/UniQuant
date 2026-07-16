@@ -7,7 +7,7 @@ try:
     HAS_NUMBA = True
 except ImportError:
     HAS_NUMBA = False
-    def njit(*dec_args, **dec_kwargs):
+    def njit(*args, **kwargs):
         return lambda f: f
 
 @njit(cache=True, fastmath=True)
@@ -88,7 +88,7 @@ def _reduced_cost_numba(
 
     try:
         beta = np.linalg.solve(A, rhs)
-    except Exception:
+    except Exception:  # numba @njit requires bare Exception, cannot narrow
         return 1e20
 
     sse = yty - (beta[0] * r1 + beta[1] * r2 + beta[2] * r3 + beta[3] * r4)
@@ -168,7 +168,7 @@ def _solve_linear_parameters_numba(
         c = np.sqrt(c1**2 + c2**2)
         phi = np.arctan2(-c2, c1)
         return a, b, c, phi
-    except Exception:
+    except Exception:  # numba @njit requires bare Exception, cannot narrow
         return 0.0, 0.0, 0.0, 0.0
 
 

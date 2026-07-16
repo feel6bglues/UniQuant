@@ -63,6 +63,7 @@ class AsyncEventBus(EventBus):
 
     def publish(self, event: Event) -> None:
         handlers = self._subscribers.get(event.topic, [])
+        self._pending_futures = [f for f in self._pending_futures if not f.done()]
         for handler in handlers:
             fut = self._executor.submit(self._safe_dispatch, handler, event)
             self._pending_futures.append(fut)

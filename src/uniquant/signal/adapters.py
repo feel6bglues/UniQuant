@@ -65,7 +65,7 @@ class LPPLAdapter(EngineAdapter):
     """LPPL 泡沫检测引擎输出适配器
 
     输入 keys: risk_level, confidence, bubble_confidence
-    输出: BUY (Safe+高置信度) / SELL (Danger) / HOLD (Warning)
+    输出: SELL (Danger) / HOLD (Safe/Warning) — 从不产生 BUY
     """
 
     def adapt(
@@ -259,7 +259,7 @@ class RegimeAdapter(EngineAdapter):
     """市场状态 (Regime) 引擎输出适配器
 
     输入 keys: regime
-    输出: SELL (FROZEN/STRESSED) / HOLD (NORMAL)
+    输出: HOLD (FROZEN/STRESSED) / None (NORMAL) — 从不产生 SELL
     """
 
     def adapt(
@@ -359,7 +359,7 @@ class AlphaScoreAdapter(EngineAdapter):
         score = float(raw_output.get("alpha_score", 0.5))
         if score > 0.6:
             action = "BUY"
-        elif score < 0.3:
+        elif 0 < score < 0.3:
             action = "SELL"
         else:
             return None
@@ -415,7 +415,7 @@ class MAStatusAdapter(EngineAdapter):
 # ══════════════════════════════════════════════════════════════
 
 class AdapterRegistry:
-    """引擎适配器注册表"""
+    """引擎适配器注册表 — 支持自动发现和手动注册"""
 
     def __init__(self) -> None:
         self._adapters: Dict[str, EngineAdapter] = {}
@@ -428,6 +428,22 @@ class AdapterRegistry:
 
     def list_engines(self) -> List[str]:
         return list(self._adapters.keys())
+
+    @classmethod
+    def discover(cls, base_module: str = "uniquant.signal.adapters") -> "AdapterRegistry":
+        registry = cls()
+        try:
+            import importlib
+            import inspect
+            mod = importlib.import_module(base_module)
+            for name, obj in inspect.getmembers(mod, inspect.isclass):
+                if issubclass(obj, EngineAdapter) and obj is not EngineAdapter:
+                    engine_name = name.lower().replace("adapter", "").replace("engine", "")
+                    if engine_name:
+                        registry.register(engine_name, obj())
+        except (ImportError, AttributeError):
+            pass
+        return registry
 
 
 def create_default_registry() -> AdapterRegistry:

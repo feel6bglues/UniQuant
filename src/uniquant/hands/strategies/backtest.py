@@ -80,7 +80,7 @@ def _load_csi300_history_snapshot(as_of_date: str) -> Optional[set]:
         if not candidates:
             return None
         return set(c.zfill(6) for c in history[candidates[-1]])
-    except Exception:
+    except (json.JSONDecodeError, KeyError, OSError):
         logger.warning("Failed to load blacklist from %s", p, exc_info=True)
         return None
 
@@ -116,7 +116,7 @@ def _load_csi300_snapshot() -> set:
                     "result may include non-CSI300 stocks.", len(codes)
                 )
                 return codes
-            except Exception as e:
+            except (OSError, csv.Error) as e:
                 logger.warning("Failed to load fallback codes from stock_list.csv: %s", e)
         return set()
     codes = set()
@@ -146,7 +146,7 @@ def load_csi300_constituents(as_of_date: str | None = None) -> set:
             codes = set(df["stock_code"].str.strip().str.zfill(6))
             logger.info("Loaded %d CSI300 constituents for %s via akshare", len(codes), as_of_date)
             return codes
-        except Exception:
+        except (ImportError, OSError, KeyError):
             logger.warning(
                 "akshare CSI300 history failed for %s, using local snapshot", as_of_date
             )
@@ -281,7 +281,7 @@ def process_stock(args: Tuple) -> List[Dict]:
                     "LiquidityRisk sym=%s limit_down_ratio=%.2f%% (%d/%d days)",
                     sym, limit_down_ratio * 100, limit_down_count, len(df)
                 )
-        except Exception:
+        except (ValueError, TypeError):
             logger.debug("limit_down_ratio calc failed for %s", sym)
         first_date = str(df["date"].min().date())
         for w in windows:
@@ -334,7 +334,7 @@ def process_stock(args: Tuple) -> List[Dict]:
                         try:
                             last_date = df["date"].max()
                             is_delisted = last_date < pd.Timestamp(get_time_provider().now()) - pd.DateOffset(years=1)
-                        except Exception:
+                        except (TypeError, ValueError):
                             is_delisted = False
                         if is_delisted:
                             now = pd.Timestamp(get_time_provider().now())
@@ -343,10 +343,10 @@ def process_stock(args: Tuple) -> List[Dict]:
                                 penalty = -0.20 * days_since_last / 365.0
                                 r = {**r, "ret": r.get("ret", 0) + penalty, "survivorship_penalty": penalty}
                         trades.append({"strategy": s_name, "symbol": sym, "window": w, "delisted": is_delisted, **r})
-                except Exception as e:
+                except (ValueError, TypeError, KeyError) as e:
                     logger.warning("strategy=%s symbol=%s window=%s error=%s", s_name, sym, w, e)
                     continue
-    except Exception as e:
+    except (ValueError, TypeError, OSError) as e:
         error_count += 1
         logger.error("symbol=%s error=%s (error_count=%d)", sym, e, error_count)
     return trades
@@ -411,7 +411,7 @@ def run_backtest(strategies: List[str], n_windows: int = 20,
             for f in as_completed(futures):
                 try:
                     all_trades.extend(f.result(timeout=300))
-                except Exception as e:
+                except (ValueError, TypeError, RuntimeError) as e:
                     logger.warning("future result error: %s", e)
 
     if not all_trades:

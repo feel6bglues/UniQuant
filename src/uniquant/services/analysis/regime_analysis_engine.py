@@ -39,7 +39,7 @@ class RegimeAnalysisEngine:
         try:
             from ...brain.regime.regime_detector import RegimeDetector
             regime_detector = RegimeDetector()
-            regime_result = regime_detector.detect(symbol)
+            regime_result = regime_detector.detect(df)
             return {
                 "symbol": symbol,
                 "status": "success",

@@ -52,10 +52,10 @@ class RealTimeProvider:
         return datetime.datetime.now()
 
     def today(self) -> datetime.date:
-        return datetime.date.today()
+        return self.now().date()
 
     def timestamp(self) -> str:
-        return datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        return self.now().strftime("%Y%m%d_%H%M%S")
 
     def epoch(self) -> float:
         return time.time()

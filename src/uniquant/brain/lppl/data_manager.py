@@ -114,7 +114,7 @@ class LPPLDataManager:
                 logger.info("  首次下载完成")
 
             return df
-        except Exception as e:
+        except (IOError, OSError, ValueError) as e:
             logger.error(f"  错误: {e}")
             return None
 

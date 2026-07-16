@@ -45,21 +45,15 @@ except ImportError:
     _logger.warning("signal.normalizer 导入失败")
 
 try:
-    from .quality import (
-        SignalQualityAssessor,
-        SignalQualityMetrics,
-        SignalQualityTracker,
-    )
-except ImportError:
-    _logger.warning("signal.quality 导入失败")
-
-try:
     from .adapters import (
         AdapterRegistry,
+        AlphaScoreAdapter,
         CZSCAdapter,
         EngineAdapter,
         FSMAdapter,
         LPPLAdapter,
+        MAStatusAdapter,
+        NTFAdapter,
         RegimeAdapter,
         TradingSignalCollector,
         WyckoffAdapter,
@@ -90,19 +84,18 @@ __all__ = [
     "SignalAggregator",
     "TimeWindowAggregator",
     "SourceWeightManager",
-    # quality
-    "SignalQualityMetrics",
-    "SignalQualityAssessor",
-    "SignalQualityTracker",
     # adapters
-    "EngineAdapter",
-    "LPPLAdapter",
-    "CZSCAdapter",
-    "WyckoffAdapter",
-    "FSMAdapter",
-    "RegimeAdapter",
     "AdapterRegistry",
+    "AlphaScoreAdapter",
+    "CZSCAdapter",
+    "EngineAdapter",
+    "FSMAdapter",
+    "LPPLAdapter",
+    "MAStatusAdapter",
+    "NTFAdapter",
+    "RegimeAdapter",
     "TradingSignalCollector",
+    "WyckoffAdapter",
     "create_default_adapter_registry",
 ]
 

@@ -89,7 +89,7 @@ class TestImportChain:
         ("uniquant.hands", "uniquant.hands"),
         ("uniquant.hands.backtest.engine", "uniquant.hands.backtest.engine"),
         ("uniquant.hands.backtest.result", "uniquant.hands.backtest.result"),
-        ("uniquant.hands.backtest.portfolio_engine", "uniquant.hands.backtest.portfolio_engine"),
+        ("uniquant.hands.backtest.archive.portfolio_engine", "uniquant.hands.backtest.archive.portfolio_engine"),
         ("uniquant.risk", "uniquant.risk"),
         ("uniquant.risk.drawdown_analyzer", "uniquant.risk.drawdown_analyzer"),
         ("uniquant.risk.portfolio_optimizer", "uniquant.risk.portfolio_optimizer"),
@@ -334,7 +334,7 @@ class TestPortfolioEngine:
         return signals_df, price_df, pre_close_df, volume_df
 
     def test_portfolio_run(self):
-        from uniquant.hands.backtest.portfolio_engine import PortfolioEngine
+        from uniquant.hands.backtest.archive.portfolio_engine import PortfolioEngine
 
         signals_df, price_df, pre_close_df, volume_df = self._make_multi_stock_data()
 
@@ -352,7 +352,7 @@ class TestPortfolioEngine:
         assert len(result) > 0, "结果为空"
 
     def test_portfolio_metrics(self):
-        from uniquant.hands.backtest.portfolio_engine import PortfolioEngine
+        from uniquant.hands.backtest.archive.portfolio_engine import PortfolioEngine
 
         signals_df, price_df, pre_close_df, volume_df = self._make_multi_stock_data()
 
@@ -373,7 +373,7 @@ class TestPortfolioEngine:
             assert isinstance(metrics["max_drawdown"], float)
 
     def test_portfolio_reset(self):
-        from uniquant.hands.backtest.portfolio_engine import PortfolioEngine
+        from uniquant.hands.backtest.archive.portfolio_engine import PortfolioEngine
 
         engine = PortfolioEngine(initial_capital=1_000_000)
         engine.reset()
@@ -818,7 +818,7 @@ class TestParameterAlignment:
         assert len(result.equity_curve) == 200
 
     def test_portfolio_signal_column_names(self):
-        from uniquant.hands.backtest.portfolio_engine import PortfolioEngine
+        from uniquant.hands.backtest.archive.portfolio_engine import PortfolioEngine
 
         dates = pd.bdate_range(start="2024-01-02", periods=50, freq="B")
         signals_df = pd.DataFrame({
@@ -873,3 +873,330 @@ class TestParameterAlignment:
         assert result is not None
         total_weight = sum(result["weights"].values())
         assert abs(total_weight - 1.0) < 0.05, f"权重之和 {total_weight} != 1.0"
+
+
+# ═══════════════════════════════════════════════════════════════
+# 测试11: UnifiedBacktestEngine 集成测试 (Phase 2, #33)
+# ═══════════════════════════════════════════════════════════════
+
+class TestUnifiedBacktestEngineE2E:
+    """UnifiedBacktestEngine (强类型 TradingSignal) 端到端验证"""
+
+    def test_unified_run_with_typed_signals(self):
+        from uniquant.hands.backtest.unified_engine import UnifiedBacktestEngine
+        from uniquant.shared.interfaces import TradingSignal
+
+        df = _make_kline_df(200)
+        df["pre_close"] = df["close"].shift(1).fillna(df["open"])
+        df["avg_daily_volume"] = df["volume"].rolling(20, min_periods=1).mean()
+
+        import datetime
+        signals = [
+            TradingSignal(action="BUY", reason="test_entry", confidence=0.8, shares=100,
+                          symbol="000001.SZ", timestamp=datetime.datetime(2024, 1, 22)),
+            TradingSignal(action="SELL", reason="test_exit", confidence=0.9, shares=100,
+                          symbol="000001.SZ", timestamp=datetime.datetime(2024, 2, 15)),
+        ]
+        engine = UnifiedBacktestEngine(initial_capital=100_000)
+        result = engine.run(df, signals, symbol="000001.SZ")
+
+        assert result.total_trades >= 0
+        assert len(result.equity_curve) == len(df)
+        assert result.initial_capital == 100_000
+        assert result.total_return >= -1.0
+        assert isinstance(result.sharpe, float)
+
+    def test_unified_multi_signal_same_day(self):
+        from uniquant.hands.backtest.unified_engine import UnifiedBacktestEngine
+        from uniquant.shared.interfaces import TradingSignal
+
+        df = _make_kline_df(100)
+        df["pre_close"] = df["close"].shift(1).fillna(df["open"])
+        df["avg_daily_volume"] = df["volume"].rolling(20, min_periods=1).mean()
+
+        import datetime
+        t = datetime.datetime(2024, 1, 22)
+        signals = [
+            TradingSignal(action="BUY", reason="signal_a", confidence=0.7, shares=100, symbol="000001.SZ", timestamp=t),
+            TradingSignal(action="SELL", reason="signal_b", confidence=0.6, shares=100, symbol="000001.SZ", timestamp=t),
+        ]
+        engine = UnifiedBacktestEngine(initial_capital=100_000)
+        result = engine.run(df, signals, symbol="000001.SZ")
+
+        assert result is not None
+        assert len(result.equity_curve) == len(df)
+
+    def test_unified_handles_empty_signals(self):
+        from uniquant.hands.backtest.unified_engine import UnifiedBacktestEngine
+
+        df = _make_kline_df(50)
+        df["pre_close"] = df["close"].shift(1).fillna(df["open"])
+        df["avg_daily_volume"] = df["volume"].rolling(20, min_periods=1).mean()
+
+        engine = UnifiedBacktestEngine(initial_capital=100_000)
+        result = engine.run(df, [], symbol="000001.SZ")
+
+        assert result.total_trades == 0
+        assert len(result.equity_curve) == len(df)
+        assert result.equity_curve[-1] == 100_000
+
+    def test_unified_backtest_result_metadata(self):
+        from uniquant.hands.backtest.unified_engine import UnifiedBacktestEngine
+
+        df = _make_kline_df(50)
+        df["pre_close"] = df["close"].shift(1).fillna(df["open"])
+        df["avg_daily_volume"] = df["volume"].rolling(20, min_periods=1).mean()
+
+        engine = UnifiedBacktestEngine(initial_capital=100_000)
+        result = engine.run(df, [], symbol="000001.SZ", name="测试股票")
+
+        assert "symbol" in result.metadata
+        assert result.metadata["symbol"] == "000001.SZ"
+        assert result.metadata["engine"] == "unified"
+        assert result.metadata["signal_count"] == 0
+        assert result.metadata["trading_days_count"] > 0
+
+
+# ═══════════════════════════════════════════════════════════════
+# 测试12: SignalArbitrator E2E 集成测试 (Phase 2, #33)
+# ═══════════════════════════════════════════════════════════════
+
+class TestSignalArbitratorE2E:
+    """SignalArbitrator 完整仲裁链路验证"""
+
+    def test_arbitrator_basic_arbitration(self):
+        from uniquant.signal.arbitrator import SignalArbitrator
+        from uniquant.shared.interfaces import TradingSignal
+
+        import datetime
+        ts = datetime.datetime(2024, 1, 15)
+        signals = [
+            TradingSignal(action="BUY", reason="lppl_buy", confidence=0.7, symbol="000001", timestamp=ts),
+            TradingSignal(action="SELL", reason="wyckoff_sell", confidence=0.6, symbol="000001", timestamp=ts),
+        ]
+        arb = SignalArbitrator(max_signal_age_seconds=0)  # 0 = disable timeout
+        result = arb.arbitrate(signals, symbol="000001")
+
+        assert len(result) == 1
+        # SELL 应优先于 BUY
+        assert result[0].action == "SELL"
+
+    def test_arbitrator_quality_gate(self):
+        from uniquant.signal.arbitrator import SignalArbitrator
+        from uniquant.shared.interfaces import TradingSignal
+
+        import datetime
+        ts = datetime.datetime(2024, 1, 15)
+        signals = [
+            TradingSignal(action="SELL", reason="lppl_sell", confidence=0.8, symbol="000001",
+                          timestamp=ts, metadata={"out_of_sample_r_squared": 0.1}),
+        ]
+        arb = SignalArbitrator(quality_threshold=0.3, max_signal_age_seconds=0)
+        result = arb.arbitrate(signals, symbol="000001")
+
+        assert len(result) == 0, "quality gate 应过滤低 OOS R² 的 SELL"
+
+    def test_arbitrator_empty_signals(self):
+        from uniquant.signal.arbitrator import SignalArbitrator
+
+        arb = SignalArbitrator(max_signal_age_seconds=0)
+        result = arb.arbitrate([], symbol="000001")
+        assert result == []
+
+
+# ═══════════════════════════════════════════════════════════════
+# 测试13: UnifiedMatchingEngine 集成测试 (Phase 2, #33)
+# ═══════════════════════════════════════════════════════════════
+
+class TestUnifiedMatchingEngineE2E:
+    """UnifiedMatchingEngine 撮合逻辑验证"""
+
+    def test_matching_basic_execution(self):
+        from uniquant.hands.backtest.unified_matching_engine import UnifiedMatchingEngine
+        import numpy as np
+
+        engine = UnifiedMatchingEngine()
+        n = 5
+        prices = np.full(n, 10.0, dtype=np.float64)
+        volumes = np.full(n, 1_000_000, dtype=np.float64)
+        avg_daily = np.full(n, 2_000_000, dtype=np.float64)
+        pre_closes = np.full(n, 9.8, dtype=np.float64)
+        symbols = np.array(["000001.SZ"] * n)
+        timestamps = np.array(["2024-01-22"] * n, dtype="datetime64[ns]")
+        cash = np.full(n, 100_000, dtype=np.float64)
+
+        result = engine.fill_buy(
+            prices=prices,
+            shares_requested=np.full(n, 100, dtype=np.int64),
+            cash_available=cash,
+            pre_closes=pre_closes,
+            symbols=symbols,
+            timestamps=timestamps,
+            volumes=volumes,
+            avg_daily_volumes=avg_daily,
+        )
+
+        assert result.executed_shares is not None  # 类型安全验证
+        assert np.any(result.executed_shares > 0) or np.all(result.rejected_mask)
+
+    def test_matching_empty_signals(self):
+        from uniquant.hands.backtest.unified_matching_engine import UnifiedMatchingEngine
+
+        engine = UnifiedMatchingEngine()
+        assert engine is not None
+        assert engine.commission_rate > 0
+
+    def test_matching_t1_constraint(self):
+        from uniquant.hands.backtest.unified_matching_engine import UnifiedMatchingEngine
+        import numpy as np
+
+        engine = UnifiedMatchingEngine()
+        n = 2
+        # Buy on day 1, attempt to sell same day (T+1 violation)
+        prices = np.full(n, 10.0, dtype=np.float64)
+        shares_requested = np.array([100, 100], dtype=np.int64)
+        positions = np.array([0, 100], dtype=np.int64)
+        position_costs = np.array([0.0, 10.0], dtype=np.float64)
+        pre_closes = np.full(n, 9.8, dtype=np.float64)
+        symbols = np.array(["000001.SZ", "000001.SZ"])
+        timestamps = np.array(["2024-01-22", "2024-01-22"], dtype="datetime64[ns]")
+        buy_dates = np.array([None, pd.Timestamp("2024-01-22")], dtype=object)
+        volumes = np.full(n, 1_000_000, dtype=np.float64)
+        avg_daily = np.full(n, 2_000_000, dtype=np.float64)
+
+        result = engine.fill_sell(
+            prices=prices,
+            shares_requested=shares_requested,
+            positions_held=positions,
+            position_costs=position_costs,
+            pre_closes=pre_closes,
+            symbols=symbols,
+            timestamps=timestamps,
+            buy_dates=buy_dates,
+            volumes=volumes,
+            avg_daily_volumes=avg_daily,
+        )
+
+        assert result is not None
+        # Second row should have T+1 violation (same-day sell)
+        assert result.t1_violation_mask[1], "Same-day sell should be T+1 rejected"
+
+
+# ═══════════════════════════════════════════════════════════════
+# 测试14: 核心约束 E2E 测试 (Halt, T+1, 仲裁, ADV)
+# ═══════════════════════════════════════════════════════════════
+
+class TestE2EHaltAndT1:
+    """核心交易约束端到端验证: 停牌、T+1、仲裁优先级、ADV无前视"""
+
+    def test_halt_day_no_trade(self):
+        from uniquant.hands.backtest.unified_matching_engine import UnifiedMatchingEngine
+        import numpy as np
+
+        engine = UnifiedMatchingEngine()
+        n = 3
+        prices = np.full(n, 10.0, dtype=np.float64)
+        volumes = np.array([1_000_000, 0, 1_000_000], dtype=np.float64)
+        avg_daily = np.full(n, 2_000_000, dtype=np.float64)
+        pre_closes = np.full(n, 9.8, dtype=np.float64)
+        symbols = np.array(["000001.SZ"] * n)
+        timestamps = np.array(["2024-01-22", "2024-01-23", "2024-01-24"], dtype="datetime64[ns]")
+        cash = np.full(n, 100_000, dtype=np.float64)
+
+        result = engine.fill_buy(
+            prices=prices,
+            shares_requested=np.full(n, 100, dtype=np.int64),
+            cash_available=cash,
+            pre_closes=pre_closes,
+            symbols=symbols,
+            timestamps=timestamps,
+            volumes=volumes,
+            avg_daily_volumes=avg_daily,
+        )
+
+        assert result.executed_shares[0] > 0
+        assert result.executed_shares[1] == 0, "Halt day (volume=0) should have 0 shares executed"
+        assert result.rejected_mask[1], "Halt day should be marked rejected"
+        assert result.executed_shares[2] > 0
+
+    def test_t1_blocks_same_day_sell(self):
+        from uniquant.hands.backtest.unified_matching_engine import UnifiedMatchingEngine
+        import numpy as np
+        import pandas as pd
+
+        engine = UnifiedMatchingEngine()
+        n = 2
+        prices = np.full(n, 10.0, dtype=np.float64)
+        shares_requested = np.array([100, 100], dtype=np.int64)
+        positions = np.array([100, 100], dtype=np.int64)
+        position_costs = np.array([10.0, 10.0], dtype=np.float64)
+        pre_closes = np.full(n, 9.8, dtype=np.float64)
+        symbols = np.array(["000001.SZ"] * n)
+        timestamps = np.array(["2024-01-22", "2024-01-22"], dtype="datetime64[ns]")
+        buy_dates = np.array([None, pd.Timestamp("2024-01-22")], dtype=object)
+        volumes = np.full(n, 1_000_000, dtype=np.float64)
+        avg_daily = np.full(n, 2_000_000, dtype=np.float64)
+
+        result = engine.fill_sell(
+            prices=prices,
+            shares_requested=shares_requested,
+            positions_held=positions,
+            position_costs=position_costs,
+            pre_closes=pre_closes,
+            symbols=symbols,
+            timestamps=timestamps,
+            buy_dates=buy_dates,
+            volumes=volumes,
+            avg_daily_volumes=avg_daily,
+        )
+
+        assert not result.t1_violation_mask[0], "No prior buy date → no T+1 violation"
+        assert result.t1_violation_mask[1], "Same-day buy→sell should be T+1 violated"
+        assert result.executed_shares[1] == 0, "T+1 violated sell should have 0 shares"
+
+    def test_multi_signal_arbitration_sell_priority(self):
+        from uniquant.signal.arbitrator import SignalArbitrator
+        from uniquant.shared.interfaces import TradingSignal
+        import datetime
+
+        ts = datetime.datetime(2024, 1, 15)
+        signals = [
+            TradingSignal(action="BUY", reason="regime_buy", confidence=0.9, symbol="000001", timestamp=ts),
+            TradingSignal(action="BUY", reason="czsc_buy", confidence=0.7, symbol="000001", timestamp=ts),
+            TradingSignal(action="SELL", reason="lppl_sell", confidence=0.8, symbol="000001", timestamp=ts),
+            TradingSignal(action="SELL", reason="wyckoff_sell", confidence=0.5, symbol="000001", timestamp=ts),
+        ]
+        arb = SignalArbitrator(max_signal_age_seconds=0)
+        result = arb.arbitrate(signals, symbol="000001")
+
+        assert len(result) == 1, "Should return exactly 1 arbitrated signal"
+        assert result[0].action == "SELL", "SELL should win over BUY (sell priority)"
+        assert "lppl" in result[0].reason.lower(), "Should pick highest confidence SELL"
+
+    def test_adv_no_lookahead(self):
+        from uniquant.hands.backtest.unified_engine import UnifiedBacktestEngine
+        import numpy as np
+        import pandas as pd
+
+        n_days = 50
+        dates = pd.bdate_range(start="2024-01-02", periods=n_days, freq="B")
+        volume = np.full(n_days, 1000.0)
+        volume[20] = 999_999.0
+
+        close = np.full(n_days, 10.0)
+        df = pd.DataFrame({
+            "date": dates,
+            "open": close.astype(float),
+            "high": close.astype(float),
+            "low": close.astype(float),
+            "close": close.astype(float),
+            "volume": volume.astype(float),
+        })
+
+        engine = UnifiedBacktestEngine(initial_capital=100_000)
+        prepared = engine._prepare_dataframe(df)
+
+        expected_adv = volume[:20].mean()
+        actual_adv = prepared["avg_daily_volume"].iloc[20]
+        assert actual_adv == pytest.approx(expected_adv, abs=0.01), \
+            f"avg_daily_volume[20]={actual_adv} should be mean(volume[0:20])={expected_adv}"

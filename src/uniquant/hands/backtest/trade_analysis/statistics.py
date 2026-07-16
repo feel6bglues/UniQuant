@@ -143,32 +143,43 @@ class TradeStatistics:
     def sharpe_ratio(self, trades: pd.DataFrame, risk_free_rate: float = 0.03) -> float:
         """
         计算交易的夏普比率
-        
-        使用交易 PnL 序列而不是日收益率。
-        
+
+        优先使用 pnl_pct (百分比收益率), 回退到美元 PnL。
+
         Args:
             trades: 交易 DataFrame
             risk_free_rate: 无风险利率 (年化)
-            
+
         Returns:
             夏普比率
         """
-        if "pnl" not in trades.columns:
+        if "pnl" not in trades.columns and "pnl_pct" not in trades.columns:
             return 0.0
 
-        pnls = trades[trades["action"] == "SELL"]["pnl"] if "action" in trades.columns else trades["pnl"]
+        closed = trades[trades["action"] == "SELL"] if "action" in trades.columns else trades
 
-        if len(pnls) < 2:
+        if "pnl_pct" in closed.columns:
+            returns = closed["pnl_pct"]
+        elif "pnl" in closed.columns and "price" in closed.columns and "shares" in closed.columns:
+            cost_basis = closed["price"] * closed["shares"] + closed.get("commission", 0.0)
+            cost_basis = cost_basis.replace(0, float("nan"))
+            returns = closed["pnl"] / cost_basis
+        else:
+            returns = closed["pnl"]
+
+        returns = returns.dropna()
+
+        if len(returns) < 2:
             return 0.0
 
-        mean_pnl = np.mean(pnls)
-        std_pnl = np.std(pnls)
+        mean_ret = np.mean(returns)
+        std_ret = np.std(returns, ddof=1)
 
-        if std_pnl == 0:
+        if std_ret == 0:
             return 0.0
 
         rfr_per_trade = risk_free_rate / 252
-        excess = mean_pnl - rfr_per_trade
+        excess = mean_ret - rfr_per_trade
 
-        sharpe = excess / std_pnl * np.sqrt(252)
+        sharpe = excess / std_ret * np.sqrt(252)
         return float(sharpe)

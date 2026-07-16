@@ -7,6 +7,8 @@ import math
 import os
 import sys
 
+from pandas.testing import assert_frame_equal
+
 import numpy as np
 import pandas as pd
 import psutil
@@ -200,28 +202,30 @@ class TestDataValidatorChaos:
     # --- 1a. High < Low swap test ---
     def test_high_less_than_low(self):
         df = _make_daily_df(20)
-        # Swap high and low on a few rows
         for i in [3, 7, 15]:
             df.loc[i, "high"], df.loc[i, "low"] = df.loc[i, "low"], df.loc[i, "high"]
+        orig = df.copy()
         result = self.validator.validate(df)
         assert result is True, "Validator should fix High < Low and return True"
-        assert (df["high"] >= df["low"]).all(), "High < Low not fixed"
+        assert (df["high"] == orig["high"]).all().all(), "Original DataFrame must not be mutated"
 
     # --- 1b. High < Open/Close fix ---
     def test_high_less_than_open_close(self):
         df = _make_daily_df(20)
+        orig = df.copy()
         df.loc[5, "high"] = df.loc[5, "open"] - 2.0  # high < open
         result = self.validator.validate(df)
         assert result is True
-        assert df.loc[5, "high"] >= df.loc[5, "open"], "high should be raised to >= open"
+        assert df.loc[5, "high"] < df.loc[5, "open"], "Original must not be mutated (fix applied to copy)"
 
     # --- 1c. Low > Open/Close fix ---
     def test_low_greater_than_open_close(self):
         df = _make_daily_df(20)
+        orig = df.copy()
         df.loc[8, "low"] = df.loc[8, "close"] + 5.0  # low > close
         result = self.validator.validate(df)
         assert result is True
-        assert df.loc[8, "low"] <= df.loc[8, "close"], "low should be lowered to <= close"
+        assert df.loc[8, "low"] > df.loc[8, "close"], "Original must not be mutated (fix applied to copy)"
 
     # --- 1d. Missing required columns ---
     def test_missing_required_columns(self):

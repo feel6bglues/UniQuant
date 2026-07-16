@@ -31,10 +31,11 @@ from ...shared.cost_model import (
     SLIPPAGE_PCT,
     STAMP_TAX_PCT,
     TRANSFER_FEE_PCT,
+    _has_transfer_fee,
     calculate_sharpe_ratio,
     get_stamp_tax_pct,
 )
-from ...shared.interfaces import TradingSignal
+from ...shared.interfaces import PositionSizerProtocol, TradingSignal
 from ...shared.limit_checker import get_board_type
 from ...shared.logger_factory import get_logger
 from ...shared.market_rules import get_board_rule
@@ -72,6 +73,7 @@ class BacktestResult:
     initial_capital: float = 0.0
     final_cash: float = 0.0
     metadata: Dict[str, Any] = field(default_factory=dict)
+    benchmark_return: float = 0.0
 
     @property
     def total_trades(self) -> int:
@@ -167,6 +169,7 @@ class UnifiedBacktestEngine:
         slippage_rate: float = SLIPPAGE_PCT,
         min_commission: float = MIN_COMMISSION,
         trade_calendar: Optional[TradeCalendarManager] = None,
+        sizer: Optional[PositionSizerProtocol] = None,
     ):
         self.initial_capital = initial_capital
         self.commission_rate = commission_rate
@@ -174,10 +177,72 @@ class UnifiedBacktestEngine:
         self.slippage_rate = slippage_rate
         self.min_commission = min_commission
         self.trade_calendar = trade_calendar or TradeCalendarManager()
+        self._sizer = sizer
 
     # ──────────────────────────────────────────────────────────
     # 公共接口
     # ──────────────────────────────────────────────────────────
+
+    def sensitivity_scan(
+        self,
+        df: pd.DataFrame,
+        signals: List[TradingSignal],
+        symbol: str = "",
+        name: Optional[str] = None,
+        slippages: Optional[List[float]] = None,
+        commissions: Optional[List[float]] = None,
+        benchmark_returns: Optional[pd.Series] = None,
+    ) -> pd.DataFrame:
+        """滑点/佣金敏感性分析
+
+        遍历给定的滑点率和佣金率组合, 分别运行回测,
+        返回每个组合下的总收益率、夏普比率、最大回撤、胜率、盈利因子。
+
+        Args:
+            df: K线数据
+            signals: 标准化信号列表
+            symbol: 股票代码
+            name: 股票名称
+            slippages: 滑点率列表 (默认 [0.0, 0.0005, 0.001, 0.002, 0.003])
+            commissions: 佣金率列表 (默认 [0.0, 0.0003, 0.0005, 0.001])
+            benchmark_returns: 基准指数收益率序列, 传入后增加 excess_return 列
+
+        Returns:
+            DataFrame with columns: slippage, commission, total_return, sharpe,
+            max_drawdown, win_rate, profit_factor [, excess_return]
+        """
+        if slippages is None:
+            slippages = [0.0, 0.0005, 0.001, 0.002, 0.003]
+        if commissions is None:
+            commissions = [0.0, 0.0003, 0.0005, 0.001]
+
+        rows: List[Dict[str, float]] = []
+
+        for slp in slippages:
+            for comm in commissions:
+                engine = UnifiedBacktestEngine(
+                    initial_capital=self.initial_capital,
+                    commission_rate=comm,
+                    stamp_duty_rate=self.stamp_duty_rate,
+                    slippage_rate=slp,
+                    min_commission=self.min_commission,
+                    trade_calendar=self.trade_calendar,
+                )
+                result = engine.run(
+                    df, signals, symbol=symbol, name=name,
+                    benchmark_returns=benchmark_returns,
+                )
+                rows.append({
+                    "slippage": slp,
+                    "commission": comm,
+                    "total_return": result.total_return,
+                    "sharpe": result.sharpe,
+                    "max_drawdown": result.max_drawdown,
+                    "win_rate": result.win_rate,
+                    "profit_factor": result.profit_factor,
+                })
+
+        return pd.DataFrame(rows)
 
     def run(
         self,
@@ -185,6 +250,7 @@ class UnifiedBacktestEngine:
         signals: List[TradingSignal],
         symbol: str = "",
         name: Optional[str] = None,
+        benchmark_returns: Optional[pd.Series] = None,
     ) -> BacktestResult:
         """运行回测
 
@@ -327,6 +393,22 @@ class UnifiedBacktestEngine:
                 for sig in day_signals:
                     if sig.action == "BUY" and position == 0:
                         shares = sig.shares if sig.shares > 0 else 100
+                        # 如果提供了 PositionSizer，用它重新计算股数
+                        if self._sizer is not None:
+                            try:
+                                sized = self._sizer.calculate_shares(
+                                    price=closes[idx],
+                                    stop_loss=closes[idx] * 0.95,
+                                    czsc_bottom=None,
+                                    market="CN",
+                                    symbol=symbol,
+                                )
+                                sized_shares = int(sized.get("suggested_shares", shares))
+                                shares = (sized_shares // get_board_rule(symbol).lot_size) * get_board_rule(symbol).lot_size
+                                if shares <= 0:
+                                    shares = 100
+                            except (KeyError, TypeError, ValueError, RuntimeError):
+                                shares = 100
                         pending_order = {
                             "action": "BUY",
                             "shares": shares,
@@ -356,7 +438,7 @@ class UnifiedBacktestEngine:
                         f"Symbol delisted {delist_date}; "
                         f"backtest extends to {last_bar.date()}"
                     )
-        except Exception:
+        except (OSError, KeyError, TypeError):
             pass
 
         metadata: Dict[str, Any] = {
@@ -376,6 +458,13 @@ class UnifiedBacktestEngine:
         if survivorship_warning:
             metadata["survivorship_warning"] = survivorship_warning
 
+        benchmark_return = 0.0
+        if benchmark_returns is not None and len(benchmark_returns) > 0:
+            bench_total = float(benchmark_returns.iloc[-1]) - float(benchmark_returns.iloc[0])
+            bench_return = bench_total / float(benchmark_returns.iloc[0]) if float(benchmark_returns.iloc[0]) != 0 else 0.0
+            portfolio_return = (equity_curve[-1] - self.initial_capital) / self.initial_capital if self.initial_capital > 0 else 0.0
+            benchmark_return = portfolio_return - bench_return
+
         return BacktestResult(
             trades=trades,
             equity_curve=equity_curve,
@@ -383,6 +472,7 @@ class UnifiedBacktestEngine:
             initial_capital=self.initial_capital,
             final_cash=cash,
             metadata=metadata,
+            benchmark_return=benchmark_return,
         )
 
     # ──────────────────────────────────────────────────────────
@@ -401,7 +491,8 @@ class UnifiedBacktestEngine:
             df["pre_close"] = df["close"].shift(1).fillna(df["open"])
 
         if "avg_daily_volume" not in df.columns:
-            df["avg_daily_volume"] = df["volume"].rolling(20, min_periods=1).mean()
+            adv = df["volume"].rolling(20, min_periods=1).mean()
+            df["avg_daily_volume"] = adv.shift(1).fillna(adv)
 
         return df
 
@@ -497,9 +588,9 @@ class UnifiedBacktestEngine:
             rate = self.stamp_duty_rate
         return value * rate
 
-    def _calc_transfer_fee(self, value: float) -> float:
-        """过户费"""
-        return value * TRANSFER_FEE_PCT
+    def _calc_transfer_fee(self, value: float, symbol: str = "") -> float:
+        """过户费 (仅沪市60xxxx)"""
+        return value * TRANSFER_FEE_PCT if _has_transfer_fee(symbol) else 0.0
 
     def _calc_slippage(
         self,
@@ -571,7 +662,7 @@ class UnifiedBacktestEngine:
         # 成本计算
         value = exec_price * shares
         commission = self._calc_commission(value)
-        transfer_fee = self._calc_transfer_fee(value)
+        transfer_fee = self._calc_transfer_fee(value, symbol)
         total_cost = value + commission + transfer_fee
 
         # 防线 D: 资金不足时自动减量
@@ -583,7 +674,7 @@ class UnifiedBacktestEngine:
                 return None, cash_available
             value = exec_price * shares
             commission = self._calc_commission(value)
-            transfer_fee = self._calc_transfer_fee(value)
+            transfer_fee = self._calc_transfer_fee(value, symbol)
             total_cost = value + commission + transfer_fee
 
         # 防线 D: 最终检查
@@ -647,7 +738,7 @@ class UnifiedBacktestEngine:
         value = exec_price * shares_to_sell
         commission = self._calc_commission(value)
         stamp_duty = self._calc_stamp_duty(value, timestamp)
-        transfer_fee = self._calc_transfer_fee(value)
+        transfer_fee = self._calc_transfer_fee(value, symbol)
         net_value = value - commission - stamp_duty - transfer_fee
 
         cost_basis = position_cost * shares_to_sell

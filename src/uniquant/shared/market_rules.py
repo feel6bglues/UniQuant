@@ -1,14 +1,6 @@
-from enum import Enum, auto
 from dataclasses import dataclass
 
-
-class BoardType(Enum):
-    MAIN_SH = auto()
-    MAIN_SZ = auto()
-    GEM = auto()
-    STAR = auto()
-    BEIJING = auto()
-    ST = auto()
+from .board_registry import BoardType, detect_board
 
 
 @dataclass
@@ -35,26 +27,8 @@ BOARD_RULES = {
 }
 
 
-# NOTE: Parallel board-detection system exists in limit_checker.get_board_type()
-# (string-based, code-prefix logic vs enum + exchange-suffix here).
-# Keep in sync — both must classify the same stock identically.
-def detect_board(symbol: str, name: str = "") -> BoardType:
-    if name and ("ST" in name.upper()):
-        return BoardType.ST
-    upper = symbol.upper()
-    if upper.endswith(".BJ"):
-        return BoardType.BEIJING
-    if upper.endswith(".SH"):
-        code = upper.replace(".SH", "")
-        if code.startswith(("688", "689")):
-            return BoardType.STAR
-        return BoardType.MAIN_SH
-    if upper.endswith(".SZ"):
-        code = upper.replace(".SZ", "")
-        if code.startswith(("300", "301", "302")):
-            return BoardType.GEM
-        return BoardType.MAIN_SZ
-    raise ValueError(f"Cannot detect board for {symbol!r}: unknown exchange suffix")
+# Delegated to BoardTypeRegistry in board_registry.py
+# (consolidated from the former parallel system with limit_checker.get_board_type())
 
 
 def get_board_rule(symbol: str) -> BoardRule:

@@ -14,7 +14,7 @@ from .unified_engine import UnifiedBacktestEngine
 
 # 旧版导入 (带废弃警告)
 from .engine import BacktestEngine  # Deprecated
-from .portfolio_engine import PortfolioEngine  # Deprecated (warnings in module)
+# PortfolioEngine deprecated — removed from exports, use UnifiedBacktestEngine
 from .result import BacktestResult, TradeRecord
 
 __all__ = [
@@ -24,7 +24,6 @@ __all__ = [
     "UnifiedTradeRecord",
     # 旧版 (已废弃)
     "BacktestEngine",
-    "PortfolioEngine",
     "BacktestResult",
     "TradeRecord",
 ]

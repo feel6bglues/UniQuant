@@ -11,6 +11,7 @@ import numpy as np
 import pandas as pd
 
 from uniquant.hands.backtest.unified_matching_engine import UnifiedMatchingEngine, FillResult
+from uniquant.shared.slippage_model import DefaultSlippage, DynamicSlippage
 
 
 def test_buy_normal_execution():
@@ -151,3 +152,125 @@ def test_vectorized_batch():
     accepted = n - rejected
     if accepted > 0:
         assert float(fill.commissions[~fill.rejected_mask].min()) >= 5.0
+
+
+def test_slippage_model_adapter_default():
+    model = DefaultSlippage()
+    eng = UnifiedMatchingEngine(slippage_model=model, min_commission=5.0)
+    px = np.array([10.0], dtype=np.float64)
+    sh = np.array([100], dtype=np.int64)
+    ca = np.array([2000.0], dtype=np.float64)
+    pc = np.array([9.8], dtype=np.float64)
+    sym = np.array(["000001.SZ"])
+    ts = np.array(["2024-01-02"], dtype=object)
+    vol = np.array([1000000], dtype=np.float64)
+    adv = np.array([5000000], dtype=np.float64)
+
+    fill = eng.fill_buy(px, sh, ca, pc, sym, ts, vol, adv)
+    assert not fill.rejected_mask[0]
+    assert fill.executed_shares[0] > 0
+    assert fill.slippages[0] > 0, "SlippageModel should produce positive slippage"
+
+
+def test_slippage_model_adapter_dynamic():
+    model = DynamicSlippage()
+    eng = UnifiedMatchingEngine(slippage_model=model, min_commission=5.0)
+    px = np.array([10.0], dtype=np.float64)
+    sh = np.array([100], dtype=np.int64)
+    ca = np.array([2000.0], dtype=np.float64)
+    pc = np.array([9.8], dtype=np.float64)
+    sym = np.array(["000001.SZ"])
+    ts = np.array(["2024-01-02"], dtype=object)
+    vol = np.array([1000000], dtype=np.float64)
+    adv = np.array([5000000], dtype=np.float64)
+
+    fill = eng.fill_buy(px, sh, ca, pc, sym, ts, vol, adv)
+    assert not fill.rejected_mask[0]
+    assert fill.executed_shares[0] > 0
+
+
+def test_slippage_model_backward_compatible():
+    eng = UnifiedMatchingEngine(slippage_rate=0.002, min_commission=5.0)
+    px = np.array([10.0], dtype=np.float64)
+    sh = np.array([100], dtype=np.int64)
+    ca = np.array([2000.0], dtype=np.float64)
+    pc = np.array([9.8], dtype=np.float64)
+    sym = np.array(["000001.SZ"])
+    ts = np.array(["2024-01-02"], dtype=object)
+    vol = np.array([1000000], dtype=np.float64)
+    adv = np.array([5000000], dtype=np.float64)
+
+    fill = eng.fill_buy(px, sh, ca, pc, sym, ts, vol, adv)
+    assert not fill.rejected_mask[0]
+    assert fill.executed_shares[0] > 0
+    assert fill.slippages[0] > 0
+
+
+def test_t1_violation_rejected():
+    eng = UnifiedMatchingEngine(min_commission=5.0)
+    px = np.array([10.0], dtype=np.float64)
+    sh = np.array([100], dtype=np.int64)
+    pos = np.array([100], dtype=np.int64)
+    pco = np.array([9.0], dtype=np.float64)
+    pc = np.array([10.0], dtype=np.float64)
+    sym = np.array(["000001.SZ"])
+    ts = np.array(["2024-01-02"], dtype=object)
+    bd = np.array([pd.Timestamp("2024-01-02")], dtype=object)
+    vol = np.array([1000], dtype=np.float64)
+    adv = np.array([10000], dtype=np.float64)
+
+    fill = eng.fill_sell(px, sh, pos, pco, pc, sym, ts, bd, vol, adv)
+    assert fill.t1_violation_mask[0], "Same-day sell should be T+1 violation"
+    assert fill.rejected_mask[0], "T+1 violation should reject sell"
+    assert fill.executed_shares[0] == 0, "Rejected sell must have 0 shares"
+
+
+def test_t1_next_day_allowed():
+    eng = UnifiedMatchingEngine(min_commission=5.0)
+    px = np.array([10.0], dtype=np.float64)
+    sh = np.array([100], dtype=np.int64)
+    pos = np.array([100], dtype=np.int64)
+    pco = np.array([9.0], dtype=np.float64)
+    pc = np.array([10.0], dtype=np.float64)
+    sym = np.array(["000001.SZ"])
+    ts = np.array(["2024-01-03"], dtype=object)
+    bd = np.array([pd.Timestamp("2024-01-02")], dtype=object)
+    vol = np.array([1000], dtype=np.float64)
+    adv = np.array([10000], dtype=np.float64)
+
+    fill = eng.fill_sell(px, sh, pos, pco, pc, sym, ts, bd, vol, adv)
+    assert not fill.t1_violation_mask[0], "Next-day sell should not be T+1 violation"
+    assert fill.executed_shares[0] > 0, "Next-day sell should execute"
+
+
+def test_halt_volume_zero_rejected():
+    eng = UnifiedMatchingEngine(min_commission=5.0)
+    px = np.array([10.0], dtype=np.float64)
+    sh = np.array([100], dtype=np.int64)
+    ca = np.array([2000.0], dtype=np.float64)
+    pc = np.array([9.8], dtype=np.float64)
+    sym = np.array(["000001.SZ"])
+    ts = np.array(["2024-01-02"], dtype=object)
+    vol = np.array([0], dtype=np.float64)
+    adv = np.array([5000000], dtype=np.float64)
+
+    fill = eng.fill_buy(px, sh, ca, pc, sym, ts, vol, adv)
+    assert fill.rejected_mask[0], "Halted stock (volume=0) should reject buy"
+    assert fill.executed_shares[0] == 0, "Rejected buy must have 0 shares"
+
+
+def test_transfer_fee_sz_exempt():
+    eng = UnifiedMatchingEngine(min_commission=5.0)
+    px = np.array([10.0, 10.0, 10.0], dtype=np.float64)
+    sh = np.array([100, 100, 100], dtype=np.int64)
+    ca = np.array([2000.0, 2000.0, 2000.0], dtype=np.float64)
+    pc = np.array([9.8, 9.8, 9.8], dtype=np.float64)
+    sym = np.array(["000001.SZ", "300001.SZ", "600001.SH"])
+    ts = np.array(["2024-01-02"] * 3, dtype=object)
+    vol = np.array([1000000, 1000000, 1000000], dtype=np.float64)
+    adv = np.array([5000000, 5000000, 5000000], dtype=np.float64)
+
+    fill = eng.fill_buy(px, sh, ca, pc, sym, ts, vol, adv)
+    assert fill.transfer_fees[0] == 0.0, "SZ 00xxxx should have no transfer fee"
+    assert fill.transfer_fees[1] == 0.0, "SZ 30xxxx should have no transfer fee"
+    assert fill.transfer_fees[2] > 0.0, "SH 60xxxx should have transfer fee"

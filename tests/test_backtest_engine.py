@@ -171,7 +171,7 @@ class TestBacktestEngine:
         fill = me.fill_buy(
             np.array([10.0]), np.array([1000]), np.array([50000.0]),
             np.array([9.9]), np.array(["000001.SZ"]), np.array(["2024-01-02"]),
-            np.array([0.0]), np.array([0.0]),
+            np.array([100000.0]), np.array([500000.0]),
         )
         assert fill.commissions[0] >= 5.0
     

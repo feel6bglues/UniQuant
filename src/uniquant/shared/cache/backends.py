@@ -225,13 +225,20 @@ class DiskCacheBackend(CacheInterface):
             
             cache_content = joblib.load(cache_path)
 
-            # 检查是否过期
-            cache_time = datetime.fromtimestamp(cache_content["timestamp"])
-            if (get_time_provider().now() - cache_time).days > self.max_cache_age:
-                os.remove(cache_path)
-                self.misses += 1
-                logger.debug(f"Cache expired for key: {key}")
-                return _SENTINEL
+            # 检查是否过期 (优先 per-item TTL, 回退到 max_cache_age)
+            if "expires_at" in cache_content:
+                if get_time_provider().now().timestamp() > cache_content["expires_at"]:
+                    os.remove(cache_path)
+                    self.misses += 1
+                    logger.debug(f"Cache TTL expired for key: {key}")
+                    return _SENTINEL
+            else:
+                cache_time = datetime.fromtimestamp(cache_content["timestamp"])
+                if (get_time_provider().now() - cache_time).days > self.max_cache_age:
+                    os.remove(cache_path)
+                    self.misses += 1
+                    logger.debug(f"Cache expired for key: {key}")
+                    return _SENTINEL
 
             self.hits += 1
             logger.debug(f"Cache hit for key: {key}")
@@ -275,11 +282,12 @@ class DiskCacheBackend(CacheInterface):
             if file_lock:
                 file_lock.acquire(timeout=5)
             
+            now_ts = get_time_provider().now().timestamp()
             cache_content = {
                 "data": value,
-                "timestamp": get_time_provider().now().timestamp(),
+                "timestamp": now_ts,
                 "key": key,
-                "ttl": ttl,
+                "expires_at": now_ts + ttl,
             }
 
             # 使用 joblib 压缩保存

@@ -244,7 +244,7 @@ class HistoricalSimulationRisk:
         Calculate NTF (Nowcasting Trend Factor) signal.
         """
         try:
-            if regime == "CRISIS" or max_drawdown > RiskCalculationConstants.VOLATILITY_HIGH:
+            if regime == "CRISIS" or max_drawdown > RiskCalculationConstants.MAX_DRAWDOWN_CRISIS:
                 return "极度风险"
             elif regime == "HIGH_VOL" or var > RiskCalculationConstants.VAR_THRESHOLD_HIGH:
                 return "高风险"
