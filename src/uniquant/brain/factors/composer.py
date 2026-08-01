@@ -146,31 +146,100 @@ class FactorComposer:
                 return None
             return max(candidates, key=lambda result: abs(result.icir))
 
+        if isinstance(value, list):
+            logger.warning(
+                "_resolve_ic_result received list (expected dict or FactorICResult) for value with %d items",
+                len(value),
+            )
+            return None
+
         return None
+
+    def _apply_cross_window_decay(
+        self,
+        history: List[float],
+        current_icir: float,
+        half_life: int = 10,
+    ) -> float:
+        """
+        跨窗口 ICIR 指数衰减加权。
+        将当前 ICIR 与历史 ICIR 序列进行 decay-weighted 平均,
+        使近期 ICIR 权重 > 远期 ICIR 权重。
+
+        与 analyzer.py compute_ic_ir 的 half_life (日度 IC 序列加权)
+        独立且正交 — 前者跨训练窗口, 后者窗口内日频。
+
+        双重归一化说明:
+        1. 本方法: 单因子跨窗口 ICIR 指数加权平均 (权重归一化到和为 1)
+        2. _resolve_weights: 所有因子间归一化 (权重归一化到和为 1)
+
+        Args:
+            history: 历史 ICIR 值列表 (旧→新)
+            current_icir: 当前窗口的 ICIR 值
+            half_life: 半衰期(训练窗口数)。10 = 10 个窗口前权重降为一半
+                      默认 10 适用于典型 20-50 窗口的 walk_forward 场景。
+        """
+        all_values = list(history) + [current_icir]
+        n = len(all_values)
+        if n <= 1:
+            return current_icir
+        if half_life is None or half_life <= 0:
+            return float(np.mean(all_values))
+
+        positions = np.arange(n - 1, -1, -1, dtype=np.float64)
+        weights = np.exp(-np.log(2) * positions / half_life)
+        weights = weights / weights.sum()
+        return float(np.sum(np.array(all_values) * weights))
 
     def _resolve_weights(
         self,
         factor_cols: List[str],
         ic_results: Optional[Dict[str, Any]] = None,
+        ic_history: Optional[Dict[str, Dict[str, List[float]]]] = None,
+        half_life: Optional[int] = None,
     ) -> Dict[str, float]:
         """
         根据 IC 结果或注册表默认权重生成合成权重。
+        支持跨窗口 ICIR 指数衰减和规范化归一化。
+
+        ic_history 结构: {factor_name: {period_label: [icir_values_old_to_new]}}
+        例如: {"momentum_20d": {"1d": [0.1, 0.2], "5d": [0.15, 0.25]}}
         """
         weights: Dict[str, float] = {}
 
         for col in factor_cols:
             weight = None
+            period_key: Optional[str] = None
             if ic_results and col in ic_results:
                 result = self._resolve_ic_result(ic_results[col])
                 if result is not None and np.isfinite(result.icir):
                     weight = float(result.icir)
+                    period_key = f"{result.n_periods}d"
 
             if weight is None:
                 factor = self.registry.get_factor(col)
                 weight = float(factor.default_weight) if factor is not None else 1.0
 
+            if (
+                weight is not None
+                and ic_history
+                and col in ic_history
+                and half_life is not None
+                and half_life > 0
+            ):
+                col_history_data = ic_history[col]
+                if period_key is not None and period_key in col_history_data:
+                    weight = self._apply_cross_window_decay(
+                        col_history_data[period_key], weight, half_life
+                    )
+
             weights[col] = weight
 
+        total = sum(weights.values())
+        if total > 0:
+            weights = {k: v / total for k, v in weights.items()}
+        else:
+            weights = {col: 1.0 / max(len(factor_cols), 1) for col in factor_cols}
         return weights
 
     def _zscore_frame(self, factor_df: pd.DataFrame) -> pd.DataFrame:
@@ -357,6 +426,8 @@ class FactorComposer:
         date_col: str = "date",
         mode: str = "backtest",
         return_diagnostics: bool = False,
+        ic_history: Optional[Dict[str, Dict[str, List[float]]]] = None,
+        half_life: Optional[int] = None,
     ):
         """
         兼容性入口：计算因子、生成权重并输出 composite_score。
@@ -379,7 +450,12 @@ class FactorComposer:
                 return result_df, {}, self.get_last_diagnostics()
             return result_df, {}
 
-        weights = self._resolve_weights(factor_cols, ic_results=ic_results)
+        weights = self._resolve_weights(
+            factor_cols,
+            ic_results=ic_results,
+            ic_history=ic_history,
+            half_life=half_life,
+        )
         self.last_diagnostics["used_factors"] = list(factor_df.columns)
         scored_factors = self._build_composite_frame(
             df,

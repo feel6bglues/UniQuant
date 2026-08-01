@@ -113,12 +113,18 @@ def danger_r2_threshold(config: LPPLConfig) -> float:
 
 
 def classify_top_phase(days_left: float, r2: float, config: LPPLConfig,
-                       price_ret: Optional[float] = None) -> str:
+                       price_ret: Optional[float] = None,
+                       atr_pct: Optional[float] = None) -> str:
     if days_left < 0:
         return "none"
 
     adjusted_r2 = r2
-    if price_ret is not None and abs(price_ret) < 0.10:
+    if atr_pct is not None and atr_pct > 0:
+        if atr_pct < 2.0:
+            adjusted_r2 = r2 - 0.20
+        elif atr_pct < 4.0:
+            adjusted_r2 = r2 - 0.10
+    elif price_ret is not None and abs(price_ret) < 0.10:
         adjusted_r2 = r2 - 0.15
 
     if days_left < config.danger_days and adjusted_r2 >= danger_r2_threshold(config):
@@ -992,10 +998,9 @@ class LPPLEngine:
     @staticmethod
     def _process_window(df, window):
         try:
-            from ...brain.lppl.calculator import LPPLCalculator as Calc
-            calculator = Calc()
             subset = df["close"].iloc[-window:].values
-            res = calculator.fit_single_window(subset)
+            config = LPPLConfig(window_range=[window])
+            res = fit_single_window_lbfgsb(subset, window, config)
             if res and res.get("rmse", float("inf")) < LPPLConstants.RMSE_REJECT_THRESHOLD:
                 res["window"] = window
                 return res
@@ -1005,6 +1010,11 @@ class LPPLEngine:
         return None
 
     def detect_bubble(self, df: pd.DataFrame, column: str = "close") -> Dict[str, Any]:
+        # calculator.fit() 路径 (L-BFGS-B 主优化, DE 降级, 3-param variable projection)
+        # 与 scan_all_windows() (7-param 全量 L-BFGS-B) 构成双路径 API
+        # ⚠ R² 口径不同: 本方法使用 3-param variable projection (线性参数解析最优),
+        #   scan_all_windows 使用 7-param 全局优化 (线性与非线性同时求解),
+        #   两者 R² 绝对值不可直接比较
         result = self.calculator.fit(df, column)
         if result:
             result["out_of_sample_r_squared"] = self._calc_oos_r_squared(df, result, column)

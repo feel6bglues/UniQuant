@@ -323,6 +323,8 @@ class LPPLOutput:
     days_to_tc: Optional[float] = None
     price: float = 0.0
     r_squared: float = 0.0
+    """R² from calculator.fit() (3-param variable projection, L-BFGS-B).
+    ⚠ NOT comparable with scan_all_windows() R² (7-param full cost)."""
     out_of_sample_r_squared: float = 0.0
 
     def to_dict(self) -> Dict[str, Any]:

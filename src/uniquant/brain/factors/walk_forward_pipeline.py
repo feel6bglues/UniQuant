@@ -51,6 +51,7 @@ class WalkForwardFactorPipeline:
         test_window: int = 63,
         min_train_days: int = 252,
         weight_method: str = "rank_icir",
+        half_life: Optional[int] = None,
     ):
         self.analyzer = factor_analyzer or FactorAnalyzer()
         self.composer = factor_composer or FactorComposer()
@@ -58,6 +59,8 @@ class WalkForwardFactorPipeline:
         self.test_window = test_window
         self.min_train_days = min_train_days
         self.weight_method = weight_method
+        self.half_life = half_life
+        self._ic_history: Dict[str, Dict[str, List[float]]] = {}
 
     def _temporal_split(
         self,
@@ -187,6 +190,21 @@ class WalkForwardFactorPipeline:
                 mode=AnalysisMode.BACKTEST,
             )
 
+            for col in factor_cols:
+                if col not in ic_results:
+                    continue
+                col_icir_values = {}
+                for period, result in ic_results[col].items():
+                    period_key = f"{period}d"
+                    ir_val = float(getattr(result, "icir", 0))
+                    col_icir_values[period_key] = ir_val
+                if col not in self._ic_history:
+                    self._ic_history[col] = {}
+                for pk, ir_val in col_icir_values.items():
+                    if pk not in self._ic_history[col]:
+                        self._ic_history[col][pk] = []
+                    self._ic_history[col][pk].append(ir_val)
+
             weights = self._compute_weights(ic_results, factor_cols)
             final_weights = weights
 
@@ -196,8 +214,10 @@ class WalkForwardFactorPipeline:
             scored_df, _ = self.composer.process(
                 test_df,
                 factor_cols=factor_cols,
-                ic_results={col: list(ic_results.get(col, {}).values()) for col in factor_cols},
+                ic_results={col: dict(ic_results.get(col, {})) for col in factor_cols},
                 date_col=date_col,
+                ic_history=self._ic_history,
+                half_life=self.half_life,
             )
 
             # Evaluate composite score on OOS test data

@@ -30,7 +30,7 @@ class FactorInfo:
     default_weight: float = 1.0
     enabled: bool = True
     description: str = ""
-    ic_ir_history: Optional[List[float]] = None  # 历史IC/IR记录（可选）
+
 
 
 class FactorRegistry:
