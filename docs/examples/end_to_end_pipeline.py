@@ -69,7 +69,8 @@ def run_pipeline(symbol: str = "000001.SZ", name: str = "平安银行"):
         ("czsc", "czsc_signal"), ("wyckoff", "wyckoff_phase"),
         ("ntf", "ntf_signal"),
     ]:
-        val = data_pack.get(status_key, "N/A")
+        val = (getattr(data_pack, engine, "N/A") if hasattr(data_pack, engine)
+               else data_pack.get(status_key, "N/A"))
         log.info(f"  {engine:8s}: {val}")
 
     # ------------------------------------------------------------------
@@ -79,7 +80,8 @@ def run_pipeline(symbol: str = "000001.SZ", name: str = "平安银行"):
     from uniquant.signal.adapters import TradingSignalCollector, create_default_registry
 
     collector = TradingSignalCollector(create_default_registry())
-    signals = collector.collect(data_pack, symbol=symbol)
+    data_pack_dict = data_pack.to_dict() if hasattr(data_pack, 'to_dict') else data_pack
+    signals = collector.collect(data_pack_dict)
     log.info(f"  原始信号: {len(signals)} 条")
 
     from uniquant.signal.arbitrator import SignalArbitrator
@@ -105,7 +107,7 @@ def run_pipeline(symbol: str = "000001.SZ", name: str = "平安银行"):
     log.info(f"  Backtest: {time.time()-t4:.2f}s")
 
     log.info(f"  总收益率:      {bt_result.total_return:>+8.2%}")
-    log.info(f"  夏普比率:      {bt_result.sharpe_ratio:>8.2f}")
+    log.info(f"  夏普比率:      {bt_result.sharpe:>8.2f}")
     log.info(f"  最大回撤:      {bt_result.max_drawdown:>8.2%}")
     log.info(f"  交易次数:      {bt_result.total_trades:>8}")
     log.info(f"  胜率:          {bt_result.win_rate:>8.2%}" if hasattr(bt_result, "win_rate") else "")
@@ -116,7 +118,7 @@ def run_pipeline(symbol: str = "000001.SZ", name: str = "平安银行"):
     # ------------------------------------------------------------------
     log.info("Step 5: ResearchPipeline 全链路一键运行...")
     t5 = time.time()
-    from uniquant.services.research_pipeline import ResearchPipeline
+    from uniquant.services.research_pipeline import UnifiedResearchPipeline as ResearchPipeline
     from uniquant.signal.arbitrator import SignalArbitrator
 
     pipeline = ResearchPipeline(

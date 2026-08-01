@@ -4,7 +4,7 @@
 >
 > UniQuant: A-share quantitative research and trading platform.
 >
-> Generated: 2026-07-13. **Updated 2026-07-13 (v6 修复执行)**: 6 路并行红蓝对抗 + TDD 全量分析完成 — 83 项声明核实 (88% 准确率), 15 项新发现修复。R0 代码修复: signal/__init__.py 补全 3 适配器导出、factor_governance.py 归档 (+156 LOC 死代码跟踪)、portfolio_engine.py 归档 (+376 LOC)、arbitrator.py:385 bare except 加 logging、result_store.py:71 except BaseException 加注释。纠正 v5 虚假完成声明 (UI except 仍为 17 处, 非 2)。全部 1678 测试通过, 0 ruff。死代码库存更新至 ~2,819 LOC (含新发现)。剩余: R1-06 过户费 DRY 统一、R3-N01 45 零覆盖文件、45 files at 0% (3,791 LOC) — unchanged.
+> Generated: 2026-07-13. **Updated 2026-07-24 (3 轮红蓝对抗 + 参数敏感性验证脚本)**: 对 `LPPL_WYCKOFF_IMPLEMENTATION_PLAN.md` 设计文档完成 3 轮红蓝对抗（Round 1: 实施计划 16 Red / 0 Blue / 3 Split → 方案❌不可行；Round 2: 理论与实践中庸路线；Round 3: walk-forward 理论根基）。之后对参数敏感性验证脚本 v1 完成 3 轮红蓝对抗（脚本正确性/统计方法论/优化方案），输出修正后 v2 脚本 `scripts/param_sweep_v2.py`。详见 `docs/reanalysis/Z_red_blue_plan_verification_round*.md` 及 `Z_param_sweep_v1_redblue_round*.md`。**Updated 2026-07-24 (Walk-Forward 终结诊断)**: 实际引擎信号重测发现自定义分类掩盖了唯一有效信号。Wyckoff "买入" markup 阶段 +13.33% 20d (p=0.0098 显著) 但仅 4.5% 罕见。LPPL 零预测力 (MC 证明 93% GBM 拟合噪声)。Wyckoff Spring→BUY 理论信号从不触发。详见 `scripts/output/walk_forward_definitive_report.json`。**Updated 2026-07-20 (v7 代码强化)**: 6 项 cross_validation/engine 代码强化 (Spring 安全化, except 窄化×2, H12 三态裁决, R² 口径文档化×2)。**Updated 2026-07-17 (v7 管线验证执行)**: 红蓝对抗修正后执行 9 项任务 (7 完成, 1 待办)。LPPL _process_window 切换 L-BFGS-B (DE→L-BFGS-B), classify_top_phase ATR 自适应偏移, Wyckoff step4 单元测试 ×4, 跨引擎集成测试 ×3, cross_validation golden_20 (20/20, 62.9s), baseline v0 捕获 (20/20 一致)。**Updated 2026-07-13 (v6 修复执行)**: 6 路并行红蓝对抗 + TDD 全量分析完成 — 83 项声明核实 (88% 准确率), 15 项新发现修复。R0 代码修复: signal/__init__.py 补全 3 适配器导出、factor_governance.py 归档 (+156 LOC 死代码跟踪)、portfolio_engine.py 归档 (+376 LOC)、arbitrator.py:385 bare except 加 logging、result_store.py:71 except BaseException 加注释。纠正 v5 虚假完成声明 (UI except 仍为 17 处, 非 2)。全部 1882 测试通过, 0 ruff。死代码库存更新至 ~2,819 LOC (含新发现)。剩余: R1-06 过户费 DRY 统一、R3-N01 45 零覆盖文件、45 files at 0% (3,791 LOC) — unchanged.
 >
 > UniQuant: A-share quantitative research and trading platform.
 >
@@ -29,7 +29,7 @@ Current worktree snapshot from 2026-07-13 (post-v6 TDD-Red-Blue):
 | Archived files (dead code) | 6 (2,217 LOC) |
 | Test files under `tests/` | 128 |
 | Approximate test functions | 1,641 |
-| Tests passing | 1,842 |
+| Tests passing | 1,882 |
 | Ruff issues | 0 |
 | Test coverage | 56.18% |
 | Dead code (archived) | ~2,217 LOC (3.5%) |
@@ -63,6 +63,62 @@ Phase A-K v2.0 deep audit (2026-07-06): code quality (Fair, 116 duplicates, Wyck
 - 确认: 17/17 P0/R 修复全部存在, signal/ 层 100% 文档准确
 - 确认: manager_logic.py 6 处 except Exception 已有 as e + exc_info=True, 无需窄化
 - 剩余: R1-06 过户费 DRY 统一 (WONTFIX: 3 实现点, 向量化/标量签名不兼容), R3-N01 45 零覆盖文件 (~16h)
+
+## Recent Work (2026-07-17) — v7 管线验证执行
+
+| Phase | Task | Summary | Verification |
+|---|---|---|---|
+| **P1-A** | 文档状态同步 | `repair_plan_lppl_wyckoff.md` 添加"历史参考"横幅 (11 项已修复) | 已标记 |
+| **P0-A** | 基线捕获 | `capture_baseline.py` 对 golden_20 捕获 v0 baseline | 20/20 成功, compare 0 diff |
+| **P0-B** | LPPL 路径统一 | `_process_window` 从 DE 切换为 L-BFGS-B (直调 `fit_single_window_lbfgsb`) | 53 tests pass |
+| **P0-C** | Spring 验真 | 对 golden_20 运行 LPPL+Wyckoff 交叉验证 | 20/20 股票, 62.9s |
+| **P1-B** | Wyckoff 测试 | `_step4_risk_reward` 4 种目标位来源单元测试 | 4/4 pass |
+| **P2-A** | ATR 自适应 | `classify_top_phase` 新增 `atr_pct` 可选参数 | 34 LPPL tests pass |
+| **P2-B** | 跨引擎测试 | LPPL+Wyckoff+Factor brain 级引擎集成测试 | 3 new tests pass |
+| **P1-C** | IC 半衰期 | **待办** — 设计已明确, 复用 `ic_ir_history` 字段 | — |
+
+**P0-C 交叉验证关键发现**:
+- DE 优化器成功率 0.0% (282 窗口全失败), L-BFGS-B 成功率 100% (564/564) — 验证 P0-B 方向正确
+- R² 引擎/计算器口径差均值 0.814, 最大 0.976
+- Wyckoff 置信度分布: 0 A, 0 B, 18 C, 2 D
+- Spring 事件 (H12): 0 次触发 (20 股票历史数据中无 Spring→Markup 事件)
+
+## Recent Work (2026-07-20) — v7 代码强化 (6 项)
+
+| Phase | Task | Summary | Verification |
+|---|---|---|---|
+| **W01-A** | Spring 检测安全化 | cross_validation: `signal.signal_type` → `(signal_type or "").lower()` 防御 None/大小写 | ✅ 行级核实 |
+| **W01-B** | except 窄化 + 日志 (step3) | cross_validation: `except Exception: pass` → `except (AttributeError,TypeError,ValueError,KeyError) as e: print(...)` | ✅ 行级核实 |
+| **W01-C** | except 窄化 + 日志 (counterfactual) | 同上, counterfactual 路径 | ✅ 行级核实 |
+| **W01-D** | H12 三态裁决 | `CONFIRMED`/`NOT_CONFIRMED`/`NOT_TESTED` 三态区分零事件场景 | ✅ 行级核实 |
+| **W02-B** | R² 口径文档化 | `engine.py:detect_bubble()` 标注 3-param VP vs 7-param 全量 R² 不可比 | ✅ 行级核实 |
+| **W02-C** | LPPLOutput.r_squared 字段注释 | `interfaces.py:LPPLOutput.r_squared` 标注前述口径差异 | ✅ 行级核实 |
+
+**Test results**: 1882 passed, 7 skipped, 0 ruff (0 new, 16 pre-existing in cross_validation script).
+
+## Recent Work (2026-07-23) — Walk-Forward 效用终结评估 (2026-07-23)
+
+| Phase | Tasks | Key Deliverables |
+|---|---|---|
+| **W3-A** | LPPL 全量扫描 | 3574/3574 股票, L-BFGS-B 100% 收敛, 99.7min, Best R²=0.83 |
+| **W3-B** | Wyckoff 全量扫描 | 3574/3574 股票, 9.1min, UNKNOWN 36.3%/MARKDOWN 57.1% |
+| **W3-C** | 交叉验证 | 3574 股, 24.0% 方向冲突, 综合评级 D/54.9 |
+| **W3-D** | 交叉截面回测 | LPPL rank vs 60d ρ=−0.058, Wyckoff rank vs 60d ρ=0.66 (自循环) |
+| **W3-E** | Walk-Forward 回测 | **500 只 × 6 滚动窗口 = 2999 obs**, 104s |
+| **W3-F** | 根因诊断 + 实际引擎信号重测 | 实际引擎分类 vs 自定义分类对比, Monte Carlo 对照, 6 项终论 |
+
+**Walk-Forward 最终诊断: 自定义分类掩盖了唯一有效信号**:
+
+| 发现 | 证据 |
+|---|---|
+| **LPPL: 零预测力** — 全链路验证 | 93% GBM 纯随机数据拟合 R²>0.3 (MC 对照); 实际 `calculate_risk_level` "高危" fwd_20d=+4.77% vs "观察" +4.82% — 无区分度; "无效模型"反而 +6.44% 优于有效拟合; `is_danger` p=0.48 无统计显著性 → 建议从生产管线移除 |
+| **Wyckoff 理论信号从不触发** | Spring→BUY (adapter) 0/600 次; UTAD→SELL 0/600 次; "卖出" 交易计划 0/600 次; 39% 窗口返回未知相位 |
+| **Wyckoff "买入" - 唯一有效信号** | 仅在 markup 阶段触发 (27/600, 4.5%); fwd_20d=+13.33% win=88.9% vs 普通 markup +5.27% (p=0.0098, **统计显著**); 前 20d 涨幅 +9.05% — 追涨非抄底; 24/100 只股票触发, 5/6 窗口均有分布 |
+| **Monte Carlo 对照** | 93% GBM 拟合 R²>0.3; m 分布与真实数据不可区分 (KS p=0.019); DANGER 分类率随机 62.6% vs 实际 57.7% — 纯噪声反略高于真实数据 |
+| **引擎分类 vs 自定义分类偏差** | 自定义: Wyckoff distribution→SHORT 得到 −16.82% spread (方向性错误, 因 distribution 后继续上涨); 实际: 引擎"买入"→ +8.60% 20d spread (p=0.0098); 自定义分类 SWALLOWED 了唯一有效信号 |
+| **综合评级** | LPPL ❌ 无效 (移除) \| Wyckoff 理论 ❌ 从不触发 \| Wyckoff "买入" ⚠️ 真实但太罕见 (4.5%) \| Spring ⚠️ 理论上正确但实践中从不触发 |
+
+See `scripts/output/walk_forward_definitive_report.json` and `/tmp/walk_forward_actual.py` for complete analysis.
 
 ## Phase 2/3 Completion (2026-07-08)
 
@@ -212,7 +268,7 @@ Any change touching these rules requires focused tests and explicit review.
 
 ## Phase 0-6 Completion Status
 
-All phases verified: **1678 tests pass, baseline 100% consistent**. 0 pre-existing failures.
+All phases verified: **1882 tests pass, baseline 100% consistent**. 0 pre-existing failures.
 
 | Phase | Scope | Status | Key deliverables |
 |---|---|---|---|---|
@@ -297,6 +353,13 @@ ruff check src/uniquant/
 
 # Dashboard
 streamlit run src/uniquant/ui/dashboard.py
+
+# Parameter sweep (v2, with resume support)
+python3 scripts/param_sweep_v2.py --symbols golden_20 --resume
+python3 scripts/param_sweep_v2.py --symbols golden_100 --lookback-days 252 --range-thresholds 0.20 0.30
+
+# Parameter sweep (v1, legacy)
+python3 scripts/param_sweep_v1.py
 ```
 
 Do not claim test results are current unless the command was run in the current working tree.
@@ -359,3 +422,5 @@ Each stage requires a plan, concrete artifacts, checkpoint context, and verifica
 | price_collar dead | `shared/price_collar.py` | Zero production callers; remove from P1 consideration |
 | DynamicSlippage dead | `shared/slippage_model.py:DynamicSlippage` | Never instantiated in default backtest path |
 | BoardType unified | `shared/board_registry.py` | 116 LOC — BoardType dual system resolved via registry |
+| Walk-Forward 回测终结结论 | `scripts/output/walk_forward_definitive_report.json` + `/tmp/walk_forward_actual.py` | 500 只 × 6 窗口 walk-forward 验证: LPPL 零预测力 (MC 证明 93% GBM 噪声拟合), Wyckoff 理论从不触发, Wyckoff "买入" 4.5% 罕见信号 p=0.0098 显著, 自定义分类掩盖了唯一有效信号 |
+| 参数敏感性验证脚本 | `scripts/param_sweep_v2.py` | 经 3 轮红蓝对抗修正的 Wyckoff 参数扫描脚本: CLI 参数控制、同相位对比、bootstrap-by-stock CI、Mann-Whitney U + Bonferroni、断点续传、参数排名表。配套分析: `docs/reanalysis/Z_param_sweep_v1_redblue_round*.md` |

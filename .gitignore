@@ -41,6 +41,8 @@ src/uniquant/brain/factors/auto_mined/factor_*.py
 
 # Data artifacts (regenerable)
 data/*.parquet
+data/fq/
+data/.tdx_fingerprints.json
 
 # Regenerable CSV outputs (tracked CSVs like all_stock_codes.csv unaffected)
 data/gp_mining_results.csv

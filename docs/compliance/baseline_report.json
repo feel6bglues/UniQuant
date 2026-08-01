@@ -1,0 +1,336 @@
+{
+  "total_checks": 30,
+  "passed": 3,
+  "partial": 8,
+  "failed": 19,
+  "score_pct": 23.3,
+  "by_dimension": {
+    "D1-PnF": {
+      "pass": 0,
+      "partial": 1,
+      "fail": 4,
+      "total": 5
+    },
+    "D2-Events": {
+      "pass": 1,
+      "partial": 3,
+      "fail": 1,
+      "total": 5
+    },
+    "D3-Volume": {
+      "pass": 0,
+      "partial": 0,
+      "fail": 2,
+      "total": 2
+    },
+    "D4-Phase": {
+      "pass": 1,
+      "partial": 2,
+      "fail": 2,
+      "total": 5
+    },
+    "D5-MTF": {
+      "pass": 0,
+      "partial": 1,
+      "fail": 1,
+      "total": 2
+    },
+    "D6-RS": {
+      "pass": 0,
+      "partial": 0,
+      "fail": 2,
+      "total": 2
+    },
+    "D7-Counterfactual": {
+      "pass": 0,
+      "partial": 0,
+      "fail": 2,
+      "total": 2
+    },
+    "D8-AShare": {
+      "pass": 0,
+      "partial": 0,
+      "fail": 4,
+      "total": 4
+    },
+    "D9-Signal": {
+      "pass": 1,
+      "partial": 1,
+      "fail": 1,
+      "total": 3
+    }
+  },
+  "checks": [
+    {
+      "check_id": "PF-C1",
+      "dimension": "D1-PnF",
+      "description": "P&F participates in Phase decision",
+      "passed": false,
+      "status": "FAIL",
+      "detail": "P&F called at end of _analyze_single, not used in _step1_phase_determine",
+      "classification": "ERROR"
+    },
+    {
+      "check_id": "PF-C2",
+      "dimension": "D1-PnF",
+      "description": "Count Target affects trading plan",
+      "passed": false,
+      "status": "FAIL",
+      "detail": "V3TradingPlan.target uses RR projection, not PNF count target",
+      "classification": "ERROR"
+    },
+    {
+      "check_id": "PF-C3",
+      "dimension": "D1-PnF",
+      "description": "P&F support/resistance in boundary detection",
+      "passed": false,
+      "status": "FAIL",
+      "detail": "Boundaries from recent_60 high/low, not P&F column analysis",
+      "classification": "ERROR"
+    },
+    {
+      "check_id": "PF-C4",
+      "dimension": "D1-PnF",
+      "description": "box_size adapts to price and board",
+      "passed": true,
+      "status": "PARTIAL",
+      "detail": "box_size may vary across symbols",
+      "classification": "TRADE-OFF"
+    },
+    {
+      "check_id": "PF-C5",
+      "dimension": "D1-PnF",
+      "description": "P&F supports incremental O(1) update",
+      "passed": false,
+      "status": "FAIL",
+      "detail": "PointAndFigure.build() does full rebuild each call",
+      "classification": "GAP"
+    },
+    {
+      "check_id": "ES-C1",
+      "dimension": "D2-Events",
+      "description": "Spring definition matches classic Wyckoff",
+      "passed": true,
+      "status": "PARTIAL",
+      "detail": "engine uses boundary_lower * SPRING_LOW_FACTOR (0.99) + close factor, no P&F column context. Springs detected in 0/0 runs",
+      "classification": "TRADE-OFF"
+    },
+    {
+      "check_id": "ES-C2",
+      "dimension": "D2-Events",
+      "description": "Event order matches classic Wyckoff sequence",
+      "passed": true,
+      "status": "PARTIAL",
+      "detail": "sequence.py uses WSOScorer empirical weights, not Needleman-Wunsch alignment. 6 classic events (BUEC, UTAD) not tracked",
+      "classification": "TRADE-OFF"
+    },
+    {
+      "check_id": "ES-C3",
+      "dimension": "D2-Events",
+      "description": "BUEC/UTAD events are detected",
+      "passed": false,
+      "status": "FAIL",
+      "detail": "UTAD _detect_utad returns None (hardcoded). BUEC has no implementation",
+      "classification": "GAP"
+    },
+    {
+      "check_id": "ES-C4",
+      "dimension": "D2-Events",
+      "description": "SOS detection rate is not excessive",
+      "passed": true,
+      "status": "PASS",
+      "detail": "SOS events per 120-bar window: 0.00. events.py comment warns 109.5% detection rate",
+      "classification": "ERROR"
+    },
+    {
+      "check_id": "ES-C5",
+      "dimension": "D2-Events",
+      "description": "JAC detection matches classic SOS definition",
+      "passed": true,
+      "status": "PARTIAL",
+      "detail": "JAC uses 20-day TR breakout, which is a valid equivalent of SOS. Not a standard Wyckoff event name",
+      "classification": "TRADE-OFF"
+    },
+    {
+      "check_id": "VS-C1",
+      "dimension": "D3-Volume",
+      "description": "Volume signature thresholds are configurable",
+      "passed": false,
+      "status": "FAIL",
+      "detail": "events.py has 154 hardcoded numeric thresholds (e.g. 1.2, 2.0, 0.8)",
+      "classification": "GAP"
+    },
+    {
+      "check_id": "VS-C3",
+      "dimension": "D3-Volume",
+      "description": "Buy vs sell volume is distinguished",
+      "passed": false,
+      "status": "FAIL",
+      "detail": "Only total volume available. No tick-level direction split",
+      "classification": "GAP"
+    },
+    {
+      "check_id": "PH-C1",
+      "dimension": "D4-Phase",
+      "description": "ACCUMULATION detection based on event sequence",
+      "passed": false,
+      "status": "FAIL",
+      "detail": "_detect_accumulation uses prior_trend_pct + relative_position + bc_found, NOT event sequence",
+      "classification": "ERROR"
+    },
+    {
+      "check_id": "PH-C2",
+      "dimension": "D4-Phase",
+      "description": "DISTRIBUTION detection based on event sequence",
+      "passed": false,
+      "status": "FAIL",
+      "detail": "_detect_distribution only checks is_in_trading_range + prior_trend_pct > 0.05",
+      "classification": "ERROR"
+    },
+    {
+      "check_id": "PH-C3",
+      "dimension": "D4-Phase",
+      "description": "Phase confidence uses required/optional conditions",
+      "passed": true,
+      "status": "PARTIAL",
+      "detail": "_calc_confidence uses 5-condition matrix (bc, spring+lps, counterfactual, rr, multiframe), not required/optional weighted scoring",
+      "classification": "TRADE-OFF"
+    },
+    {
+      "check_id": "PH-C4",
+      "dimension": "D4-Phase",
+      "description": "Multi-timeframe resonance detects alignment",
+      "passed": true,
+      "status": "PASS",
+      "detail": "resonance(bullish,bullish,bearish) = bullish",
+      "classification": "TRADE-OFF"
+    },
+    {
+      "check_id": "PH-C5",
+      "dimension": "D4-Phase",
+      "description": "Sub-phase A/B/C/D/E classification exists",
+      "passed": true,
+      "status": "PARTIAL",
+      "detail": "classify_accumulation_sub_phase exists in classifiers.py. Phase distribution: {}",
+      "classification": "TRADE-OFF"
+    },
+    {
+      "check_id": "MT-C2",
+      "dimension": "D5-MTF",
+      "description": "Multi-timeframe alignment includes quantitative improvement evidence",
+      "passed": false,
+      "status": "FAIL",
+      "detail": "resonance_strength provides weighted count, no R2/IC/Sharpe improvement ratio",
+      "classification": "GAP"
+    },
+    {
+      "check_id": "MT-C3",
+      "dimension": "D5-MTF",
+      "description": "Weekly phase overrides daily when in conflict",
+      "passed": true,
+      "status": "PARTIAL",
+      "detail": "MultiTimeframeResonance uses 2/3 majority voting, not strict weekly priority",
+      "classification": "TRADE-OFF"
+    },
+    {
+      "check_id": "RS-C1",
+      "dimension": "D6-RS",
+      "description": "Relative strength classification exists",
+      "passed": false,
+      "status": "FAIL",
+      "detail": "No RS calculation in engine. Phase analysis does not compare stock to index",
+      "classification": "GAP"
+    },
+    {
+      "check_id": "RS-C2",
+      "dimension": "D6-RS",
+      "description": "Capital flow analysis affects signal confidence",
+      "passed": false,
+      "status": "FAIL",
+      "detail": "ChipAnalysis fields defined but not used in confidence matrix or adapter",
+      "classification": "GAP"
+    },
+    {
+      "check_id": "CF-C1",
+      "dimension": "D7-Counterfactual",
+      "description": "Counterfactual uses phase-adaptive time windows",
+      "passed": false,
+      "status": "FAIL",
+      "detail": "_step35_counterfactual uses forward/backward evidence scoring, no time-window concept",
+      "classification": "GAP"
+    },
+    {
+      "check_id": "CF-C4",
+      "dimension": "D7-Counterfactual",
+      "description": "UTAD detection works and triggers penalties",
+      "passed": false,
+      "status": "FAIL",
+      "detail": "_detect_utad returns None \u2014 never triggers. False breakout penalty never applies",
+      "classification": "ERROR"
+    },
+    {
+      "check_id": "CN-C1",
+      "dimension": "D8-AShare",
+      "description": "box_size differs by board type",
+      "passed": false,
+      "status": "FAIL",
+      "detail": "box_size=0.02 hardcoded. Boards seen: set()",
+      "classification": "GAP"
+    },
+    {
+      "check_id": "CN-C2",
+      "dimension": "D8-AShare",
+      "description": "T+1 cooldown enforced after Spring",
+      "passed": false,
+      "status": "FAIL",
+      "detail": "_step3_phase_c_t1 computes T+1 risk but does not enforce cooldown",
+      "classification": "TRADE-OFF"
+    },
+    {
+      "check_id": "CN-C3",
+      "dimension": "D8-AShare",
+      "description": "Limit up/down affects P&F columns",
+      "passed": false,
+      "status": "FAIL",
+      "detail": "PointAndFigure builder does not check limit status",
+      "classification": "GAP"
+    },
+    {
+      "check_id": "CN-C4",
+      "dimension": "D8-AShare",
+      "description": "Data pre-adjustment verification exists",
+      "passed": false,
+      "status": "FAIL",
+      "detail": "No pre-adjusted data check in engine or data loading path",
+      "classification": "GAP"
+    },
+    {
+      "check_id": "SQ-C1",
+      "dimension": "D9-Signal",
+      "description": "Signal includes structural integrity score (0-100)",
+      "passed": false,
+      "status": "FAIL",
+      "detail": "No structural_score field in WyckoffReport, WyckoffOutput, or ConfidenceResult",
+      "classification": "GAP"
+    },
+    {
+      "check_id": "SQ-C2",
+      "dimension": "D9-Signal",
+      "description": "Signal includes phase and confidence source",
+      "passed": true,
+      "status": "PARTIAL",
+      "detail": "WyckoffAdapter.wyckoff_phase and confidence in metadata. No structural_score",
+      "classification": "TRADE-OFF"
+    },
+    {
+      "check_id": "SQ-C3",
+      "dimension": "D9-Signal",
+      "description": "UNKNOWN phase has sub-reason categorization",
+      "passed": true,
+      "status": "PASS",
+      "detail": "4 unknown_candidate states: phase_a_candidate, sc_st_candidate, upthrust_candidate, phase_b_range",
+      "classification": "TRADE-OFF"
+    }
+  ],
+  "errors": []
+}
