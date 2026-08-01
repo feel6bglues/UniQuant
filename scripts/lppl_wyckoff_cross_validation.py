@@ -530,7 +530,7 @@ def run_wyckoff_diagnostics(
         direction = plan.direction if plan else "空仓观望"
 
         # Spring detection from signal
-        spring_detected = signal.signal_type == "spring" if signal else False
+        spring_detected = (signal.signal_type or "").lower() == "spring" if signal else False
         spring_quality = signal.description if spring_detected else ""
         lps_confirmed = "LPS已确认" in (signal.description if signal else "")
 
@@ -548,8 +548,8 @@ def run_wyckoff_diagnostics(
             step3 = engine._step3_phase_c_t1(frame, step1, rule0)
             t1_verdict = step3.t1_verdict
             t1_pct = step3.t1_max_drawdown_pct
-        except Exception:
-            pass
+        except (AttributeError, TypeError, ValueError, KeyError) as e:
+            print(f"  ⚠ Wyckoff step3 re-run failed for {sym}: {e}")
 
         # Counterfactual info
         pro_score = 0.0
@@ -561,8 +561,8 @@ def run_wyckoff_diagnostics(
             pro_score = step35.total_pro_score
             con_score = step35.total_con_score
             cf_overturned = step35.conclusion_overturned
-        except Exception:
-            pass
+        except (AttributeError, TypeError, ValueError, KeyError) as e:
+            print(f"  ⚠ Wyckoff counterfactual failed for {sym}: {e}")
 
         # Phase distribution
         diag.phase_dist[phase] += 1
@@ -971,7 +971,7 @@ def make_cross_report(xdiag: CrossDiagnostics) -> Dict[str, Any]:
             "delay_median": round(float(np.median(delay_arr)), 1) if len(delay_arr) > 0 else 0,
             "delay_p25": round(float(np.percentile(delay_arr, 25)), 1) if len(delay_arr) > 0 else 0,
             "delay_p75": round(float(np.percentile(delay_arr, 75)), 1) if len(delay_arr) > 0 else 0,
-            "verdict": "CONFIRMED" if (len(delay_arr) > 0 and np.median(delay_arr) > 5) else "NOT_CONFIRMED",
+            "verdict": "CONFIRMED" if (len(delay_arr) > 0 and np.median(delay_arr) > 5) else ("NOT_TESTED" if len(delay_arr) == 0 else "NOT_CONFIRMED"),
         },
     }
 
