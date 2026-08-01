@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 from uniquant.brain.factors.registry import FactorRegistry
 from uniquant.brain.factors.composer import FactorComposer
+from uniquant.brain.factors.analyzer import FactorICResult
 
 def factor_a(df):
     return df['close']
@@ -64,8 +65,8 @@ def test_process_returns_composite_score(sample_df):
     assert "composite_score" in scored_df.columns
     assert "a" in scored_df.columns
     assert "b" in scored_df.columns
-    assert weights["a"] == pytest.approx(0.5)
-    assert weights["b"] == pytest.approx(1.5)
+    assert abs(weights["a"] + weights["b"] - 1.0) < 1e-6
+    assert weights["b"] > weights["a"]
     assert not scored_df["composite_score"].isna().any()
 
 def test_compose_scores(sample_df):
@@ -113,7 +114,7 @@ def test_process_reports_failed_factor_diagnostics(sample_df):
     assert "composite_score" in scored_df.columns
     assert "a" in scored_df.columns
     assert "bad" not in scored_df.columns
-    assert weights == {"a": pytest.approx(0.5)}
+    assert abs(weights["a"] - 1.0) < 1e-6
     assert diagnostics["composite_usable"] is True
     assert diagnostics["composite_status"] == "DEGRADED"
     assert "bad" in diagnostics["failed_factors"]
@@ -157,3 +158,53 @@ def test_compute_all_factors_can_return_diagnostics(sample_df):
     assert diagnostics["computed_factors"] == ["a", "b"]
     assert "bad" in diagnostics["failed_factors"]
     assert composer.get_last_diagnostics() == diagnostics
+
+
+def test_ic_decay_basic():
+    composer = FactorComposer()
+    result = composer._apply_cross_window_decay(history=[0.1, 0.2], current_icir=0.3, half_life=60)
+    assert abs(result - 0.3) < abs(result - 0.1), "should be biased toward recent (current)"
+
+
+def test_ic_decay_single():
+    composer = FactorComposer()
+    result = composer._apply_cross_window_decay(history=[], current_icir=0.3, half_life=60)
+    assert result == pytest.approx(0.3)
+
+
+def test_ic_decay_equal():
+    composer = FactorComposer()
+    result = composer._apply_cross_window_decay(history=[0.5, 0.3], current_icir=0.4, half_life=1_000_000)
+    assert result == pytest.approx(0.4, abs=0.01)
+
+
+def test_ic_decay_short():
+    composer = FactorComposer()
+    result = composer._apply_cross_window_decay(history=[0.2], current_icir=0.1, half_life=2)
+    assert 0.1 < result < 0.2, "decay-weighted average should lie between history and current"
+    assert result < 0.15, "recent (current) weight exceeds historical weight, pulling below simple avg"
+
+
+def test_weight_normalization():
+    FactorRegistry._factors.clear()
+    FactorRegistry.register("x", factor_a, default_weight=1.0)
+    FactorRegistry.register("y", factor_b, default_weight=1.0)
+    FactorRegistry.register("z", factor_group_id, default_weight=1.0)
+
+    ic_results = {
+        "x": {1: FactorICResult("x", 0.05, 0.1, 0.1, 0.6, 2.0, 30)},
+        "y": {1: FactorICResult("y", 0.05, 0.1, 0.4, 0.6, 2.0, 30)},
+        "z": {1: FactorICResult("z", 0.05, 0.1, 0.5, 0.6, 2.0, 30)},
+    }
+    composer = FactorComposer()
+    weights = composer._resolve_weights(["x", "y", "z"], ic_results=ic_results)
+    assert abs(sum(weights.values()) - 1.0) < 1e-6
+    assert weights["z"] > weights["x"]
+
+
+def test_resolve_ic_result_list_defense(caplog):
+    from unittest.mock import Mock
+    from uniquant.brain.factors.composer import FactorComposer
+    composer = FactorComposer()
+    result = composer._resolve_ic_result([Mock()])
+    assert result is None

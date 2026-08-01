@@ -107,10 +107,7 @@ class TestWalkForwardFactorPipeline:
         ic_results = _make_ic_results(factor_cols)
 
         with patch.object(pipeline.analyzer, "compute_ic_ir", return_value=ic_results):
-            with patch.object(
-                pipeline.composer, "process", return_value=(sample_data.copy(), {})
-            ):
-                result = pipeline.run(sample_data, factor_cols=factor_cols)
+            result = pipeline.run(sample_data, factor_cols=factor_cols)
 
         assert isinstance(result, WalkForwardResult)
         assert len(result.windows) > 0
@@ -122,6 +119,8 @@ class TestWalkForwardFactorPipeline:
         assert abs(sum(wr.weights.values()) - 1.0) < 1e-6
         assert wr.n_train_stocks > 0
         assert wr.n_test_stocks > 0
+
+        assert pipeline._ic_history != {}
 
     # ------------------------------------------------
     # 4. Rank-ICIR weighting
@@ -210,6 +209,17 @@ class TestWalkForwardFactorPipeline:
             )
             assert len(train_dates & test_dates) == 0
             assert max(train_dates) < min(test_dates)
+
+    def test_walk_forward_ic_path_live(self, pipeline, sample_data, factor_cols):
+        ic_results = _make_ic_results(factor_cols)
+
+        with patch.object(pipeline.analyzer, "compute_ic_ir", return_value=ic_results):
+            result = pipeline.run(sample_data, factor_cols=factor_cols)
+
+        assert isinstance(result, WalkForwardResult)
+        assert len(result.windows) > 0
+        wr = result.windows[0]
+        assert abs(sum(wr.weights.values()) - 1.0) < 1e-6
 
     def test_no_lookahead_train_data_boundary(self, pipeline, sample_data, factor_cols):
         captured = {"train_end": None}

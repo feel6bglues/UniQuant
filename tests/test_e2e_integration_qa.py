@@ -1200,3 +1200,89 @@ class TestE2EHaltAndT1:
         actual_adv = prepared["avg_daily_volume"].iloc[20]
         assert actual_adv == pytest.approx(expected_adv, abs=0.01), \
             f"avg_daily_volume[20]={actual_adv} should be mean(volume[0:20])={expected_adv}"
+
+
+# ═══════════════════════════════════════════════════════════════
+# 测试N: Brain级跨引擎集成测试
+# ═══════════════════════════════════════════════════════════════
+
+class TestBrainCrossEngineIntegration:
+    """Brain级引擎 (LPPL / Wyckoff / FactorComposer) 交叉集成测试"""
+
+    @staticmethod
+    def _make_price_data(n: int = 200, uptrend: bool = True) -> pd.DataFrame:
+        base = 100.0
+        if uptrend:
+            close = [base + i * 0.8 + (i % 15) * 2 for i in range(n)]
+        else:
+            close = [base + i * 0.1 - (i % 10) * 1.5 for i in range(n)]
+        return pd.DataFrame({
+            'close': close,
+            'high': [c + 5 + (i % 7) for i, c in enumerate(close)],
+            'low': [c - 5 - (i % 7) for i, c in enumerate(close)],
+            'volume': [1_000_000 + i * 500 for i in range(n)],
+            'open': close,
+        })
+
+    def test_lppl_wyckoff_signal_consistency(self):
+        """LPPL Danger + Wyckoff Accumulation should not appear simultaneously"""
+        from uniquant.brain.lppl.engine import LPPLEngine
+        from uniquant.brain.wyckoff.engine import WyckoffEngine
+        n = 200
+        dates = pd.bdate_range('2024-01-02', periods=n, freq='B')
+        df = pd.DataFrame({
+            'date': dates,
+            'close': [100 + i * 0.5 + (i % 20) * 2 for i in range(n)],
+            'high': [105 + i * 0.5 + (i % 20) * 3 for i in range(n)],
+            'low': [95 + i * 0.5 + (i % 20) * 1 for i in range(n)],
+            'volume': [1_000_000 + i * 1000 for i in range(n)],
+            'open': [100 + i * 0.5 + (i % 20) * 1 for i in range(n)],
+        })
+        lppl_result = LPPLEngine().detect_bubble(df)
+        wyckoff_result = WyckoffEngine().analyze(df, multi_timeframe=True)
+        lppl_risk = lppl_result.get("risk_level", "Safe") if isinstance(lppl_result, dict) else str(getattr(lppl_result, 'risk_level', 'Safe'))
+        wyckoff_phase = str(wyckoff_result.phase).lower() if hasattr(wyckoff_result, 'phase') else ''
+        assert not (lppl_risk == "Danger" and "accumulation" in wyckoff_phase)
+
+    def test_factor_composer_stability(self):
+        """FactorComposer.compute_all_factors should not crash on real-ish data"""
+        from uniquant.brain.factors.composer import FactorComposer
+        n = 200
+        df = pd.DataFrame({
+            'close': [100 + i * 0.3 + (i % 30) * 1.5 for i in range(n)],
+            'high': [103 + i * 0.3 + (i % 30) * 2.0 for i in range(n)],
+            'low': [97 + i * 0.3 + (i % 30) * 1.0 for i in range(n)],
+            'open': [100 + i * 0.3 + (i % 30) * 1.2 for i in range(n)],
+            'volume': [1_000_000 + i * 2000 for i in range(n)],
+            'code': ['000001'] * n,
+            'date': pd.bdate_range('2024-01-02', periods=n, freq='B'),
+        })
+        fc = FactorComposer()
+        factor_df = fc.compute_all_factors(df, mode='backtest')
+        expected_factors = {'momentum_20d', 'volatility_20d', 'rsi_14', 'volume_ratio_5_20', 'ma_ratio_5_20'}
+        assert expected_factors.issubset(factor_df.columns), f"Missing factors in {list(factor_df.columns)}"
+
+    def test_lppl_wyckoff_factor_pipeline(self):
+        """LPPL → Wyckoff → Factor pipeline should not crash"""
+        from uniquant.brain.lppl.engine import LPPLEngine
+        from uniquant.brain.wyckoff.engine import WyckoffEngine
+        from uniquant.brain.factors.composer import FactorComposer
+        n = 200
+        df = pd.DataFrame({
+            'close': [100 + i * 0.6 + (i % 25) * 1.8 for i in range(n)],
+            'high': [104 + i * 0.6 + (i % 25) * 2.5 for i in range(n)],
+            'low': [96 + i * 0.6 + (i % 25) * 1.0 for i in range(n)],
+            'open': [100 + i * 0.6 + (i % 25) * 1.3 for i in range(n)],
+            'volume': [1_000_000 + i * 1500 for i in range(n)],
+            'code': ['000001'] * n,
+            'date': pd.bdate_range('2024-01-02', periods=n, freq='B'),
+        })
+        lppl_result = LPPLEngine().detect_bubble(df)
+        wyckoff_report = WyckoffEngine().analyze(df, multi_timeframe=False)
+        composer = FactorComposer()
+        factor_df = composer.compute_all_factors(df, mode='backtest')
+        assert isinstance(lppl_result, dict)
+        risk = lppl_result.get("risk_level", "Safe")
+        assert isinstance(wyckoff_report.phase, str) if hasattr(wyckoff_report, 'phase') else True
+        assert len(factor_df.columns) >= 5
+        assert "#N/A" not in str(risk)

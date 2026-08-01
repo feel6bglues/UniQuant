@@ -21,16 +21,15 @@ def test_scan_all_windows_selects_best_result_per_bucket(monkeypatch):
         700: 0.40,
     }
 
-    def fake_fit_single_window(self, subset):
-        window = len(subset)
+    def fake_fit_single_window_lbfgsb(subset, window, config):
         return {
             "params": [window, 0.5, 8.0, 1.0, -1.0, 0.2, 0.0],
             "rmse": rmse_by_window[window],
         }
 
     monkeypatch.setattr(
-        "uniquant.brain.lppl.calculator.LPPLCalculator.fit_single_window",
-        fake_fit_single_window,
+        "uniquant.brain.lppl.engine.fit_single_window_lbfgsb",
+        fake_fit_single_window_lbfgsb,
     )
 
     df = pd.DataFrame(

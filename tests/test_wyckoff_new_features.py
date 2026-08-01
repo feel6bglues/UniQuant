@@ -12,6 +12,8 @@ if _project_root not in sys.path:
 import numpy as np
 import pandas as pd
 import pytest
+from uniquant.brain.wyckoff.engine import WyckoffEngine
+from uniquant.brain.wyckoff.models import Step1Result, Step3Result, Rule0Result, WyckoffPhase
 
 
 # ───────────────────────── pnf.py ─────────────────────────
@@ -490,3 +492,118 @@ class TestWSOScorerEMA:
         alpha = 2.0 / (WSOScorer.EMA_SPAN + 1)
         expected = 0.0083 * alpha + 0.0094 * (1 - alpha)
         assert second == pytest.approx(expected, abs=1e-6)
+
+
+# ───────────────────────── _step4_risk_reward ─────────────────────────
+
+
+def make_sample_df(close_prices, high_prices=None, low_prices=None, volume=1000):
+    n = len(close_prices)
+    if high_prices is None:
+        high_prices = [c * 1.02 for c in close_prices]
+    if low_prices is None:
+        low_prices = [c * 0.98 for c in close_prices]
+    return pd.DataFrame({
+        "close": close_prices,
+        "high": high_prices,
+        "low": low_prices,
+        "volume": [volume] * n,
+        "open": close_prices,
+    })
+
+
+def test_step4_risk_reward_tr_upper_source():
+    """Default source: step1.boundary_upper when no candle/gap override triggers."""
+    closes = [
+        10.0, 10.3, 10.5, 10.7, 10.8, 11.0, 10.9, 11.1, 11.2, 11.3,
+        11.4, 11.3, 11.5, 11.4, 11.6, 11.5, 11.7, 11.6, 11.8, 11.7,
+        11.9, 11.8, 12.0, 11.9, 12.0,
+    ]
+    df = make_sample_df(closes)
+    engine = WyckoffEngine()
+    step1 = Step1Result(
+        phase=WyckoffPhase.ACCUMULATION, boundary_upper=15.0,
+        boundary_lower=10.0, boundary_source="manual",
+        is_in_tr=True,
+    )
+    step3 = Step3Result(spring_detected=True, spring_low_price=10.0)
+    rule0 = Rule0Result(
+        bc_found=True, tr_upper=15.0, tr_lower=10.0,
+        validity="full", confidence_base="B",
+    )
+    rr = engine._step4_risk_reward(df, step1, step3, rule0)
+    assert rr.first_target_source == "tr_upper"
+    assert rr.rr_ratio > 0
+    assert rr.stop_loss > 0
+
+
+def test_step4_risk_reward_bearish_candle_source():
+    """A bearish candle (prev_close > curr_close * 1.03) provides a nearer target."""
+    closes = (
+        [10.0] * 5
+        + [10.1, 10.3, 10.5, 10.8, 12.0, 11.0, 10.5]
+        + [10.5] * 13
+    )
+    df = make_sample_df(closes)
+    engine = WyckoffEngine()
+    step1 = Step1Result(
+        phase=WyckoffPhase.ACCUMULATION, boundary_upper=15.0,
+        boundary_lower=10.0, boundary_source="manual",
+        is_in_tr=True,
+    )
+    step3 = Step3Result(spring_detected=True, spring_low_price=10.0)
+    rule0 = Rule0Result(
+        bc_found=True, tr_upper=15.0, tr_lower=10.0,
+        validity="full", confidence_base="B",
+    )
+    rr = engine._step4_risk_reward(df, step1, step3, rule0)
+    assert rr.first_target_source == "bearish_candle"
+    assert rr.rr_ratio > 0
+    assert rr.stop_loss > 0
+
+
+def test_step4_risk_reward_gap_source():
+    """An upward gap (curr_row.low > prev_row.high) provides the first target."""
+    closes = (
+        [10.0] * 6
+        + [10.5]
+        + [10.4, 10.3, 10.2, 10.1, 10.0]
+        + [10.0] * 12
+    )
+    df = make_sample_df(closes)
+    engine = WyckoffEngine()
+    step1 = Step1Result(
+        phase=WyckoffPhase.ACCUMULATION, boundary_upper=15.0,
+        boundary_lower=10.0, boundary_source="manual",
+        is_in_tr=True,
+    )
+    step3 = Step3Result(spring_detected=True, spring_low_price=10.0)
+    rule0 = Rule0Result(
+        bc_found=True, tr_upper=15.0, tr_lower=10.0,
+        validity="full", confidence_base="B",
+    )
+    rr = engine._step4_risk_reward(df, step1, step3, rule0)
+    assert rr.first_target_source == "gap_lower"
+    assert rr.rr_ratio > 0
+    assert rr.stop_loss > 0
+
+
+def test_step4_risk_reward_atr_stop_loss():
+    """When all structured targets sit below current_price, ATR-derived target is used."""
+    closes = [10.0] * 20 + [10.5, 10.5, 11.0, 11.0, 11.0]
+    df = make_sample_df(closes)
+    engine = WyckoffEngine()
+    step1 = Step1Result(
+        phase=WyckoffPhase.ACCUMULATION, boundary_upper=10.0,
+        boundary_lower=10.0, boundary_source="manual",
+        is_in_tr=True,
+    )
+    step3 = Step3Result(spring_detected=True, spring_low_price=10.0)
+    rule0 = Rule0Result(
+        bc_found=True, tr_upper=10.0, tr_lower=10.0,
+        validity="full", confidence_base="B",
+    )
+    rr = engine._step4_risk_reward(df, step1, step3, rule0)
+    assert rr.first_target_source == "atr_derived"
+    assert rr.stop_loss > 0
+    assert rr.first_target > 0
