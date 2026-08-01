@@ -423,9 +423,9 @@ Classic Wyckoff Compliance Framework（以下简称"框架"）定义了 **35 项
 
 | ID | 优先级 | 当前状态 | 目标状态 | 实现者 | 评审者 | 完成日期 |
 |----|--------|---------|---------|--------|--------|---------|
-| PF-C1 | P0 | ❌ FAIL | ✅ PASS | _____ | _____ | _____ |
-| PF-C2 | P0 | ❌ FAIL | ✅ PASS | _____ | _____ | _____ |
-| PF-C3 | P0 | ❌ FAIL | ✅ PASS | _____ | _____ | _____ |
+| PF-C1 | P0 | ✅ PASS | ✅ PASS | opencode | 待评审 | 2026-08-01 |
+| PF-C2 | P0 | ✅ PASS | ✅ PASS | opencode | 待评审 | 2026-08-01 |
+| PF-C3 | P0 | ✅ PASS | ✅ PASS | opencode | 待评审 | 2026-08-01 |
 | PF-C4 | P1 | ⚠️ PARTIAL | ✅ PASS | _____ | _____ | _____ |
 | PF-C5 | P2 | ❌ FAIL | ⚠️ PARTIAL | _____ | _____ | _____ |
 | ES-C1 | P0 | ⚠️ PARTIAL | ✅ PASS | _____ | _____ | _____ |

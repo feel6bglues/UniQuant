@@ -165,25 +165,54 @@ def audit_pnf(result: AuditResult, symbols: list[str]) -> None:
             hardcoded_count += 1
 
     # PF-C1: P&F used in phase decision
-    result.check("PF-C1", "D1-PnF",
-                 "P&F participates in Phase decision",
-                 passed=False,
-                 detail="P&F called at end of _analyze_single, not used in _step1_phase_determine",
-                 classification="ERROR")
+    engine_src = Path("src/uniquant/brain/wyckoff/engine.py").read_text()
+    pnf_early = "_step0_bc_tr_scan(frame, pnf_zone=" in engine_src
+    pnf_phase = "_step1_phase_determine(frame, rule0, pnf_hint=" in engine_src
+    pnf_hint_branch = 'pnf_hint in ("accumulation", "distribution")' in engine_src
+    if pnf_early and pnf_phase and pnf_hint_branch:
+        result.check("PF-C1", "D1-PnF",
+                     "P&F participates in Phase decision",
+                     passed=True,
+                     detail="P&F 先行构建；phase_hint 传入 _step1_phase_determine 驱动判定",
+                     classification="ERROR")
+    else:
+        result.check("PF-C1", "D1-PnF",
+                     "P&F participates in Phase decision",
+                     passed=False,
+                     detail="P&F called at end of _analyze_single, not used in _step1_phase_determine",
+                     classification="ERROR")
 
     # PF-C2: Count Target in trading plan
-    result.check("PF-C2", "D1-PnF",
-                 "Count Target affects trading plan",
-                 passed=False,
-                 detail="V3TradingPlan.target uses RR projection, not PNF count target",
-                 classification="ERROR")
+    pnf_ct_flow = "pnf_count_target=" in engine_src
+    pnf_ct_use = 'first_target_source = "pnf_count_target"' in engine_src
+    if pnf_ct_flow and pnf_ct_use:
+        result.check("PF-C2", "D1-PnF",
+                     "Count Target affects trading plan",
+                     passed=True,
+                     detail="_step4_risk_reward 采用 PNF count_target 作为第一目标源",
+                     classification="ERROR")
+    else:
+        result.check("PF-C2", "D1-PnF",
+                     "Count Target affects trading plan",
+                     passed=False,
+                     detail="V3TradingPlan.target uses RR projection, not PNF count target",
+                     classification="ERROR")
 
     # PF-C3: P&F S/R in boundary
-    result.check("PF-C3", "D1-PnF",
-                 "P&F support/resistance in boundary detection",
-                 passed=False,
-                 detail="Boundaries from recent_60 high/low, not P&F column analysis",
-                 classification="ERROR")
+    pnf_zone_use = "pnf_zone=" in engine_src
+    pnf_zone_pref = "tr_source_override" in engine_src
+    if pnf_zone_use and pnf_zone_pref:
+        result.check("PF-C3", "D1-PnF",
+                     "P&F support/resistance in boundary detection",
+                     passed=True,
+                     detail="_step0_bc_tr_scan 优先采用 P&F 密集区作为 TR 边界",
+                     classification="ERROR")
+    else:
+        result.check("PF-C3", "D1-PnF",
+                     "P&F support/resistance in boundary detection",
+                     passed=False,
+                     detail="Boundaries from recent_60 high/low, not P&F column analysis",
+                     classification="ERROR")
 
     # PF-C4: box_size adaptive
     if hardcoded_count >= 3:

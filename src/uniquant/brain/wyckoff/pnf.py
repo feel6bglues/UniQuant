@@ -102,6 +102,53 @@ class PointAndFigure:
 
         return self._boxes
 
+    def congestion_zone(self) -> Tuple[float, float]:
+        """Return the (lower, upper) bounds of the widest horizontal congestion zone.
+
+        A congestion zone is the longest run of overlapping P&F columns. Bounds are
+        computed as the column median within the widest run so a single spike column
+        does not drag the zone outward. Returns ``(0.0, 0.0)`` when the chart has
+        too few boxes/columns to define one.
+        """
+        if len(self._boxes) < 10 or self._step <= 0:
+            return (0.0, 0.0)
+
+        highs, lows = self._column_stats()
+        n_cols = len(highs)
+        if n_cols < 5:
+            return (0.0, 0.0)
+
+        best_count = 0
+        best_start = -1
+        best_end = -1
+
+        for start in range(n_cols - 2):
+            zh, zl = highs[start], lows[start]
+            count = 1
+            end = start + 1
+            while end < n_cols:
+                if highs[end] >= zl and lows[end] <= zh:
+                    zh = max(zh, highs[end])
+                    zl = min(zl, lows[end])
+                    count += 1
+                    end += 1
+                else:
+                    break
+            if count > best_count:
+                best_count = count
+                best_start = start
+                best_end = end
+
+        if best_count < 3:
+            return (0.0, 0.0)
+
+        run_highs = highs[best_start:best_end]
+        run_lows = lows[best_start:best_end]
+        return (
+            float(np.median(run_lows)),
+            float(np.median(run_highs)),
+        )
+
     def count_target(self) -> float:
         if len(self._boxes) < 10 or self._step <= 0:
             return 0.0

@@ -96,6 +96,18 @@ Phase A-K v2.0 deep audit (2026-07-06): code quality (Fair, 116 duplicates, Wyck
 
 **Test results**: 1882 passed, 7 skipped, 0 ruff (0 new, 16 pre-existing in cross_validation script).
 
+## Recent Work (2026-08-01) — Classic Wyckoff P0 修复 Phase 1 (P&F 先行)
+
+| ID | Task | Summary | Verification |
+|---|---|---|---|
+| **PF-C3** | TR 边界来自 P&F 密集区 | `pnf.py` 新增 `congestion_zone()`（最长重叠列簇 + 列中位数边界抗尖峰）；`engine.py:_step0_bc_tr_scan` 接受 `pnf_zone` 优先覆盖裸 H/L 边界 | 4 新测试通过（含尖峰鲁棒性） |
+| **PF-C1** | P&F phase_hint 驱动 Phase | P&F 提前到 Step0 之前构建；`_step1_phase_determine(df, rule0, pnf_hint)` 在 hint ∈ {accumulation, distribution} 时直接判定 | mock 测试通过 |
+| **PF-C2** | Count Target 进交易计划 | `_step4_risk_reward(df, step1, step3, rule0, pnf_count_target)` 在 PNF 目标 > 现价时采用为第一目标；key_low > 现价时回退近 30 日低点止损 | mock 测试通过 |
+
+**Test results**: 185 passed (181 基线 + 4 新增 `tests/classic_wyckoff/test_phase1_pnf.py`), 0 ruff。
+**Compliance**: 23.3% → 33.3% (+10.0%), D1-PnF 维度 10% → 70% (PF-C1/C2/C3 全部 FAIL→PASS)。`scripts/classic_wyckoff_compliance.py` 的 PF-C1/C2/C3 检查从静态占位改为源码头检查。
+**真实数据行为变化**（P&F hint 生效的预期结果）: 300750.SZ markdown→accumulation, 688981.SH markup→distribution; 止损 > 现价场景已修复（不再出现负风险）。
+
 ## Recent Work (2026-07-23) — Walk-Forward 效用终结评估 (2026-07-23)
 
 | Phase | Tasks | Key Deliverables |

@@ -190,14 +190,29 @@ class WyckoffEngine:
 
         frame = frame.tail(lookback).reset_index(drop=True)
 
-        # Step 0: BC/TR 定位扫描
-        rule0 = self._step0_bc_tr_scan(frame)
+        # P&F 先行：Phase/TR/目标位的基础（PF-C1/C2/C3）
+        pnf_result: Optional[dict] = None
+        try:
+            pnf = PointAndFigure(box_size=0.02, reversal=2)
+            pnf.build(frame)
+            pnf_result = {
+                "phase_hint": pnf.wyckoff_phase_hint(),
+                "breakout": pnf.breakout_detected(),
+                "count_target": pnf.count_target(),
+                "congestion_zone": pnf.congestion_zone(),
+            }
+        except (ValueError, TypeError, KeyError):
+            logger.warning("Point and Figure analysis failed", exc_info=True)
+            pnf_result = {"phase_hint": "neutral", "breakout": False, "count_target": 0.0}
+
+        # Step 0: BC/TR 定位扫描（P&F 密集区覆盖裸 H/L 边界）
+        rule0 = self._step0_bc_tr_scan(frame, pnf_zone=pnf_result.get("congestion_zone"))
 
         if rule0.validity == "insufficient":
             return self._create_no_signal_report(symbol, period, "BC和TR均不可见，结构不足")
 
-        # Step 1: 大局观与阶段判定
-        step1 = self._step1_phase_determine(frame, rule0)
+        # Step 1: 大局观与阶段判定（P&F phase_hint 驱动）
+        step1 = self._step1_phase_determine(frame, rule0, pnf_hint=pnf_result.get("phase_hint"))
 
         # 规则4: 诚实不作为原则 - 检测信号矛盾
         contradictions = 0
@@ -226,8 +241,10 @@ class WyckoffEngine:
         # Step 3.5: 反事实
         step35 = self._step35_counterfactual(frame, step1, step2, step3, rule0)
 
-        # Step 4: 盈亏比
-        rr_result = self._step4_risk_reward(frame, step1, step3, rule0)
+        # Step 4: 盈亏比（P&F count_target 优先作为第一目标）
+        rr_result = self._step4_risk_reward(
+            frame, step1, step3, rule0, pnf_count_target=pnf_result.get("count_target", 0.0)
+        )
 
         # 置信度计算
         confidence = self._calc_confidence(rule0, step1, step3, step35, rr_result, False)
@@ -237,20 +254,6 @@ class WyckoffEngine:
 
         # A 股铁律最终检查
         v3_plan = self._apply_a_stock_rules(step1, v3_plan)
-
-        # P&F 点图分析
-        pnf_result: Optional[dict] = None
-        try:
-            pnf = PointAndFigure(box_size=0.02, reversal=2)
-            pnf.build(frame)
-            pnf_result = {
-                "phase_hint": pnf.wyckoff_phase_hint(),
-                "breakout": pnf.breakout_detected(),
-                "count_target": pnf.count_target(),
-            }
-        except (ValueError, TypeError, KeyError):
-            logger.warning("Point and Figure analysis failed", exc_info=True)
-            pnf_result = {"phase_hint": "neutral", "breakout": False, "count_target": 0.0}
 
         # Regime-aware enhanced phase
         regime_phase: Optional[str] = None
@@ -279,14 +282,22 @@ class WyckoffEngine:
             regime_phase,
         )
 
-    def _step0_bc_tr_scan(self, df: pd.DataFrame) -> Rule0Result:
+    def _step0_bc_tr_scan(
+        self, df: pd.DataFrame, pnf_zone: Optional[tuple] = None
+    ) -> Rule0Result:
         """Step 0: BC/TR 定位扫描"""
         bc_point, sc_point = self._scan_bc_sc(df)
 
-        # 计算 TR 边界
+        # 计算 TR 边界：P&F 水平密集区优先（PF-C3），否则回落 OHLC 高低点
         recent_60 = df.tail(60)
-        tr_upper = float(recent_60["high"].max())
-        tr_lower = float(recent_60["low"].min())
+        if pnf_zone and len(pnf_zone) == 2 and pnf_zone[1] > pnf_zone[0] > 0:
+            tr_upper = float(pnf_zone[1])
+            tr_lower = float(pnf_zone[0])
+            tr_source_override = "pnf_congestion"
+        else:
+            tr_upper = float(recent_60["high"].max())
+            tr_lower = float(recent_60["low"].min())
+            tr_source_override = None
 
         bc_found = bc_point is not None
         sc_found = sc_point is not None
@@ -294,6 +305,13 @@ class WyckoffEngine:
 
         # 使用规则5进行降级策略
         fallback = self.rules.rule5_bc_tr_fallback(bc_found, tr_defined)
+
+        tr_source = (
+            tr_source_override
+            or ("bc_ar"
+                if bc_found
+                else ("sc_spring" if sc_found else ("rolling_range" if tr_defined else "none")))
+        )
 
         return Rule0Result(
             bc_found=bc_found,
@@ -303,9 +321,7 @@ class WyckoffEngine:
             bc_in_chart=bc_found,
             tr_upper=tr_upper if tr_defined else None,
             tr_lower=tr_lower if tr_defined else None,
-            tr_source="bc_ar"
-            if bc_found
-            else ("sc_spring" if sc_found else ("rolling_range" if tr_defined else "none")),
+            tr_source=tr_source,
             validity=fallback["validity"],
             confidence_base=fallback["confidence_base"],
         )
@@ -476,32 +492,43 @@ class WyckoffEngine:
         """Detect SOS (Sign of Strength) pattern."""
         return None
 
-    def _step1_phase_determine(self, df: pd.DataFrame, rule0: Rule0Result) -> Step1Result:
-        """Step 1: 大局观与阶段判定（分派到7个检测器）"""
+    def _step1_phase_determine(
+        self, df: pd.DataFrame, rule0: Rule0Result, pnf_hint: Optional[str] = None
+    ) -> Step1Result:
+        """Step 1: 大局观与阶段判定（分派到7个检测器，P&F phase_hint 优先驱动）"""
         ctx = self._compute_step1_context(df, rule0)
-
-        detectors: List = [
-            self._detect_markup,
-            self._detect_markdown,
-            self._detect_accumulation,
-            self._detect_distribution,
-            self._detect_spring,
-            self._detect_utad,
-            self._detect_sos,
-        ]
 
         phase = WyckoffPhase.UNKNOWN
         unknown_candidate = ""
-        for detector in detectors:
-            result = detector(df, ctx, rule0)
-            if result is not None:
-                phase = result["phase"]
-                unknown_candidate = result.get("unknown_candidate", "")
-                break
 
-        # UNKNOWN 子状态分类
-        if phase == WyckoffPhase.UNKNOWN and not unknown_candidate:
-            unknown_candidate = self._classify_unknown_candidate(df, phase, rule0)
+        # PF-C1: P&F phase_hint 明确时直接驱动阶段判定
+        if pnf_hint in ("accumulation", "distribution"):
+            phase = (
+                WyckoffPhase.ACCUMULATION
+                if pnf_hint == "accumulation"
+                else WyckoffPhase.DISTRIBUTION
+            )
+        else:
+            detectors: List = [
+                self._detect_markup,
+                self._detect_markdown,
+                self._detect_accumulation,
+                self._detect_distribution,
+                self._detect_spring,
+                self._detect_utad,
+                self._detect_sos,
+            ]
+
+            for detector in detectors:
+                result = detector(df, ctx, rule0)
+                if result is not None:
+                    phase = result["phase"]
+                    unknown_candidate = result.get("unknown_candidate", "")
+                    break
+
+            # UNKNOWN 子状态分类
+            if phase == WyckoffPhase.UNKNOWN and not unknown_candidate:
+                unknown_candidate = self._classify_unknown_candidate(df, phase, rule0)
 
         # Phase A/B/C/D/E 细分
         sub_phase = ""
@@ -826,14 +853,19 @@ class WyckoffEngine:
         )
 
     def _step4_risk_reward(
-        self, df: pd.DataFrame, step1: Step1Result, step3: Step3Result, rule0: Rule0Result
+        self,
+        df: pd.DataFrame,
+        step1: Step1Result,
+        step3: Step3Result,
+        rule0: Rule0Result,
+        pnf_count_target: Optional[float] = None,
     ) -> RiskRewardResult:
         """Step 4: 盈亏比投影（规则10精度，多种目标位来源 + ATR回填）"""
         current_price = float(df.iloc[-1]["close"])
 
         # 止损价 = 关键结构低点 × 0.995（ATR可用时用1倍ATR止损）
         key_low = step3.spring_low_price if step3.spring_low_price else step1.boundary_lower
-        if key_low <= 0:
+        if key_low <= 0 or key_low > current_price:
             key_low = float(df.tail(30)["low"].min())
 
         atr_series = Indicators.calc_atr(df)
@@ -881,6 +913,11 @@ class WyckoffEngine:
             atr = float(np.mean(tr_vals)) if len(tr_vals) >= 20 else current_price * 0.02
             first_target = current_price + 2.0 * atr
             first_target_source = "atr_derived"
+
+        # 4. P&F Count Target 优先（PF-C2）：当 PNF 目标高于当前价时采用
+        if pnf_count_target and pnf_count_target > current_price:
+            first_target = float(pnf_count_target)
+            first_target_source = "pnf_count_target"
 
         # 计算盈亏比
         risk = current_price - stop_loss
