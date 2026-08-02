@@ -7,9 +7,7 @@ import pytest
 
 from uniquant.services.analysis.engine_factory import AnalysisEngineFactory
 from uniquant.services.analysis_service_v2 import (
-    RECOVERABLE_ERRORS,
     AnalysisService,
-    TickerAnalysisResult,
 )
 from uniquant.shared.config_models import FeatureFlags, RefactoringConfig
 from uniquant.shared.interfaces import (
@@ -306,3 +304,51 @@ def test_data_pack_routing_dict_through_run_ticker_analysis():
 
     assert result.success is True
     assert isinstance(result.data_pack, dict)
+
+# ══════════════════════════════════════════════════════════════════
+# W2: _run_wyckoff preserves full WyckoffOutput field set
+# ══════════════════════════════════════════════════════════════════
+
+def test_run_wyckoff_preserves_all_fields():
+    """_run_wyckoff must carry adjustment_status/structural_score/relative_strength
+    into the written WyckoffOutput (not just the legacy 5 fields)."""
+
+    from uniquant.services.analysis_service_v2 import AnalysisService
+    from uniquant.shared.interfaces import WyckoffOutput
+
+    rich = WyckoffOutput(
+        phase="accumulation", confidence=0.7, spring=True, utad=False, price=10.0,
+        adjustment_status="pre_adjusted", structural_score=61.88,
+        relative_strength="follower", pnf_phase_hint="accumulation",
+        pnf_breakout=False, pnf_count_target=12.0, rr_ratio=2.5,
+    )
+    wyckoff_engine = Mock(run_wyckoff_analysis=Mock(return_value=rich))
+    factory = _make_engine_factory(
+        brain=_mock_brain(),
+        czsc=Mock(run_czsc_analysis=Mock(return_value=Mock(
+            is_3rd_buy=False, bi_count=0, price=0.0))),
+        wyckoff=wyckoff_engine,
+    )
+
+    data_service = _make_mock_data_service()
+    service = AnalysisService(data_service=data_service, engine_factory=factory)
+
+    written = {}
+    mock_writer = Mock()
+    mock_writer.get_stock_df = Mock(return_value=pd.DataFrame({"close": [10.0]}))
+
+    def fake_write_wyckoff(data_pack, output):
+        written["output"] = output
+
+    mock_writer.write_wyckoff = fake_write_wyckoff
+    with patch.object(AnalysisService, "_get_writer", return_value=mock_writer):
+        service._run_wyckoff("600000.SH", data_service.fetch_for_brain("600000.SH"))
+
+    out = written["output"]
+    assert isinstance(out, WyckoffOutput)
+    assert out.adjustment_status == "pre_adjusted"
+    assert out.structural_score == 61.88
+    assert out.relative_strength == "follower"
+    assert out.pnf_phase_hint == "accumulation"
+    assert out.pnf_count_target == 12.0
+    assert out.rr_ratio == 2.5

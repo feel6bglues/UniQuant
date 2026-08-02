@@ -19,6 +19,32 @@ class WyckoffAnalysisEngine:
     def __init__(self, orchestrator):
         self.orchestrator = orchestrator
 
+    _INDEX_PATHS = (
+        "data/lake/quotes/daily/000300.SH.parquet",
+        "data/csi300_index.parquet",
+    )
+
+    def _load_index_df(self) -> Optional[pd.DataFrame]:
+        """Load CSI 300 index data for relative-strength analysis.
+
+        Tries data-lake paths first, falls back to the standalone
+        csi300_index.parquet. Returns None when unavailable so the engine
+        degrades gracefully (relative_strength=None).
+        """
+        from pathlib import Path
+
+        for p in self._INDEX_PATHS:
+            path = Path(p)
+            if path.exists():
+                try:
+                    df = pd.read_parquet(path)
+                    if not df.empty and "date" in df.columns:
+                        return df
+                except (OSError, ValueError, KeyError, TypeError):
+                    continue
+        logger.warning("CSI300 index data unavailable; relative-strength analysis skipped")
+        return None
+
     def _extract_from_report(self, result: Any, price: float) -> WyckoffOutput:
         phase = "unknown"
         confidence = 0.0
@@ -103,7 +129,12 @@ class WyckoffAnalysisEngine:
             relative_strength=relative_strength,
         )
 
-    def run_wyckoff_analysis(self, symbol: str, df: Optional[pd.DataFrame] = None) -> "WyckoffOutput":
+    def run_wyckoff_analysis(
+        self,
+        symbol: str,
+        df: Optional[pd.DataFrame] = None,
+        index_df: Optional[pd.DataFrame] = None,
+    ) -> "WyckoffOutput":
         try:
             cache_key = self.orchestrator._generate_cache_key("wyckoff_analysis", symbol=symbol)
 
@@ -130,7 +161,10 @@ class WyckoffAnalysisEngine:
                 from ...brain.wyckoff.engine import WyckoffEngine
                 wyckoff_engine = WyckoffEngine()
 
-                result = wyckoff_engine.analyze(df, multi_timeframe=True)
+                if index_df is None:
+                    index_df = self._load_index_df()
+
+                result = wyckoff_engine.analyze(df, multi_timeframe=True, index_df=index_df)
                 price = float(df["close"].iloc[-1]) if "close" in df.columns else 0.0
 
                 return self._extract_from_report(result, price)

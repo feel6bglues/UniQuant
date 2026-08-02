@@ -1,7 +1,5 @@
 """Tests for WyckoffAnalysisEngine._extract_from_report and related methods."""
 
-from dataclasses import dataclass, field
-from typing import Any, List, Optional
 import pytest
 
 from unittest.mock import MagicMock, patch
@@ -205,3 +203,62 @@ class TestExtractFromReport:
         engine = WyckoffAnalysisEngine(MagicMock())
         output = engine._extract_from_report(partial_report, price=100.0)
         assert output.rr_ratio == 0.0
+
+
+class TestRunWyckoffAnalysisIndexDf:
+    """W1: run_wyckoff_analysis passes index_df through to the engine."""
+
+    def test_index_df_passed_to_engine(self, tmp_path):
+        """index_df is forwarded to WyckoffEngine.analyze."""
+        import pandas as pd
+        from unittest.mock import MagicMock
+        from uniquant.services.analysis.wyckoff_analysis_engine import WyckoffAnalysisEngine
+
+        stock = pd.DataFrame({
+            "date": pd.date_range("2026-01-01", periods=60, freq="D"),
+            "open": 10.0, "high": 11.0, "low": 9.5, "close": 10.5, "volume": 10000,
+        })
+        index = pd.DataFrame({
+            "date": pd.date_range("2026-01-01", periods=60, freq="D"),
+            "close": 100.0, "volume": 100000,
+        })
+        orch = MagicMock()
+        orch._generate_cache_key.return_value = "ck"
+        orch._optimize_dataframe.side_effect = lambda df: df
+        orch._sample_data.side_effect = lambda df, max_rows: df
+
+        captured = {}
+        class FakeEngine:
+            def analyze(self, df, multi_timeframe=False, index_df=None):
+                captured["index"] = index_df
+                return MagicMock(structure=None, signal=None, risk_reward=None, trading_plan=None)
+
+        engine = WyckoffAnalysisEngine(orch)
+        with patch("uniquant.brain.wyckoff.engine.WyckoffEngine", lambda: FakeEngine()):
+            engine.run_wyckoff_analysis(symbol="600000.SH", df=stock, index_df=index)
+        assert captured["index"] is index
+
+    def test_index_df_none_auto_loads_csi300(self, tmp_path, monkeypatch):
+        """When index_df is None, _load_index_df tries configured paths."""
+        import pandas as pd
+        from unittest.mock import MagicMock
+        from uniquant.services.analysis.wyckoff_analysis_engine import WyckoffAnalysisEngine
+
+        index = pd.DataFrame({"date": pd.date_range("2026-01-01", periods=10, freq="D"), "close": [1.0] * 10})
+        p = tmp_path / "000300.SH.parquet"
+        index.to_parquet(p)
+
+        engine = WyckoffAnalysisEngine(MagicMock())
+        monkeypatch.setattr(engine, "_INDEX_PATHS", (str(p),))
+        loaded = engine._load_index_df()
+        assert loaded is not None
+        assert "close" in loaded.columns
+
+    def test_load_index_df_missing_returns_none(self, tmp_path, monkeypatch):
+        """No index file available -> returns None (graceful degrade)."""
+        from unittest.mock import MagicMock
+        from uniquant.services.analysis.wyckoff_analysis_engine import WyckoffAnalysisEngine
+
+        engine = WyckoffAnalysisEngine(MagicMock())
+        monkeypatch.setattr(engine, "_INDEX_PATHS", (str(tmp_path / "nope.parquet"),))
+        assert engine._load_index_df() is None

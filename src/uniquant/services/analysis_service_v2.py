@@ -513,13 +513,16 @@ class AnalysisService:
             result = self.wyckoff_engine.run_wyckoff_analysis(
                 symbol=ticker, df=stock_df,
             )
-            output = WyckoffOutput(
-                phase=str(getattr(result, "phase", "unknown")),
-                confidence=float(getattr(result, "confidence", 0.0)),
-                spring=bool(getattr(result, "spring", False)),
-                utad=bool(getattr(result, "utad", False)),
-                price=float(getattr(result, "price", 0.0)),
-            )
+            if isinstance(result, WyckoffOutput):
+                output = WyckoffOutput.from_dict(result.to_dict())
+            else:
+                output = WyckoffOutput(
+                    phase=str(getattr(result, "phase", "unknown")),
+                    confidence=float(getattr(result, "confidence", 0.0)),
+                    spring=bool(getattr(result, "spring", False)),
+                    utad=bool(getattr(result, "utad", False)),
+                    price=float(getattr(result, "price", 0.0)),
+                )
             writer.write_wyckoff(data_pack, output)
         except RECOVERABLE_ERRORS as e:
             logger.warning(f"Wyckoff 分析失败: {e}")
