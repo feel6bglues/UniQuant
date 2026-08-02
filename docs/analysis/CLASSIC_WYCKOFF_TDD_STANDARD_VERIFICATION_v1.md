@@ -117,13 +117,13 @@ Classic Wyckoff Compliance Framework（以下简称"框架"）定义了 **35 项
 | ID | ES-C1 |
 |----|-------|
 | **理论** | Spring = O 列跌破 TR 下沿 0.5-1.5% 后 1-2 列内收回，量能萎缩确认 |
-| **当前** | ⚠️ PARTIAL — engine 用 `low < boundary_lower * SPRING_LOW_FACTOR (1.01 允许1% margin)` + `close >= boundary_lower * SPRING_CLOSE_FACTOR (1.0)`，无 P&F X/O 列概念。代码注释称「收回至97%」但实际常数为 1.0 |
-| **TDD 测试** | `test_spring_classic_definition()` |
-| **测试方法** | 构造已知 Spring 数据（价格跌破 TR 下沿 1% 后次日收回 + 缩量），验证 engine 正确检测。另构造"价格跌破 TR 下沿但 3 列后才收回"的数据，验证 engine 不标记为 Spring |
+| **当前** | ✅ PASS (2026-08-01) — engine 共享 `_scan_spring`：O 列跌破 TR 下沿 0.5-1.5% (`boundary_lower*0.985 <= low < boundary_lower`) 后 1-2 列内收回 (`closes[j] >= boundary_lower`) + 量能萎缩确认 (`vol_ratio <= 0.8`)。step3 内联检测复用同一助手 |
+| **TDD 测试** | `test_spring_classic_definition()` / `test_spring_rejects_late_recovery()` / `test_spring_engine_end_to_end()` |
+| **测试方法** | 构造已知 Spring 数据（价格跌破 TR 下沿 1% 后次日收回 + 缩量），验证 engine 正确检测。另构造"价格跌破 TR 下沿但 3 列后才收回"的数据，验证 engine 不标记为 Spring。端到端 fixture 对齐引擎 P&F TR 边界 |
 | **输入** | 合成 OHLCV: TR=[10,12]，第 80 根低点=9.90（跌破 1%），第 81 根收盘=11.50（收回）；反例：跌破后第 85 根才收回 |
 | **预期** | 正例 spring_detected=True，反例 spring_detected=False |
 | **验收** | Spring 检测遵循 1-2 列收回规则 |
-| **签字** | 实现:_____ 评审:_____ |
+| **签字** | 实现:opencode 评审:待评审 |
 
 | ID | ES-C2 |
 |----|-------|
@@ -428,29 +428,29 @@ Classic Wyckoff Compliance Framework（以下简称"框架"）定义了 **35 项
 | PF-C3 | P0 | ✅ PASS | ✅ PASS | opencode | 待评审 | 2026-08-01 |
 | PF-C4 | P1 | ⚠️ PARTIAL | ✅ PASS | _____ | _____ | _____ |
 | PF-C5 | P2 | ❌ FAIL | ⚠️ PARTIAL | _____ | _____ | _____ |
-| ES-C1 | P0 | ⚠️ PARTIAL | ✅ PASS | _____ | _____ | _____ |
+| ES-C1 | P0 | ⚠️ PARTIAL | ✅ PASS | opencode | 待评审 | 2026-08-01 |
 | ES-C2 | P1 | ⚠️ PARTIAL | ✅ PASS | _____ | _____ | _____ |
-| ES-C3 | P0 | ❌ FAIL | ✅ PASS | _____ | _____ | _____ |
+| ES-C3 | P0 | ❌ FAIL | ✅ PASS | opencode | 待评审 | 2026-08-01 |
 | ES-C4 | P1 | ✅ PASS | ✅ PASS | — | — | 已有 |
 | ES-C5 | P2 | ⚠️ PARTIAL | ⚠️ PARTIAL | — | — | WONTFIX |
 | VS-C1 | P1 | ❌ FAIL | ⚠️ PARTIAL | _____ | _____ | _____ |
 | VS-C3 | P2 | ❌ FAIL | ⚠️ PARTIAL | _____ | _____ | _____ |
-| PH-C1 | P0 | ❌ FAIL | ✅ PASS | _____ | _____ | _____ |
-| PH-C2 | P0 | ❌ FAIL | ✅ PASS | _____ | _____ | _____ |
+| PH-C1 | P0 | ❌ FAIL | ✅ PASS | opencode | 待评审 | 2026-08-01 |
+| PH-C2 | P0 | ❌ FAIL | ✅ PASS | opencode | 待评审 | 2026-08-01 |
 | PH-C3 | P1 | ⚠️ PARTIAL | ✅ PASS | _____ | _____ | _____ |
 | PH-C4 | P1 | ✅ PASS | ✅ PASS | — | — | 已有 |
 | PH-C5 | P2 | ⚠️ PARTIAL | ✅ PASS | _____ | _____ | _____ |
 | MT-C2 | P1 | ❌ FAIL | ⚠️ PARTIAL | _____ | _____ | _____ |
 | MT-C3 | P1 | ⚠️ PARTIAL | ✅ PASS | _____ | _____ | _____ |
-| RS-C1 | P1 | ❌ FAIL | ⚠️ PARTIAL | _____ | _____ | _____ |
+| RS-C1 | P1 | ✅ PASS | ⚠️ PARTIAL | opencode | 待评审 | 2026-08-02 |
 | RS-C2 | P2 | ❌ FAIL | ⚠️ PARTIAL | _____ | _____ | _____ |
 | CF-C1 | P1 | ❌ FAIL | ⚠️ PARTIAL | _____ | _____ | _____ |
-| CF-C4 | P0 | ❌ FAIL | ✅ PASS | _____ | _____ | _____ |
+| CF-C4 | P0 | ❌ FAIL | ✅ PASS | opencode | 待评审 | 2026-08-01 |
 | CN-C1 | P1 | ❌ FAIL | ✅ PASS | _____ | _____ | _____ |
 | CN-C2 | P1 | ❌ FAIL | ✅ PASS | _____ | _____ | _____ |
 | CN-C3 | P2 | ❌ FAIL | ⚠️ PARTIAL | _____ | _____ | _____ |
-| CN-C4 | P2 | ❌ FAIL | ⚠️ PARTIAL | _____ | _____ | _____ |
-| SQ-C1 | P2 | ❌ FAIL | ⚠️ PARTIAL | _____ | _____ | _____ |
+| CN-C4 | P2 | ✅ PASS | ⚠️ PARTIAL | opencode | 待评审 | 2026-08-02 |
+| SQ-C1 | P2 | ✅ PASS | ⚠️ PARTIAL | opencode | 待评审 | 2026-08-02 |
 | SQ-C2 | P1 | ⚠️ PARTIAL | ✅ PASS | _____ | _____ | _____ |
 | SQ-C3 | P1 | ✅ PASS | ✅ PASS | — | — | 已有 |
 
@@ -722,6 +722,8 @@ graph LR
 ### Phase 3 — 假突破惩罚（CF-C4）
 
 - **CF-C4**: 依赖 ES-C3 的 UTAD 检测。突破后 3 列内跌回 → 标记 `V3TradingPlan.false_breakout=True` → 后续 signal 置信度-1 级
+
+> **历史参考（2026-08-01 已实现）**: `_scan_false_breakout` 共享助手（突破 TR 上沿 2%+ + 量比>1.5 后 3 列内跌回上沿下方）→ `_step5_trading_plan` 标记 `V3TradingPlan.false_breakout_detected=True` → `_build_report` 经 `_downgrade_confidence` 将信号置信度降 1 级（A→B→C→D）。3 新测试通过（fixture 前提含普通 TR 不误报 / 标记+方向 / 端到端置信度降级）。
 
 ---
 

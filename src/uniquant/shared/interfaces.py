@@ -413,6 +413,9 @@ class WyckoffOutput:
     pnf_count_target: float = 0.0
     regime_phase: Optional[str] = None
     vshape_detected: bool = False
+    adjustment_status: str = "unknown"
+    structural_score: float = 0.0
+    relative_strength: Optional[str] = None
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -428,6 +431,9 @@ class WyckoffOutput:
             "pnf_count_target": self.pnf_count_target,
             "regime_phase": self.regime_phase,
             "vshape_detected": self.vshape_detected,
+            "adjustment_status": self.adjustment_status,
+            "structural_score": self.structural_score,
+            "relative_strength": self.relative_strength,
         }
 
     @classmethod
@@ -445,6 +451,9 @@ class WyckoffOutput:
             pnf_count_target=float(data.get("pnf_count_target", 0.0)),
             regime_phase=data.get("regime_phase"),
             vshape_detected=bool(data.get("vshape_detected", False)),
+            adjustment_status=str(data.get("adjustment_status", "unknown")),
+            structural_score=float(data.get("structural_score", 0.0)),
+            relative_strength=data.get("relative_strength"),
         )
 
 

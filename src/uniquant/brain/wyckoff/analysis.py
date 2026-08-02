@@ -168,6 +168,7 @@ def analyze_multiframe(
     analyze_single,
     multi_timeframe_lookback_days: int,
     rules: V3Rules,
+    index_df: Optional[pd.DataFrame] = None,
 ) -> WyckoffReport:
     """多周期分析"""
     frame = normalize_input_frame(df)
@@ -179,7 +180,7 @@ def analyze_multiframe(
     weekly_df = resample_ohlcv(long_frame, "W-FRI")
     monthly_df = resample_ohlcv(long_frame, "ME")
 
-    daily_report = analyze_single(frame, symbol, "日线", image_evidence)
+    daily_report = analyze_single(frame, symbol, "日线", image_evidence, index_df)
     weekly_report = analyze_single(weekly_df, symbol, "周线")
     monthly_report = analyze_single(monthly_df, symbol, "月线")
 

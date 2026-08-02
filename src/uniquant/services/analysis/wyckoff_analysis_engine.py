@@ -76,6 +76,18 @@ class WyckoffAnalysisEngine:
         if hasattr(result, "vshape_detected") and result.vshape_detected:
             vshape_detected = bool(result.vshape_detected)
 
+        adjustment_status = "unknown"
+        if hasattr(result, "adjustment_status"):
+            adjustment_status = str(result.adjustment_status)
+
+        structural_score = 0.0
+        if hasattr(result, "structural_score"):
+            structural_score = float(result.structural_score)
+
+        relative_strength = None
+        if hasattr(result, "relative_strength") and result.relative_strength:
+            relative_strength = str(result.relative_strength)
+
         return WyckoffOutput(
             phase=phase, confidence=confidence,
             spring=spring, utad=utad,
@@ -86,6 +98,9 @@ class WyckoffAnalysisEngine:
             pnf_count_target=pnf_count_target,
             regime_phase=regime_phase,
             vshape_detected=vshape_detected,
+            adjustment_status=adjustment_status,
+            structural_score=structural_score,
+            relative_strength=relative_strength,
         )
 
     def run_wyckoff_analysis(self, symbol: str, df: Optional[pd.DataFrame] = None) -> "WyckoffOutput":

@@ -513,6 +513,8 @@ class ConfidenceResult:
     position_size: str = ""
     reason: str = ""
     bypassed: bool = False  # True if result from early-return path, not full R8 matrix
+    # SQ-C1: 结构完整性评分 (0-100) — 置信度矩阵的结构维度输入
+    structural_score: float = 0.0
 
 
 @dataclass
@@ -528,6 +530,7 @@ class V3TradingPlan:
     stop_loss: Optional[StopLossResult] = None
     target: Optional[RiskRewardResult] = None
     confidence: Optional[ConfidenceResult] = None
+    false_breakout_detected: bool = False  # CF-C4: 突破后 3 列内跌回 → 假突破惩罚
 
 
 @dataclass
@@ -680,6 +683,13 @@ class WyckoffReport:
     regime_phase: Optional[str] = None
     analysis_state: Optional[AnalysisState] = None
     multi_timeframe: Optional[MultiTimeframeContext] = None
+    # CN-C4: 预复权状态探测 (pre_adjusted | raw | unknown)
+    adjustment_status: str = "unknown"
+    # SQ-C1: 结构完整性评分 (0-100，事件序列加权 + 相位/事件修正)
+    structural_score: float = 0.0
+    # RS-C1: 相对强弱分类 (leader | follower | weak_independent | systemic_decline | unknown)
+    relative_strength: Optional[str] = None
+    relative_strength_detail: Optional[dict] = None
 
     def to_markdown(self) -> str:
         """转换为 Markdown 格式"""

@@ -4,7 +4,7 @@
 >
 > UniQuant: A-share quantitative research and trading platform.
 >
-> Generated: 2026-07-13. **Updated 2026-07-24 (3 轮红蓝对抗 + 参数敏感性验证脚本)**: 对 `LPPL_WYCKOFF_IMPLEMENTATION_PLAN.md` 设计文档完成 3 轮红蓝对抗（Round 1: 实施计划 16 Red / 0 Blue / 3 Split → 方案❌不可行；Round 2: 理论与实践中庸路线；Round 3: walk-forward 理论根基）。之后对参数敏感性验证脚本 v1 完成 3 轮红蓝对抗（脚本正确性/统计方法论/优化方案），输出修正后 v2 脚本 `scripts/param_sweep_v2.py`。详见 `docs/reanalysis/Z_red_blue_plan_verification_round*.md` 及 `Z_param_sweep_v1_redblue_round*.md`。**Updated 2026-07-24 (Walk-Forward 终结诊断)**: 实际引擎信号重测发现自定义分类掩盖了唯一有效信号。Wyckoff "买入" markup 阶段 +13.33% 20d (p=0.0098 显著) 但仅 4.5% 罕见。LPPL 零预测力 (MC 证明 93% GBM 拟合噪声)。Wyckoff Spring→BUY 理论信号从不触发。详见 `scripts/output/walk_forward_definitive_report.json`。**Updated 2026-07-20 (v7 代码强化)**: 6 项 cross_validation/engine 代码强化 (Spring 安全化, except 窄化×2, H12 三态裁决, R² 口径文档化×2)。**Updated 2026-07-17 (v7 管线验证执行)**: 红蓝对抗修正后执行 9 项任务 (7 完成, 1 待办)。LPPL _process_window 切换 L-BFGS-B (DE→L-BFGS-B), classify_top_phase ATR 自适应偏移, Wyckoff step4 单元测试 ×4, 跨引擎集成测试 ×3, cross_validation golden_20 (20/20, 62.9s), baseline v0 捕获 (20/20 一致)。**Updated 2026-07-13 (v6 修复执行)**: 6 路并行红蓝对抗 + TDD 全量分析完成 — 83 项声明核实 (88% 准确率), 15 项新发现修复。R0 代码修复: signal/__init__.py 补全 3 适配器导出、factor_governance.py 归档 (+156 LOC 死代码跟踪)、portfolio_engine.py 归档 (+376 LOC)、arbitrator.py:385 bare except 加 logging、result_store.py:71 except BaseException 加注释。纠正 v5 虚假完成声明 (UI except 仍为 17 处, 非 2)。全部 1882 测试通过, 0 ruff。死代码库存更新至 ~2,819 LOC (含新发现)。剩余: R1-06 过户费 DRY 统一、R3-N01 45 零覆盖文件、45 files at 0% (3,791 LOC) — unchanged.
+> Generated: 2026-07-13. **Updated 2026-08-02 (Classic Wyckoff P1 非 P0 修复完成)**: CN-C4 复权状态探测 + SQ-C1 结构完整性评分 + RS-C1 相对强弱四分类全部实现，Compliance **58.3% (14P/7Pa/9F/30)**。详见下方 "Recent Work (2026-08-02)" 段。**Updated 2026-08-01 (Classic Wyckoff P0 修复 Phase 3 完成)**: CF-C4 假突破惩罚实现 — 共享 `_scan_false_breakout`（突破 TR 上沿 2%+ 后 3 列内跌回 + 量比>1.5 放量确认），`_step5_trading_plan` 标记 `V3TradingPlan.false_breakout_detected=True`，`_build_report` 经 `_downgrade_confidence` 将信号置信度降 1 级。Compliance 48.3% (D7-Counterfactual 50%, CF-C4 PASS)。**P0 全部完成**。**Updated 2026-08-01 (Classic Wyckoff P0 修复 Phase 2 完成)**: PH-C2 DISTRIBUTION 事件序列驱动实现 — `_detect_distribution` 优先通过共享 `_scan_utad` 检查 UTAD 假突破事件（忽略 price_position），检测器链提前至 markdown 之前，新增 `synthetic_distribution_event_sequence` fixture。Compliance 48.3% (D4-Phase 80%)。剩余 P0: CF-C4 (依赖 UTAD false_breakout)。**Updated 2026-08-01 (Classic Wyckoff P0 修复 Phase 2 完成)**: PH-C1 ACCUMULATION 事件序列驱动实现 — `_detect_accumulation` 优先检查 `detect_all_events`+`event_sequence_key`（PS+SC+ST×2 匹配直接判定，忽略 price_position），启发式降为 fallback，新增 `synthetic_accumulation_event_sequence` fixture。Compliance 40.0% (D4-Phase 60%)。剩余 P0: PH-C2 → CF-C4 (依赖 UTAD false_breakout)。**Updated 2026-08-01 (Classic Wyckoff P0 修复 Phase 2)**: ES-C1 Spring 检测实现 — 共享 `_scan_spring`（O 列跌破 TR 下沿 0.5-1.5% 后 1-2 列内收回 + 量能萎缩确认），step3 内联检测复用同一助手，替代旧 SPRING_LOW_FACTOR 独立判定。Compliance 38.3% (D2-Events 80%)。剩余 P0: PH-C1 → PH-C2 → CF-C4 (依赖 UTAD false_breakout)。**Updated 2026-08-01 (Classic Wyckoff P0 修复 Phase 2)**: ES-C3 UTAD 检测实现 — 共享 `_scan_utad`（X 列突破 TR 上沿 2%+ 后 1-2 列内收回 + 量比>1.5 放量确认），`_detect_utad` 驱动 DISTRIBUTION 相位，step3 内联检测复用同一助手。Compliance 36.7% (D2-Events 70%)。剩余 P0: ES-C1 → PH-C1 → PH-C2 → CF-C4。**Updated 2026-07-24 (3 轮红蓝对抗 + 参数敏感性验证脚本)**: 对 `LPPL_WYCKOFF_IMPLEMENTATION_PLAN.md` 设计文档完成 3 轮红蓝对抗（Round 1: 实施计划 16 Red / 0 Blue / 3 Split → 方案❌不可行；Round 2: 理论与实践中庸路线；Round 3: walk-forward 理论根基）。之后对参数敏感性验证脚本 v1 完成 3 轮红蓝对抗（脚本正确性/统计方法论/优化方案），输出修正后 v2 脚本 `scripts/param_sweep_v2.py`。详见 `docs/reanalysis/Z_red_blue_plan_verification_round*.md` 及 `Z_param_sweep_v1_redblue_round*.md`。**Updated 2026-07-24 (Walk-Forward 终结诊断)**: 实际引擎信号重测发现自定义分类掩盖了唯一有效信号。Wyckoff "买入" markup 阶段 +13.33% 20d (p=0.0098 显著) 但仅 4.5% 罕见。LPPL 零预测力 (MC 证明 93% GBM 拟合噪声)。Wyckoff Spring→BUY 理论信号从不触发。详见 `scripts/output/walk_forward_definitive_report.json`。**Updated 2026-07-20 (v7 代码强化)**: 6 项 cross_validation/engine 代码强化 (Spring 安全化, except 窄化×2, H12 三态裁决, R² 口径文档化×2)。**Updated 2026-07-17 (v7 管线验证执行)**: 红蓝对抗修正后执行 9 项任务 (7 完成, 1 待办)。LPPL _process_window 切换 L-BFGS-B (DE→L-BFGS-B), classify_top_phase ATR 自适应偏移, Wyckoff step4 单元测试 ×4, 跨引擎集成测试 ×3, cross_validation golden_20 (20/20, 62.9s), baseline v0 捕获 (20/20 一致)。**Updated 2026-07-13 (v6 修复执行)**: 6 路并行红蓝对抗 + TDD 全量分析完成 — 83 项声明核实 (88% 准确率), 15 项新发现修复。R0 代码修复: signal/__init__.py 补全 3 适配器导出、factor_governance.py 归档 (+156 LOC 死代码跟踪)、portfolio_engine.py 归档 (+376 LOC)、arbitrator.py:385 bare except 加 logging、result_store.py:71 except BaseException 加注释。纠正 v5 虚假完成声明 (UI except 仍为 17 处, 非 2)。全部 1882 测试通过, 0 ruff。死代码库存更新至 ~2,819 LOC (含新发现)。剩余: R1-06 过户费 DRY 统一、R3-N01 45 零覆盖文件、45 files at 0% (3,791 LOC) — unchanged.
 >
 > UniQuant: A-share quantitative research and trading platform.
 >
@@ -46,6 +46,16 @@ Phase A-K v2.0 deep audit (2026-07-06): code quality (Fair, 116 duplicates, Wyck
 **Corrections from live system map (2026-07-09)**: Wyckoff complexity 76→40 (class max function); signal/db.py coverage 0%→93% (35 tests); eastmoney LOC 1,094→3 (refactored to 4 files). See `I_live_system_map.md`.
 
 5 pre-existing test failures resolved (bc6337bc). 0 ruff issues, 0 pre-existing failures.
+
+## Recent Work (2026-08-02) — Classic Wyckoff P1 非 P0 修复 (CN-C4 + SQ-C1 + RS-C1)
+
+| ID | Task | Summary | Verification |
+|---|---|---|---|
+| **CN-C4** | 复权状态探测 | `engine.py` 新增模块级 `_detect_adjustment_status`（收盘 pct_change>20% 且前日非涨停 → raw 预复权标记）+ `_analyze_single` 计算 + `_build_report` 透传 `adjustment_status` 字段（WyckoffReport/WyckoffOutput）；raw 信号置信度降级处理 | 8 新测试 `test_phase3_nonp0.py` 全过；compliance 改源码特征检查 → 51.7% (12P) |
+| **SQ-C1** | 结构完整性评分 | `engine.py` 新增模块级 `_compute_structural_score` 纯函数（基于 `event_sequence_score` + 相位加成 + step3 spring/utad 加成，min-max→0-100）+ `_apply_structural_adjustment` 置信度加权（恒回填 `ConfidenceResult.structural_score`，≥70 升 1 级/≤35 降 1 级，A/D 边界不越界，B+ 归 B，5 条件矩阵成员不变）；`WyckoffReport`/`ConfidenceResult`/`WyckoffOutput` 均加 `structural_score`；`_extract_from_report` 透传；`WyckoffAdapter.adapt` metadata 加 `wyckoff_structural_score` | 19 新测试 `test_structural_score.py` 全过（含确定性回归 + 置信度加权单调性）；compliance 改源码特征检查（含 `_apply_structural_adjustment`）→ 55.0% (13P) |
+| **RS-C1** | 相对强弱四分类 | 新增 `src/uniquant/brain/wyckoff/relative_strength.py`：`rs_classify(stock, index)` 纯函数（leader/follower/weak_independent/systemic_decline 四分类 + `_align_on_date` inner join 对齐 + `RelativeStrengthResult` dataclass）；`WyckoffReport`/`WyckoffOutput` 加 `relative_strength`/`relative_strength_detail`；`analyze`/`_analyze_single`/`_analyze_multiframe`/`analysis.analyze_multiframe` 加 `index_df` 可选参数（None 时报告字段为 None，向后兼容） | 11 新测试 `test_relative_strength.py` 全过；compliance 改源码特征检查（模块存在 + 4 分类 + 引擎接线）→ **58.3% (14P/7Pa/9F/30)** |
+
+**Test results**: 1955 passed (含 3 组 P1 新增测试 + SQ-C1 置信度加权 8 测试), 0 ruff (新增文件), golden_20 baseline 一致。`scripts/classic_wyckoff_compliance.py` CN-C4/SQ-C1/RS-C1 三项检查从静态占位改为源码特征检查。**P1 三项全部完成**（红蓝对抗修订版 v2 方案，详见 `docs/analysis/CLASSIC_WYCKOFF_P1_RESEARCH_PLAN_CNC4_SQC1_RSC1.md`）。剩余 WONTFIX：CN-C1/C2/C3、VS-C1/C3、MT-C2、RS-C2、CF-C1 等交易规则类/无数据支撑项（研究平台定位不符）。
 
 ## Recent Work (2026-07-13) — v6 修复执行 (六路并行红蓝对抗)
 
@@ -107,6 +117,29 @@ Phase A-K v2.0 deep audit (2026-07-06): code quality (Fair, 116 duplicates, Wyck
 **Test results**: 185 passed (181 基线 + 4 新增 `tests/classic_wyckoff/test_phase1_pnf.py`), 0 ruff。
 **Compliance**: 23.3% → 33.3% (+10.0%), D1-PnF 维度 10% → 70% (PF-C1/C2/C3 全部 FAIL→PASS)。`scripts/classic_wyckoff_compliance.py` 的 PF-C1/C2/C3 检查从静态占位改为源码头检查。
 **真实数据行为变化**（P&F hint 生效的预期结果）: 300750.SZ markdown→accumulation, 688981.SH markup→distribution; 止损 > 现价场景已修复（不再出现负风险）。
+
+## Recent Work (2026-08-01) — Classic Wyckoff P0 修复 Phase 2 (事件序列: ES-C3 UTAD + ES-C1 Spring + PH-C1/C2 相位)
+
+| ID | Task | Summary | Verification |
+|---|---|---|---|
+| **ES-C3** | UTAD 检测 | `engine.py` 新增共享 `_scan_utad`（X 列突破 TR 上沿 2%+ 后 1-2 列内收回 + 量比>1.5 放量确认）；`_detect_utad` 从 `return None` 实现为驱动 `DISTRIBUTION` 相位；`_step3_phase_c_t1` 内联 UTAD 检测改用同一助手并填充 `utad_detected/utad_quality/utad_date` | 4 新测试通过（含 sine 无假阳性） |
+| **ES-C1** | Spring 检测 | `engine.py` 新增共享 `_scan_spring`（O 列跌破 TR 下沿 0.5-1.5% `boundary_lower*0.985 <= low < boundary_lower` 后 1-2 列内收回 `closes[j] >= boundary_lower` + 量能萎缩确认 `vol_ratio <= 0.8`）；`_step3_phase_c_t1` 内联 Spring 检测改用同一助手并填充 `spring_detected/spring_date/spring_low_price`，替代旧 `SPRING_LOW_FACTOR` 独立判定；`scripts/wyckoff_fixtures.py` 新增 `synthetic_spring_aligned` 端到端 fixture（对齐引擎 P&F TR 边界） | 3 新测试通过（正例/反例/端到端） |
+| **PH-C1** | ACCUMULATION 事件序列驱动 | `engine.py` `_detect_accumulation` 优先检查事件序列（`detect_all_events` + `event_sequence_key`，PS+SC+ST×2 匹配时直接判定 ACCUMULATION 并忽略 price_position），现有 prior_trend/relative_position 启发式降为 fallback；`scripts/wyckoff_fixtures.py` 新增 `synthetic_accumulation_event_sequence` fixture（P&F hint=unknown + 中位价格 0.41，仅事件序列可驱动） | 3 新测试通过（fixture 前提/端到端 ACCUMULATION/序列 key 含 PS+SC+ST×2） |
+| **PH-C2** | DISTRIBUTION 事件序列驱动 | `engine.py` `_detect_distribution` 优先通过共享 `_scan_utad` 检查 UTAD 假突破事件（忽略 price_position），现有 in_tr+prior_trend 启发式降为 fallback；`_detect_distribution` 在检测器链中提前至 markdown 之前（UTAD 强派发证据优先于普通下跌）；`scripts/wyckoff_fixtures.py` 新增 `synthetic_distribution_event_sequence` fixture（上涨→PSY→UTAD→LPSY→跌破，hint=unknown 非短路） | 3 新测试通过（fixture 前提含量比≥1.5/端到端 DISTRIBUTION/忽略低位 position） |
+
+**Test results**: 21 passed (classic_wyckoff 全套), 0 ruff (engine/test)。
+**Compliance**: 38.3% → 40.0% (PH-C1) → **48.3%** (D4-Phase 80%, PH-C1/C2 全 PASS)。`scripts/classic_wyckoff_compliance.py` PH-C2 检查改为 `_detect_distribution` 源码特征检查（`_scan_utad` + upthrust_candidate + 链提前）。
+**剩余 P0**: CF-C4 (FAIL) → Phase 3 依赖 UTAD false_breakout。
+
+## Recent Work (2026-08-01) — Classic Wyckoff P0 修复 Phase 3 (CF-C4 假突破惩罚)
+
+| ID | Task | Summary | Verification |
+|---|---|---|---|
+| **CF-C4** | 假突破惩罚 | `engine.py` 新增共享 `_scan_false_breakout`（突破 TR 上沿 2%+ `highs[i] > boundary_upper*1.02` + 量比>1.5 放量确认后 3 列内跌回 `closes[j] <= boundary_upper*0.995`，返回 `{date, close_high}`）；`_step5_trading_plan` 调用并标记 `V3TradingPlan.false_breakout_detected=True`（方向改"空仓观望"）；`_build_report` 经模块级 `_downgrade_confidence`（A→B→C→D）将信号置信度降 1 级 | 3 新测试通过（fixture 前提含普通 TR 不误报 / 标记+方向 / 端到端信号置信度 < 计划置信度） |
+
+**Test results**: 1913 passed, 7 skipped, 0 ruff (engine/test)。classic_wyckoff 24 测试全过。
+**Compliance**: 48.3% (D7-Counterfactual 50%, CF-C4 PASS)。`scripts/classic_wyckoff_compliance.py` CF-C4 检查改为 `_scan_false_breakout` 源码特征检查（1.02 突破 + vol_med 放量 + 3 列跌回 + false_breakout_detected + _downgrade_confidence）。
+**P0 全部完成**: PF-C1/C2/C3, ES-C1/C3, PH-C1/C2, CF-C4 全部 PASS。
 
 ## Recent Work (2026-07-23) — Walk-Forward 效用终结评估 (2026-07-23)
 

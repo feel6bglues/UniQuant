@@ -198,6 +198,7 @@ class WyckoffAdapter(EngineAdapter):
                 "wyckoff_utad": utad,
                 "wyckoff_rr_ratio": float(raw_output.get("rr_ratio", 0.0)),
                 "wyckoff_bypassed": raw_output.get("bypassed", False),
+                "wyckoff_structural_score": float(raw_output.get("structural_score", 0.0)),
             },
         )
 
