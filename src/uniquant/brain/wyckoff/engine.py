@@ -1717,6 +1717,8 @@ class WyckoffEngine:
             engine_version="v3.0",
             ruleset_version="v3.0",
             pnf_phase_divergence=pnf_phase_divergence,
+            vdb_divergence=step2.vdb_divergence,
+            lps_stage=step3.lps_stage,
         )
 
     def _classify_unknown_candidate(

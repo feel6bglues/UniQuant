@@ -118,6 +118,14 @@ class WyckoffAnalysisEngine:
         if hasattr(result, "pnf_phase_divergence"):
             pnf_phase_divergence = result.pnf_phase_divergence
 
+        vdb_divergence = "none"
+        if hasattr(result, "vdb_divergence"):
+            vdb_divergence = str(result.vdb_divergence)
+
+        lps_stage = "not_test"
+        if hasattr(result, "lps_stage"):
+            lps_stage = str(result.lps_stage)
+
         return WyckoffOutput(
             phase=phase, confidence=confidence,
             spring=spring, utad=utad,
@@ -132,6 +140,8 @@ class WyckoffAnalysisEngine:
             structural_score=structural_score,
             relative_strength=relative_strength,
             pnf_phase_divergence=pnf_phase_divergence,
+            vdb_divergence=vdb_divergence,
+            lps_stage=lps_stage,
         )
 
     def run_wyckoff_analysis(

@@ -142,6 +142,9 @@ def analyze_one(
         "utad": False,
         "signal_type": "",
         "pnf_hint": "",
+        "pnf_phase_divergence": None,
+        "vdb_divergence": "none",
+        "lps_stage": "not_test",
         "trading_plan_direction": "",
         "entry_trigger": "",
         "invalidation": "",
@@ -201,6 +204,10 @@ def analyze_one(
         record["adjustment_status"] = str(getattr(report, "adjustment_status", "unknown"))
         rs = getattr(report, "relative_strength", None)
         record["relative_strength"] = rs if rs else None
+
+        record["pnf_phase_divergence"] = getattr(report, "pnf_phase_divergence", None)
+        record["vdb_divergence"] = str(getattr(report, "vdb_divergence", "none"))
+        record["lps_stage"] = str(getattr(report, "lps_stage", "not_test"))
 
         pnf = getattr(report, "pnf_analysis", None)
         if isinstance(pnf, dict):
@@ -294,9 +301,9 @@ def build_empirical_table(results: list[dict]) -> dict:
                 groups[key] = {"fwd_20d": [], "fwd_60d": []}
             f20 = r.get("fwd_20d")
             f60 = r.get("fwd_60d")
-            if f20 is not None:
+            if f20 is not None and not (isinstance(f20, float) and np.isnan(f20)):
                 groups[key]["fwd_20d"].append(f20)
-            if f60 is not None:
+            if f60 is not None and not (isinstance(f60, float) and np.isnan(f60)):
                 groups[key]["fwd_60d"].append(f60)
         out = {}
         for key, vals in groups.items():

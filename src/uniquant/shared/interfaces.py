@@ -417,6 +417,8 @@ class WyckoffOutput:
     structural_score: float = 0.0
     relative_strength: Optional[str] = None
     pnf_phase_divergence: Optional[str] = None
+    vdb_divergence: str = "none"
+    lps_stage: str = "not_test"
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -436,6 +438,8 @@ class WyckoffOutput:
             "structural_score": self.structural_score,
             "relative_strength": self.relative_strength,
             "pnf_phase_divergence": self.pnf_phase_divergence,
+            "vdb_divergence": self.vdb_divergence,
+            "lps_stage": self.lps_stage,
         }
 
     @classmethod
@@ -457,6 +461,8 @@ class WyckoffOutput:
             structural_score=float(data.get("structural_score", 0.0)),
             relative_strength=data.get("relative_strength"),
             pnf_phase_divergence=data.get("pnf_phase_divergence"),
+            vdb_divergence=str(data.get("vdb_divergence", "none")),
+            lps_stage=str(data.get("lps_stage", "not_test")),
         )
 
 

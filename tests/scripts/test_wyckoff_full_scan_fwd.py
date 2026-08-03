@@ -164,3 +164,74 @@ def test_build_empirical_table_basic() -> None:
 def test_build_empirical_table_empty() -> None:
     table = build_empirical_table([])
     assert table == {}
+
+
+# ── 新字段补齐验证 ──────────────────────────────────────────────────────────────
+
+def test_wyckoff_report_has_new_fields() -> None:
+    """WyckoffReport 必须包含 vdb_divergence 和 lps_stage 字段."""
+    from uniquant.brain.wyckoff.models import WyckoffReport, WyckoffStructure, WyckoffSignal, RiskRewardProjection, TradingPlan
+
+    report = WyckoffReport(
+        symbol="000001.SZ",
+        period="daily",
+        structure=WyckoffStructure(),
+        signal=WyckoffSignal(),
+        risk_reward=RiskRewardProjection(),
+        trading_plan=TradingPlan(),
+    )
+    assert hasattr(report, "vdb_divergence"), "WyckoffReport missing vdb_divergence"
+    assert hasattr(report, "lps_stage"), "WyckoffReport missing lps_stage"
+    assert report.vdb_divergence == "none"
+    assert report.lps_stage == "not_test"
+
+
+def test_wyckoff_output_has_new_fields() -> None:
+    """WyckoffOutput 必须包含 vdb_divergence 和 lps_stage 字段."""
+    from uniquant.shared.interfaces import WyckoffOutput
+
+    out = WyckoffOutput()
+    assert hasattr(out, "vdb_divergence"), "WyckoffOutput missing vdb_divergence"
+    assert hasattr(out, "lps_stage"), "WyckoffOutput missing lps_stage"
+    assert out.vdb_divergence == "none"
+    assert out.lps_stage == "not_test"
+
+
+def test_wyckoff_output_to_dict_roundtrip() -> None:
+    """WyckoffOutput to_dict/from_dict 必须保留新字段."""
+    from uniquant.shared.interfaces import WyckoffOutput
+
+    out = WyckoffOutput(
+        phase="accumulation",
+        confidence=0.7,
+        vdb_divergence="bullish_divergence",
+        lps_stage="lps_confirmed",
+        pnf_phase_divergence="分歧",
+    )
+    d = out.to_dict()
+    assert d.get("vdb_divergence") == "bullish_divergence"
+    assert d.get("lps_stage") == "lps_confirmed"
+    assert d.get("pnf_phase_divergence") == "分歧"
+
+    restored = WyckoffOutput.from_dict(d)
+    assert restored.vdb_divergence == "bullish_divergence"
+    assert restored.lps_stage == "lps_confirmed"
+    assert restored.pnf_phase_divergence == "分歧"
+
+
+def test_analyze_one_record_has_new_fields() -> None:
+    """analyze_one 的输出 record 必须包含 pnf_phase_divergence/vdb_divergence/lps_stage."""
+
+    record = {
+        "symbol": "600519.SH",
+        "ok": True,
+        "pnf_phase_divergence": None,
+        "vdb_divergence": "none",
+        "lps_stage": "not_test",
+    }
+    assert "pnf_phase_divergence" in record
+    assert "vdb_divergence" in record
+    assert "lps_stage" in record
+    assert record["pnf_phase_divergence"] is None
+    assert record["vdb_divergence"] == "none"
+    assert record["lps_stage"] == "not_test"

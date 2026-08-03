@@ -697,6 +697,10 @@ class WyckoffReport:
     relative_strength_detail: Optional[dict] = None
     # P1-A: PnF hint 与检测器链分歧标记
     pnf_phase_divergence: Optional[str] = None
+    # P1-B: VDB 量价背离标记
+    vdb_divergence: str = "none"
+    # P0-A: LPS 阶段判定
+    lps_stage: str = "not_test"
 
     def to_markdown(self) -> str:
         """转换为 Markdown 格式"""
