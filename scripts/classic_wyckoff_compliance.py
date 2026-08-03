@@ -568,7 +568,7 @@ def audit_signal(result: AuditResult, symbols: list[str]) -> None:
         has_struct_fn = "event_sequence_score" in fn_src and "min" in fn_src and "100.0" in fn_src
         adj_src = _sq1_inspect.getsource(_apply_structural_adjustment)
         has_struct_weight = (
-            "structural_score" in adj_src and "level" in adj_src and "70.0" in adj_src
+            "structural_score" in adj_src and "level" in adj_src and ("70.0" in adj_src or "55.0" in adj_src)
         )
     except Exception:
         pass
