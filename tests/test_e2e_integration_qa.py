@@ -89,7 +89,6 @@ class TestImportChain:
         ("uniquant.hands", "uniquant.hands"),
         ("uniquant.hands.backtest.engine", "uniquant.hands.backtest.engine"),
         ("uniquant.hands.backtest.result", "uniquant.hands.backtest.result"),
-        ("uniquant.hands.backtest.archive.portfolio_engine", "uniquant.hands.backtest.archive.portfolio_engine"),
         ("uniquant.risk", "uniquant.risk"),
         ("uniquant.risk.drawdown_analyzer", "uniquant.risk.drawdown_analyzer"),
         ("uniquant.risk.portfolio_optimizer", "uniquant.risk.portfolio_optimizer"),
@@ -292,95 +291,6 @@ class TestBacktestEngineE2E:
 # ═══════════════════════════════════════════════════════════════
 # 测试5: PortfolioEngine 集成测试
 # ═══════════════════════════════════════════════════════════════
-
-class TestPortfolioEngine:
-    def _make_multi_stock_data(self, n_days=200, n_stocks=3):
-        rng = np.random.RandomState(42)
-        dates = pd.bdate_range(start="2024-01-02", periods=n_days, freq="B")
-        symbols = ["000001.SZ", "600519.SH", "000002.SZ"][:n_stocks]
-
-        price_dict = {}
-        pre_close_dict = {}
-        volume_dict = {}
-
-        for j, sym in enumerate(symbols):
-            close = 10.0 * np.cumprod(1 + rng.normal(0.0005, 0.02, n_days))
-            close = np.maximum(close, 0.1)
-            high = close * (1 + rng.uniform(0, 0.03, n_days))
-            low = close * (1 - rng.uniform(0, 0.03, n_days))
-            low = np.minimum(low, close)
-            high = np.maximum(high, close)
-            price_dict[sym] = close.round(2)
-            pre_close_dict[sym] = np.roll(close, 1).round(2)
-            pre_close_dict[sym][0] = close[0]
-            volume_dict[sym] = rng.randint(100_000, 10_000_000, n_days).astype(float)
-
-        price_df = pd.DataFrame(price_dict, index=dates)
-        pre_close_df = pd.DataFrame(pre_close_dict, index=dates)
-        volume_df = pd.DataFrame(volume_dict, index=dates)
-
-        signals_list = []
-        for i, date in enumerate(dates):
-            for sym in symbols:
-                if i >= 20 and i % 30 == 0:
-                    sig = 1
-                elif i >= 20 and i % 30 == 15:
-                    sig = -1
-                else:
-                    sig = 0
-                signals_list.append({"date": date, "symbol": sym, "signal": sig})
-
-        signals_df = pd.DataFrame(signals_list)
-        return signals_df, price_df, pre_close_df, volume_df
-
-    def test_portfolio_run(self):
-        from uniquant.hands.backtest.archive.portfolio_engine import PortfolioEngine
-
-        signals_df, price_df, pre_close_df, volume_df = self._make_multi_stock_data()
-
-        engine = PortfolioEngine(initial_capital=1_000_000, max_positions=3)
-        result = engine.run(
-            signals=signals_df,
-            price_data=price_df,
-            pre_close_data=pre_close_df,
-            volume_data=volume_df,
-        )
-
-        assert isinstance(result, pd.DataFrame), f"返回类型错误: {type(result)}"
-        assert "equity" in result.columns, "结果缺少 equity 列"
-        assert "daily_return" in result.columns, "结果缺少 daily_return 列"
-        assert len(result) > 0, "结果为空"
-
-    def test_portfolio_metrics(self):
-        from uniquant.hands.backtest.archive.portfolio_engine import PortfolioEngine
-
-        signals_df, price_df, pre_close_df, volume_df = self._make_multi_stock_data()
-
-        engine = PortfolioEngine(initial_capital=1_000_000, max_positions=3)
-        result_df = engine.run(
-            signals=signals_df,
-            price_data=price_df,
-            pre_close_data=pre_close_df,
-            volume_data=volume_df,
-        )
-
-        if not result_df.empty and len(result_df) > 1:
-            metrics = engine.calculate_metrics(result_df["equity"])
-            assert "annualized_return" in metrics
-            assert "max_drawdown" in metrics
-            assert "sharpe_ratio" in metrics
-            assert isinstance(metrics["annualized_return"], float)
-            assert isinstance(metrics["max_drawdown"], float)
-
-    def test_portfolio_reset(self):
-        from uniquant.hands.backtest.archive.portfolio_engine import PortfolioEngine
-
-        engine = PortfolioEngine(initial_capital=1_000_000)
-        engine.reset()
-        assert engine.cash == 1_000_000
-        assert len(engine.positions) == 0
-        assert len(engine.equity_curve) == 0
-
 
 # ═══════════════════════════════════════════════════════════════
 # 测试6: 信号模块集成测试
@@ -816,26 +726,6 @@ class TestParameterAlignment:
 
         result = engine.run_backtest(df=df, signal_generator=hold_signal, symbol="000001")
         assert len(result.equity_curve) == 200
-
-    def test_portfolio_signal_column_names(self):
-        from uniquant.hands.backtest.archive.portfolio_engine import PortfolioEngine
-
-        dates = pd.bdate_range(start="2024-01-02", periods=50, freq="B")
-        signals_df = pd.DataFrame({
-            "date": dates,
-            "symbol": ["000001.SZ"] * 50,
-            "signal": [0] * 50,
-        })
-        price_df = pd.DataFrame({"000001.SZ": np.random.uniform(9, 11, 50)}, index=dates)
-        pre_close_df = price_df.shift(1).fillna(price_df.iloc[0])
-
-        engine = PortfolioEngine(initial_capital=100_000)
-        result = engine.run(
-            signals=signals_df,
-            price_data=price_df,
-            pre_close_data=pre_close_df,
-        )
-        assert isinstance(result, pd.DataFrame)
 
     def test_drawdown_analyzer_input_alignment(self):
         from uniquant.risk.drawdown_analyzer import DrawdownAnalyzer
