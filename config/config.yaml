@@ -495,6 +495,18 @@ wyckoff:
   wss_lookup_path: "scripts/wyckoff_multitf/output_v4/wss_lookup_v2.json"
   mtf_resonance: true  # 使用 MultiTimeframeResonance 替代 rule9 多周期一致性判断
 
+  # 检测器阈值校准 (A/B 对比用, 默认值=当前硬编码值)
+  # 校准脚本: scripts/wyckoff_calibrate.py
+  calibration:
+    markup_short_trend_min: 0.03      # 当前 0.03
+    markup_relative_position_min: 0.50 # 当前 0.50
+    markup_cp_above_ma: 0.97          # 当前 0.97 (TR 内)
+    distribution_prior_trend_min: 0.05 # 当前 0.05
+    accum_short_trend_max: -0.02      # 当前 -0.02
+    accum_require_both_bc_sc: false   # 当前 false (OR)
+    markdown_short_trend_max: -0.05   # 当前 -0.05
+    markdown_cp_below_ma: 0.95        # 当前 0.95
+
 # 核心逻辑配置
 brain:
   alpha_decoupler:

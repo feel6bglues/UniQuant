@@ -214,6 +214,16 @@ class WyckoffEngine:
         except Exception:
             logger.warning("WSS initialization failed, falling back to WSO-only", exc_info=True)
 
+        # Load calibration thresholds from config
+        self.calibration: dict = {}
+        try:
+            cfg = get_config()
+            calib = cfg.get("wyckoff.calibration", {})
+            if calib and isinstance(calib, dict):
+                self.calibration = calib
+        except Exception:
+            self.calibration = {}
+
     def _normalize_input_frame(self, df: pd.DataFrame) -> pd.DataFrame:
         frame = df.copy()
         frame["date"] = pd.to_datetime(frame["date"])
@@ -533,6 +543,10 @@ class WyckoffEngine:
         }
 
     def _detect_accumulation(self, df: pd.DataFrame, ctx: dict, rule0: Rule0Result) -> Optional[dict]:
+        cal = self.calibration
+        st_max = cal.get("accum_short_trend_max", -0.02)
+        require_both = cal.get("accum_require_both_bc_sc", False)
+
         # PH-C1: 事件序列优先驱动 ACCUMULATION（忽略 price_position）
         try:
             events = detect_all_events(df)
@@ -549,22 +563,35 @@ class WyckoffEngine:
         except (AttributeError, TypeError, ValueError, KeyError):
             logger.warning("Event sequence detection failed for accumulation", exc_info=True)
 
+        # 前置守卫: 若最近 5 根创新低(>2%)则不是积累(仍在下跌)
+        if len(df) >= 10:
+            recent_5_low = float(df.tail(5)["low"].min())
+            recent_10_low = float(df.tail(10)["low"].min())
+            if recent_10_low > 0 and recent_5_low < recent_10_low * 0.98:
+                return None
+
         if ctx["is_in_trading_range"]:
             if ctx["prior_trend_pct"] < -0.03:
                 return {"phase": WyckoffPhase.ACCUMULATION}
             if ctx["relative_position"] <= 0.40 and rule0.bc_found:
                 return {"phase": WyckoffPhase.ACCUMULATION}
         else:
+            bc_sc_ok = (rule0.bc_found and rule0.sc_found) if require_both else (rule0.bc_found or rule0.sc_found)
             if (
-                ctx["short_trend_pct"] <= -0.02
+                ctx["short_trend_pct"] <= st_max
                 and ctx["current_price"] < ctx["ma20"]
                 and ctx["ma5"] <= ctx["ma20"]
-                and (rule0.bc_found or rule0.sc_found)
+                and bc_sc_ok
             ):
                 return {"phase": WyckoffPhase.ACCUMULATION}
         return None
 
     def _detect_markup(self, df: pd.DataFrame, ctx: dict, rule0: Rule0Result) -> Optional[dict]:
+        cal = self.calibration
+        st_min = cal.get("markup_short_trend_min", 0.03)
+        rp_min = cal.get("markup_relative_position_min", 0.50)
+        cp_above_ma = cal.get("markup_cp_above_ma", 0.97)
+
         cp = ctx["current_price"]
         ma5 = ctx["ma5"]
         ma20 = ctx["ma20"]
@@ -572,15 +599,15 @@ class WyckoffEngine:
         st = ctx["short_trend_pct"]
 
         if ctx["is_in_trading_range"]:
-            if (rp >= 0.55 or st >= 0.03) and (
-                (cp > ma20 * 0.97 and ma5 >= ma20 * 0.96)
-                or (cp > ma5 and rp >= 0.50)
+            if (rp >= 0.55 or st >= st_min) and (
+                (cp > ma20 * cp_above_ma and ma5 >= ma20 * 0.96)
+                or (cp > ma5 and rp >= rp_min)
             ):
                 return {"phase": WyckoffPhase.MARKUP}
         else:
-            if st >= 0.03 and (
+            if st >= st_min and (
                 (cp > ma20 and ma5 >= ma20)
-                or (cp > ma5 and rp >= 0.50)
+                or (cp > ma5 and rp >= rp_min)
             ):
                 return {"phase": WyckoffPhase.MARKUP}
             if st >= 0.015 and cp > ma20 and ma5 >= ma20 * 0.98 and rp >= 0.70:
@@ -591,17 +618,24 @@ class WyckoffEngine:
 
     def _detect_distribution(self, df: pd.DataFrame, ctx: dict, rule0: Rule0Result) -> Optional[dict]:
         # PH-C2: 事件序列优先驱动 DISTRIBUTION（UTAD 假突破 + 放量，忽略 price_position）
+        cal = self.calibration
+        prior_trend_min = cal.get("distribution_prior_trend_min", 0.05)
+
         boundary_upper = rule0.tr_upper if rule0.tr_upper else ctx["price_high"]
         if boundary_upper > 0 and self._scan_utad(df, boundary_upper) is not None:
             return {
                 "phase": WyckoffPhase.DISTRIBUTION,
                 "unknown_candidate": "upthrust_candidate",
             }
-        if ctx["is_in_trading_range"] and ctx["prior_trend_pct"] > 0.05:
+        if ctx["is_in_trading_range"] and ctx["prior_trend_pct"] > prior_trend_min:
             return {"phase": WyckoffPhase.DISTRIBUTION}
         return None
 
     def _detect_markdown(self, df: pd.DataFrame, ctx: dict, rule0: Rule0Result) -> Optional[dict]:
+        cal = self.calibration
+        st_max = cal.get("markdown_short_trend_max", -0.05)
+        cp_below_ma = cal.get("markdown_cp_below_ma", 0.95)
+
         cp = ctx["current_price"]
         ma5 = ctx["ma5"]
         ma20 = ctx["ma20"]
@@ -613,13 +647,13 @@ class WyckoffEngine:
                 rule0.bc_found
                 and rule0.bc_position is not None
                 and cp <= rule0.bc_position.price * 0.85
-                and cp < ma20 * 0.95
+                and cp < ma20 * cp_below_ma
                 and ma5 <= ma20
                 and st <= -0.02
             ):
                 return {"phase": WyckoffPhase.MARKDOWN}
         else:
-            if st <= -0.05 and cp < ma20 * 0.95:
+            if st <= st_max and cp < ma20 * cp_below_ma:
                 return {"phase": WyckoffPhase.MARKDOWN}
             if (
                 rule0.bc_found
