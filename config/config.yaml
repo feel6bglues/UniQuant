@@ -489,6 +489,12 @@ refactoring:
 batch:
   max_workers: null  # 并行线程数; null = cpu_count//2, 1 = 串行, N = 指定线程数
 
+# Wyckoff 分析配置
+wyckoff:
+  wss_enabled: false  # 默认关, A/B 后再决定开启
+  wss_lookup_path: "scripts/wyckoff_multitf/output_v4/wss_lookup_v2.json"
+  mtf_resonance: true  # 使用 MultiTimeframeResonance 替代 rule9 多周期一致性判断
+
 # 核心逻辑配置
 brain:
   alpha_decoupler:

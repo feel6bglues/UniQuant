@@ -6,9 +6,11 @@ v3.0 威科夫分析引擎 - 唯一入口
 
 from __future__ import annotations
 
+import os
 from typing import List, Optional, Tuple
 
 from uniquant.shared.logger_factory import get_logger
+from uniquant.shared.config_loader import get_config
 
 import numpy as np
 import pandas as pd
@@ -70,8 +72,9 @@ from uniquant.brain.wyckoff.rules import V3Rules
 from uniquant.brain.wyckoff.pnf import PointAndFigure
 from uniquant.brain.wyckoff.phase_analysis import RegimeAwarePhaseClassifier
 from uniquant.brain.wyckoff.events import detect_all_events, event_sequence_key
-from uniquant.brain.wyckoff.sequence import event_sequence_score
+from uniquant.brain.wyckoff.sequence import event_sequence_score, WyckoffScorer
 from uniquant.brain.wyckoff.relative_strength import rs_classify
+from uniquant.brain.wyckoff.effort_result import detect_effort_result_divergence
 from uniquant.brain.indicators.indicators import Indicators
 
 logger = get_logger(__name__)
@@ -92,7 +95,9 @@ def _apply_structural_adjustment(
     """SQ-C1: 结构完整性评分作为置信度加权输入 (非破坏性，纯函数)。
 
     - 恒回填 structural_score 到 ConfidenceResult (不再恒为 0.0)。
-    - 等级单调微调: 高结构分 (≥70) 升 1 级；低结构分 (≤35) 降 1 级；居中不变。
+    - 等级单调微调: 高结构分 (≥55) 升 1 级；低结构分 (≤45) 降 1 级；居中不变。
+    - 阈值经 P1-C 可达性验证: 真实 _compute_structural_score 最高约 70.2，
+      最低约 44.1，确保升级/降级路径均可达。
     - 5 条件矩阵成员 (bc/rr/…) 与 bypassed/reason 保持原样。
     - B+ 特殊等级归 B 处理，A/D 为边界 (不越界)。
     """
@@ -115,9 +120,9 @@ def _apply_structural_adjustment(
         return result
 
     idx = order.index(base_level)
-    if structural_score >= 70.0:
+    if structural_score >= 55.0:
         idx = max(idx - 1, 0)
-    elif structural_score <= 35.0:
+    elif structural_score <= 45.0:
         idx = min(idx + 1, len(order) - 1)
     result.level = order[idx]
     return result
@@ -137,22 +142,32 @@ def _detect_adjustment_status(close) -> str:
     return "pre_adjusted"
 
 
-def _compute_structural_score(event_types: List[str], phase, step3) -> float:
+def _compute_structural_score(
+    event_types: List[str], phase, step3,
+    scorer: Optional[WyckoffScorer] = None,
+) -> float:
     """SQ-C1: 结构完整性评分 (0-100)，纯函数可复现。
 
     - event_sequence_score 对事件序列加权 → base ∈ [-1, 1]；
-    - 明确相位 (非 unknown) +0.15，spring/utad 已确认按质量加成；
+    - 若 scorer 提供且 WSS 已加载 → 使用 scorer.score_sequence 取 blended 评分；
+    - 明确相位 (非 unknown) +0.20，unknown 相位 -0.10 (拉开分布)；
+    - spring/utad 已确认按质量加成 (0.07/0.03)；
     - clamp 到 [-1, 1] → min-max 映射到 [0, 100]。
+    - P1-C 再校准: 权重放大使升级路径可达 (max ≈ 70.2)，降级路径可达 (min ≈ 44.1)。
     """
-    base, _ = event_sequence_score(event_types)
-    phase_bonus = 0.15 if phase != WyckoffPhase.UNKNOWN else 0.0
+    if scorer is not None and scorer.wss.is_loaded:
+        seq_key = '>'.join(event_types)
+        base, _ = scorer.score_sequence(event_types, seq_key)
+    else:
+        base, _ = event_sequence_score(event_types)
+    phase_bonus = 0.20 if phase != WyckoffPhase.UNKNOWN else -0.10
     event_bonus = 0.0
     if step3.spring_detected:
         quality_str = str(getattr(step3, "spring_quality", "无"))
-        quality_boost = 0.05 if "一级" in quality_str else 0.02
+        quality_boost = 0.07 if "一级" in quality_str else 0.03
         event_bonus += quality_boost
     if step3.utad_detected:
-        event_bonus += 0.05
+        event_bonus += 0.07
     raw = max(-1.0, min(1.0, base + phase_bonus + event_bonus))
     return round((raw + 1.0) / 2.0 * 100.0, 2)
 
@@ -182,6 +197,22 @@ class WyckoffEngine:
         self._debug_r8_compare: bool = False
         self._debug_r8_bypass_result: Optional[ConfidenceResult] = None
         self._debug_r8_full_result: Optional[ConfidenceResult] = None
+
+        # P1-D: WSS 接线 — 从 config 读取 feature flag
+        self._wss_scorer: Optional[WyckoffScorer] = None
+        try:
+            cfg = get_config()
+            wss_enabled = cfg.get("wyckoff.wss_enabled", False)
+            if wss_enabled:
+                wss_path = cfg.get("wyckoff.wss_lookup_path", "")
+                if wss_path and os.path.exists(wss_path):
+                    self._wss_scorer = WyckoffScorer(wss_path=wss_path)
+                    logger.info(
+                        "WSS enabled: loaded %d sequences from %s",
+                        len(self._wss_scorer.wss.lookup), wss_path,
+                    )
+        except Exception:
+            logger.warning("WSS initialization failed, falling back to WSO-only", exc_info=True)
 
     def _normalize_input_frame(self, df: pd.DataFrame) -> pd.DataFrame:
         frame = df.copy()
@@ -343,7 +374,7 @@ class WyckoffEngine:
             events = detect_all_events(frame)
             event_types = [ev.event_type for ev in events]
             structural_score = _compute_structural_score(
-                event_types, step1.phase, step3
+                event_types, step1.phase, step3, scorer=self._wss_scorer
             )
         except (ValueError, TypeError, KeyError):
             logger.warning("structural_score computation failed", exc_info=True)
@@ -404,6 +435,7 @@ class WyckoffEngine:
             structural_score,
             relative_strength,
             relative_strength_detail,
+            pnf_phase_divergence=step1.pnf_phase_divergence,
         )
 
     def _step0_bc_tr_scan(
@@ -742,35 +774,45 @@ class WyckoffEngine:
 
         phase = WyckoffPhase.UNKNOWN
         unknown_candidate = ""
+        pnf_phase_divergence: Optional[str] = None
 
-        # PF-C1: P&F phase_hint 明确时直接驱动阶段判定
+        # 总是运行检测器链（用于分歧分析）
+        chain_phase = WyckoffPhase.UNKNOWN
+        chain_unknown_candidate = ""
+        detectors: List = [
+            self._detect_markup,
+            self._detect_distribution,
+            self._detect_markdown,
+            self._detect_accumulation,
+            self._detect_spring,
+            self._detect_utad,
+            self._detect_sos,
+        ]
+
+        for detector in detectors:
+            result = detector(df, ctx, rule0)
+            if result is not None:
+                chain_phase = result["phase"]
+                chain_unknown_candidate = result.get("unknown_candidate", "")
+                break
+
+        if chain_phase == WyckoffPhase.UNKNOWN and not chain_unknown_candidate:
+            chain_unknown_candidate = self._classify_unknown_candidate(df, chain_phase, rule0)
+
+        # PF-C1: P&F phase_hint 明确时优先驱动阶段判定，但记录分歧
         if pnf_hint in ("accumulation", "distribution"):
             phase = (
                 WyckoffPhase.ACCUMULATION
                 if pnf_hint == "accumulation"
                 else WyckoffPhase.DISTRIBUTION
             )
+            if chain_phase != phase:
+                pnf_phase_divergence = (
+                    f"PnF={pnf_hint}, DetectorChain={chain_phase.value}"
+                )
         else:
-            detectors: List = [
-                self._detect_markup,
-                self._detect_distribution,
-                self._detect_markdown,
-                self._detect_accumulation,
-                self._detect_spring,
-                self._detect_utad,
-                self._detect_sos,
-            ]
-
-            for detector in detectors:
-                result = detector(df, ctx, rule0)
-                if result is not None:
-                    phase = result["phase"]
-                    unknown_candidate = result.get("unknown_candidate", "")
-                    break
-
-            # UNKNOWN 子状态分类
-            if phase == WyckoffPhase.UNKNOWN and not unknown_candidate:
-                unknown_candidate = self._classify_unknown_candidate(df, phase, rule0)
+            phase = chain_phase
+            unknown_candidate = chain_unknown_candidate
 
         # Phase A/B/C/D/E 细分
         sub_phase = ""
@@ -806,6 +848,7 @@ class WyckoffEngine:
             boundary_upper=boundary_upper,
             boundary_lower=boundary_lower,
             boundary_source=boundary_source,
+            pnf_phase_divergence=pnf_phase_divergence,
         )
 
     def _step2_effort_result(self, df: pd.DataFrame, step1: Step1Result) -> Step2Result:
@@ -917,6 +960,10 @@ class WyckoffEngine:
         elif distribution_evidence > accumulation_evidence + 0.1:
             net_bias = "distribution"
 
+        vdb = detect_effort_result_divergence(df)
+        if vdb != "none":
+            phenomena.append(f"量价背离({vdb})")
+
         return Step2Result(
             phenomena=phenomena,
             accumulation_evidence=round(accumulation_evidence, 2),
@@ -925,6 +972,7 @@ class WyckoffEngine:
             has_breakaway_gap=has_breakaway_gap,
             has_exhaustion_gap=has_exhaustion_gap,
             has_escape_gap=has_escape_gap,
+            vdb_divergence=vdb,
         )
 
     def _step3_phase_c_t1(
@@ -940,7 +988,14 @@ class WyckoffEngine:
         utad_quality = "无"
         st_detected = False
         lps_confirmed = False
+        lps_stage = "not_test"
+        test_low = None
         spring_volume = ""
+        spring_volume_value = 0.0
+
+        # ATR 提前计算（LPS 判定需要）
+        atr_series = Indicators.calc_atr(df)
+        current_atr = float(atr_series.iloc[-1]) if len(atr_series) > 0 else 0.0
 
         # Spring 检测（在 ACCUMULATION、UNKNOWN 和 MARKUP 阶段都可能有效）
         if (
@@ -966,14 +1021,21 @@ class WyckoffEngine:
                 else:
                     spring_quality = "一级(放量确认)"
 
-                # LPS 验证（规则6）- 检查后续K线
+                # Spring 当日数值量（LPS 供给枯竭参照）
+                spring_volume_value = float(df["volume"].iloc[spring_found["pos"]])
+
+                # LPS 验证（规则6）- 分层判定（P0-A 重构）
                 post_spring_idx = spring_found["pos"]
                 if post_spring_idx < len(df) - 3:
                     post_spring_df = df.iloc[post_spring_idx + 1 :]
                     lps_result = self.rules.rule6_spring_validation(
-                        True, post_spring_df, spring_low_price
+                        True, post_spring_df, spring_low_price,
+                        spring_volume=spring_volume_value,
+                        atr=current_atr,
                     )
                     lps_confirmed = lps_result["lps_confirmed"]
+                    lps_stage = lps_result.get("lps_stage", "not_test")
+                    test_low = lps_result.get("test_low")
                     if lps_confirmed:
                         spring_quality = lps_result["quality"]
 
@@ -1015,8 +1077,6 @@ class WyckoffEngine:
         recent_30_low = float(df.tail(30)["low"].min())
         limit_moves = self._detect_limit_moves(df)
         limit_moves_data = [{"price": lm.price, "type": lm.move_type.value} for lm in limit_moves]
-        atr_series = Indicators.calc_atr(df)
-        current_atr = float(atr_series.iloc[-1]) if len(atr_series) > 0 else 0.0
         t1_result = self.rules.rule3_t1_risk_test(current_price, recent_30_low, limit_moves_data, current_atr)
 
         return Step3Result(
@@ -1029,6 +1089,8 @@ class WyckoffEngine:
             utad_date=utad_date,
             st_detected=st_detected,
             lps_confirmed=lps_confirmed,
+            lps_stage=lps_stage,
+            test_low=test_low,
             spring_volume=spring_volume,
             t1_max_drawdown_pct=t1_result["pct"],
             t1_verdict=t1_result["verdict"],
@@ -1459,6 +1521,7 @@ class WyckoffEngine:
         structural_score: float = 0.0,
         relative_strength: Optional[str] = None,
         relative_strength_detail: Optional[dict] = None,
+        pnf_phase_divergence: Optional[str] = None,
     ) -> WyckoffReport:
         """构建最终报告"""
         current_price = float(df.iloc[-1]["close"])
@@ -1561,6 +1624,9 @@ class WyckoffEngine:
         # CN-C4: 未复权数据 → 信号置信度 -1 级 (研究平台: 降级不拒绝)
         if adjustment_status == "raw":
             signal_confidence = _downgrade_confidence(signal_confidence)
+        # P3-T2: markup 追买降级 — RS 非 leader 时降 1 级
+        if signal_type in ("markup", "markup_buy") and relative_strength in ("follower", "systemic_decline"):
+            signal_confidence = _downgrade_confidence(signal_confidence)
 
         signal = WyckoffSignal(
             signal_type=signal_type,
@@ -1584,9 +1650,14 @@ class WyckoffEngine:
             structure_based=rr.first_target_source,
         )
 
+        # P3-T3: RS 仓位过滤 — systemic_decline 时仓位降级
+        trading_direction = v3_plan.direction
+        if signal_type in ("spring", "markup") and relative_strength == "systemic_decline":
+            trading_direction = "空仓观望"
+
         # 交易计划
         trading_plan = TradingPlan(
-            direction=v3_plan.direction,
+            direction=trading_direction,
             trigger_condition=v3_plan.entry_trigger,
             invalidation_point=v3_plan.stop_loss.stop_logic if v3_plan.stop_loss else "",
             first_target=f"{rr.first_target:.2f}" if rr.first_target > 0 else "",
@@ -1645,6 +1716,7 @@ class WyckoffEngine:
             relative_strength_detail=relative_strength_detail,
             engine_version="v3.0",
             ruleset_version="v3.0",
+            pnf_phase_divergence=pnf_phase_divergence,
         )
 
     def _classify_unknown_candidate(

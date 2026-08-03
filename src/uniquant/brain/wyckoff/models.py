@@ -425,6 +425,8 @@ class Step1Result:
     boundary_upper: float = 0.0
     boundary_lower: float = 0.0
     boundary_source: List[str] = field(default_factory=list)
+    # P1-A: PnF hint 与检测器链分歧标记（None 表示无分歧）
+    pnf_phase_divergence: Optional[str] = None
 
 
 @dataclass
@@ -438,6 +440,7 @@ class Step2Result:
     has_breakaway_gap: bool = False   # 向上突破缺口
     has_exhaustion_gap: bool = False   # 向上竭尽缺口
     has_escape_gap: bool = False       # 向下逃逸缺口
+    vdb_divergence: str = "none"  # P1-B: 量价背离标记 ("none"/"bullish_divergence"/"bearish_divergence")
 
 
 @dataclass
@@ -453,6 +456,8 @@ class Step3Result:
     utad_date: Optional[str] = None
     st_detected: bool = False
     lps_confirmed: bool = False  # v3.0 规则6
+    lps_stage: str = "not_test"  # P0-A: "not_test" | "test_held" | "lps_confirmed" | "invalidated"
+    test_low: Optional[float] = None  # P0-A: 测试K线最低价
     spring_volume: str = ""
     t1_max_drawdown_pct: float = 0.0
     t1_verdict: str = "安全"  # "安全" | "偏薄" | "超限"
@@ -690,6 +695,8 @@ class WyckoffReport:
     # RS-C1: 相对强弱分类 (leader | follower | weak_independent | systemic_decline | unknown)
     relative_strength: Optional[str] = None
     relative_strength_detail: Optional[dict] = None
+    # P1-A: PnF hint 与检测器链分歧标记
+    pnf_phase_divergence: Optional[str] = None
 
     def to_markdown(self) -> str:
         """转换为 Markdown 格式"""

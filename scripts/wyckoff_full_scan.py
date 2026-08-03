@@ -36,6 +36,49 @@ _INDEX_EXCLUSIONS = ("000001", "000002", "000003", "000004", "000005",
                      "0002", "0003", "0009", "399")
 
 
+def _is_etf(symbol: str) -> bool:
+    code = symbol.split(".")[0]
+    if not code.isdigit():
+        return False
+    if len(code) == 6:
+        prefix = code[:3]
+        if code[:2] in ("51", "56", "58"):
+            return True
+        if prefix in ("159", "161", "162", "163", "164", "165", "166"):
+            return True
+    return False
+
+
+def _compute_fwd_returns(
+    full_df: pd.DataFrame,
+    analysis_last_idx: int | None = None,
+) -> tuple[float | None, float | None]:
+    if len(full_df) < 2:
+        return None, None
+    if analysis_last_idx is None:
+        analysis_last_idx = len(full_df) - 1
+    last_close = float(full_df["close"].iloc[analysis_last_idx])
+    fwd20 = None
+    fwd60 = None
+    fwd20_idx = analysis_last_idx + 20
+    fwd60_idx = analysis_last_idx + 60
+    if fwd20_idx < len(full_df):
+        fwd20 = ((float(full_df["close"].iloc[fwd20_idx]) - last_close) / last_close) * 100
+    if fwd60_idx < len(full_df):
+        fwd60 = ((float(full_df["close"].iloc[fwd60_idx]) - last_close) / last_close) * 100
+    return fwd20, fwd60
+
+
+def _truncate_to_as_of(df: pd.DataFrame, as_of: str | None) -> pd.DataFrame:
+    if as_of is None:
+        return df
+    mask = df["date"] <= pd.Timestamp(as_of)
+    truncated = df[mask].copy()
+    if truncated.empty:
+        return df
+    return truncated
+
+
 def load_symbols(kind: str, storage: StorageManager) -> list[str]:
     """Resolve symbol list by kind: all / main_board / golden_20 / golden_100."""
     if kind in ("golden_20", "golden_100"):
@@ -78,8 +121,13 @@ def analyze_one(
     storage: StorageManager,
     index_df: pd.DataFrame | None,
     engine: WyckoffEngine,
+    as_of: str | None = None,
 ) -> dict:
-    """Run Wyckoff on one symbol; always returns a record (never raises)."""
+    """Run Wyckoff on one symbol; always returns a record (never raises).
+
+    When as_of is set, truncate df to that date for analysis and compute
+    forward returns from the truncation point.
+    """
     record = {
         "symbol": symbol,
         "ok": False,
@@ -100,6 +148,9 @@ def analyze_one(
         "target_1": "",
         "rows": 0,
         "last_close": None,
+        "is_etf": _is_etf(symbol),
+        "fwd_20d": None,
+        "fwd_60d": None,
     }
     try:
         df = storage.read_data(symbol, data_type="daily")
@@ -111,11 +162,22 @@ def analyze_one(
         if "volume" not in df.columns or bool(df["volume"].isna().all()):
             record["error"] = "no_volume"
             return record
-        if len(df) < 30:
+
+        if as_of is not None:
+            analysis_df = _truncate_to_as_of(df, as_of)
+            if len(analysis_df) < 30:
+                record["error"] = "too_short_for_as_of"
+                return record
+            record["fwd_20d"], record["fwd_60d"] = _compute_fwd_returns(df, len(analysis_df) - 1)
+        else:
+            analysis_df = df
+            record["fwd_20d"], record["fwd_60d"] = _compute_fwd_returns(df, None)
+
+        if len(analysis_df) < 30:
             record["error"] = "too_short"
             return record
 
-        report = engine.analyze(df, symbol=symbol, period="日线", multi_timeframe=True, index_df=index_df)
+        report = engine.analyze(analysis_df, symbol=symbol, period="日线", multi_timeframe=True, index_df=index_df)
         record["ok"] = True
         record["rows"] = len(df)
         record["last_close"] = float(df["close"].iloc[-1]) if len(df) else None
@@ -155,16 +217,18 @@ def analyze_one(
     return record
 
 
-def run_scan(symbols: list[str], max_workers: int, output_dir: Path) -> list[dict]:
+def run_scan(symbols: list[str], max_workers: int, output_dir: Path, as_of: str | None = None) -> list[dict]:
     storage = StorageManager(str(PROJECT_ROOT / "data"))
     index_df = load_index_df(storage)
     print(f"指数数据: {'OK (' + str(len(index_df)) + ' rows)' if index_df is not None else '不可用 (RS 将跳过)'}")
     print(f"待分析股票: {len(symbols)} 只, workers={max_workers}")
-
+    if as_of:
+        print(f"回放模式 as_of={as_of}")
+    engine = WyckoffEngine()
     results: list[dict] = []
     t0 = time.time()
     with ThreadPoolExecutor(max_workers=max_workers) as pool:
-        futures = {pool.submit(analyze_one, s, storage, index_df, WyckoffEngine()): s for s in symbols}
+        futures = {pool.submit(analyze_one, s, storage, index_df, engine, as_of): s for s in symbols}
         done = 0
         for fut in as_completed(futures):
             done += 1
@@ -211,12 +275,52 @@ def summarize(results: list[dict]) -> dict:
     }
 
 
+def build_empirical_table(results: list[dict]) -> dict:
+    """Build empirical forward-return statistics grouped by phase/spring/confidence.
+
+    Returns nested dict keyed by dimension -> group -> {count, mean_fwd_20d, ...}.
+    """
+    if not results:
+        return {}
+    ok = [r for r in results if r.get("ok")]
+    if not ok:
+        return {}
+    table: dict = {}
+    for dim, label in [("phase", "phase"), ("spring", "spring"), ("confidence_level", "confidence_level")]:
+        groups: dict = {}
+        for r in ok:
+            key = str(r.get(dim, "unknown"))
+            if key not in groups:
+                groups[key] = {"fwd_20d": [], "fwd_60d": []}
+            f20 = r.get("fwd_20d")
+            f60 = r.get("fwd_60d")
+            if f20 is not None:
+                groups[key]["fwd_20d"].append(f20)
+            if f60 is not None:
+                groups[key]["fwd_60d"].append(f60)
+        out = {}
+        for key, vals in groups.items():
+            f20 = vals["fwd_20d"]
+            f60 = vals["fwd_60d"]
+            out[key] = {
+                "count": len(f20),
+                "mean_fwd_20d": round(float(np.mean(f20)), 2) if f20 else None,
+                "median_fwd_20d": round(float(np.median(f20)), 2) if f20 else None,
+                "mean_fwd_60d": round(float(np.mean(f60)), 2) if f60 else None,
+                "median_fwd_60d": round(float(np.median(f60)), 2) if f60 else None,
+            }
+        table[label] = out
+    return table
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="全量 Wyckoff 分析扫描")
     parser.add_argument("--symbols", default="all",
                         choices=["all", "main_board", "golden_20", "golden_100"])
     parser.add_argument("--max-workers", type=int, default=8)
     parser.add_argument("--output-dir", default=str(PROJECT_ROOT / "results" / "wyckoff_full"))
+    parser.add_argument("--as-of", default=None,
+                        help="回放模式: 截断至该日期进行分析, 从截断点之后算 fwd 收益 (YYYY-MM-DD)")
     args = parser.parse_args()
 
     output_dir = Path(args.output_dir)
@@ -224,7 +328,7 @@ def main() -> None:
 
     storage = StorageManager(str(PROJECT_ROOT / "data"))
     symbols = load_symbols(args.symbols, storage)
-    results = run_scan(symbols, args.max_workers, output_dir)
+    results = run_scan(symbols, args.max_workers, output_dir, as_of=args.as_of)
 
     df = pd.DataFrame(results)
     df = df.sort_values("symbol").reset_index(drop=True)
@@ -247,6 +351,12 @@ def main() -> None:
     print(f"结构评分分位: {summary['structural_score_percentiles']}")
     if summary["error_types"]:
         print(f"错误类型: {summary['error_types']}")
+
+    emp_table = build_empirical_table(results)
+    if emp_table:
+        emp_path = output_dir / f"wyckoff_scan_{args.symbols}_empirical.json"
+        emp_path.write_text(json.dumps(emp_table, ensure_ascii=False, indent=2, default=str))
+        print(f"\n实证统计表: {emp_path}")
 
 
 if __name__ == "__main__":

@@ -114,6 +114,10 @@ class WyckoffAnalysisEngine:
         if hasattr(result, "relative_strength") and result.relative_strength:
             relative_strength = str(result.relative_strength)
 
+        pnf_phase_divergence = None
+        if hasattr(result, "pnf_phase_divergence"):
+            pnf_phase_divergence = result.pnf_phase_divergence
+
         return WyckoffOutput(
             phase=phase, confidence=confidence,
             spring=spring, utad=utad,
@@ -127,6 +131,7 @@ class WyckoffAnalysisEngine:
             adjustment_status=adjustment_status,
             structural_score=structural_score,
             relative_strength=relative_strength,
+            pnf_phase_divergence=pnf_phase_divergence,
         )
 
     def run_wyckoff_analysis(

@@ -416,6 +416,7 @@ class WyckoffOutput:
     adjustment_status: str = "unknown"
     structural_score: float = 0.0
     relative_strength: Optional[str] = None
+    pnf_phase_divergence: Optional[str] = None
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -434,6 +435,7 @@ class WyckoffOutput:
             "adjustment_status": self.adjustment_status,
             "structural_score": self.structural_score,
             "relative_strength": self.relative_strength,
+            "pnf_phase_divergence": self.pnf_phase_divergence,
         }
 
     @classmethod
@@ -454,6 +456,7 @@ class WyckoffOutput:
             adjustment_status=str(data.get("adjustment_status", "unknown")),
             structural_score=float(data.get("structural_score", 0.0)),
             relative_strength=data.get("relative_strength"),
+            pnf_phase_divergence=data.get("pnf_phase_divergence"),
         )
 
 

@@ -125,11 +125,11 @@ def test_adapter_metadata_structural_score():
     signal = adapter.adapt({
         "wyckoff_phase": "accumulation",
         "wyckoff_confidence": 0.6,
-        "structural_score": 80.0,
+        "structural_score": 60.0,
         "price": 10.0,
     }, symbol="TEST.SH")
     assert signal is not None
-    assert signal.metadata.get("wyckoff_structural_score") == 80.0
+    assert signal.metadata.get("wyckoff_structural_score") == 60.0
 
 
 # ─────────────────── SQ-C1 置信度加权 (v2 补全) ───────────────────
@@ -151,24 +151,24 @@ def _mk_conf(level="C"):
 def test_adjustment_populates_structural_score():
     """_apply_structural_adjustment 恒回填 structural_score (不再恒 0.0)。"""
     cr = _mk_conf("C")
-    out = _apply_structural_adjustment(cr, 80.0)
-    assert out.structural_score == 80.0
+    out = _apply_structural_adjustment(cr, 60.0)
+    assert out.structural_score == 60.0
 
 
 def test_adjustment_high_upgrades_level():
-    """结构分 ≥70 → 等级升 1 级 (C→B)。"""
-    out = _apply_structural_adjustment(_mk_conf("C"), 80.0)
+    """结构分 ≥55 (P1-C 再校准阈值) → 等级升 1 级 (C→B)。"""
+    out = _apply_structural_adjustment(_mk_conf("C"), 60.0)
     assert out.level == "B"
 
 
 def test_adjustment_low_downgrades_level():
-    """结构分 ≤35 → 等级降 1 级 (B→C)。"""
+    """结构分 ≤45 (P1-C 再校准阈值) → 等级降 1 级 (B→C)。"""
     out = _apply_structural_adjustment(_mk_conf("B"), 20.0)
     assert out.level == "C"
 
 
 def test_adjustment_middle_keeps_level():
-    """结构分居中 (35< s <70) → 等级不变。"""
+    """结构分居中 (45 < s < 55) → 等级不变。"""
     out = _apply_structural_adjustment(_mk_conf("C"), 50.0)
     assert out.level == "C"
 
@@ -176,22 +176,22 @@ def test_adjustment_middle_keeps_level():
 def test_adjustment_monotonic_direction():
     """单调性: 高分结果等级 ≥ 低分结果等级 (方向一致)。"""
     low = _apply_structural_adjustment(_mk_conf("C"), 10.0)
-    high = _apply_structural_adjustment(_mk_conf("C"), 90.0)
+    high = _apply_structural_adjustment(_mk_conf("C"), 60.0)
     rank = {"A": 0, "B": 1, "C": 2, "D": 3}
     assert rank[high.level] <= rank[low.level]
 
 
 def test_adjustment_b_plus_handled():
     """B+ 特殊等级归 B 处理，不崩溃。"""
-    out = _apply_structural_adjustment(_mk_conf("B+"), 80.0)
+    out = _apply_structural_adjustment(_mk_conf("B+"), 60.0)
     assert out.level in ("A", "B", "C", "D", "B+")
-    assert out.structural_score == 80.0
+    assert out.structural_score == 60.0
 
 
 def test_adjustment_preserves_matrix_members():
     """非破坏性: 5 条件矩阵成员 (bc/rr/…) 不变。"""
     cr = _mk_conf("C")
-    out = _apply_structural_adjustment(cr, 80.0)
+    out = _apply_structural_adjustment(cr, 60.0)
     assert out.bc_located == cr.bc_located
     assert out.counterfactual_passed == cr.counterfactual_passed
     assert out.rr_qualified == cr.rr_qualified

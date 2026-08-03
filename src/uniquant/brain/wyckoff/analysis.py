@@ -29,6 +29,8 @@ from uniquant.brain.wyckoff.constants import (
     MONEY_FLOW_LOOKBACK,
     PRICE_DEVIATION_LOOKBACK,
 )
+from uniquant.brain.wyckoff.phase_analysis import MultiTimeframeResonance
+from uniquant.shared.config_loader import get_config
 
 
 def analyze_chips(df: pd.DataFrame, structure: WyckoffStructure) -> ChipAnalysis:
@@ -193,6 +195,39 @@ def analyze_multiframe(
     )
 
 
+def _resonance_to_rule9_alignment(
+    resonance_result: dict,
+    monthly_phase: WyckoffPhase,
+    weekly_phase: WyckoffPhase,
+    daily_phase: WyckoffPhase,
+) -> tuple[str, str]:
+    """Map MultiTimeframeResonance output to rule9-compatible alignment_type/alignment_desc."""
+    monthly_val = monthly_phase.value if hasattr(monthly_phase, 'value') else monthly_phase
+    weekly_val = weekly_phase.value if hasattr(weekly_phase, 'value') else weekly_phase
+    daily_val = daily_phase.value if hasattr(daily_phase, 'value') else daily_phase
+
+    if monthly_val == 'markdown':
+        return "markdown_override", "月线Markdown，强制空仓"
+    if weekly_val == 'markdown':
+        return "markdown_override", "周线Markdown，强制空仓"
+    if monthly_val == 'distribution':
+        return "distribution_override", "月线Distribution，降级"
+    if weekly_val == 'distribution':
+        return "distribution_override", "周线Distribution，降级"
+
+    if resonance_result['resonance_count'] == 3 and resonance_result['resonance_dir'] != 'conflicting':
+        direction = "多头" if resonance_result['resonance_dir'] == 'bullish' else "空头"
+        return "fully_aligned", f"三周期{direction}共振"
+
+    if weekly_val == 'markup' and monthly_val == 'markup':
+        return "aligned", "月线+周线Markup支持日线"
+
+    if weekly_val == 'unknown' and daily_val == 'markup':
+        return "degraded", "周线Unknown，日线Markup降级"
+
+    return "mixed", "多周期信号混合"
+
+
 def merge_multitimeframe_reports(
     symbol: str,
     daily_report: WyckoffReport,
@@ -219,10 +254,20 @@ def merge_multitimeframe_reports(
     )
     constraint_note = "维持日线结论"
 
-    # 使用规则9进行多周期一致性判断
-    alignment_type, alignment_desc = rules.rule9_multiframe_alignment(
-        daily_phase, weekly_phase, monthly_phase
-    )
+    # 使用规则9或MultiTimeframeResonance进行多周期一致性判断
+    cfg = get_config()
+    use_mtf_resonance = cfg.get("wyckoff.mtf_resonance", True)
+    if use_mtf_resonance:
+        resonance_result = MultiTimeframeResonance.resonance(
+            monthly_phase.value, weekly_phase.value, daily_phase.value
+        )
+        alignment_type, alignment_desc = _resonance_to_rule9_alignment(
+            resonance_result, monthly_phase, weekly_phase, daily_phase
+        )
+    else:
+        alignment_type, alignment_desc = rules.rule9_multiframe_alignment(
+            daily_phase, weekly_phase, monthly_phase
+        )
 
     if alignment_type == "markdown_override":
         if (daily_report.trading_plan.direction == "做多" and (

@@ -143,14 +143,52 @@ class V3Rules:
             return {"validity": "insufficient", "confidence_base": "D", "desc": "BC和TR均不可见"}
 
     @staticmethod
+    def _find_test_bar(post_spring_df: pd.DataFrame, spring_low: float) -> Optional[int]:
+        """找到 spring 后最近一次"回落测试"K线。
+
+        条件：K线 low 接近 spring_low（0.99~1.05 倍区间内），
+        且该K线是"回落"性质（open <= spring_low * 1.03，非跳空高开长阳）。
+        返回该K线在 post_spring_df 中的位置（最后满足者优先）。
+        """
+        test_idx: Optional[int] = None
+        for i in range(len(post_spring_df)):
+            r = post_spring_df.iloc[i]
+            if spring_low * 0.99 <= r["low"] <= spring_low * 1.05:
+                if r["open"] <= spring_low * 1.03:
+                    test_idx = i
+        return test_idx
+
+    @staticmethod
     def rule6_spring_validation(
         spring_detected: bool,
         post_spring_df: pd.DataFrame,
         spring_low: float,
+        spring_volume: float = 0.0,
+        atr: float = 0.0,
     ) -> Dict[str, Any]:
-        """规则6: Spring 结构事件验证（v3.0 核心，含Spring作废逻辑）"""
+        """规则6: Spring 结构事件验证 — 分层判定（P0-A 重构）
+
+        Args:
+            spring_detected: 是否检测到 Spring
+            post_spring_df: Spring 后数据
+            spring_low: Spring 最低价
+            spring_volume: Spring 当日成交量（供给枯竭参照）
+            atr: 当前 ATR（冲击容忍阈值）
+
+        Returns:
+            Dict 含 lps_confirmed / quality / desc / spring_invalidated（旧字段）
+            及 lps_stage / test_low / test_vol_ratio / bounce_bars（新诊断字段）
+        """
+        base = {
+            "lps_stage": "not_test",
+            "test_low": None,
+            "test_vol_ratio": None,
+            "bounce_bars": 0,
+        }
+
         if not spring_detected:
             return {
+                **base,
                 "lps_confirmed": False,
                 "quality": "无",
                 "desc": "未检测到Spring",
@@ -159,65 +197,116 @@ class V3Rules:
 
         if post_spring_df.empty or len(post_spring_df) < 3:
             return {
+                **base,
                 "lps_confirmed": False,
-                "quality": "二级(放量需ST)",
+                "quality": "二级(需ST验证)",
                 "desc": "Spring后数据不足，需ST验证",
                 "spring_invalidated": False,
             }
 
-        # Spring作废检查：放量再创新低
-        # 检查Spring后是否有放量跌破Spring极低点的情况
+        # 阶段1：作废检查 — 放量再创新低
         spring_invalidated = False
         for row in post_spring_df.itertuples():
-            if row.low < spring_low * 0.99:  # 跌破Spring极低点
-                # 检查是否放量
+            if row.low < spring_low * 0.99:
                 avg_vol = post_spring_df["volume"].mean()
-                if row.volume > avg_vol * 1.5:  # 放量
+                if row.volume > avg_vol * 1.5:
                     spring_invalidated = True
                     break
 
         if spring_invalidated:
             return {
+                **base,
+                "lps_stage": "invalidated",
                 "lps_confirmed": False,
                 "quality": "作废",
                 "desc": "Spring后放量再创新低，信号作废，重新进入Step 0评估",
                 "spring_invalidated": True,
             }
 
-        # 检查LPS确认条件
-        # 1. 后续地量K线出现（< 天量柱的30%）
-        if "volume" in post_spring_df.columns:
-            max_vol = post_spring_df["volume"].max()
-            recent_vol = post_spring_df["volume"].iloc[-3:].mean()
-            low_volume = recent_vol < max_vol * 0.3
-        else:
-            low_volume = False
-
-        # 2. 价格未破Spring极低点
-        price_held = post_spring_df["low"].min() >= spring_low * 0.995
-
-        # 3. 出现反弹收阳
-        if len(post_spring_df) >= 2:
-            last_close = post_spring_df["close"].iloc[-1]
-            last_open = post_spring_df["open"].iloc[-1]
-            bounce = last_close > last_open
-        else:
-            bounce = False
-
-        lps_confirmed = low_volume and price_held and bounce
-
-        if lps_confirmed:
+        # 阶段2：测试K线识别
+        test_idx = V3Rules._find_test_bar(post_spring_df, spring_low)
+        if test_idx is None:
             return {
+                **base,
+                "lps_stage": "not_test",
+                "lps_confirmed": False,
+                "quality": "二级(需ST验证)",
+                "desc": "未找到回落测试K线，Spring后数据不足",
+                "spring_invalidated": False,
+            }
+
+        test_bar = post_spring_df.iloc[test_idx]
+        test_bar_low = float(test_bar["low"])
+        test_bar_volume = float(test_bar["volume"])
+
+        # 阶段3：硬门槛守位
+        tolerance = max(atr * 0.25, spring_low * 0.005)
+        price_held = test_bar_low >= spring_low - tolerance
+        if not price_held:
+            return {
+                **base,
+                "lps_stage": "not_test",
+                "test_low": test_bar_low,
+                "lps_confirmed": False,
+                "quality": "二级(需ST验证)",
+                "desc": f"测试K线低点{test_bar_low:.2f}跌破Spring低点{spring_low:.2f}，守位失败",
+                "spring_invalidated": False,
+            }
+
+        # 阶段4：确认证据
+        # 证据1：量能供给枯竭（参照 spring 当日量）
+        if spring_volume > 0:
+            test_vol_ratio = test_bar_volume / spring_volume
+            supply_dry = test_vol_ratio <= 1.0
+        else:
+            test_vol_ratio = None
+            supply_dry = True
+
+        # 证据2：反弹冲动（多根K线窗口）
+        bounce_bars = 0
+        test_high = float(test_bar["high"])
+        target = test_high + atr * 0.5
+        n = 5
+        for j in range(test_idx + 1, min(test_idx + 1 + n, len(post_spring_df))):
+            if float(post_spring_df.iloc[j]["close"]) >= target:
+                bounce_bars = j - test_idx
+                break
+
+        bounce = bounce_bars > 0
+
+        # 判定汇总
+        vol_ratio_str = f"{test_vol_ratio:.2f}" if test_vol_ratio is not None else "N/A"
+        if supply_dry and bounce:
+            return {
+                "lps_stage": "lps_confirmed",
+                "test_low": test_bar_low,
+                "test_vol_ratio": test_vol_ratio,
+                "bounce_bars": bounce_bars,
                 "lps_confirmed": True,
-                "quality": "一级(缩量)",
-                "desc": "缩量Spring+LPS确认，供给枯竭",
+                "quality": "一级(LPS确认)",
+                "desc": f"缩量测试(量比{vol_ratio_str})+反弹确认({bounce_bars}根)，LPS确认",
+                "spring_invalidated": False,
+            }
+        elif supply_dry:
+            return {
+                "lps_stage": "test_held",
+                "test_low": test_bar_low,
+                "test_vol_ratio": test_vol_ratio,
+                "bounce_bars": 0,
+                "lps_confirmed": False,
+                "quality": "二级(LPS测试中)",
+                "desc": f"守位缩量(量比{vol_ratio_str})但反弹未确认，LPS测试中",
                 "spring_invalidated": False,
             }
         else:
             return {
+                "lps_stage": "test_held",
+                "test_low": test_bar_low,
+                "test_vol_ratio": test_vol_ratio,
+                "bounce_bars": 0,
                 "lps_confirmed": False,
-                "quality": "二级(放量需ST)",
-                "desc": "Spring后需ST验证",
+                "quality": "二级(需ST验证)",
+                "desc": f"守位但测试量放大(量比{vol_ratio_str})，供给未枯竭",
                 "spring_invalidated": False,
             }
 
