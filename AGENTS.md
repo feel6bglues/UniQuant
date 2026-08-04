@@ -497,3 +497,24 @@ Each stage requires a plan, concrete artifacts, checkpoint context, and verifica
 | BoardType unified | `shared/board_registry.py` | 116 LOC — BoardType dual system resolved via registry |
 | Walk-Forward 回测终结结论 | `scripts/output/walk_forward_definitive_report.json` + `/tmp/walk_forward_actual.py` | 500 只 × 6 窗口 walk-forward 验证: LPPL 零预测力 (MC 证明 93% GBM 噪声拟合), Wyckoff 理论从不触发, Wyckoff "买入" 4.5% 罕见信号 p=0.0098 显著, 自定义分类掩盖了唯一有效信号 |
 | 参数敏感性验证脚本 | `scripts/param_sweep_v2.py` | 经 3 轮红蓝对抗修正的 Wyckoff 参数扫描脚本: CLI 参数控制、同相位对比、bootstrap-by-stock CI、Mann-Whitney U + Bonferroni、断点续传、参数排名表。配套分析: `docs/reanalysis/Z_param_sweep_v1_redblue_round*.md` |
+
+## Recent Work (2026-08-03) — Wyckoff 多周期多阶段实证分析
+
+完成 6 期 as-of 日期(2024-01-31→2026-05-15)对 golden_100 的全量 Wyckoff 扫描，输出相位分布、前向收益、阶段转换统计和经典 Wyckoff 理论一致性评估。
+
+**关键发现**:
+
+| as_of | accum_mean | markup_mean | dist_mean | md_mean | 理论得分 |
+|---|---|---|---|---|---|
+| 2024-01-31 | +19.29% | +10.37% | +22.07% | +19.71% | 50.0% |
+| 2024-06-28 | -3.64% | -1.14% | -1.64% | -4.81% | 50.0% |
+| 2024-12-31 | +3.66% | +5.37% | +4.98% | +4.72% | 50.0% |
+| 2025-06-30 | +9.55% | +8.23% | +10.58% | +6.29% | 50.0% |
+| 2026-01-30 | -2.56% | +6.99% | +1.37% | -1.79% | 50.0% |
+| 2026-05-15 | -0.14% | -3.19% | -0.19% | -9.50% | 50.0% |
+
+**总体理论一致性**: 50.0% (12/24) — markup 上涨(4/6)和 markdown 下跌(4/6)方向正确，但 accumulation 不保证上涨(3/6)且 distribution 不保证下跌(2/6)
+
+**阶段转换统计**: 总转换 500 次，正确 198 次(39.6%) — 最大的错误转换是 accumulation→distribution(74 次)和 distribution→accumulation(63 次)，表明引擎频繁混淆积累与派发阶段
+
+**落地评估**: ⚠️ 部分落地 — 引擎在部分市场环境下有效，但需持续改进。引擎能捕捉 markup/markdown 方向，但 accumulation/distribution 相位判定与经典 Wyckoff 理论偏差显著。详见 `scripts/wyckoff_multi_period_analysis.py` 和 `/tmp/multi_period/wyckoff_multi_period_golden_100.json`
