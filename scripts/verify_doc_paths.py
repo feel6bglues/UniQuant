@@ -14,7 +14,6 @@ Usage:
 import os
 import re
 import sys
-import importlib
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DOCS_DIR = os.path.join(PROJECT_ROOT, "docs")

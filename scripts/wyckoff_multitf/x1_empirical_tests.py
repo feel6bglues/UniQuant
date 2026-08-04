@@ -7,7 +7,9 @@ X1: 威科夫多周期 — 六项追加实证测试
   - phase6_combined_results.json (22,148 obs: WSO/WSS scores)
 """
 
-import json, sys, math, time
+import json
+import math
+import time
 from pathlib import Path
 from collections import defaultdict
 import numpy as np

@@ -42,7 +42,7 @@ def main():
         if len(window) < 120:
             continue
         t0 = time.perf_counter()
-        events = detect_all_events(window)
+        detect_all_events(window)
         elapsed = time.perf_counter() - t0
         times_numba.append(elapsed)
 
@@ -70,15 +70,15 @@ def main():
     # Compare: reference from session report (pre-numba)
     # 86K observations processed in ~120 min across 1000 stocks
     # That's ~5,934 stocks in roughly similar time
-    print(f"  参考: session report 中 86K 观测处理时间 ~120 分钟")
+    print("  参考: session report 中 86K 观测处理时间 ~120 分钟")
     print(f"  当前估算: {times_numba.mean() * 5934 / 60:.1f} 分钟")
-    print(f"  注: 仅包含 detect_all_events, 不包含 engine.analyze()")
+    print("  注: 仅包含 detect_all_events, 不包含 engine.analyze()")
     print()
 
     print("=" * 60)
     print("  V2 验证结论")
     print("=" * 60)
-    print(f"  ✅ 3 个 @njit 加速器 (PS/SC/SOS) 正常运行")
+    print("  ✅ 3 个 @njit 加速器 (PS/SC/SOS) 正常运行")
     print(f"  平均每只事件检测: {times_numba.mean()*1000:.1f}ms")
     print(f"  5,934 只全扫描估算: {times_numba.mean() * 5934 / 60:.1f} 分钟")
     print("  (session report 参考: 120 分钟含完整 engine.analyze)")

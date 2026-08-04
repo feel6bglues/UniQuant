@@ -11,14 +11,14 @@ Usage:
 from __future__ import annotations
 
 import json
+import os
 import sys
 import time
 from concurrent.futures import ProcessPoolExecutor, as_completed
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 
-import numpy as np
 import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
@@ -82,7 +82,7 @@ def analyze_one(symbol: str, date: str) -> Optional[SignalCandidate]:
             tradeable, reason = False, "suspended_5d"
 
         engine = WyckoffEngine(lookback_days=120)
-        dr = engine.analyze(window, symbol=symbol, period="日线")
+        engine.analyze(window, symbol=symbol, period="日线")
         events = detect_all_events(window)
         event_types = [e.event_type for e in events if e.confidence > 0.3]
         seq_key = event_sequence_key(events) if events else "NONE"
@@ -160,7 +160,7 @@ def screen(date: str, symbols: Optional[list[str]] = None, top_k: int = 50) -> l
 
     # Rank: non-hold signals first, by confidence
     signals = [r for r in results if r.signal != "hold"]
-    hold = [r for r in results if r.signal == "hold"]
+    [r for r in results if r.signal == "hold"]
     signals.sort(key=lambda x: (x.confidence, abs(x.score)), reverse=True)
     top = signals[:top_k]
 

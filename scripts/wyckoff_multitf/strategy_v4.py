@@ -1,15 +1,16 @@
 #!/usr/bin/env python3
 """Phase 3: Spring + MonthlyPhase filter strategy — full A-share backtest."""
 
-import sys, time, json, os
+import sys
+import time
+import json
+import os
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 import pandas as pd
 import numpy as np
 from concurrent.futures import ProcessPoolExecutor, as_completed
-from typing import List, Tuple, Optional
-from collections import defaultdict
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DATA_LAKE = PROJECT_ROOT / "data" / "lake" / "quotes" / "daily"
@@ -85,7 +86,7 @@ def backtest_stock(
         if len(m) < 12:
             continue
         m12 = m.iloc[-12:]
-        phase = classifier.classify(m12)
+        classifier.classify(m12)
 
         # Check entry: recent Spring detected (phase filter removed — all have positive excess)
         if not in_trade:
@@ -93,8 +94,8 @@ def backtest_stock(
                 report = engine.analyze(d, symbol=symbol, period='日线')
                 sig = getattr(report, 'signal', None)
                 spring_date = getattr(sig, 'spring_date', None)
-                rr = getattr(getattr(report, 'risk_reward', None), 'reward_risk_ratio', 0)
-                conf = getattr(getattr(sig, 'confidence', None), 'value', '?')
+                getattr(getattr(report, 'risk_reward', None), 'reward_risk_ratio', 0)
+                getattr(getattr(sig, 'confidence', None), 'value', '?')
                 if spring_date is not None:
                     sd = pd.Timestamp(str(spring_date))
                     days_since = (pd.Timestamp(cutoff) - sd).days
@@ -224,7 +225,7 @@ def main():
     records = scan_universe(cfg)
     sampled = stratified_sample(records, seed=42)
     stocks = [r.symbol for r in sampled[:500]]
-    print(f"Universe: 500 stocks")
+    print("Universe: 500 stocks")
 
     # Parameter grid
     configs = [

@@ -7,7 +7,6 @@ import math
 import os
 import sys
 
-from pandas.testing import assert_frame_equal
 
 import numpy as np
 import pandas as pd
@@ -212,7 +211,7 @@ class TestDataValidatorChaos:
     # --- 1b. High < Open/Close fix ---
     def test_high_less_than_open_close(self):
         df = _make_daily_df(20)
-        orig = df.copy()
+        df.copy()
         df.loc[5, "high"] = df.loc[5, "open"] - 2.0  # high < open
         result = self.validator.validate(df)
         assert result is True
@@ -221,7 +220,7 @@ class TestDataValidatorChaos:
     # --- 1c. Low > Open/Close fix ---
     def test_low_greater_than_open_close(self):
         df = _make_daily_df(20)
-        orig = df.copy()
+        df.copy()
         df.loc[8, "low"] = df.loc[8, "close"] + 5.0  # low > close
         result = self.validator.validate(df)
         assert result is True

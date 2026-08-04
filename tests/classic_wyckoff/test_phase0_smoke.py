@@ -7,7 +7,6 @@ can analyze without crashing. This is the Phase 0 integration gate.
 from __future__ import annotations
 
 from uniquant.brain.wyckoff.engine import WyckoffEngine
-from uniquant.brain.wyckoff.models import WyckoffPhase
 
 
 def _run_engine(df):

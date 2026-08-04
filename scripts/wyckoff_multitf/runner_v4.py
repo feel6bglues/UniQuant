@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 """Wyckoff v4: Corrected verification using rule-based monthly phase + engine Spring detection."""
 
-import sys, time, json, gc, traceback, os
+import sys
+import time
+import json
+import os
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
@@ -9,8 +12,8 @@ import pandas as pd
 import numpy as np
 from scipy import stats
 from concurrent.futures import ProcessPoolExecutor, as_completed
-from dataclasses import dataclass, field
-from typing import List, Dict, Tuple, Optional
+from dataclasses import dataclass
+from typing import List, Optional
 from collections import defaultdict
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -246,7 +249,7 @@ def analyze(obs: List[Obs]):
             phase_spring_ret[o.month_phase].append(o.fwd_6m)
             phase_spring_excess[o.month_phase].append(excess)
 
-    print(f"\n── Phase Distribution & 6-month Forward Returns ──")
+    print("\n── Phase Distribution & 6-month Forward Returns ──")
     print(f"  {'Phase':<15} {'N':<8} {'Raw%':<10} {'Excess%':<10} {'PosEx%':<9} {'Spring%':<9}")
     print(f"  {'-'*61}")
     for p in ['accumulation', 'markup', 'distribution', 'markdown', 'unknown']:
@@ -261,14 +264,14 @@ def analyze(obs: List[Obs]):
     all_springs = [o.fwd_6m for o in obs if o.day_spring]
     all_excess_s = [o.fwd_6m - mkt_rets.get(o.cutoff, 0) for o in obs if o.day_spring]
     all_nonsprings = [o.fwd_6m for o in obs if not o.day_spring]
-    print(f"\n── Spring Analysis ──")
+    print("\n── Spring Analysis ──")
     print(f"  Events: {len(all_springs)}")
     print(f"  Raw 60d: {np.mean(all_springs):+.2f}%  Excess: {np.mean(all_excess_s):+.2f}%")
     t_s, p_s = stats.ttest_1samp(all_excess_s, 0) if len(all_excess_s) > 10 else (0, 1)
     print(f"  Spring excess t={t_s:.2f} p={p_s:.4f}")
 
     # Spring + Phase combo with excess
-    print(f"\n── Spring + Phase (Excess Returns) ──")
+    print("\n── Spring + Phase (Excess Returns) ──")
     for p in ['accumulation', 'markup', 'distribution', 'markdown', 'unknown']:
         sv = np.array(phase_spring_excess.get(p, []))
         nv = np.array([mkt_rets.get(o.cutoff, 0) for o in obs if o.month_phase == p and not o.day_spring])
@@ -282,7 +285,7 @@ def analyze(obs: List[Obs]):
     # Spring-only analysis (across all phases)
     all_springs = [o.fwd_6m for o in obs if o.day_spring]
     all_nonsprings = [o.fwd_6m for o in obs if not o.day_spring]
-    print(f"\n── Spring Analysis (all phases) ──")
+    print("\n── Spring Analysis (all phases) ──")
     print(f"  Total events: {len(all_springs)}")
     print(f"  Spring 60d: {np.mean(all_springs):+.2f}% median={np.median(all_springs):+.2f}% pos={(np.array(all_springs)>0).mean()*100:.1f}%")
     print(f"  No-Spring 60d: {np.mean(all_nonsprings):+.2f}%")
@@ -290,7 +293,7 @@ def analyze(obs: List[Obs]):
     print(f"  Spring vs No-Spring: t={t_s:.2f} p={p_s:.4f} {'✅' if p_s < 0.05 else '❌'}")
 
     # Spring + Accumulation (the best combo)
-    print(f"\n── Spring + Phase Combo ──")
+    print("\n── Spring + Phase Combo ──")
     for p in ['accumulation', 'markup', 'distribution', 'markdown', 'unknown']:
         sv = np.array(phase_spring_ret.get(p, []))
         if len(sv) < 5:
@@ -310,7 +313,7 @@ def analyze(obs: List[Obs]):
         print(f"\n── H1: Phase ANOVA F={f_val:.2f} p={p_val:.4f} {'✅' if p_val<0.05 else '❌'}")
 
     # Strategy backtest: Spring + Accum/Markup only
-    print(f"\n── Strategy: Long Spring in Accum/Markup ──")
+    print("\n── Strategy: Long Spring in Accum/Markup ──")
     valid_phases = {'accumulation', 'markup'}
     strat_rets = [o.fwd_1m for o in obs if o.month_phase in valid_phases and o.day_spring]
     bh_rets = [o.fwd_1m for o in obs]
@@ -336,7 +339,7 @@ def analyze(obs: List[Obs]):
     if len(all_sr) > 10:
         t_a, p_a = stats.ttest_ind(all_sr, all_br, alternative='greater')
         ann_as = ((1 + np.mean(all_sr)/100) ** 12 - 1) * 100
-        print(f"\n── Strategy: All Springs (no phase filter) ──")
+        print("\n── Strategy: All Springs (no phase filter) ──")
         print(f"  Signals: {len(all_sr)}")
         print(f"  Gross: {np.mean(all_sr):+.2f}%/mo  BH: {np.mean(all_br):+.2f}%/mo")
         print(f"  Ann: Strat={ann_as:+.2f}% BH={ann_b:+.2f}%")

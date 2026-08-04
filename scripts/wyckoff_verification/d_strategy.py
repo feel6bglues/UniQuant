@@ -2,10 +2,9 @@
 
 import numpy as np
 import pandas as pd
-from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
-from typing import List, Dict, Optional, Tuple
-from collections import defaultdict
+from typing import List
 from enum import Enum
 
 from .config import VerifierConfig
@@ -96,7 +95,7 @@ def detect_distribution(df_slice: pd.DataFrame) -> float:
     low = df_slice["low"].values
     high = df_slice["high"].values
     volume = df_slice["volume"].values
-    n = len(close)
+    len(close)
 
     score = 0.0
 
@@ -142,7 +141,7 @@ def simulate_wyckoff_strategy(
     close = df["close"].values
     low = df["low"].values
     high = df["high"].values
-    volume = df["volume"].values
+    df["volume"].values
     dates_pd = df["date"]
     
     # ATR
@@ -164,7 +163,6 @@ def simulate_wyckoff_strategy(
     equity = [1.0]
     entry_price = 0.0
     entry_idx = 0
-    entry_reason = ""
     stop_loss = 0.0
     take_partial = 0.0
     take_full = 0.0
@@ -262,7 +260,6 @@ def simulate_wyckoff_strategy(
                 cost_in = entry_price * commission + min_comm / 10000
                 position = Position.LONG
                 entry_idx = i
-                entry_reason = "accumulation_spring"
                 stop_loss = entry_price * (1 - config.strategy.atr_stop_multiple * atr[i] / close[i])
                 take_partial = entry_price * (1 + config.strategy.rr_take_partial * atr[i] / close[i])
                 take_full = entry_price * (1 + config.strategy.rr_take_full * atr[i] / close[i])
@@ -353,7 +350,7 @@ def run_strategy(
 
     # Aggregate
     if not results:
-        print(f"\n  Wyckoff Strategy Results (0 stocks) — no trades generated")
+        print("\n  Wyckoff Strategy Results (0 stocks) — no trades generated")
         return results
 
     rets = [r.total_return_pct for r in results]

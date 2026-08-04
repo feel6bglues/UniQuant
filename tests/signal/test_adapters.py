@@ -480,7 +480,6 @@ class TestAdapterRegistryDiscover:
 class TestTradingSignalCollectorEvent:
     def test_collect_with_event_bus(self):
         from uniquant.shared.event_bus import EventBus
-        from uniquant.shared.event_types import SignalGenerated
 
         received = []
 

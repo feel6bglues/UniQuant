@@ -108,7 +108,7 @@ def main():
                 errors.append(f"monthly:{symbol}:{e}")
 
     elapsed = time.time() - t0
-    print(f"\n=== Summary ===")
+    print("\n=== Summary ===")
     print(f"Elapsed: {elapsed:.1f}s ({elapsed / max(len(all_symbols), 1):.2f}s/symbol)")
     print(f"Weekly  : {weekly_ok} generated, {weekly_skip} skipped (already exist)")
     print(f"Monthly : {monthly_ok} generated, {monthly_skip} skipped (already exist)")

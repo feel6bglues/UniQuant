@@ -1,9 +1,7 @@
 """LPPL real-data regression tests (skip if data lake unavailable)"""
 
 import os
-import sys
 
-import numpy as np
 import pandas as pd
 import pytest
 

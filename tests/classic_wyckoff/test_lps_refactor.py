@@ -14,9 +14,7 @@
 
 from typing import Any, Dict
 
-import numpy as np
 import pandas as pd
-import pytest
 
 from uniquant.brain.wyckoff.rules import V3Rules
 

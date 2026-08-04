@@ -8,7 +8,8 @@ Usage:
     python3 scripts/wyckoff_multitf/phase6_wss_scoring.py
 """
 
-import sys, json
+import sys
+import json
 from pathlib import Path
 from collections import defaultdict
 
@@ -100,27 +101,27 @@ def run():
 
 
 def analyze(data, lookup):
-    n = len(data)
+    len(data)
 
     print(f"\n{'=' * 70}")
     print("WSS: Wyckoff Statistical Score — Sequence Performance")
     print(f"{'=' * 70}")
     print(f"  Sequences scored: {len(lookup)}")
 
-    print(f"\n── Top 20 Sequences by WSS Score ──")
+    print("\n── Top 20 Sequences by WSS Score ──")
     ranked = sorted(lookup.items(), key=lambda x: -x[1]['wss'])
     print(f"  {'Sequence':<28} {'N':<6} {'f6%':<8} {'t':<8} {'Win%':<8} {'WSS':<8}")
     for seq, info in ranked[:20]:
         print(f"  {seq:<28} {info['n']:<6} {info['mean']:+>7.2f} {info['t']:+>7.2f} {info['win_rate']*100:<7.1f} {info['wss']:+>7.4f}")
 
-    print(f"\n── Bottom 20 Sequences by WSS Score ──")
+    print("\n── Bottom 20 Sequences by WSS Score ──")
     for seq, info in ranked[-20:]:
         print(f"  {seq:<28} {info['n']:<6} {info['mean']:+>7.2f} {info['t']:+>7.2f} {info['win_rate']*100:<7.1f} {info['wss']:+>7.4f}")
 
     # WSS decile analysis
     wss_vals = np.array([o.get('wss', 0) for o in data])
     f6_vals = np.array([o.get('f6', 0) for o in data])
-    print(f"\n── WSS Deciles → f6 Return ──")
+    print("\n── WSS Deciles → f6 Return ──")
     print(f"  {'Decile':<8} {'WSS':<10} {'N':<8} {'f6%':<10} {'t':<8} {'Sig':<6}")
     for pct in range(0, 100, 10):
         lo = np.percentile(wss_vals, max(0, pct - 10)) if pct > 0 else -np.inf
@@ -135,19 +136,19 @@ def analyze(data, lookup):
 
     # Correlation: WSS vs f6
     r, p_val = stats.pearsonr(wss_vals, f6_vals)
-    print(f"\n── WSS-f6 Correlation ──")
+    print("\n── WSS-f6 Correlation ──")
     print(f"  Pearson r: {r:.4f}  p={p_val:.6f}  {'✅' if p_val < 0.05 else '❌'}")
 
     # WSS vs WSO comparison
     wso_vals = np.array([o.get('wso', 0) for o in data])
-    print(f"\n── WSS vs WSO ──")
+    print("\n── WSS vs WSO ──")
     r_wso, _ = stats.pearsonr(wso_vals, f6_vals)
     r_wss, _ = stats.pearsonr(wss_vals, f6_vals)
     print(f"  WSO–f6 r: {r_wso:.4f}")
     print(f"  WSS–f6 r: {r_wss:.4f}")
 
     # Combined: α*WSO + β*WSS
-    print(f"\n── Combined (α·WSO + β·WSS) Optimisation ──")
+    print("\n── Combined (α·WSO + β·WSS) Optimisation ──")
     best_r = -1
     best_a = best_b = 0
     for a in np.arange(0, 1.1, 0.1):
@@ -171,7 +172,7 @@ def analyze(data, lookup):
         top_f6 = f6_vals[top_mask]
         bot_f6 = f6_vals[bot_mask]
         t_sp, _ = stats.ttest_ind(top_f6, bot_f6)
-        print(f"\n── WSS Top 20% vs Bottom 20% ──")
+        print("\n── WSS Top 20% vs Bottom 20% ──")
         print(f"  Top 20%:    N={sum(top_mask):<6} f6={np.mean(top_f6):+>7.2f}%")
         print(f"  Bottom 20%: N={sum(bot_mask):<6} f6={np.mean(bot_f6):+>7.2f}%")
         print(f"  Spread:     {np.mean(top_f6)-np.mean(bot_f6):+>7.2f}% t={t_sp:.2f}")

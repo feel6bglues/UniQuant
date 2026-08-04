@@ -2,7 +2,6 @@
 
 from unittest.mock import patch
 
-import pytest
 
 from uniquant.brain.wyckoff.analysis import (
     _resonance_to_rule9_alignment,

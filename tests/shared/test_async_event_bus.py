@@ -82,7 +82,7 @@ def test_error_propagation_when_disabled():
 
 
 def test_subscribe_unsubscribe(bus):
-    event = _TestEvent()
+    _TestEvent()
     bus.subscribe("test", fast_handler)
     assert bus.has_subscribers("test")
     bus.unsubscribe("test", fast_handler)

@@ -161,7 +161,7 @@ def main():
             else:
                 fail_count += 1
         else:
-            logger.warning(f"  失败: 无法获取数据")
+            logger.warning("  失败: 无法获取数据")
             fail_count += 1
     
     logger.info("=" * 60)

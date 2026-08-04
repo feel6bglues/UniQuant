@@ -11,7 +11,6 @@ Fixes:
     3. 5542 files: already canonical (no-op)
 """
 
-import os
 import shutil
 import sys
 from pathlib import Path
@@ -109,7 +108,7 @@ def main():
             unchanged += 1
 
     # Summary
-    print(f"\n=== Summary ===")
+    print("\n=== Summary ===")
     print(f"  Total files:      {total}")
     print(f"  Modified:         {modified}")
     print(f"  Unchanged:        {unchanged}")

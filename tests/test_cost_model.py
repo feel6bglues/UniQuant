@@ -7,8 +7,6 @@ These assertions double as documentation verification:
 
 from __future__ import annotations
 
-import numpy as np
-import pytest
 from numpy.testing import assert_almost_equal
 
 from uniquant.shared.cost_model import (

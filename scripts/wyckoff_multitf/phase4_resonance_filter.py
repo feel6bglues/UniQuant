@@ -8,7 +8,8 @@ Usage:
     python3 scripts/wyckoff_multitf/phase4_resonance_filter.py
 """
 
-import sys, json
+import sys
+import json
 from pathlib import Path
 from collections import Counter
 
@@ -64,13 +65,13 @@ def analyze(data):
     print(f"{'=' * 70}")
 
     sig_counts = Counter(obs['wso_resonance_sig'] for obs in data)
-    print(f"\n── Filtered Signal Distribution ──")
+    print("\n── Filtered Signal Distribution ──")
     print(f"  {'Signal':<8} {'Count':<8} {'%':<8}")
     for sig in ['buy', 'hold', 'sell']:
         c = sig_counts.get(sig, 0)
         print(f"  {sig:<8} {c:<8} {c / n * 100:.1f}%")
 
-    print(f"\n── Forward Returns by Filtered Signal ──")
+    print("\n── Forward Returns by Filtered Signal ──")
     print(f"  {'Signal':<8} {'N':<8} {'f1_mean':<10} {'f3_mean':<10} {'f6_mean':<10} {'f6_t':<8} {'Sig':<6}")
     for sig in ['buy', 'hold', 'sell']:
         group = [o for o in data if o.get('wso_resonance_sig') == sig]
@@ -87,12 +88,12 @@ def analyze(data):
     sell_rets = np.array([o['f6'] for o in data if o.get('wso_resonance_sig') == 'sell'])
     if len(buy_rets) > 5 and len(sell_rets) > 5:
         t2, p2 = stats.ttest_ind(buy_rets, sell_rets)
-        print(f"\n── Filtered Buy vs Sell Spread ──")
+        print("\n── Filtered Buy vs Sell Spread ──")
         print(f"  Buy mean:  {np.mean(buy_rets):+.2f}% (N={len(buy_rets)})")
         print(f"  Sell mean: {np.mean(sell_rets):+.2f}% (N={len(sell_rets)})")
         print(f"  Spread:    {np.mean(buy_rets) - np.mean(sell_rets):+.2f}% t={t2:.2f} {'✅' if p2 < 0.05 else '❌'}")
 
-    print(f"\n── Improvement vs Pure WSO ──")
+    print("\n── Improvement vs Pure WSO ──")
     wso_buy = np.array([o['f6'] for o in data if o.get('wso_sig') == 'buy'])
     filt_buy = np.array([o['f6'] for o in data if o.get('wso_resonance_sig') == 'buy'])
     print(f"  WSO buy:    {np.mean(wso_buy):+.2f}% (N={len(wso_buy)})")
@@ -108,7 +109,7 @@ def analyze(data):
         print(f"  WSO sell:    {np.mean(wso_sell):+.2f}% (N={len(wso_sell)})")
         print(f"  Filter sell: {np.mean(filt_sell):+.2f}% (N={len(filt_sell)})")
 
-    print(f"\n── Transition Summary ──")
+    print("\n── Transition Summary ──")
     downgrades = sum(1 for o in data if o.get('wso_sig') != o.get('wso_resonance_sig'))
     print(f"  Signals changed: {downgrades}/{n} ({downgrades/n*100:.1f}%)")
     buy2hold = sum(1 for o in data if o.get('wso_sig') == 'buy' and o.get('wso_resonance_sig') == 'hold')

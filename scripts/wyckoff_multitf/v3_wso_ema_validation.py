@@ -41,7 +41,6 @@ def main():
 
     # Track raw vs smoothed scores by stock
     stocks = defaultdict(list)
-    exclude_stock = {"date": "date", "f6": 0.0, "events": []}
     for _, r in df.iterrows():
         s = r.get("s", "")
         events_raw = r.get("events", [])
@@ -60,8 +59,6 @@ def main():
 
     raw_scores = []
     smooth_scores = []
-    raw_sigs = []
-    smooth_sigs = []
     raw_f6 = []
     smooth_f6 = []
     flip_count = 0
@@ -77,7 +74,6 @@ def main():
         scorer_smooth = WSOScorer()
 
         prev_raw_sig = None
-        prev_smooth_sig = None
 
         for ob in obs_list:
             events = ob["events"]
@@ -93,7 +89,7 @@ def main():
             smooth = scorer_smooth.score_events(events)
 
             raw_sig = WSOScorer.signal(raw)
-            smooth_sig = WSOScorer.signal(smooth)
+            WSOScorer.signal(smooth)
 
             raw_scores.append(raw)
             smooth_scores.append(smooth)
@@ -103,7 +99,6 @@ def main():
             if prev_raw_sig and prev_raw_sig != raw_sig:
                 flip_count += 1
             prev_raw_sig = raw_sig
-            prev_smooth_sig = smooth_sig
 
     raw_arr = np.array(raw_scores, dtype=np.float64)
     smooth_arr = np.array(smooth_scores, dtype=np.float64)

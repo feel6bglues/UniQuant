@@ -8,7 +8,6 @@ UniQuant 回测敏感性分析测试
 from typing import List
 
 import pandas as pd
-import pytest
 
 from uniquant.hands.backtest.unified_engine import UnifiedBacktestEngine
 from uniquant.shared.interfaces import TradingSignal

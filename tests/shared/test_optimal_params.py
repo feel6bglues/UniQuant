@@ -3,13 +3,11 @@ and small service files (market_regime_service, report_service, signal_generatio
 
 import os
 import tempfile
-from pathlib import Path
 
 import pytest
 import yaml
 
 from uniquant.shared.optimal_params import (
-    ALLOWED_KEYS,
     _as_bool,
     _as_float,
     _as_non_negative_float,

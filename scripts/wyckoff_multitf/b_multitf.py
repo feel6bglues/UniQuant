@@ -1,15 +1,14 @@
 """Module B: Multi-timeframe Wyckoff analysis with hierarchical signals."""
 
-import sys, os
+import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 import pandas as pd
-import numpy as np
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from dataclasses import dataclass, field
-from typing import List, Dict, Tuple, Optional
+from typing import List, Tuple, Optional
 from collections import defaultdict
 
 from .config import VerifierConfig
@@ -155,7 +154,7 @@ def analyze_stock_multitf(
 
             setattr(result, tf_name, analysis)
 
-        except Exception as exc:
+        except Exception:
             pass
 
     return result
@@ -184,7 +183,7 @@ def analyze_batch(
                 res = fut.result()
                 if res is not None:
                     results.append(res)
-            except Exception as exc:
+            except Exception:
                 pass
             if done % 100 == 0:
                 print(f"  {done}/{n_total}")
@@ -202,9 +201,9 @@ def analyze_batch(
     for r in results:
         level, _ = r.signal_level()
         sig_counts[level] += 1
-    print(f"  Signal level distribution:")
-    for l in ["S+", "A", "B", "B_hold", "C", "C_reduce", "D"]:
-        c = sig_counts.get(l, 0)
-        print(f"    {l}: {c} ({c/len(results)*100:.1f}%)")
+    print("  Signal level distribution:")
+    for lv in ["S+", "A", "B", "B_hold", "C", "C_reduce", "D"]:
+        c = sig_counts.get(lv, 0)
+        print(f"    {lv}: {c} ({c/len(results)*100:.1f}%)")
 
     return results

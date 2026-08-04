@@ -83,7 +83,7 @@ def run_regime_analysis(
             regime_trades[regime].append(t.pnl_pct)
             regime_stocks[regime].add(r.symbol)
 
-    print(f"\n  Regime Analysis:")
+    print("\n  Regime Analysis:")
     print(f"  {'Regime':<12} {'Trades':<8} {'Stocks':<8} {'Mean PnL%':<12} {'Win Rate':<10}")
     print(f"  {'-'*50}")
     

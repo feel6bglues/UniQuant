@@ -1,6 +1,5 @@
 """Tests for Wyckoff event chain detection (PS/SC/AR/ST/SOS/LPS/JAC)."""
 
-import pytest
 import pandas as pd
 import numpy as np
 from uniquant.brain.wyckoff.events import (

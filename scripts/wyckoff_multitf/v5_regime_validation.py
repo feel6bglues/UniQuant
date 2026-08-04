@@ -15,7 +15,6 @@ import json
 import random
 import time
 from pathlib import Path
-from collections import defaultdict
 
 import numpy as np
 import pandas as pd
@@ -59,7 +58,7 @@ def main():
     rows = data["data"]
     print(f"\n基线数据: {len(rows)} 条观测")
 
-    all_symbols = list(set(r["s"] for r in rows))
+    list(set(r["s"] for r in rows))
     rng = random.Random(42)
     sampled = rng.sample(rows, min(N_SAMPLE, len(rows)))
     print(f"抽样: {len(sampled)} 条\n")
@@ -138,7 +137,7 @@ def main():
             if n < 3:
                 continue
             f6_v = df.loc[mask, "f6"].values
-            f6_o = df.loc[~mask, "f6"].values
+            df.loc[~mask, "f6"].values
             phases_stats[phase] = (np.mean(f6_v), np.std(f6_v), n)
             print(f"    {phase:>15}: n={n:>4}, f6={np.mean(f6_v):>+7.2f}±{np.std(f6_v):.2f}")
         # Spread: accumulation + markup (bullish) vs distribution + markdown (bearish)

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import pytest
 
 from uniquant.shared.config_schema import AppConfig, ExecutionConfig, RiskConfig, LoggingConfig
 

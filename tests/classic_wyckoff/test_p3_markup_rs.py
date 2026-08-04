@@ -12,7 +12,6 @@ import pandas as pd
 
 from scripts.wyckoff_fixtures import synthetic_accumulation, synthetic_trading_range
 from uniquant.brain.wyckoff.engine import WyckoffEngine
-from uniquant.brain.wyckoff.models import ConfidenceLevel
 
 
 class MockRSResult:

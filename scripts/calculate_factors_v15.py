@@ -68,7 +68,7 @@ def convert_gbbq_to_parquet():
 
     gbbq_raw_path = _resolve_gbbq_raw_path()
     if not gbbq_raw_path or not os.path.exists(gbbq_raw_path):
-        logger.error(f"未找到 GBBQ 原始文件。请设置 GBBQ_TDX_PATH 环境变量或在配置中指定 tdx.path。")
+        logger.error("未找到 GBBQ 原始文件。请设置 GBBQ_TDX_PATH 环境变量或在配置中指定 tdx.path。")
         logger.error(f"尝试的路径: {gbbq_raw_path}")
         return False
 
@@ -176,7 +176,7 @@ def compare_with_baostock(factors_dir: str, baostock_dir: str, sample_size: int 
     result_df = pd.DataFrame(results)
     match_count = result_df['match'].sum() if 'match' in result_df.columns else 0
 
-    logger.info(f"=== 对比完成 ===")
+    logger.info("=== 对比完成 ===")
     logger.info(f"总对比数量: {len(result_df)}")
     logger.info(f"误差 <= 1% 匹配数量: {match_count}")
     logger.info(f"匹配率: {match_count / len(result_df) * 100:.2f}%")

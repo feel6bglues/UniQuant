@@ -17,17 +17,16 @@ from __future__ import annotations
 
 import json
 import math
-import random
 import sys
-from collections import Counter, defaultdict
-from dataclasses import dataclass, field
+from collections import defaultdict
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Dict, List, Tuple
 
 import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
-from src.uniquant.brain.wyckoff.sequence import WSOScorer, WyckoffScorer, WSSScorer
+from src.uniquant.brain.wyckoff.sequence import WSOScorer
 from src.uniquant.shared.cost_model import calculate_sharpe_ratio
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -80,7 +79,7 @@ def robust_stats(returns: np.ndarray, winsorize_pct: float = 1.0) -> dict:
     wse = wstd / math.sqrt(n)
     w_t = wmean / wse if wse > 0 else 0.0
     wins = returns[returns > 0]
-    losses = returns[returns < 0]
+    returns[returns < 0]
     win_rate = len(wins) / n if n > 0 else 0.0
     sharpe = calculate_sharpe_ratio(returns / 100.0, period_days=126)
     return {
@@ -301,7 +300,7 @@ def grid_search_thresholds(
     best_spread_t = -float("inf")
     best_params = (0.04, -0.03, 0.3, 0.7)
 
-    rows_with_wss = apply_wss(rows, lookup) if lookup else rows
+    apply_wss(rows, lookup) if lookup else rows
 
     for bt in buy_candidates:
         for st in sell_candidates:
@@ -390,7 +389,7 @@ def main():
     test_rows = [r for r in test_rows if r["c"] > "2022-12-31"]
 
     print(f"{'='*70}")
-    print(f"  Phase 8 — OOS 时域切分验证")
+    print("  Phase 8 — OOS 时域切分验证")
     print(f"{'='*70}")
     print(f"  总观测: {len(rows):,}")
     print(f"  训练集 (≤2022-12-31): {len(train_rows):,}")
@@ -400,7 +399,7 @@ def main():
 
     # ── Stage A: WSO 纯信号 ──
     print(f"{'─'*70}")
-    print(f"  Stage A: WSO 纯信号 — 固定经验权重, 无训练")
+    print("  Stage A: WSO 纯信号 — 固定经验权重, 无训练")
     print(f"{'─'*70}")
 
     wso_train_all, wso_train_b, wso_train_s = compute_signal_rets(train_rows)
@@ -418,14 +417,14 @@ def main():
 
     # ── Stage B: WSS 训练 & 验证 ──
     print(f"{'─'*70}")
-    print(f"  Stage B: WSS 统计评分 — 训练集训 lookup → 测试集应用")
+    print("  Stage B: WSS 统计评分 — 训练集训 lookup → 测试集应用")
     print(f"{'─'*70}")
 
     # Train WSS lookup on training set only
     print(f"  正在训练 WSS lookup (训练集, N≥{MIN_SEQ_TRAIN})...")
     wss_lookup = train_wss_lookup(train_rows)
     print(f"  训练完成: {len(wss_lookup)} 种序列在查找表中")
-    print(f"  测试集中可被 WSS 覆盖的观测: ", end="")
+    print("  测试集中可被 WSS 覆盖的观测: ", end="")
 
     # Apply to test set
     test_with_wss = apply_wss(test_rows, wss_lookup)
@@ -456,11 +455,11 @@ def main():
 
     # ── Stage C: 参数优化 (阈值 + α/β) ──
     print(f"{'─'*70}")
-    print(f"  Stage C: 参数优化 — 训练集网格搜索 → 测试集验证")
+    print("  Stage C: 参数优化 — 训练集网格搜索 → 测试集验证")
     print(f"{'─'*70}")
 
     # Option 1: WSO-only parameter optimization
-    print(f"  1/3. 网格搜索 WSO 阈值 (训练集)...")
+    print("  1/3. 网格搜索 WSO 阈值 (训练集)...")
     bt_wso, st_wso, _, _ = grid_search_thresholds(train_rows, {}, alpha=0.3, beta=0.7)
     print(f"      最优 WSO 阈值: 买入≥{bt_wso:.2f}, 卖出≤{st_wso:.2f}")
 
@@ -474,7 +473,7 @@ def main():
     r_opt_wso_test = compute_results(opt_test_all, opt_test_b, opt_test_s, "WSO 最优阈值 测试集")
 
     # Option 2: WSO+WSS threshold + α/β optimization
-    print(f"  2/3. 网格搜索 WSO+WSS 阈值 + α/β (训练集)...")
+    print("  2/3. 网格搜索 WSO+WSS 阈值 + α/β (训练集)...")
     bt_wss, st_wss, alpha_opt, beta_opt = grid_search_thresholds(train_rows, wss_lookup)
     print(f"      最优 WSO+WSS: 买入≥{bt_wss:.2f}, 卖出≤{st_wss:.2f}, α={alpha_opt:.2f}, β={beta_opt:.2f}")
 
@@ -487,13 +486,13 @@ def main():
     r_opt_wss_test = compute_results(opt_test_all2, opt_test_b2, opt_test_s2, "WSO+WSS 最优参数 测试集")
 
     # Option 3: Full-sample thresholds (the ones we've been using)
-    print(f"  3/3. 全量阈值参考: 买入≥0.04, 卖出≤-0.03, α=0.3, β=0.7")
+    print("  3/3. 全量阈值参考: 买入≥0.04, 卖出≤-0.03, α=0.3, β=0.7")
     r_default_wss_test = r_wss_test  # already computed above
     print()
 
     # ── Bootstrap confidence intervals ──
     print(f"{'─'*70}")
-    print(f"  Bootstrap 置信区间 (95%)")
+    print("  Bootstrap 置信区间 (95%)")
     print(f"{'─'*70}")
     for label, rets, buy_rets, sell_rets in [
         ("WSO 训练集", wso_train_all, wso_train_b, wso_train_s),
@@ -514,7 +513,7 @@ def main():
 
     # ── Summary comparison ──
     print(f"{'─'*70}")
-    print(f"  OOS 验证汇总")
+    print("  OOS 验证汇总")
     print(f"{'─'*70}")
     print(f"  {'配置':<35} {'多空跨距':>10} {'t':>8} {'衰减率':>10} {'总N':>7} {'买N':>6} {'卖N':>6}")
     print(f"  {'-'*35} {'-'*10} {'-'*8} {'-'*10} {'-'*7} {'-'*6} {'-'*6}")
@@ -537,7 +536,7 @@ def main():
 
     # ── Final verdict ──
     print(f"{'─'*70}")
-    print(f"  OOS 验证结论")
+    print("  OOS 验证结论")
     print(f"{'─'*70}")
 
     verdicts = []

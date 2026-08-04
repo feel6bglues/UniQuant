@@ -8,9 +8,13 @@ Usage:
     python3 scripts/wyckoff_multitf/phase2_event_analysis.py
 """
 
-import sys, time, json, os
+import sys
+import time
+import json
+import os
 from pathlib import Path
 from collections import defaultdict, Counter
+from typing import List, Optional
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
@@ -20,7 +24,7 @@ from scipy import stats
 from concurrent.futures import ProcessPoolExecutor, as_completed
 
 from src.uniquant.brain.wyckoff.events import (
-    detect_all_events, event_sequence_key, WyckoffEvent,
+    detect_all_events, event_sequence_key,
 )
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -50,7 +54,7 @@ def process_stock(symbol: str, observations: List[dict]) -> List[dict]:
         return []
 
     date_arr = daily['date'].values
-    n_daily = len(daily)
+    len(daily)
 
     def window_before(cutoff_ts, lookback=120):
         pos = int(np.searchsorted(date_arr, np.datetime64(cutoff_ts), side='right')) - 1
@@ -148,7 +152,7 @@ def run():
 def analyze(data: List[dict]):
     n = len(data)
     print(f"\n{'=' * 70}")
-    print(f"Phase II: Wyckoff Event Chain Detection")
+    print("Phase II: Wyckoff Event Chain Detection")
     print(f"{'=' * 70}")
     print(f"  Total observations: {n}")
 
@@ -168,18 +172,18 @@ def analyze(data: List[dict]):
         rd = obs.get('rd', 'conflicting')
         resonance_event_returns[rd].append(obs['f6'])
 
-    print(f"\n── Event Frequency ──")
+    print("\n── Event Frequency ──")
     print(f"  {'Event':<8} {'Count':<8} {'% of Obs':<10} {'Avg/Stock':<10}")
     for et in ['PS', 'SC', 'AR', 'ST', 'SOS', 'LPS', 'JAC']:
         c = event_counter.get(et, 0)
         print(f"  {et:<8} {c:<8} {c / n * 100:<10.1f} {c / 500:<10.1f}")
 
-    print(f"\n── Event Count Distribution ──")
+    print("\n── Event Count Distribution ──")
     cnt_dist = Counter(obs['n_events'] for obs in data)
     for k in sorted(cnt_dist.keys()):
         print(f"  {k} events: {cnt_dist[k]:>6} ({cnt_dist[k] / n * 100:.1f}%)")
 
-    print(f"\n── Top 20 Event Sequences (by frequency) ──")
+    print("\n── Top 20 Event Sequences (by frequency) ──")
     top_seqs = seq_counter.most_common(20)
     print(f"  {'Sequence':<30} {'Count':<8} {'Mean%':<8} {'t':<8} {'Sig':<6}")
     for seq, cnt in top_seqs:
@@ -194,7 +198,7 @@ def analyze(data: List[dict]):
     for s in seq_counter:
         if s not in ('NONE', 'LOW_CONF') and seq_counter[s] >= 10:
             fallback[s] = seq_counter[s]
-    print(f"\n── Event Sequences with Spring ──")
+    print("\n── Event Sequences with Spring ──")
     spring_seqs = [(s, c) for s, c in seq_counter.items()
                    if c >= 10 and s not in ('NONE', 'LOW_CONF')
                    and spring_event_returns[s]]
@@ -207,7 +211,7 @@ def analyze(data: List[dict]):
         t_stat, _ = stats.ttest_1samp(rets, 0)
         print(f"  {seq:<30} {len(rets):<10} {np.mean(rets):+>7.2f}% {t_stat:+>7.2f}")
 
-    print(f"\n── Event Returns vs No Events (Spring only) ──")
+    print("\n── Event Returns vs No Events (Spring only) ──")
     spring_with_events = []
     spring_no_events = []
     for obs in data:
@@ -225,7 +229,7 @@ def analyze(data: List[dict]):
         print(f"  Spring alone:    N={len(na)} mean={np.mean(na):+.2f}%")
         print(f"  Diff: {np.mean(wa) - np.mean(na):+.2f}% t={t2:.2f} {'✅' if p2 < 0.05 else '❌'}")
 
-    print(f"\n── Event Returns by Resonance Direction ──")
+    print("\n── Event Returns by Resonance Direction ──")
     for rd in ['bullish', 'bearish', 'conflicting']:
         rets = resonance_event_returns.get(rd, [])
         if not rets:

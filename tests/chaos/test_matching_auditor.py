@@ -20,7 +20,6 @@ from uniquant.shared.cost_model import (
     COMMISSION_PCT,
     MIN_COMMISSION,
     STAMP_TAX_PCT,
-    TRANSFER_FEE_PCT,
 )
 from uniquant.shared.limit_checker import check_limit_status
 

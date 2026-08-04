@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Phase C Execution: BH benchmark, parameter stability, market state decomposition."""
 
-import json, sys
+import json
 from pathlib import Path
 from collections import defaultdict
 import numpy as np
@@ -18,8 +18,8 @@ def log(title, *lines):
     REPORT.append(f"\n{'='*60}")
     REPORT.append(f"  {title}")
     REPORT.append(f"{'='*60}")
-    for l in lines:
-        REPORT.append(f"  {l}")
+    for line in lines:
+        REPORT.append(f"  {line}")
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -71,17 +71,17 @@ def task_c1_bh_benchmark(data: list):
     log(
         "C1: BH Benchmark Comparison (vs SH Index)",
         f"  Observations with BH data: {len(spring_ret) + len(nonspring_ret)}",
-        f"",
+        "",
         f"  Spring (N={len(spring_ret)}):",
         f"    Raw 6m:       {np.mean(spring_ret):+.2f}%",
         f"    Excess vs SH: {np.mean(spring_excess):+.2f}%",
         f"    Excess t-test (vs 0): t={scipy_stats.ttest_1samp(spring_excess, 0)[0]:.2f} p={scipy_stats.ttest_1samp(spring_excess, 0)[1]:.4f}",
-        f"",
+        "",
         f"  No-Spring (N={len(nonspring_ret)}):",
         f"    Raw 6m:       {np.mean(nonspring_ret):+.2f}%",
         f"    Excess vs SH: {np.mean(nonspring_excess):+.2f}%",
-        f"",
-        f"  === KEY INSIGHT ===",
+        "",
+        "  === KEY INSIGHT ===",
         f"  Spring excess vs SH index: {np.mean(spring_excess):+.2f}%",
         f"  {'✅ Spring beats SH index' if np.mean(spring_excess) > 0 else '❌ Spring lags SH index'}",
         f"  Excess source: {'SH index was negative during Spring events' if np.mean(spring_ret) - np.mean(spring_excess) < 0 else ''}",
@@ -142,7 +142,7 @@ def task_c2_param_stability():
         f"  Best by Median: {max(param_data, key=lambda x: x['median'])['key']}",
         f"  Best by Pos%:   {max(param_data, key=lambda x: x['pos_pct'])['key']}",
         "",
-        f"  === STABILITY ASSESSMENT ===",
+        "  === STABILITY ASSESSMENT ===",
     )
 
     sharpe_vals = [p['sharpe'] for p in param_data]
@@ -152,7 +152,7 @@ def task_c2_param_stability():
         f"  Sharpe range: {min(sharpe_vals):.3f} - {max(sharpe_vals):.3f}",
         f"  Sharpe std:   {np.std(sharpe_vals):.3f}",
         f"  Mean range:   {min(mean_vals):+.2f}% - {max(mean_vals):+.2f}%",
-        f"",
+        "",
         f"  {'✅ PARAMS STABLE' if np.std(sharpe_vals) < 0.3 else '⚠️ PARAMS MODERATELY VARIABLE' if np.std(sharpe_vals) < 0.6 else '❌ PARAMS UNSTABLE'}",
     )
     return {'best': best['key'], 'sharpe_std': np.std(sharpe_vals)}
@@ -171,9 +171,12 @@ def task_c4_market_state(data: list):
     monthly_rets = monthly.pct_change().dropna() * 100
 
     def classify(m):
-        if m > 3: return 'bull'
-        elif m < -3: return 'bear'
-        else: return 'sideways'
+        if m > 3:
+            return 'bull'
+        elif m < -3:
+            return 'bear'
+        else:
+            return 'sideways'
 
     # Get the regime for each observation's cutoff month
     def get_regime(cutoff_str):
@@ -242,8 +245,8 @@ def task_c4_market_state(data: list):
         diffs = [results[r]['diff'] for r in regimes_found]
         log(
             "",
-            f"  === REGIME DEPENDENCE === ",
-            f"  Spring advantage by regime:",
+            "  === REGIME DEPENDENCE === ",
+            "  Spring advantage by regime:",
         )
         for r in regimes_found:
             log("", f"    {r}: {results[r]['diff']:+.2f}% ({results[r]['n_spring']} events, t={results[r]['t']:.2f})")
@@ -277,7 +280,7 @@ def main():
 
     # Summary
     print(f"\n{'='*60}")
-    print(f"  PHASE C SUMMARY")
+    print("  PHASE C SUMMARY")
     print(f"{'='*60}")
     print(f"  C1 Spring excess vs SH: {r_c1['spring_excess_vs_sh']:+.2f}% (t={r_c1['spring_excess_t']:.2f}, p={r_c1['spring_excess_p']:.4f})")
     print(f"  C2 Best params: {r_c2['best']}, Sharpe std: {r_c2['sharpe_std']:.3f}")

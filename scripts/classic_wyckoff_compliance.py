@@ -265,7 +265,6 @@ def audit_events(result: AuditResult, symbols: list[str]) -> None:
 
     # ES-C2: Event order matches classic sequence
     # Check that detect_all_events output order is PS→SC→AR→ST→SOS→LPS→JAC
-    order_violations = 0
     order_checks = 0
     for sym in symbols[:5]:
         df = load_stock_data(sym)
@@ -279,10 +278,10 @@ def audit_events(result: AuditResult, symbols: list[str]) -> None:
         # Count events in key
         event_types_in_key = [e for e in ["PS", "SC", "AR", "ST", "SOS", "LPS", "JAC"] if e in key]
         expected_order = ["PS", "SC", "AR", "ST", "SOS", "LPS", "JAC"]
-        filtered = [e for e in expected_order if e in event_types_in_key]
+        [e for e in expected_order if e in event_types_in_key]
         # Check if actual order matches expected
         actual_indices = [key.split(">").index(e) for e in event_types_in_key if e in key.split(">")]
-        expected_indices = [expected_order.index(e) for e in event_types_in_key]
+        [expected_order.index(e) for e in event_types_in_key]
         if actual_indices != sorted(actual_indices):
             # expected order violation
             pass
@@ -436,7 +435,6 @@ def audit_counterfactual(result: AuditResult, symbols: list[str]) -> None:
     WyckoffEngine = _import_engine()
 
     # CF-C1: Phase-adaptive verification window
-    has_time_window = False
     engine = WyckoffEngine()
     for sym in symbols[:3]:
         df = load_stock_data(sym)
@@ -445,7 +443,7 @@ def audit_counterfactual(result: AuditResult, symbols: list[str]) -> None:
         try:
             report = engine.analyze(df, symbol=sym)
             if hasattr(report, "stress_tests") and report.stress_tests:
-                has_time_window = True
+                pass
         except Exception:
             pass
 
@@ -585,12 +583,10 @@ def audit_signal(result: AuditResult, symbols: list[str]) -> None:
                  classification="ERROR" if not sq1_passed else "PASS")
 
     # SQ-C2: Phase confidence source in signal
-    has_confidence_reason = False
     try:
         from uniquant.signal.adapters import WyckoffAdapter
         import inspect
-        src = inspect.getsource(WyckoffAdapter.adapt)
-        has_confidence_reason = "phase" in src and "confidence" in src
+        inspect.getsource(WyckoffAdapter.adapt)
     except Exception:
         pass
 
@@ -655,7 +651,7 @@ def audit_rs(result: AuditResult, symbols: list[str]) -> None:
 
 def audit_mtf(result: AuditResult, symbols: list[str]) -> None:
     """D5 — Multi-timeframe compliance."""
-    MultiTimeframeResonance = _import_phase()
+    _import_phase()
 
     # MT-C2: quantitative evidence
     result.check("MT-C2", "D5-MTF",
@@ -673,7 +669,7 @@ def audit_mtf(result: AuditResult, symbols: list[str]) -> None:
 
 def audit_volume(result: AuditResult, symbols: list[str]) -> None:
     """D3 — Volume signature compliance."""
-    WyckoffEngine = _import_engine()
+    _import_engine()
     detect_all_events, WyckoffEvent = _import_events()
 
     # VS-C1: Configurable thresholds

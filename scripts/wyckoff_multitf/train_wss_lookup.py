@@ -7,7 +7,8 @@ Usage:
     python3 scripts/wyckoff_multitf/train_wss_lookup.py
 """
 
-import sys, json
+import sys
+import json
 from pathlib import Path
 from collections import defaultdict
 

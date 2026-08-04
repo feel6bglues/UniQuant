@@ -13,7 +13,6 @@ Usage:
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional
 
 import numpy as np
 import pandas as pd
@@ -82,8 +81,8 @@ class AShareConstraints:
             return False, "suspended"
 
         limit_pct = _get_limit_pct(symbol)
-        limit_up = row['close'] >= row['close'] * (1 + limit_pct * 0.97) if row['close'] > 0 else False
-        limit_down = row['close'] <= row['close'] * (1 - limit_pct * 0.97) if row['close'] > 0 else False
+        row['close'] >= row['close'] * (1 + limit_pct * 0.97) if row['close'] > 0 else False
+        row['close'] <= row['close'] * (1 - limit_pct * 0.97) if row['close'] > 0 else False
 
         # Simplified limit check using last close
         prev_rows = daily[daily['date'] < pd.Timestamp(date)]

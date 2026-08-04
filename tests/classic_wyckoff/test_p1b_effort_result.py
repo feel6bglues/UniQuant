@@ -7,7 +7,6 @@
 
 import numpy as np
 import pandas as pd
-import pytest
 
 from uniquant.brain.wyckoff.effort_result import detect_effort_result_divergence
 from uniquant.brain.wyckoff.models import Step2Result
@@ -102,7 +101,6 @@ def test_step2_result_vdb_divergence_field():
 
 def test_engine_step2_contains_vdb_divergence():
     """engine._step2_effort_result 返回的 Step2Result 含 vdb_divergence。"""
-    from unittest.mock import patch
     from uniquant.brain.wyckoff.engine import WyckoffEngine
 
     n = 30

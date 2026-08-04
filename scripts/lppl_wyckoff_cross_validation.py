@@ -15,12 +15,10 @@ from __future__ import annotations
 import argparse
 import json
 import math
-import os
 import sys
 import time
-import traceback
 from collections import defaultdict
-from dataclasses import dataclass, field, asdict
+from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
@@ -250,7 +248,7 @@ def run_lppl_diagnostics(
             t0 = time.perf_counter()
             try:
                 lbfgsb_result = fit_single_window_lbfgsb(close, windows[-1], config)
-            except Exception as e:
+            except Exception:
                 lbfgsb_result = None
             elapsed_lbfgsb = (time.perf_counter() - t0) * 1000
             diag.lbfgsb_total += 1
@@ -273,7 +271,7 @@ def run_lppl_diagnostics(
                     de_result = de_fit(close, windows[-1], config_de)
                 except Exception:
                     de_result = None
-                elapsed_de = (time.perf_counter() - t0) * 1000
+                (time.perf_counter() - t0) * 1000
                 diag.de_total += 1
                 if de_result is not None:
                     diag.de_success += 1
@@ -496,9 +494,6 @@ def run_wyckoff_diagnostics(
 ) -> WyckoffDiagnostics:
     """Run Wyckoff diagnostic tests across all stocks"""
     from uniquant.brain.wyckoff.engine import WyckoffEngine
-    from uniquant.brain.wyckoff.models import (
-        WyckoffPhase, ConfidenceLevel
-    )
 
     diag = WyckoffDiagnostics()
     total = min(len(samples), max_stocks)
@@ -524,7 +519,6 @@ def run_wyckoff_diagnostics(
         signal = result.signal
         plan = result.trading_plan
         rr_rr = result.risk_reward.reward_risk_ratio if result.risk_reward else 0
-        t1_desc = signal.t1_risk评估 if signal else ""
 
         conf_level = signal.confidence.value if signal and signal.confidence else "D"
         direction = plan.direction if plan else "空仓观望"
@@ -691,7 +685,6 @@ def run_cross_diagnostics(
 ) -> CrossDiagnostics:
     """Cross-engine validation"""
     from uniquant.brain.lppl.engine import LPPLEngine
-    from uniquant.brain.wyckoff.engine import WyckoffEngine
 
     xdiag = CrossDiagnostics()
     total = min(len(samples), max_stocks)
@@ -992,7 +985,7 @@ def generate_report(
     lines.append(f"\n运行时间: {datetime.now().isoformat()}")
     lines.append(f"样本数: {n_stocks} 只股票")
     lines.append(f"耗时: {elapsed:.1f} 秒")
-    lines.append(f"\n## 总体结论")
+    lines.append("\n## 总体结论")
     lines.append("")
 
     verdict_map = {"CONFIRMED": "✅ 确认", "NOT_CONFIRMED": "❌ 未确认", "NEEDS_INVESTIGATION": "⚠️ 待深入"}
@@ -1023,7 +1016,7 @@ def generate_report(
     lines.append(f"\n确认率: {confirmed}/{total}")
 
     # ─── LPPL 细节 ───
-    lines.append(f"\n---\n## LPPL 引擎诊断")
+    lines.append("\n---\n## LPPL 引擎诊断")
     for hid, rep in all_reports[:6]:
         lines.append(f"\n### {hid}: {rep.get('hypothesis', '')}")
         for k, v in rep.items():
@@ -1032,7 +1025,7 @@ def generate_report(
         lines.append(f"- **判定**: {verdict_map.get(rep.get('verdict', ''), rep.get('verdict', ''))}")
 
     # ─── Wyckoff 细节 ───
-    lines.append(f"\n---\n## Wyckoff 引擎诊断")
+    lines.append("\n---\n## Wyckoff 引擎诊断")
     for hid, rep in all_reports[6:10]:
         lines.append(f"\n### {hid}: {rep.get('hypothesis', '')}")
         for k, v in rep.items():
@@ -1051,7 +1044,7 @@ def generate_report(
             lines.append(f"| {rec['symbol']} | {rec['board']} | {rec['new_verdict']} | {rec['old_verdict']} | {rec['t1_pct']}% |")
 
     # ─── Cross 细节 ───
-    lines.append(f"\n---\n## 交叉验证")
+    lines.append("\n---\n## 交叉验证")
     for hid, rep in all_reports[10:]:
         lines.append(f"\n### {hid}: {rep.get('hypothesis', '')}")
         for k, v in rep.items():
@@ -1060,12 +1053,12 @@ def generate_report(
         lines.append(f"- **判定**: {verdict_map.get(rep.get('verdict', ''), rep.get('verdict', ''))}")
 
     # ─── 参数分布图表 ───
-    lines.append(f"\n---\n## LPPL 参数分布")
-    lines.append(f"\n### m 参数五分位")
+    lines.append("\n---\n## LPPL 参数分布")
+    lines.append("\n### m 参数五分位")
     md = lppl_report["m_distribution"]
     for k, v in md.items():
         lines.append(f"- {k}: {v}")
-    lines.append(f"\n### w 参数五分位")
+    lines.append("\n### w 参数五分位")
     wd = lppl_report["w_distribution"]
     for k, v in wd.items():
         lines.append(f"- {k}: {v}")

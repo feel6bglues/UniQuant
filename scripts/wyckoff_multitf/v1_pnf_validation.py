@@ -12,20 +12,18 @@
   6. 正交性检验: P&F 信号 vs WSO 信号的交叉分析
 """
 
-import math
 import sys
 import json
 import random
 import time
 from pathlib import Path
-from collections import defaultdict
 
 import numpy as np
 import pandas as pd
 from scipy.stats import pearsonr, ttest_ind
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
-from src.uniquant.brain.wyckoff.pnf import PointAndFigure, PnFBox
+from src.uniquant.brain.wyckoff.pnf import PointAndFigure
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DATA_LAKE = PROJECT_ROOT / "data" / "lake" / "quotes" / "daily"

@@ -15,7 +15,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from scripts.wyckoff_verification.config import VerifierConfig
-from scripts.wyckoff_verification.a_universe import build_universe, stratified_sample, scan_all_stocks
+from scripts.wyckoff_verification.a_universe import build_universe
 from scripts.wyckoff_verification.b_pattern_tests import run_pattern_tests
 from scripts.wyckoff_verification.c_factor_model import run_factor_decomposition
 from scripts.wyckoff_verification.d_strategy import run_strategy
@@ -33,7 +33,7 @@ def main():
     config.output_dir.mkdir(parents=True, exist_ok=True)
 
     t0 = time.time()
-    print(f"Wyckoff Verification Framework")
+    print("Wyckoff Verification Framework")
     print(f"{'='*80}")
     print(f"Runner started at {time.strftime('%Y-%m-%d %H:%M:%S')}")
     print(f"N_jobs={config.n_jobs}, quick={args.quick}")
@@ -143,7 +143,7 @@ def main():
           f"sharpe={strat['mean_sharpe']:+.3f}, "
           f"profitable={strat['profitable_stocks_pct']:.1f}%")
 
-    print(f"\nRegime Decomposition:")
+    print("\nRegime Decomposition:")
     for regime, data in results.get("regime_analysis", {}).items():
         print(f"  {regime}: {data['mean_return_pct']:+.2f}% avg PnL ({data['n_stocks']} stocks)")
 

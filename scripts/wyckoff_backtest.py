@@ -10,14 +10,12 @@ from __future__ import annotations
 import argparse
 import csv
 import json
-import math
 import sys
 import time
-import traceback
-from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, as_completed
-from dataclasses import dataclass, field
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Dict, List, Optional
 
 import numpy as np
 import pandas as pd
@@ -145,7 +143,7 @@ def compute_wyckoff_snapshots(
                 rr_ratio=rr_ratio,
                 price=price,
             ))
-        except Exception as e:
+        except Exception:
             pass
 
     return snapshots
@@ -561,16 +559,13 @@ def aggregate(results: List[StockJobResult], variants: List[str]) -> Dict[str, V
 def compute_signal_statistics(results: List[StockJobResult]) -> Dict:
     """全样本信号统计: phase分布, direction分布, conf分布, spring频率"""
     from collections import Counter
-    phase_counter: Counter = Counter()
-    direction_counter: Counter = Counter()
-    conf_counter: Counter = Counter()
-    spring_count = 0
-    total_snapshots = 0
-    phase_transitions: Dict[str, int] = Counter()
+    Counter()
+    Counter()
+    Counter()
+    Counter()
 
     # 分析 Snapshot 级统计数据 — 需要重新跑快照
     # 用缓存的快照结果: 为每只股票重新跑 compute_wyckoff_snapshots
-    samples = []
     # From the results, we lost the original snapshots. Need to regenerate
     # This is computed separately below.
 
@@ -586,7 +581,6 @@ def build_snapshot_database(samples: List[StockSample], window_step=40, min_wind
     spring_count = 0
     total = 0
     all_phases: List[str] = []
-    prev_phase = ""
 
     for sample in samples:
         snapshots = compute_wyckoff_snapshots(sample.symbol, sample.df, window_step, min_window)

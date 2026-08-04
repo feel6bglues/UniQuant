@@ -17,7 +17,6 @@ import sys
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
-from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -142,7 +141,6 @@ def build_phase_transition_matrix(
         }
 
     correct_forward = 0
-    correct_backward = 0
     total_transitions = 0
     for sym, info in transitions.items():
         seq = info["phases"]
@@ -273,10 +271,10 @@ def main() -> None:
     print("构建阶段转换矩阵...")
     transition_data = build_phase_transition_matrix(period_results)
 
-    print(f"构建理论评估...")
+    print("构建理论评估...")
     theory_eval = evaluate_wyckoff_theory(period_phase_stats)
 
-    print(f"保存结果...")
+    print("保存结果...")
     output = {
         "as_of_dates": AS_OF_DATES,
         "symbols_count": len(symbols),
@@ -336,7 +334,7 @@ def main() -> None:
     print(f"\n总体理论一致性: {te['overall_score']}% ({te['overall_passed']}/{te['overall_total']})")
 
     ta = output["phase_transition_analysis"]
-    print(f"\n阶段转换统计:")
+    print("\n阶段转换统计:")
     print(f"  总股票: {ta['symbol_count']}")
     print(f"  总转换次数: {ta['total_transitions']}")
     print(f"  正确转换次数: {ta['correct_transitions']}")

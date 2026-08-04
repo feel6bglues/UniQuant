@@ -1,6 +1,5 @@
-from unittest.mock import MagicMock, PropertyMock
+from unittest.mock import MagicMock
 import pandas as pd
-import pytest
 
 
 class TestDataFetcherGetPriceUsesOwnSourceRouter:

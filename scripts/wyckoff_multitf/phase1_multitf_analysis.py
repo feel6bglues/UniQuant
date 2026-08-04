@@ -10,10 +10,13 @@ Usage:
     python3 scripts/wyckoff_multitf/phase1_multitf_analysis.py
 """
 
-import sys, time, json, gc, os
+import sys
+import time
+import json
+import os
 from pathlib import Path
 from collections import defaultdict
-from typing import List, Dict, Optional
+from typing import List, Optional
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
@@ -127,7 +130,7 @@ def process_stock(symbol: str, observations: List[dict]) -> List[dict]:
 
 
 def run():
-    log(f"Loading v4_results.json ...")
+    log("Loading v4_results.json ...")
     with open(OUTPUT_DIR / 'v4_results.json') as f:
         v4 = json.load(f)
 
@@ -178,14 +181,14 @@ def run():
 
 def analyze(data: List[dict]):
     log(f"\n{'=' * 70}")
-    log(f"Phase I: Three-Timeframe Phase Distribution & Resonance")
+    log("Phase I: Three-Timeframe Phase Distribution & Resonance")
     log(f"{'=' * 70}")
 
     n = len(data)
     log(f"  Total observations: {n}")
 
     # ── Phase distribution ──
-    log(f"\n── Phase Distribution ──")
+    log("\n── Phase Distribution ──")
     for label, key in [('Monthly', 'p'), ('Weekly', 'wp'), ('Daily', 'dp')]:
         counts = defaultdict(int)
         for o in data:
@@ -196,7 +199,7 @@ def analyze(data: List[dict]):
             log(f"    {p:<16} {c:>6} ({c / n * 100:>5.1f}%)")
 
     # ── Cross-table: Monthly vs Weekly ──
-    log(f"\n── Monthly × Weekly Resonance (count) ──")
+    log("\n── Monthly × Weekly Resonance (count) ──")
     ct = defaultdict(lambda: defaultdict(int))
     for o in data:
         ct[o['p']][o['wp']] += 1
@@ -216,10 +219,10 @@ def analyze(data: List[dict]):
         res_counts[o['rd']] += 1
         if o['ds']:
             spring_res[o['rd']] += 1
-    log(f"\n── Resonance (multi-timeframe agreement) ──")
+    log("\n── Resonance (multi-timeframe agreement) ──")
     for rd in ['bullish', 'bearish', 'conflicting']:
         log(f"  {rd:<14}: {res_counts.get(rd, 0):>6} ({res_counts.get(rd, 0) / n * 100:>5.1f}%)")
-    log(f"\n── Spring in Resonance ──")
+    log("\n── Spring in Resonance ──")
     total_springs = sum(1 for o in data if o['ds'])
     if total_springs > 0:
         for rd in ['bullish', 'bearish', 'conflicting']:
@@ -227,7 +230,7 @@ def analyze(data: List[dict]):
                 f"({spring_res.get(rd, 0) / total_springs * 100:>5.1f}%)")
 
     # ── Forward returns by resonance direction ──
-    log(f"\n── Forward 6m Returns by Resonance ──")
+    log("\n── Forward 6m Returns by Resonance ──")
     for rd in ['bullish', 'bearish', 'conflicting']:
         rets = [o['f6'] for o in data if o['rd'] == rd]
         if not rets:
@@ -237,7 +240,7 @@ def analyze(data: List[dict]):
             f"median={np.median(arr):+>7.2f}% pos={(arr > 0).mean() * 100:>5.1f}%")
 
     # ── Spring + Resonance ──
-    log(f"\n── Spring Forward 6m Returns by Resonance ──")
+    log("\n── Spring Forward 6m Returns by Resonance ──")
     for rd in ['bullish', 'bearish', 'conflicting']:
         rets = [o['f6'] for o in data if o['ds'] and o['rd'] == rd]
         if not rets:
@@ -247,7 +250,7 @@ def analyze(data: List[dict]):
             f"median={np.median(arr):+>7.2f}% pos={(arr > 0).mean() * 100:>5.1f}%")
 
     # ── Weekly phase forward returns ──
-    log(f"\n── Weekly Phase Forward 6m Returns ──")
+    log("\n── Weekly Phase Forward 6m Returns ──")
     for p in phases_list:
         rets = [o['f6'] for o in data if o['wp'] == p]
         if not rets:
@@ -257,7 +260,7 @@ def analyze(data: List[dict]):
             f"t={stats.ttest_1samp(arr, 0)[0]:>+.2f} {'✅' if stats.ttest_1samp(arr, 0)[1] < 0.05 else '❌'}")
 
     # ── Daily phase forward returns ──
-    log(f"\n── Daily Phase Forward 6m Returns ──")
+    log("\n── Daily Phase Forward 6m Returns ──")
     for p in phases_list:
         rets = [o['f6'] for o in data if o['dp'] == p]
         if not rets:
@@ -268,7 +271,7 @@ def analyze(data: List[dict]):
 
     # ── Strong resonance (3/3) ──
     strong3 = [o for o in data if o['rc'] == 3]
-    log(f"\n── Strong Resonance (3/3 timeframes agree) ──")
+    log("\n── Strong Resonance (3/3 timeframes agree) ──")
     log(f"  Count: {len(strong3)} ({len(strong3) / n * 100:.1f}%)")
     if strong3:
         s3_rets = np.array([o['f6'] for o in strong3])
@@ -277,7 +280,7 @@ def analyze(data: List[dict]):
 
     # ── 2/3 resonance ──
     strong2 = [o for o in data if o['rc'] == 2]
-    log(f"\n── Moderate Resonance (2/3 timeframes agree) ──")
+    log("\n── Moderate Resonance (2/3 timeframes agree) ──")
     log(f"  Count: {len(strong2)} ({len(strong2) / n * 100:.1f}%)")
     if strong2:
         s2_rets = np.array([o['f6'] for o in strong2])
@@ -286,7 +289,7 @@ def analyze(data: List[dict]):
     # ── Accumulation confirmation ──
     acc_conf = [o for o in data
                 if MultiTimeframeResonance.is_accum_confirmed(o['p'], o['wp'], o['dp'])]
-    log(f"\n── Accumulation Confirmed (2+/3 accumulation) ──")
+    log("\n── Accumulation Confirmed (2+/3 accumulation) ──")
     log(f"  Count: {len(acc_conf)} ({len(acc_conf) / n * 100:.1f}%)")
     if acc_conf:
         acc_rets = np.array([o['f6'] for o in acc_conf])
@@ -296,7 +299,7 @@ def analyze(data: List[dict]):
     # ── Spring + Accum confirmation ──
     spring_acc = [o for o in data if o['ds'] and
                   MultiTimeframeResonance.is_accum_confirmed(o['p'], o['wp'], o['dp'])]
-    log(f"\n── Spring + Accum Confirmed ──")
+    log("\n── Spring + Accum Confirmed ──")
     log(f"  Count: {len(spring_acc)}")
     if spring_acc:
         sa_rets = np.array([o['f6'] for o in spring_acc])
@@ -311,7 +314,7 @@ def analyze(data: List[dict]):
             log(f"  Diff: {np.mean(sa_rets) - np.mean(so_arr):+.2f}% t={t2:.2f} {'✅' if p2<0.05 else '❌'}")
 
     # ── Phase transition detection (for sequences) ──
-    log(f"\n── Phase Transition Stability ──")
+    log("\n── Phase Transition Stability ──")
     transitions = defaultdict(int)
     sorted_data = sorted(data, key=lambda x: (x['s'], x['c']))
     prev_phases = {}
@@ -330,7 +333,7 @@ def analyze(data: List[dict]):
                 transitions['daily'] += 1
         prev_phases[key] = cur
     tot = len(sorted_data)
-    log(f"  Phase changes / total obs:")
+    log("  Phase changes / total obs:")
     for k in ['any', 'monthly', 'weekly', 'daily']:
         log(f"    {k:<10}: {transitions[k]} ({transitions[k] / tot * 100:.1f}%)")
 

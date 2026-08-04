@@ -42,13 +42,13 @@ output_dir = f"./{ResultsConstants.HANDS_DIR_NAME}/{ResultsConstants.REPORTS_DIR
 result = pipeline.run(output_dir=output_dir, symbols=main_board)
 
 if result["status"] == "success":
-    print(f"\n扫描完成!")
+    print("\n扫描完成!")
     print(f"耗时: {result['duration_seconds']:.2f} 秒")
     print(f"扫描股票数: {result['stocks_scanned']}")
     print(f"处理记录数: {result['records_processed']}")
-    print(f"\n生成的报告文件:")
+    print("\n生成的报告文件:")
     for name, path in result["report_files"].items():
         print(f"  - {name}: {path}")
 else:
-    print(f"\n扫描失败!")
+    print("\n扫描失败!")
     print(f"错误: {result.get('error', '未知错误')}")

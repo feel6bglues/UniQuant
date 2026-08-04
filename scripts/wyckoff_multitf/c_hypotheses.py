@@ -1,23 +1,21 @@
 """Hypothesis tests H1-H7 with proper cutoff-based forward return computation."""
 
-import sys, json
+import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 import pandas as pd
 import numpy as np
 from scipy import stats
-from concurrent.futures import ProcessPoolExecutor, as_completed
 from dataclasses import dataclass
-from typing import List, Dict, Tuple, Optional
+from typing import List, Dict, Optional
 from collections import defaultdict
 
 from .config import VerifierConfig
 from .data_synthesis import load_and_synthesize
 from .a_universe import StockRecord
 from .b_multitf import (
-    MultiTfResult, TfAnalysis, analyze_stock_multitf, analyze_batch,
-    TIME_LABELS
+    analyze_batch
 )
 
 

@@ -7,19 +7,16 @@
 """
 
 import os
-import json
-import tempfile
 from unittest.mock import patch, MagicMock
 from typing import Dict, Any
 
 import pytest
 
 from scripts.wyckoff_fixtures import (
-    synthetic_accumulation,
     synthetic_accumulation_event_sequence,
 )
 from uniquant.brain.wyckoff.engine import WyckoffEngine, _compute_structural_score
-from uniquant.brain.wyckoff.models import WyckoffPhase, WyckoffReport
+from uniquant.brain.wyckoff.models import WyckoffPhase
 
 
 def _mock_config(wss_enabled: bool = False, wss_path: str = "") -> MagicMock:
@@ -164,7 +161,7 @@ def test_real_wss_lookup_file():
 
 def test_compute_structural_score_accepts_scorer():
     """_compute_structural_score 接受 scorer 参数不崩溃。"""
-    from uniquant.brain.wyckoff.sequence import WyckoffScorer, WSSScorer
+    from uniquant.brain.wyckoff.sequence import WyckoffScorer
     scorer = WyckoffScorer(wss_lookup={"SC>AR": 0.5})
     step3 = MagicMock(spring_detected=False, utad_detected=False)
     score = _compute_structural_score(

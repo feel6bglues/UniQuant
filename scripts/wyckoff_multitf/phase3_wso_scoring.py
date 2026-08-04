@@ -8,9 +8,10 @@ Usage:
     python3 scripts/wyckoff_multitf/phase3_wso_scoring.py
 """
 
-import sys, time, json
+import sys
+import json
 from pathlib import Path
-from collections import defaultdict, Counter
+from collections import Counter
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
@@ -58,14 +59,14 @@ def analyze(data):
 
     # Signal distribution
     sig_counts = Counter(obs['wso_sig'] for obs in data)
-    print(f"\n── Signal Distribution ──")
+    print("\n── Signal Distribution ──")
     print(f"  {'Signal':<8} {'Count':<8} {'%':<8}")
     for sig in ['buy', 'hold', 'sell']:
         c = sig_counts.get(sig, 0)
         print(f"  {sig:<8} {c:<8} {c / n * 100:<.1f}%")
 
     # Forward returns by signal
-    print(f"\n── Forward Returns by Signal ──")
+    print("\n── Forward Returns by Signal ──")
     print(f"  {'Signal':<8} {'N':<8} {'f1_mean':<10} {'f3_mean':<10} {'f6_mean':<10} {'f6_t':<8} {'f6_sig':<6}")
     for sig in ['buy', 'hold', 'sell']:
         group = [o for o in data if o.get('wso_sig') == sig]
@@ -81,19 +82,19 @@ def analyze(data):
     # Buy vs Sell spread
     buy_rets = np.array([o['f6'] for o in data if o.get('wso_sig') == 'buy'])
     sell_rets = np.array([o['f6'] for o in data if o.get('wso_sig') == 'sell'])
-    hold_rets = np.array([o['f6'] for o in data if o.get('wso_sig') == 'hold'])
+    np.array([o['f6'] for o in data if o.get('wso_sig') == 'hold'])
     if len(buy_rets) > 5 and len(sell_rets) > 5:
         t2, p2 = stats.ttest_ind(buy_rets, sell_rets)
-        print(f"\n── Buy vs Sell Spread (f6) ──")
+        print("\n── Buy vs Sell Spread (f6) ──")
         print(f"  Buy mean:  {np.mean(buy_rets):+.2f}%  (N={len(buy_rets)})")
         print(f"  Sell mean: {np.mean(sell_rets):+.2f}%  (N={len(sell_rets)})")
         print(f"  Spread:    {np.mean(buy_rets) - np.mean(sell_rets):+.2f}%  t={t2:.2f}  {'✅' if p2 < 0.05 else '❌'}")
 
     # WSO score deciles → f6
-    print(f"\n── WSO Score Deciles → f6 Return ──")
+    print("\n── WSO Score Deciles → f6 Return ──")
     scores = np.array([o['wso'] for o in data])
     f6s = np.array([o.get('f6', 0) for o in data])
-    deciles = np.percentile(scores, [10, 20, 30, 40, 50, 60, 70, 80, 90])
+    np.percentile(scores, [10, 20, 30, 40, 50, 60, 70, 80, 90])
     print(f"  {'Decile':<8} {'Score':<10} {'N':<8} {'f6_mean':<10} {'f6_t':<8} {'Sig':<6}")
     for pct in range(0, 100, 10):
         lo = np.percentile(scores, max(0, pct - 10)) if pct > 0 else -np.inf
@@ -107,7 +108,7 @@ def analyze(data):
         print(f"  {pct+1}-{pct+10:<5} {np.mean(scores[mask]):+>7.4f} {len(grp):<8} {np.mean(grp):+>7.2f}% {t_s:+>7.2f} {sig_m}")
 
     # WSO vs Spring comparison
-    print(f"\n── WSO vs Spring (f6) ──")
+    print("\n── WSO vs Spring (f6) ──")
     spring_data = [o for o in data if o.get('ds', False)]
     spring_buy = [o for o in spring_data if o.get('wso_sig') == 'buy']
     spring_sell = [o for o in spring_data if o.get('wso_sig') == 'sell']
@@ -124,7 +125,7 @@ def analyze(data):
     score_arr = np.array([o['wso'] for o in data])
     f6_arr = np.array([o.get('f6', 0) for o in data])
     r, p_val = stats.pearsonr(score_arr, f6_arr)
-    print(f"\n── WSO-f6 Correlation ──")
+    print("\n── WSO-f6 Correlation ──")
     print(f"  Pearson r: {r:.4f}  p={p_val:.6f}  {'✅' if p_val < 0.05 else '❌'}")
 
     # Save report

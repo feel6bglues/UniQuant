@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import pytest
 from uuid import UUID
 
 from uniquant.shared.event_types import (

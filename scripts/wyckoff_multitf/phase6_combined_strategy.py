@@ -8,7 +8,8 @@ Usage:
     python3 scripts/wyckoff_multitf/phase6_combined_strategy.py
 """
 
-import sys, json
+import sys
+import json
 from pathlib import Path
 from collections import Counter
 
@@ -72,21 +73,21 @@ def run():
 
 
 def analyze(data):
-    n = len(data)
+    len(data)
 
     print(f"\n{'=' * 70}")
     print("Phase VI: Combined WSO+WSS Strategy  vs  Phase V: WSO‑only")
     print(f"{'=' * 70}")
 
     # Phase V baseline: WSO ≥ 0.04
-    v5_buy = [o for o in data if o.get('wso_score', 0) >= 0.04]
-    v5_sell = [o for o in data if o.get('wso_score', 0) <= -0.03]
+    [o for o in data if o.get('wso_score', 0) >= 0.04]
+    [o for o in data if o.get('wso_score', 0) <= -0.03]
 
     # Phase VI: combined score
     vi_sig_counts = Counter(o.get('wyckoff_sig', 'hold') for o in data)
     vi_res_counts = Counter(o.get('wyckoff_res_sig', 'hold') for o in data)
 
-    print(f"\n── Signal Distribution ──")
+    print("\n── Signal Distribution ──")
     print(f"  {'Signal':<8} {'WSO':<10} {'WSO+WSS':<10} {'+Resonance':<12}")
     for sig in ['buy', 'hold', 'sell']:
         v5_c = Counter(o.get('wso_sig', 'hold') for o in data).get(sig, 0)
@@ -94,7 +95,7 @@ def analyze(data):
         vr_c = vi_res_counts.get(sig, 0)
         print(f"  {sig:<8} {v5_c:<10} {vi_c:<10} {vr_c:<12}")
 
-    print(f"\n── Forward Returns (f6) by Signal ──")
+    print("\n── Forward Returns (f6) by Signal ──")
     print(f"  {'Signal':<10} {'WSO‑only':<16} {'WSO+WSS':<16} {'+Resonance':<16}")
     for sig in ['buy', 'sell']:
         v5_g = [o for o in data if o.get('wso_sig') == sig]
@@ -117,7 +118,7 @@ def analyze(data):
             return np.mean(buys) - np.mean(sells), stats.ttest_ind(buys, sells).statistic
         return 0, 0
 
-    print(f"\n── Buy–Sell Spread ──")
+    print("\n── Buy–Sell Spread ──")
     for label, sig_field in [('WSO‑only', 'wso_sig'), ('WSO+WSS', 'wyckoff_sig'),
                               ('+Resonance', 'wyckoff_res_sig')]:
         sp, t_s = spread(data, sig_field)
@@ -129,7 +130,7 @@ def analyze(data):
     f6 = np.array([o.get('f6', 0) for o in data])
     r_wso, _ = stats.pearsonr(scores_wso, f6)
     r_wss, _ = stats.pearsonr(scores_wss, f6)
-    print(f"\n── f6 Correlation ──")
+    print("\n── f6 Correlation ──")
     print(f"  WSO‑only:  r={r_wso:.4f}")
     print(f"  WSO+WSS:   r={r_wss:.4f}")
     print(f"  Gain:      {r_wss - r_wso:+.4f}")

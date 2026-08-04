@@ -4,7 +4,6 @@
 import os
 import sys
 import pandas as pd
-import numpy as np
 from pathlib import Path
 from concurrent.futures import ProcessPoolExecutor
 from tqdm import tqdm
@@ -143,7 +142,7 @@ def run_full_comparison():
     
     # 误差分布
     valid_errors = df_results[df_results['error_pct'].notna()]['error_pct']
-    print(f"\n误差分布:")
+    print("\n误差分布:")
     print(f"  ≤0.1%: {(valid_errors <= 0.1).sum()}")
     print(f"  0.1%-0.5%: {((valid_errors > 0.1) & (valid_errors <= 0.5)).sum()}")
     print(f"  0.5%-1%: {((valid_errors > 0.5) & (valid_errors <= 1)).sum()}")
@@ -152,7 +151,7 @@ def run_full_comparison():
     print(f"  >10%: {(valid_errors > 10).sum()}")
     
     # 状态分布
-    print(f"\n状态分布:")
+    print("\n状态分布:")
     print(df_results['status'].value_counts().to_string())
     
     # 保存结果

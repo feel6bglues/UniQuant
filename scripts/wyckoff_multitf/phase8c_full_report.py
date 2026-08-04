@@ -5,10 +5,12 @@ Aggregates all findings from Phases I through VIIIb
 
 from __future__ import annotations
 
-import json, math, sys
+import json
+import math
+import sys
 from collections import Counter, defaultdict
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Dict, List
 
 import numpy as np
 
@@ -111,16 +113,16 @@ def main():
     dash = "\u2500" * 80
 
     print(f"\n{sep}")
-    print(f"  WYCKOFF RESEARCH — COMPLETE ANALYSIS REPORT")
-    print(f"  500 A-shares x 22,148 observations x 8 Phases")
-    print(f"  Generated: 2026-06-26")
+    print("  WYCKOFF RESEARCH — COMPLETE ANALYSIS REPORT")
+    print("  500 A-shares x 22,148 observations x 8 Phases")
+    print("  Generated: 2026-06-26")
     print(f"{sep}")
 
     # 1. DATA
     print(f"\n{dash}")
-    print(f"  1. DATA OVERVIEW")
+    print("  1. DATA OVERVIEW")
     print(f"{dash}")
-    print(f"  Stocks:             500")
+    print("  Stocks:             500")
     print(f"  Total observations: {len(rows):,}")
     print(f"  Train (2020-2022):  {len(train):,}  f6 mean {m6_tr.mean():>+6.2f}%  (BULL)")
     print(f"  Test  (2023-2024):  {len(test):,}   f6 mean {m6_te.mean():>+6.2f}%  (BEAR)")
@@ -130,12 +132,12 @@ def main():
 
     # 2. EVENTS
     print(f"\n{dash}")
-    print(f"  2. EVENT DETECTION")
+    print("  2. EVENT DETECTION")
     print(f"{dash}")
     print(f"  Observations with events: {has_evt:,} / {len(rows):,} ({has_evt/len(rows)*100:.1f}%)")
     for ev, n in evt_cnt.most_common():
         print(f"  {ev:>8}: {n:>5,} ({n/len(rows)*100:>5.1f}%)")
-    print(f"\n  Event f6 contributions (winsorized):")
+    print("\n  Event f6 contributions (winsorized):")
     for ev in ["PS", "SC", "AR", "ST", "Spring", "SOS", "LPS", "JAC"]:
         vals = evt_ret.get(ev, [])
         if not vals:
@@ -149,12 +151,12 @@ def main():
 
     # 3. PHASE RESULTS
     print(f"\n{dash}")
-    print(f"  3. PHASE-BY-PHASE RESULTS")
+    print("  3. PHASE-BY-PHASE RESULTS")
     print(f"{dash}")
 
-    wso_te = calc_signal_stats(test)
+    calc_signal_stats(test)
 
-    print(f"\n  WSO Cross-Regime Performance:")
+    print("\n  WSO Cross-Regime Performance:")
     for fold_name, fold_rows in [("Train (bull)", train), ("Test (bear)", test)]:
         s = calc_signal_stats(fold_rows)
         print(f"  {fold_name:>15}: N={s['n']:>5,}  B={s['buy_n']:>5,}/{s['sell_n']:>5,}  "
@@ -164,11 +166,11 @@ def main():
 
     # 4. KEY FINDINGS
     print(f"\n{dash}")
-    print(f"  4. KEY FINDINGS")
+    print("  4. KEY FINDINGS")
     print(f"{dash}")
 
     # Market baseline analysis
-    mkt_alpha_buy_tr = m6_tr.mean()  # buy alpha = stock f6 (buy) - market
+    m6_tr.mean()  # buy alpha = stock f6 (buy) - market
     buy_tr_ret = np.array([r["f6"] for r in train if wso_sig_and_score(r)[0] == "buy" and math.isfinite(r["f6"])])
     sell_tr_ret = np.array([-r["f6"] for r in train if wso_sig_and_score(r)[0] == "sell" and math.isfinite(r["f6"])])
     buy_te_ret = np.array([r["f6"] for r in test if wso_sig_and_score(r)[0] == "buy" and math.isfinite(r["f6"])])
@@ -192,25 +194,25 @@ def main():
     # Sell-only full sample
     sell_all = np.concatenate([sell_tr_ret, sell_te_ret]) if len(sell_tr_ret) and len(sell_te_ret) else sell_tr_ret
     sa = robust(sell_all)
-    ba = robust(buy_tr_ret) if len(buy_tr_ret) >= 3 else {}
+    robust(buy_tr_ret) if len(buy_tr_ret) >= 3 else {}
 
     print(f"\n  {dash}")
-    print(f"  5. STRATEGY RECOMMENDATIONS")
+    print("  5. STRATEGY RECOMMENDATIONS")
     print(f"{dash}")
 
     recs = [
         ("Sell-only (hedge/short)", f"Mean {sa['mean']:+.2f}%, WR {sa['wr']:.0%}, "
          f"t={sa['t']:+.2f}, N={sa['n']:,}"),
-        ("Buy + bearish resonance", f"Mean +2.83%, N=4,755, best systematic buy"),
-        ("Sell + bullish resonance", f"Mean -8.48%, N=779, strongest sell signal"),
-        ("Top-25% WSO buy (bear)", f"Mean +29.42%, t=36.75, high confidence only"),
+        ("Buy + bearish resonance", "Mean +2.83%, N=4,755, best systematic buy"),
+        ("Sell + bullish resonance", "Mean -8.48%, N=779, strongest sell signal"),
+        ("Top-25% WSO buy (bear)", "Mean +29.42%, t=36.75, high confidence only"),
         ("Full strategy (regime-aware)", "Buy in bull + sell always: robust across regimes"),
     ]
     for name, desc in recs:
         print(f"  {name:<35} {desc}")
 
     print(f"\n  {dash}")
-    print(f"  6. FILES")
+    print("  6. FILES")
     print(f"{dash}")
     files = [
         "scripts/wyckoff_multitf/phase8_oos_verification.py",
@@ -221,9 +223,9 @@ def main():
         print(f"  {f}")
 
     print(f"\n{sep}")
-    print(f"  END OF ANALYSIS")
-    print(f"  Report: docs/analysis/wyckoff_research_report.md (v1.1)")
-    print(f"  1331 tests pass")
+    print("  END OF ANALYSIS")
+    print("  Report: docs/analysis/wyckoff_research_report.md (v1.1)")
+    print("  1331 tests pass")
     print(f"{sep}\n")
 
 

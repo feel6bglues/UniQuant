@@ -53,6 +53,12 @@ all = ["uniquant[tdx,baostock,curl,report,js]"]
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.ruff.lint.per-file-ignores]
+# Standalone research scripts bootstrap sys.path before importing the
+# installed package / src namespace, so imports legitimately appear below
+# the path setup.
+"scripts/**" = ["E402"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py"]

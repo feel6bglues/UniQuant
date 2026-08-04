@@ -11,7 +11,6 @@
   4. 计算秩相关 (Spearman) 
 """
 
-import sys
 import json
 from pathlib import Path
 

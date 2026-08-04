@@ -1,6 +1,5 @@
 """Tests for MonthlyPhaseClassifier."""
 
-import pytest
 import pandas as pd
 import numpy as np
 from uniquant.brain.wyckoff.monthly_classifier import MonthlyPhaseClassifier

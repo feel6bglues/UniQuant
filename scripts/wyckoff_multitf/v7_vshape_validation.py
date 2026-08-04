@@ -16,7 +16,6 @@ import sys
 import json
 from pathlib import Path
 from collections import defaultdict
-from datetime import datetime
 
 import numpy as np
 import pandas as pd
@@ -24,7 +23,7 @@ import pandas as pd
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(PROJECT_ROOT))
 from scripts.wyckoff_multitf.v_shape_detector import (
-    VShapedReversalDetector, VShapeResult
+    VShapedReversalDetector
 )
 
 DATA_LAKE = PROJECT_ROOT / "data" / "lake" / "quotes" / "daily"
@@ -85,7 +84,7 @@ def main():
         recoveries = np.array([r.recovery_pct for r in v_bottoms])
         decl_days = np.array([r.decline_days for r in v_bottoms])
         rec_days = np.array([r.recovery_days for r in v_bottoms])
-        print(f"  V-bottom:")
+        print("  V-bottom:")
         print(f"    跌幅: 均值={np.mean(declines):.1f}% 最大={np.max(declines):.1f}%")
         print(f"    反弹恢复度: 均值={np.mean(recoveries):.1f}%")
         print(f"    下跌天数: 均值={np.mean(decl_days):.0f} 中位数={np.median(decl_days):.0f}")
@@ -96,7 +95,7 @@ def main():
         retraces = np.array([r.recovery_pct for r in v_tops])
         rally_days = np.array([r.decline_days for r in v_tops])
         retrace_days = np.array([r.recovery_days for r in v_tops])
-        print(f"  V-top:")
+        print("  V-top:")
         print(f"    涨幅: 均值={np.mean(rallies):.1f}% 最大={np.max(rallies):.1f}%")
         print(f"    回撤恢复度: 均值={np.mean(retraces):.1f}%")
         print(f"    上涨天数: 均值={np.mean(rally_days):.0f} 中位数={np.median(rally_days):.0f}")
@@ -133,7 +132,6 @@ def main():
 
         in_v_window = 0
         sell_during_v = 0
-        sell_after_positive = 0
         total_sells = 0
         f6_sell_normal = []
         f6_sell_v = []

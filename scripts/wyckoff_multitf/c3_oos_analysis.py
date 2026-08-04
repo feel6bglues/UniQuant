@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """C3: OOS Analysis — Spring strategy on 2015-2019 data vs SH index benchmark."""
 
-import sys, json, time
+import sys
+import json
+import time
 from pathlib import Path
 from collections import defaultdict
 
@@ -58,7 +60,7 @@ def compute_oos_metrics(data, sh_rets, label):
         if o['ds']:
             phase_springs[o['p']] += 1
 
-    print(f"\n── 阶段分布与6月远期收益 ──")
+    print("\n── 阶段分布与6月远期收益 ──")
     print(f"  {'阶段':<15} {'观察数':<8} {'平均收益':<10} {'正收益%':<10} {'Spring%':<10}")
     print(f"  {'-'*53}")
     for p in ['accumulation', 'markdown', 'markup', 'distribution', 'unknown']:
@@ -72,7 +74,7 @@ def compute_oos_metrics(data, sh_rets, label):
     spring_rets = np.array([o['f6'] for o in obs if o['ds']])
     no_spring_rets = np.array([o['f6'] for o in obs if not o['ds']])
 
-    print(f"\n── Spring原始收益 ──")
+    print("\n── Spring原始收益 ──")
     print(f"  Spring事件数: {len(spring_rets)}")
     print(f"  Spring 6月收益: {np.mean(spring_rets):+.2f}% (中位数: {np.median(spring_rets):+.2f}%)")
     print(f"  正收益率: {(spring_rets>0).mean()*100:.1f}%")
@@ -93,14 +95,14 @@ def compute_oos_metrics(data, sh_rets, label):
 
     if sh_excess:
         se = np.array(sh_excess)
-        print(f"\n── Spring vs 上证指数 ──")
+        print("\n── Spring vs 上证指数 ──")
         print(f"  匹配事件数: {len(se)}")
         print(f"  平均超额: {np.mean(se):+.2f}%")
         t_s, p_s = stats.ttest_1samp(se, 0) if len(se) > 10 else (0, 1)
         print(f"  超额t检验: t={t_s:.2f} p={p_s:.4f} {'✅' if p_s<0.05 else '❌'}")
 
     # Market state decomposition
-    print(f"\n── 市场状态分解 (上证指数月收益 ±3%) ──")
+    print("\n── 市场状态分解 (上证指数月收益 ±3%) ──")
     sh_monthly = _load_sh_monthly()
     states = _classify_market_states(sh_monthly)
 
@@ -130,7 +132,7 @@ def compute_oos_metrics(data, sh_rets, label):
             print(f"  {state_name:<20} N={len(sv):<6} 超额={np.mean(sv):>+8.2f}%  t={t_st:.2f} p={p_st:.4f} {'✅' if p_st<0.05 else '❌'}")
 
     # Phase + Spring combo
-    print(f"\n── 阶段+Spring组合 ──")
+    print("\n── 阶段+Spring组合 ──")
     for p in ['accumulation', 'markdown', 'markup', 'distribution', 'unknown']:
         sv = np.array([o['f6'] for o in obs if o['ds'] and o['p'] == p])
         nv = np.array([o['f6'] for o in obs if not o['ds'] and o['p'] == p])
@@ -153,8 +155,8 @@ def compute_oos_metrics(data, sh_rets, label):
         'sh_excess_mean': round(float(np.mean(sh_excess)), 4) if sh_excess else 0,
         'sh_excess_t': round(float(t_s), 4) if sh_excess and len(se) > 10 else 0,
         'sh_excess_p': round(float(p_s), 4) if sh_excess and len(se) > 10 else 1,
-        'spring_vs_nosignal_t': round(float(t_s_orig := stats.ttest_ind(spring_rets, no_spring_rets, alternative='greater')[0]), 4) if len(spring_rets) > 10 and len(no_spring_rets) > 10 else 0,
-        'spring_vs_nosignal_p': round(float(p_s_orig := stats.ttest_ind(spring_rets, no_spring_rets, alternative='greater')[1]), 4) if len(spring_rets) > 10 and len(no_spring_rets) > 10 else 1,
+        'spring_vs_nosignal_t': round(float(stats.ttest_ind(spring_rets, no_spring_rets, alternative='greater')[0]), 4) if len(spring_rets) > 10 and len(no_spring_rets) > 10 else 0,
+        'spring_vs_nosignal_p': round(float(stats.ttest_ind(spring_rets, no_spring_rets, alternative='greater')[1]), 4) if len(spring_rets) > 10 and len(no_spring_rets) > 10 else 1,
     }
 
 
@@ -225,7 +227,7 @@ def main():
             diff_str = ''
         print(f"  {label:<25} {iv_str} {ov_str} {diff_str}")
 
-    print(f"\n── 结论 ──")
+    print("\n── 结论 ──")
     if oos_metrics.get('sh_excess_p', 1) < 0.05:
         print("✅ 样本外检验通过: Spring策略在2015-2019产生显著超额收益")
     else:

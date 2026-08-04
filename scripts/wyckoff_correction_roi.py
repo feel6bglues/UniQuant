@@ -10,15 +10,13 @@ from __future__ import annotations
 
 import csv
 import json
-import math
 import sys
 import time
-import traceback
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from collections import defaultdict, Counter
-from dataclasses import dataclass, field
+from collections import defaultdict
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Dict, List, Optional
 
 import numpy as np
 import pandas as pd
@@ -124,7 +122,6 @@ def compute_extended_snapshots(
 ) -> List[ExtendedSnapshot]:
     """滚动 Wyckoff 分析, 返回扩展快照"""
     from uniquant.brain.wyckoff.engine import WyckoffEngine
-    from uniquant.brain.wyckoff.models import WyckoffPhase
 
     snapshots: List[ExtendedSnapshot] = []
     window_starts = list(range(min_window, len(df), window_step))
@@ -291,8 +288,8 @@ def simulate(
         trailing_stop = 0.0
 
     def get_action(snap: ExtendedSnapshot) -> str:
-        p, d, conf, spring, rr = snap.phase, snap.direction, snap.conf_level, snap.spring_detected, snap.rr_ratio
-        st, uc = snap.short_trend_pct, snap.unknown_candidate
+        p, d, conf, _spring, rr = snap.phase, snap.direction, snap.conf_level, snap.spring_detected, snap.rr_ratio
+        st, _uc = snap.short_trend_pct, snap.unknown_candidate
 
         if variant == "v0_raw":
             if d in ("做多", "买入", "持有", "轻仓试探"):
@@ -694,17 +691,17 @@ def main():
         for s in md_b_analysis['signals'][:10]:
             print(f"    {s['symbol']} @ {s['date']} conf={s['conf_level']} rr={s['rr_ratio']:.2f} fwd60d={s['fwd_60d_return_pct']:+.2f}%")
 
-    print(f"\n[B 方案] UNKNOWN 后 40 日收益分析 ...")
+    print("\n[B 方案] UNKNOWN 后 40 日收益分析 ...")
     unknown_analysis = analyze_unknown_forward_returns(samples, all_snapshots)
     print(f"  UNKNOWN 快照数: {unknown_analysis['n_unknown_snapshots']}")
     print(f"  未来 40 日平均收益: {unknown_analysis['mean_fwd_40d_return_pct']:.2f}%")
     print(f"  未来 40 日中位收益: {unknown_analysis['median_fwd_40d_return_pct']:.2f}%")
     print(f"  正收益比率: {unknown_analysis['positive_fwd_ratio']:.1f}%")
-    print(f"  按候选类型:")
+    print("  按候选类型:")
     for k, v in unknown_analysis.get("by_candidate", {}).items():
         print(f"    {k}: {v['count']}个, 平均收益 {v['mean_fwd_ret_pct']:.2f}%, 正收益 {v['positive_ratio']:.1f}%")
 
-    print(f"\n[C 方案] Spring 后收益分析 ...")
+    print("\n[C 方案] Spring 后收益分析 ...")
     spring_analysis = analyze_spring_lps(samples, all_snapshots)
     print(f"  Spring 信号数: {spring_analysis['n_spring_signals']}")
     print(f"  未来 20 日平均收益: {spring_analysis['mean_fwd_20d']:.2f}%")
@@ -727,7 +724,7 @@ def main():
             try:
                 sr = simulate(sym, sample.df, snaps, v)
                 var_results[v] = sr
-            except Exception as exc:
+            except Exception:
                 pass
         all_results.append(StockROI(symbol=sym, board=sample.board, variants=var_results, snapshots=snaps))
         if (si + 1) % 50 == 0:
@@ -759,7 +756,7 @@ def main():
         total_t = sum(len(sr.trades) for sr in srs)
         win_rate = wins / total_t * 100 if total_t > 0 else 0
         pos_stocks = sum(1 for r in rets if r > 0)
-        neg_stocks = sum(1 for r in rets if r < 0)
+        sum(1 for r in rets if r < 0)
 
         label = v
         # 标记修正方案

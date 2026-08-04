@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 from scipy import stats
 from concurrent.futures import ProcessPoolExecutor, as_completed
-from typing import List, Dict, Optional, Tuple
+from typing import List, Dict, Tuple
 from dataclasses import dataclass, field
 from collections import defaultdict
 
@@ -49,7 +49,7 @@ def detect_springs(df: pd.DataFrame, config: VerifierConfig) -> List[Dict]:
 
     for i in range(lookback, len(close)):
         window_low = low[i - lookback : i].min()
-        window_high = high[i - lookback : i].max()
+        high[i - lookback : i].max()
         is_new_low = low[i] <= window_low * config.patterns.spring_low_factor
         recovered = close[i] >= window_low * config.patterns.spring_close_factor
         if is_new_low and recovered:
@@ -78,7 +78,7 @@ def detect_upthrusts(df: pd.DataFrame, config: VerifierConfig) -> List[Dict]:
 
     for i in range(lookback, len(close)):
         window_high = high[i - lookback : i].max()
-        window_low = low[i - lookback : i].min()
+        low[i - lookback : i].min()
         is_new_high = high[i] >= window_high * config.patterns.upthrust_high_factor
         rejected = close[i] <= window_high * config.patterns.upthrust_close_factor
         if is_new_high and rejected:
@@ -206,7 +206,7 @@ def run_pattern_tests(
                 for key, vals in result.items():
                     all_events[key].extend(vals)
                     stocks_with_events[key].add(sym)
-            except Exception as exc:
+            except Exception:
                 pass
             if done % 100 == 0:
                 print(f"  Processed {done}/{n_total} stocks")

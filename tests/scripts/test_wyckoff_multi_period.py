@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+import json
+
 import pandas as pd
-import pytest
 
 from scripts.wyckoff_multi_period_analysis import (
     AS_OF_DATES,
@@ -181,6 +182,3 @@ def test_main_runs_with_mock(tmp_path) -> None:
     assert csv_path.exists()
     df = pd.read_csv(csv_path)
     assert len(df) >= 20 * 6
-
-
-import json

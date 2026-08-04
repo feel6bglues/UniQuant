@@ -76,7 +76,7 @@ def test_incremental_update(sample_size: int = 100):
     updater = TdxUpdater(data_dir=str(PROJECT_ROOT / "data"))
     results = updater.update_all_data(full_update=False)
     
-    print(f"\n增量更新结果:")
+    print("\n增量更新结果:")
     print(f"  - 日线数据更新: {results.get('daily', 0)} 只股票")
     print(f"  - GBBQ数据更新: {'成功' if results.get('gbbq') else '跳过'}")
     

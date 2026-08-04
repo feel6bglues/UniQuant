@@ -8,7 +8,8 @@ Usage:
     python3 scripts/wyckoff_multitf/phase5_strategy.py
 """
 
-import sys, json
+import sys
+import json
 from pathlib import Path
 from collections import Counter
 
@@ -166,12 +167,12 @@ def analyze(data):
     n = len(data)
 
     dec_counts = Counter(obs['strategy'] for obs in data)
-    print(f"\n── Strategy Signal Distribution ──")
+    print("\n── Strategy Signal Distribution ──")
     for dec in ['buy', 'hold', 'sell']:
         c = dec_counts.get(dec, 0)
         print(f"  {dec:<6}: {c:>6} ({c / n * 100:.1f}%)")
 
-    print(f"\n── Strategy Forward Returns (f6) ──")
+    print("\n── Strategy Forward Returns (f6) ──")
     print(f"  {'Decision':<8} {'N':<8} {'Mean%':<10} {'t':<8} {'Sig':<6} {'f1':<8} {'f3':<8}")
     for dec in ['buy', 'hold', 'sell']:
         grp = [o for o in data if o.get('strategy') == dec]
@@ -190,13 +191,13 @@ def analyze(data):
         b = np.array([o['f6'] for o in buy])
         s = np.array([o['f6'] for o in sell])
         t_s, p_s = stats.ttest_ind(b, s)
-        print(f"\n── Strategy Buy vs Sell Spread ──")
+        print("\n── Strategy Buy vs Sell Spread ──")
         print(f"  Buy:  {np.mean(b):+.2f}% (N={len(b)})")
         print(f"  Sell: {np.mean(s):+.2f}% (N={len(s)})")
         print(f"  Spread: {np.mean(b)-np.mean(s):+.2f}% t={t_s:.2f} {'✅' if p_s<0.05 else '❌'}")
 
     # Strength-weighted return (simulates position sizing)
-    print(f"\n── Strength-Weighted Portfolio ──")
+    print("\n── Strength-Weighted Portfolio ──")
     long_rets = []
     short_rets = []
     for obs in data:
@@ -215,7 +216,7 @@ def analyze(data):
         print(f"  Short signals: N={len(sr)} mean={np.mean(sr)*100:+.2f}% t={t_s:.2f}")
 
     # Cross-tab: strategy vs resonance
-    print(f"\n── Strategy × Resonance ──")
+    print("\n── Strategy × Resonance ──")
     print(f"  {'Strategy':<10} {'Bearish':<12} {'Bullish':<12} {'Conflicting':<14}")
     for dec in ['buy', 'hold', 'sell']:
         grp = [o for o in data if o.get('strategy') == dec]
@@ -223,7 +224,7 @@ def analyze(data):
         print(f"  {dec:<10} {r_counts.get('bearish', 0):<12} {r_counts.get('bullish', 0):<12} {r_counts.get('conflicting', 0):<14}")
 
     # Reason breakdown
-    print(f"\n── Top Strategy Reasons ──")
+    print("\n── Top Strategy Reasons ──")
     reason_counts = Counter(obs.get('reason', 'unknown') for obs in data)
     for reason, cnt in reason_counts.most_common(10):
         grp = [o for o in data if o.get('reason') == reason]
@@ -231,7 +232,7 @@ def analyze(data):
         print(f"  {reason:<52} N={cnt:<6} f6={f6:+.2f}%")
 
     # Backtest baseline comparisons
-    print(f"\n── Baseline Backtest (f6) ──")
+    print("\n── Baseline Backtest (f6) ──")
     baselines = {
         'Spring alone': lambda o: 'buy' if o.get('ds', False) and len([e for e in o.get('events', []) if e != 'Spring']) == 0 else 'hold',
         'Pure WSO (≥0.04)': lambda o: 'buy' if o.get('wso', 0) >= 0.04 else 'hold',

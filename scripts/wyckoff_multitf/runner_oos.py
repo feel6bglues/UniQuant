@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 """C3 OOS Runner: Wyckoff Spring detection on 2015-2019 (out-of-sample)."""
 
-import sys, time, json, gc, traceback, os
+import sys
+import time
+import json
+import os
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
@@ -9,8 +12,7 @@ import pandas as pd
 import numpy as np
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from dataclasses import dataclass
-from typing import List, Tuple, Optional
-from collections import defaultdict
+from typing import List, Optional
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DATA_LAKE = PROJECT_ROOT / "data" / "lake" / "quotes" / "daily"
@@ -216,12 +218,15 @@ def main():
                 tbl = pq.read_table(fp, columns=['date'])
                 dates = tbl.column('date').to_pylist()
                 d0 = dates[0]
-                if isinstance(d0, datetime): d0_str = d0.strftime('%Y-%m-%d')
-                elif hasattr(d0, 'strftime'): d0_str = d0.strftime('%Y-%m-%d')
-                else: d0_str = str(d0)[:10]
+                if isinstance(d0, datetime):
+                    d0_str = d0.strftime('%Y-%m-%d')
+                elif hasattr(d0, 'strftime'):
+                    d0_str = d0.strftime('%Y-%m-%d')
+                else:
+                    d0_str = str(d0)[:10]
                 if d0_str <= '2014-08-01':
                     oos_stocks.append(s)
-            except:
+            except Exception:
                 pass
 
     print(f"OOS universe: {len(oos_stocks)} stocks with pre-2014 data")

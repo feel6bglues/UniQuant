@@ -5,8 +5,7 @@ import pandas as pd
 from scipy import stats
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from dataclasses import dataclass
-from typing import List, Dict, Tuple, Optional
-from collections import defaultdict
+from typing import List, Dict, Optional
 
 from .config import VerifierConfig
 from .a_universe import StockRecord, load_data
@@ -76,10 +75,8 @@ def construct_factors(
         return factors
 
     # Compute annual rebalance factor returns
-    dates = px.index
     ann_factors: Dict[str, List[float]] = {"date": []}
     
-    rebal_months = config.factor.rebalance_months
     for year in range(2010, 2027):
         for month in [1, 7]:
             rebal_date = f"{year}-{month:02d}-01"
@@ -145,7 +142,7 @@ def run_factor_decomposition(
     all_excess_returns = []
     event_stock_symbols = []
 
-    n_total = len(records)
+    len(records)
     with ProcessPoolExecutor(max_workers=config.n_jobs) as pool:
         fut_map = {}
         for rec in records:

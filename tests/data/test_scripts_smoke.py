@@ -3,7 +3,7 @@
 import importlib
 import sys
 from pathlib import Path
-from unittest.mock import MagicMock, PropertyMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -323,7 +323,7 @@ def test_incremental_updater_determine_mode_skip():
 
 
 def test_incremental_updater_determine_mode_incremental():
-    from datetime import datetime, timedelta
+    from datetime import datetime
     from unittest.mock import patch as mp
     from uniquant.data.scripts.update_daily_incremental import IncrementalUpdater, UpdateMode
 
@@ -339,7 +339,7 @@ def test_incremental_updater_determine_mode_incremental():
 
 
 def test_incremental_updater_determine_mode_full():
-    from datetime import datetime, timedelta
+    from datetime import datetime
     from unittest.mock import patch as mp
     from uniquant.data.scripts.update_daily_incremental import IncrementalUpdater, UpdateMode
 
@@ -354,7 +354,6 @@ def test_incremental_updater_determine_mode_full():
 
 
 def test_incremental_updater_update_single_stock_skip():
-    from unittest.mock import patch as mp
     from uniquant.data.scripts.update_daily_incremental import (
         IncrementalUpdater,
         UpdateMode,
@@ -387,7 +386,6 @@ def test_incremental_updater_update_single_stock_no_new_data():
 
 
 def test_incremental_updater_run_empty_stock_list():
-    from unittest.mock import patch as mp
     from uniquant.data.scripts.update_daily_incremental import IncrementalUpdater
 
     updater = IncrementalUpdater()
@@ -397,7 +395,6 @@ def test_incremental_updater_run_empty_stock_list():
 
 
 def test_incremental_updater_run_full_flow():
-    from unittest.mock import patch as mp
     from uniquant.data.scripts.update_daily_incremental import IncrementalUpdater, UpdateResult
 
     updater = IncrementalUpdater()
@@ -411,7 +408,6 @@ def test_incremental_updater_run_full_flow():
 
 
 def test_incremental_updater_run_full_flow_failure():
-    from unittest.mock import patch as mp
     from uniquant.data.scripts.update_daily_incremental import IncrementalUpdater, UpdateResult
 
     updater = IncrementalUpdater()

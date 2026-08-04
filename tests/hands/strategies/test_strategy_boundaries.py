@@ -5,11 +5,9 @@ classes (HAS_BACKTRADER=False).  Tests cover instantiation, method calls,
 boundary inputs, and empty/invalid DataFrame handling.
 """
 
-from typing import Dict, List, Optional
 
 import numpy as np
 import pandas as pd
-import pytest
 
 from uniquant.hands.strategies.base import BaseStrategy, HAS_BACKTRADER
 from uniquant.hands.strategies.fsm_strategy import FSMStrategy

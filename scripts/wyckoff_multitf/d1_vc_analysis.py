@@ -52,7 +52,7 @@ def detect_vc_before_spring(df: pd.DataFrame, cutoff_idx: int) -> bool:
     vol = window['volume'].values
     close = window['close'].values
     low = window['low'].values
-    high = window['high'].values
+    window['high'].values
     
     ma20_vol = pd.Series(vol).rolling(20, min_periods=10).mean().values
     

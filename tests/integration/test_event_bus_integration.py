@@ -12,7 +12,7 @@ import pandas as pd
 from uniquant.hands.backtest.unified_engine import UnifiedBacktestEngine
 from uniquant.shared.event_bus import EventBus
 from uniquant.shared.event_types import DataLoaded
-from uniquant.services.research_pipeline import PipelineResult, UnifiedResearchPipeline
+from uniquant.services.research_pipeline import UnifiedResearchPipeline
 
 
 def _make_mock_data_pack() -> dict:

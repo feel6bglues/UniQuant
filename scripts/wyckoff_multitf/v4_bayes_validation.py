@@ -21,7 +21,6 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from src.uniquant.brain.wyckoff.bayesian_events import BayesianEventDetector
-from src.uniquant.brain.wyckoff.events import detect_all_events
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 OUTPUT = PROJECT_ROOT / "scripts" / "wyckoff_multitf" / "output_v4"
@@ -53,8 +52,7 @@ def main():
     all_posterior_means = []
     all_event_counts = []
     all_f6 = []
-    stabilized = {et: [] for et in ["PS", "SC", "AR", "ST", "SOS", "LPS", "JAC"]}
-    convergence_rates = []
+    {et: [] for et in ["PS", "SC", "AR", "ST", "SOS", "LPS", "JAC"]}
 
     for sym, obs_list in stocks.items():
         if len(obs_list) < 3:

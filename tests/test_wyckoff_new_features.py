@@ -4,16 +4,16 @@ ashare_constraints, sequence EMA smoothing."""
 import os
 import sys
 
-# Project root for scripts.wyckoff_multitf namespace imports
-_project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-if _project_root not in sys.path:
-    sys.path.insert(0, _project_root)
-
 import numpy as np
 import pandas as pd
 import pytest
 from uniquant.brain.wyckoff.engine import WyckoffEngine
 from uniquant.brain.wyckoff.models import Step1Result, Step3Result, Rule0Result, WyckoffPhase
+
+# Project root for scripts.wyckoff_multitf namespace imports
+_project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _project_root not in sys.path:
+    sys.path.insert(0, _project_root)
 
 
 # ───────────────────────── pnf.py ─────────────────────────
@@ -389,7 +389,7 @@ class TestVShapedReversalDetector:
         decline_end = 60
         for i in range(1, decline_end):
             close[i] = close[i - 1] * (1 - 0.005)
-        trough = close[decline_end - 1]
+        close[decline_end - 1]
         for i in range(decline_end, n_bars):
             close[i] = close[i - 1] * (1 + 0.012)
         return pd.DataFrame({"close": close})
@@ -399,7 +399,7 @@ class TestVShapedReversalDetector:
         rally_end = 60
         for i in range(1, rally_end):
             close[i] = close[i - 1] * (1 + 0.005)
-        peak = close[rally_end - 1]
+        close[rally_end - 1]
         for i in range(rally_end, n_bars):
             close[i] = close[i - 1] * (1 - 0.012)
         return pd.DataFrame({"close": close})

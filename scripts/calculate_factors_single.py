@@ -4,7 +4,6 @@
 import os
 import sys
 import pandas as pd
-import numpy as np
 import re
 from pathlib import Path
 from tqdm import tqdm
@@ -72,7 +71,7 @@ def run_single_process():
                 result.to_parquet(output_file, index=False, compression='snappy')
                 success_count += 1
                 
-        except Exception as e:
+        except Exception:
             pass
     
     print(f"\n成功计算 {success_count} 只股票")
@@ -81,7 +80,7 @@ def run_single_process():
     sz_file = OUTPUT_DIR / "000001.SZ.parquet"
     if sz_file.exists():
         df_000001 = pd.read_parquet(sz_file)
-        print(f"\n验证 000001.SZ:")
+        print("\n验证 000001.SZ:")
         print(f"  记录数: {len(df_000001)}")
         print(f"  日期范围: {df_000001['date'].min()} ~ {df_000001['date'].max()}")
         print(f"  因子范围: {df_000001['factor'].min():.4f} ~ {df_000001['factor'].max():.4f}")

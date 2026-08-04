@@ -7,14 +7,10 @@ Anti-drift assertions:
 
 from __future__ import annotations
 
-from datetime import datetime
-from typing import Any, Dict, List, Optional
 from unittest.mock import MagicMock
 
-import pytest
 
 from uniquant.shared.interfaces import (
-    MarketSignalContext,
     PositionSizerProtocol,
     TradingSignal,
 )

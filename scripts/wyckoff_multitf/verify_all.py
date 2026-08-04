@@ -8,9 +8,11 @@ computes all Phase B + D diagnostics from the step plan.
 Batch 1: A3, B1, B2, B4, D2 (all read-only)
 """
 
-import json, sys, math, itertools
+import json
+import sys
+import itertools
 from pathlib import Path
-from collections import defaultdict, Counter
+from collections import defaultdict
 import numpy as np
 from scipy import stats as scipy_stats
 
@@ -23,8 +25,8 @@ def log(title: str, *lines: str):
     REPORT.append(f"\n{'='*60}")
     REPORT.append(f"  {title}")
     REPORT.append(f"{'='*60}")
-    for l in lines:
-        REPORT.append(f"  {l}")
+    for line in lines:
+        REPORT.append(f"  {line}")
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -46,7 +48,7 @@ def task_b2_stride_overlap(data: list):
         dates = sorted(set(dates))
         i = 0
         while i < len(dates):
-            cluster_start = dates[i]
+            dates[i]
             j = i
             while j + 1 < len(dates):
                 d1 = dates[j]
@@ -78,10 +80,10 @@ def task_b2_stride_overlap(data: list):
         f"  Cluster size max:             {max(cluster_sizes)}" if cluster_sizes else "",
         f"  Cluster size P90:             {p90}" if cluster_sizes else "",
         "",
-        f"  Interpretation:",
-        f"    bias < 2x  → mild overlap, t statistics mildly inflated",
-        f"    bias 2-3x  → moderate overlap, t statistics may be 1.4-1.7x inflated",
-        f"    bias > 3x  → severe overlap, t statistics unreliable",
+        "  Interpretation:",
+        "    bias < 2x  → mild overlap, t statistics mildly inflated",
+        "    bias 2-3x  → moderate overlap, t statistics may be 1.4-1.7x inflated",
+        "    bias > 3x  → severe overlap, t statistics unreliable",
         f"    Actual: {bias:.1f}x → {'MODERATE' if bias < 3 else 'SEVERE' if bias > 3 else 'MODERATE'} overlap",
     )
     return {'reported': total_reported, 'independent': total_independent, 'bias': bias}
@@ -120,10 +122,10 @@ def task_b4_excess_decomposition(data: list):
         f"    Raw 6m mean:  {np.mean(nonspring_raw):+.2f}%",
         f"    Excess 6m mean: {np.mean(nonspring_excess):+.2f}%",
         "",
-        f"  === KEY INSIGHT ===",
+        "  === KEY INSIGHT ===",
         f"  Raw Spring 6m:    {np.mean(spring_raw):+.2f}% (vs 0: {'NOT significant' if scipy_stats.ttest_1samp(spring_raw,0)[1] > 0.05 else 'SIGNIFICANT'})",
         f"  Excess Spring 6m: {np.mean(spring_excess):+.2f}%",
-        f"  Decomposition:",
+        "  Decomposition:",
         f"    Total excess = {np.mean(spring_excess):+.2f}%",
         f"    = Raw Spring ({np.mean(spring_raw):+.2f}%) - Date avg ({np.mean(spring_date_returns):+.2f}%)",
         f"    = {np.mean(spring_raw):+.2f}% - {np.mean(spring_date_returns):+.2f}% = {np.mean(spring_raw) - np.mean(spring_date_returns):+.2f}%",
@@ -158,7 +160,7 @@ def task_b1_positive_pct():
         details = result.get('details', [])
         n_stocks = len(details)
         positive = sum(1 for d in details if d.get('total_return_pct', 0) > 0)
-        negative = sum(1 for d in details if d.get('total_return_pct', 0) <= 0)
+        sum(1 for d in details if d.get('total_return_pct', 0) <= 0)
         claimed_pct = result.get('positive_stocks_pct', 0)
 
         # Negative stocks analysis
@@ -178,8 +180,8 @@ def task_b1_positive_pct():
             f"  Actual positive:     {positive}/{n_stocks} ({positive/n_stocks*100:.1f}%)",
             f"  Negative stocks:     {len(neg_stocks)}",
             f"  Negative avg PnL:    {np.mean(neg_win_rates):+.2f}%" if neg_win_rates else "  No negative stocks",
-            f"",
-            f"  Worst 5 negative stocks:",
+            "",
+            "  Worst 5 negative stocks:",
         )
         for sym, pnl, nt in neg_sorted[:5]:
             log("", f"    {sym}: total_return={pnl:+.2f}%, trades={nt}")
@@ -195,7 +197,7 @@ def task_b1_positive_pct():
         # Check if 100% is legitimate
         if len(neg_stocks) > 0:
             log(
-                f"",
+                "",
                 f"  ⚠️  Found {len(neg_stocks)} stock(s) with negative total_return_pct!",
                 f"  positive_stocks_pct should be {positive}/{n_stocks} = {positive/n_stocks*100:.1f}%",
                 f"  DISCREPANCY: claimed {claimed_pct}% vs actual {positive/n_stocks*100:.1f}%",
@@ -212,7 +214,7 @@ def task_b1_positive_pct():
 
 def task_d2_entry_delay(data: list):
     """Analyze how often Spring events cluster and what delays occur."""
-    from datetime import datetime, timedelta
+    from datetime import datetime
 
     spring_obs = [(o['s'], o['c']) for o in data if o.get('ds')]
     spring_obs.sort(key=lambda x: (x[0], x[1]))
@@ -233,7 +235,7 @@ def task_d2_entry_delay(data: list):
         "D2: Entry Delay Analysis (Spring event gap distribution)",
         f"  Total Spring events: {len(spring_obs)}",
         f"  Unique stocks: {len(set(s for s, _ in spring_obs))}",
-        f"  Consecutive Spring gap (days):" if gaps else "  No multi-Spring stocks",
+        "  Consecutive Spring gap (days):" if gaps else "  No multi-Spring stocks",
     )
     if gaps:
         log(
@@ -244,10 +246,10 @@ def task_d2_entry_delay(data: list):
             f"    P90:   {np.percentile(gaps, 90):.1f} days",
             f"    Min:   {min(gaps)} days",
             f"    Max:   {max(gaps)} days",
-            f"",
+            "",
             f"    Gap <= 20 days (same stride window): {sum(1 for g in gaps if g <= 20)} / {len(gaps)} = {sum(1 for g in gaps if g <= 20)/len(gaps)*100:.1f}%",
-            f"    Interpretation:",
-            f"      stride=20 means entry delay ~10 days avg",
+            "    Interpretation:",
+            "      stride=20 means entry delay ~10 days avg",
             f"      {np.median(gaps):.1f}-day median gap → repeated Spring detection within same trend",
             f"      delay cost = gap / 2 = {np.median(gaps)/2:.1f} days of potential return slippage",
         )
@@ -278,7 +280,7 @@ def task_a3_phase_analysis(data: list):
     log(
         "A3: Phase Distribution & Return Verification",
         f"  Total observations: {total}",
-        f"",
+        "",
         f"  {'Phase':<15} {'N':<8} {'%':<6} {'Raw6m':<10} {'Spring%':<10} {'SpringN':<10}",
         f"  {'-'*59}",
     )
@@ -298,13 +300,13 @@ def task_a3_phase_analysis(data: list):
 
     log(
         "",
-        f"  Spring overall:",
+        "  Spring overall:",
         f"    N={len(all_spring)}, raw 6m mean: {np.mean(all_spring):+.2f}%",
         f"    No-Spring:     N={len(all_nonspring)}, raw 6m mean: {np.mean(all_nonspring):+.2f}%",
         f"    Spring vs No-Spring: t={t_s:.2f} p={p_s:.4f}",
         f"    {'✅ SIGNIFICANT' if p_s < 0.05 else '❌ NOT significant'} (alpha=0.05, one-tailed)",
         "",
-        f"  Document claims:",
+        "  Document claims:",
         f"    §3.1 says Spring raw 6m = +0.23% / t=0.59 → {'MATCHES' if abs(np.mean(all_spring) - 0.23) < 0.5 else 'DIFFERS'}",
         f"    Actual raw mean: {np.mean(all_spring):+.2f}%",
     )
@@ -350,7 +352,7 @@ def main():
 
     # Summary
     print(f"\n{'='*60}")
-    print(f"  VERIFICATION SUMMARY")
+    print("  VERIFICATION SUMMARY")
     print(f"{'='*60}")
     print(f"  Data: {len(obs)} observations, {r_a3['n_spring']} Spring events")
     print(f"  Spring raw 6m: {r_a3['spring_mean']:+.2f}% (t={r_a3['spring_t']:.2f}, p={r_a3['spring_p']:.4f})")

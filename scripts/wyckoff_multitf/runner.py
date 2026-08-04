@@ -6,11 +6,13 @@ Usage:
     python -m scripts.wyckoff_multitf.runner --quick  (50 stocks)
 """
 
-import sys, time, json, argparse
+import sys
+import time
+import json
+import argparse
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-import numpy as np
 
 from scripts.wyckoff_multitf.config import VerifierConfig
 from scripts.wyckoff_multitf.a_universe import build_universe
@@ -30,7 +32,7 @@ def main():
 
     t0 = time.time()
     print(f"{'='*80}")
-    print(f"Wyckoff Multi-Timeframe Verification v2")
+    print("Wyckoff Multi-Timeframe Verification v2")
     print(f"{'='*80}")
     print(f"  Started: {time.strftime('%Y-%m-%d %H:%M:%S')}")
     print(f"  N_jobs={config.n_jobs}, quick={args.quick}")
@@ -59,7 +61,7 @@ def main():
     total = len(hypotheses)
 
     print(f"\n{'='*80}")
-    print(f"  VERIFICATION RESULTS")
+    print("  VERIFICATION RESULTS")
     print(f"{'='*80}")
     for name, h in hypotheses.items():
         status = "✅" if h.supported else "❌"

@@ -181,12 +181,12 @@ def synthetic_limit_up(seed: int = 42) -> pd.DataFrame:
         o = c * (1 - rng.uniform(0.005, 0.02))
         if i in (1, 2, 3):
             h = c
-            l = o * 0.98
+            lo = o * 0.98
         else:
             h = c * 1.02
-            l = o * 0.98
+            lo = o * 0.98
         v = int(1e7 * (1 + rng.uniform(-0.1, 0.1)))
-        rows.append({"date": d, "open": o, "high": h, "low": l, "close": c, "volume": v})
+        rows.append({"date": d, "open": o, "high": h, "low": lo, "close": c, "volume": v})
     return pd.DataFrame(rows)
 
 
@@ -195,7 +195,7 @@ def synthetic_spring(seed: int = 42) -> pd.DataFrame:
 
     TR = [10, 12]; bar 80 breaks below TR low to 9.90, bar 81 recovers to 11.50.
     """
-    rng = np.random.default_rng(seed)
+    np.random.default_rng(seed)
     df = synthetic_trading_range(length=100, low_bound=10.0, high_bound=12.0, seed=seed)
     close = df["close"].values
 
@@ -421,7 +421,7 @@ def synthetic_false_breakout(seed: int = 42) -> pd.DataFrame:
 
     TR = [10, 12]; bar 85 breaks above 12.50, bar 87 falls back into TR.
     """
-    rng = np.random.default_rng(seed)
+    np.random.default_rng(seed)
     df = synthetic_trading_range(length=100, low_bound=10.0, high_bound=12.0, seed=seed * 3)
     close = df["close"].values
 

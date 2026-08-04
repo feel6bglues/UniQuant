@@ -6,7 +6,6 @@ and regime classification boundaries.
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
 
 import numpy as np
 import pandas as pd
@@ -22,11 +21,10 @@ from uniquant.brain.lppl.engine import (
 )
 from uniquant.brain.lppl.multifit import (
     MULTI_WINDOW_CONFIGS,
-    WindowConfig,
     fit_multi_window,
     fit_single_layer,
 )
-from uniquant.brain.lppl.regime import DEFAULT_REGIME_CONFIG, MarketRegimeDetector, RegimeConfig
+from uniquant.brain.lppl.regime import MarketRegimeDetector, RegimeConfig
 
 RANDOM_SEED = 42
 np.random.seed(RANDOM_SEED)

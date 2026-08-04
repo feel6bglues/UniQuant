@@ -15,8 +15,6 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-import sys
-from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "experiments" / "gp_factor_mining"))
 from generator import (
     GPConfig,
@@ -199,7 +197,7 @@ def run_gp_mining(args):
     print(f"    列: {list(df.columns)}")
 
     # 3. 配置 GP (打补丁后)
-    print(f"\n[3] 初始化 GP 引擎 (打补丁后)...")
+    print("\n[3] 初始化 GP 引擎 (打补丁后)...")
     config = GPConfig(
         pop_size=args.pop_size,
         n_generations=args.n_generations,
@@ -224,14 +222,14 @@ def run_gp_mining(args):
     print(f"    多样性压力: {config.diversity_pressure}")
 
     # 4. 运行挖掘
-    print(f"\n[4] 开始 GP 挖掘...")
+    print("\n[4] 开始 GP 挖掘...")
     start_t = time.time()
     results = miner.mine(df, code_col="code", date_col="date", price_col="close")
     elapsed = time.time() - start_t
     print(f"\n  挖掘完成: 耗时 {elapsed:.0f}s")
 
     # 5. 报告 Top 因子
-    print(f"\n[5] Top-10 存活因子报告:")
+    print("\n[5] Top-10 存活因子报告:")
     print("-" * 60)
     for i, (tree, fitness) in enumerate(results[:10]):
         has_amt = miner._has_amount_terminal(tree)
@@ -252,7 +250,7 @@ def run_gp_mining(args):
         print()
 
     # 6. 种群多样性总结
-    print(f"\n[6] 种群多样性总结:")
+    print("\n[6] 种群多样性总结:")
     formula_set = set()
     amount_count = 0
     all_corrs = []

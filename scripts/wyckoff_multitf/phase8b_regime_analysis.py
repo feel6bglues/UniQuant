@@ -11,12 +11,12 @@ import json
 import math
 import sys
 from pathlib import Path
-from typing import Any, Dict, List, Tuple
+from typing import Dict, List, Tuple
 
 import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
-from src.uniquant.brain.wyckoff.sequence import WSOScorer, WSSScorer
+from src.uniquant.brain.wyckoff.sequence import WSOScorer
 from src.uniquant.shared.cost_model import calculate_sharpe_ratio
 
 OUTPUT_DIR = Path(__file__).parent / "output_v4"
@@ -96,7 +96,7 @@ def main():
     regime_label = "🐂 牛市" if f6_tr.mean() > 0 else "🐻 熊市"
 
     print(f"{'='*70}")
-    print(f"  Phase 8b — 市场体制条件性 OOS 分析")
+    print("  Phase 8b — 市场体制条件性 OOS 分析")
     print(f"{'='*70}")
     print(f"  训练集 (2020-2022): f6 均值 {f6_tr.mean():>+6.2f}%  →  {regime_label}")
     print(f"  测试集 (2023-2024): f6 均值 {f6_te.mean():>+6.2f}%  →  {'🐻 熊市' if f6_te.mean() < 0 else '🐂 牛市'}")
@@ -105,7 +105,7 @@ def main():
 
     # ── 1. Signal consistency: absolute returns per signal type ──
     print(f"{'─'*70}")
-    print(f"  Part 1: 信号绝对收益一致性 (f6 of stocks selected by signal)")
+    print("  Part 1: 信号绝对收益一致性 (f6 of stocks selected by signal)")
     print(f"{'─'*70}")
     print(f"  {'信号':>6}  {'训练集 f6':>12}  {'测试集 f6':>12}  {'差异':>10}  {'t_跨期':>8}  {'稳定性':>8}")
     print(f"  {'-'*6}  {'-'*12}  {'-'*12}  {'-'*10}  {'-'*8}  {'-'*8}")
@@ -149,7 +149,7 @@ def main():
 
     # ── 2. Relative alpha consistency ──
     print(f"{'─'*70}")
-    print(f"  Part 2: 信号相对 Alpha 一致性 (vs 市场基准)")
+    print("  Part 2: 信号相对 Alpha 一致性 (vs 市场基准)")
     print(f"{'─'*70}")
     print(f"  {'信号':>6}  {'训练 Alpha':>12}  {'测试 Alpha':>12}  {'差异':>10}  {'t_跨期':>8}")
     print(f"  {'-'*6}  {'-'*12}  {'-'*12}  {'-'*10}  {'-'*8}")
@@ -182,7 +182,7 @@ def main():
 
     # ── 3. Sell-only strategy ──
     print(f"{'─'*70}")
-    print(f"  Part 3: 卖出信号策略 (纯空头)")
+    print("  Part 3: 卖出信号策略 (纯空头)")
     print(f"{'─'*70}")
 
     for fold_name, fold_rows in [("训练集", train), ("测试集", test), ("全量", rows)]:
@@ -201,7 +201,7 @@ def main():
 
     # ── 4. Buy-only with regime filter ──
     print(f"{'─'*70}")
-    print(f"  Part 4: 买入信号 + 体制过滤器")
+    print("  Part 4: 买入信号 + 体制过滤器")
     print(f"{'─'*70}")
 
     # Simulate regime filter: only take buy signals when mkt f6 > 0
@@ -244,7 +244,7 @@ def main():
 
     # ── 5. Combined strategy: sell always + buy in bull ──
     print(f"{'─'*70}")
-    print(f"  Part 5: 综合策略 — 卖出始终有效 + 牛市买入")
+    print("  Part 5: 综合策略 — 卖出始终有效 + 牛市买入")
     print(f"{'─'*70}")
 
     # On test set: sell-only strategy
@@ -272,7 +272,7 @@ def main():
 
     # ── 6. Conclusions ──
     print(f"{'─'*70}")
-    print(f"  OOS 结论 (体制感知)")
+    print("  OOS 结论 (体制感知)")
     print(f"{'─'*70}")
 
     # Sell signal stability
@@ -291,7 +291,7 @@ def main():
     verdicts = []
 
     # Sell signal — cross-regime robustness
-    sell_abs_drop = abs((sell_te_m - sell_tr_m) / max(abs(sell_tr_m), 0.01))
+    abs((sell_te_m - sell_tr_m) / max(abs(sell_tr_m), 0.01))
     if abs(sell_t) < 2.0:
         verdicts.append(f"✅ 卖出信号跨体制稳定: 训练 {sell_tr_m:>+5.2f}% → 测试 {sell_te_m:>+5.2f}% (t={sell_t:>+.2f})")
     elif abs(sell_t) < 3.0:
@@ -301,7 +301,7 @@ def main():
 
     # Buy signal — regime-dependent
     verdicts.append(f"ℹ️ 买入信号体制依赖: 牛市 {buy_tr_m:>+5.2f}%, 熊市 {buy_te_m:>+5.2f}% (Alpha 稳定 +2.1%→+1.4%)")
-    verdicts.append(f"✅ 卖出信号相对 Alpha: 训练 +6.0%, 测试 +6.3% (几乎完全一致, 跨体制稳健)")
+    verdicts.append("✅ 卖出信号相对 Alpha: 训练 +6.0%, 测试 +6.3% (几乎完全一致, 跨体制稳健)")
 
     # Sell-only strategy
     sell_all = np.concatenate([sell_tr_r, sell_te_r])
@@ -310,8 +310,8 @@ def main():
         verdicts.append(f"✅ 纯卖出策略全量: 均值 {sa_all['mean']:>+5.2f}%, t={sa_all['t']:>+.2f}, 胜率 {sa_all['wr']:.0%}, 夏普 {sa_all['sharpe']:.2f}")
 
     # Overall
-    verdicts.append(f"⚡ WSO 高分买入 (Top25%) 在熊市仍有效: +29.42% (t=36.75), 置信度本身是 Alpha")
-    verdicts.append(f"ℹ️ 市场体制转换 (2020-2022 牛市→2023-2024 熊市) 是多空跨距翻转的根本原因")
+    verdicts.append("⚡ WSO 高分买入 (Top25%) 在熊市仍有效: +29.42% (t=36.75), 置信度本身是 Alpha")
+    verdicts.append("ℹ️ 市场体制转换 (2020-2022 牛市→2023-2024 熊市) 是多空跨距翻转的根本原因")
 
     for v in verdicts:
         print(f"  {v}")

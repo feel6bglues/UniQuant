@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 """Wyckoff v3: Rolling multi-timeframe verification — fixes the single-cutoff flaw."""
 
-import sys, time, json, gc, os
+import sys
+import time
+import json
+import os
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
@@ -10,7 +13,7 @@ import numpy as np
 from scipy import stats
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from dataclasses import dataclass, field
-from typing import List, Dict, Optional, Tuple
+from typing import List, Tuple
 from collections import defaultdict
 
 
@@ -218,7 +221,7 @@ def run(stocks: List[str], n_jobs: int = N_JOBS) -> List[RollingObs]:
                 obs = fut.result()
                 if obs:
                     all_obs.extend(obs)
-            except Exception as exc:
+            except Exception:
                 pass
             if done % 50 == 0 or done == len(stocks):
                 elapsed = time.time() - t0
@@ -410,6 +413,7 @@ def test_h7_backtest(obs: List[RollingObs], cost_pct: float = 0.0023) -> Hypothe
     bh_rets = []
     turnover_count = 0
     prev_in_strat = False
+    prev_at_cutoff = None
 
     # Group by cutoff date
     cutoffs = sorted(set(o.cutoff_date for o in obs))
@@ -429,16 +433,16 @@ def test_h7_backtest(obs: List[RollingObs], cost_pct: float = 0.0023) -> Hypothe
             strategy_rets.append(mean_strat)
 
         # Track turnover
-        if prev_in_strat:
+        if prev_in_strat and prev_at_cutoff is not None:
             changed = sum(1 for o in at_cutoff if o.month_phase in ("accumulation", "markup")) - \
-                      sum(1 for o in prev_at_cutoff if o.month_phase in ("accumulation", "markup")) if 'prev_at_cutoff' in dir() else 0
+                      sum(1 for o in prev_at_cutoff if o.month_phase in ("accumulation", "markup"))
             turnover_count += abs(changed)
         prev_in_strat = bool(in_strategy)
         prev_at_cutoff = at_cutoff
 
     # Apply costs to strategy returns
     total_turnover = turnover_count / len(bh_rets) if bh_rets else 0
-    cost_per_month = cost_pct * total_turnover / max(len(strategy_rets), 1)
+    cost_pct * total_turnover / max(len(strategy_rets), 1)
     # Actually compute as annual cost
     # Average monthly turnover rate * cost per trade
     avg_turnover_pct = total_turnover / max(len(strategy_rets), 1) / max(len(cutoffs), 1) * 100

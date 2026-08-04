@@ -2,7 +2,7 @@ import pandas as pd
 
 from uniquant.services.analysis.czsc_analysis_engine import CzscAnalysisEngine
 from uniquant.services.analysis.lppl_analysis_engine import LpplAnalysisEngine
-from uniquant.shared.interfaces import CZSCOutput, LPPLOutput
+from uniquant.shared.interfaces import CZSCOutput
 from uniquant.services.analysis.regime_analysis_engine import RegimeAnalysisEngine
 
 

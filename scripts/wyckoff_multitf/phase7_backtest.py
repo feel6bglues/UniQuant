@@ -19,9 +19,9 @@ import json
 import math
 import sys
 from collections import defaultdict
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Tuple
+from typing import Dict, List, Tuple
 
 import numpy as np
 
@@ -132,9 +132,9 @@ def fmt_stats(s: dict, label: str = "") -> str:
     """Format robust_stats dict into a fixed-width line."""
     if not s:
         return f"  (n<{MIN_POSITIONS})"
-    l = f"  {label:>8}" if label else ""
+    lab = f"  {label:>8}" if label else ""
     return (
-        f"{l} n={s['n']:>6,}  "
+        f"{lab} n={s['n']:>6,}  "
         f"win={s['win_rate']:>6.2%}  "
         f"med={s['median']:>+8.2f}  "
         f"avg={s['winsorized_mean']:>+8.2f}  "
@@ -160,7 +160,7 @@ def main():
     # ── 1. Distribution diagnostics ──
     f6_all = np.array([r["f6"] for r in rows if math.isfinite(r.get("f6", 0.0))])
     print(f"{'='*60}")
-    print(f"  f6 收益分布诊断 (已为百分数)")
+    print("  f6 收益分布诊断 (已为百分数)")
     print(f"{'='*60}")
     print(f"  N={len(f6_all):,}   Mean={np.mean(f6_all):>+8.2f}   Median={np.median(f6_all):>+8.2f}   Std={np.std(f6_all):.2f}")
     for p in [50, 75, 90, 95, 99, 99.9]:
@@ -180,7 +180,7 @@ def main():
 
     # ── 2. Cost sensitivity ──
     print(f"{'='*60}")
-    print(f"  成本灵敏度分析 (Winsorized P1/P99)")
+    print("  成本灵敏度分析 (Winsorized P1/P99)")
     print(f"{'='*60}")
     cost_levels = [0.0, 0.05, 0.1, 0.182, 0.3, 0.5, 1.0]
     for sig_field, name in strategies:
@@ -248,7 +248,7 @@ def main():
 
     # ── 4. Counterfactual ──
     print(f"{'='*60}")
-    print(f"  反事实检验 (反向信号)")
+    print("  反事实检验 (反向信号)")
     print(f"{'='*60}")
     for sig_field, name in strategies:
         all_t, buys, sells = simulate(rows, sig_field, cost=0)
@@ -263,7 +263,7 @@ def main():
 
     # ── 5. Top/bottom trades ──
     print(f"{'='*60}")
-    print(f"  最佳/最差交易 (按 net_return)")
+    print("  最佳/最差交易 (按 net_return)")
     print(f"{'='*60}")
     for sig_field, name in strategies:
         all_t, _, _ = simulate(rows, sig_field)
@@ -278,7 +278,7 @@ def main():
 
     # ── 6. Yearly distribution ──
     print(f"{'='*60}")
-    print(f"  信号年度分布")
+    print("  信号年度分布")
     print(f"{'='*60}")
     for sig_field, name in strategies:
         by_year: Dict[str, int] = defaultdict(int)
