@@ -14,6 +14,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
+czsc = pytest.importorskip("czsc")
 from czsc import RawBar, Freq
 
 from uniquant.brain.czsc.czsc_engine import CZSCEngine

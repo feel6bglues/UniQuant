@@ -7,6 +7,7 @@ import pandas as pd
 import numpy as np
 from unittest.mock import patch
 
+czsc = pytest.importorskip("czsc")
 from uniquant.brain.czsc.czsc_engine import CZSCEngine
 
 
