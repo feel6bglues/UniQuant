@@ -59,6 +59,8 @@ where = ["src"]
 # the path setup.
 "scripts/**" = ["E402"]
 "tests/test_czsc_*.py" = ["E402"]
+"tests/test_technical_and_signal_regressions.py" = ["E402"]
+"tests/test_more_analysis_engine_regressions.py" = ["E402"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

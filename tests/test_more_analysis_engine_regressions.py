@@ -1,4 +1,7 @@
 import pandas as pd
+import pytest
+
+pytest.importorskip("czsc")
 
 from uniquant.services.analysis.czsc_analysis_engine import CzscAnalysisEngine
 from uniquant.services.analysis.lppl_analysis_engine import LpplAnalysisEngine

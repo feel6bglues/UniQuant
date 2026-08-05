@@ -1,4 +1,7 @@
 import pandas as pd
+import pytest
+
+pytest.importorskip("czsc")
 
 from uniquant.services.analysis.signal_service import SignalAnalysisService
 from uniquant.services.analysis.technical_service import TechnicalAnalysisService
