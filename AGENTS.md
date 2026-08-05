@@ -61,6 +61,16 @@ Phase A-K v2.0 deep audit (2026-07-06): code quality (Fair, 116 duplicates, Wyck
 
 **Test results**: 2051 passed / 22 skipped / 0 failed；coverage 57.88% (≥50% 门槛通过)；0 ruff (src+tests+scripts)。**待办**: 研究脚本（`runner_v3.py` 等 F821 修复项）业务逻辑未运行验证（依赖数据）。
 
+## Recent Work (2026-08-05) — pyarrow 升级 + CI Audit 修复
+
+| 项 | 内容 | Verification |
+|---|---|---|
+| **pyarrow 升级** | `pyproject.toml` pyarrow 约束 `<20.0.0`→`<24.0.0`，允许 23.0.1；修复 PYSEC-2026-113 漏洞（19.0.1→23.0.1），解决 CI "Audit dependencies" 步骤阻塞 | 全量 2051 passed / 22 skipped；ruff 0 |
+| **CI Audit 修复** | CI `test.yml` "Audit dependencies" 步骤因 pyarrow 19.0.1 漏洞始终失败（exit 1），Lint/Test 步骤被跳过 → 升级后审计通过 | `gh run list` CI job 待新提交触发 |
+| **gh CLI 接入** | 安装 gh 2.45.0 + SSH 认证完成，可通过 `gh run list`/`gh run view` 查 CI 状态 | `gh auth status` → logged in as feel6bglues |
+
+**runner_v3.py 业务验证待办**：`data/lake/quotes/daily/` 目录当前为空（parquet 数据未加载），`runner_v3.py` 依赖真实行情数据运行，暂无法验证。需先填充数据或用合成数据验证。
+
 ## Recent Work (2026-08-02) — Wyckoff 优化修复 8 项并行执行 (4 Wave, 多 subagent)
 
 | Wave | Task | ID | Summary | Verification |
