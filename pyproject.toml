@@ -40,7 +40,7 @@ dependencies = [
 dev = [
     "pytest>=8.0.0",
     "pytest-cov>=5.0.0",
-    "ruff>=0.5.0",
+    "ruff>=0.15.0,<0.16.0",
     "mypy>=1.0.0",
 ]
 tdx = ["pytdx>=1.72", "tdxpy>=0.2.5"]
@@ -58,6 +58,7 @@ where = ["src"]
 # installed package / src namespace, so imports legitimately appear below
 # the path setup.
 "scripts/**" = ["E402"]
+"tests/test_czsc_*.py" = ["E402"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

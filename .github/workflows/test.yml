@@ -27,9 +27,7 @@ jobs:
           pip-audit --local
 
       - name: Lint with ruff
-        run: |
-          pip install "ruff>=0.15.0,<0.16.0"
-          ruff check src/uniquant/ tests/ scripts/
+        run: ruff check src/uniquant/ tests/ scripts/
 
       - name: Test with pytest
         run: pytest tests/ -q --tb=short
