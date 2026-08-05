@@ -86,7 +86,7 @@ class GlobalConfig:
     _instance = None
     _lock = threading.Lock()
     _config: Dict[str, Any] = {}
-    _root_dir: Path = Path(__file__).parent.parent.parent.resolve()
+    _root_dir: Path = Path(__file__).parent.parent.parent.parent.resolve()
 
     _REQUIRED_SECTIONS = ["base", "cache", "network", "data_sources"]
 
