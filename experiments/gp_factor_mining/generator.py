@@ -16,6 +16,7 @@ Genetic Factor Miner — 基于金融算子的遗传规划因子挖掘引擎
 from __future__ import annotations
 
 import os
+import copy
 import random
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
@@ -26,6 +27,47 @@ import numpy as np
 import pandas as pd
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from functools import partial
+from collections import Counter
+
+
+def _fast_spearman(a: np.ndarray, b: np.ndarray) -> float:
+    """轻量 Spearman 秩相关 (rankdata + Pearson), 比 scipy.spearmanr 快 ~3x。"""
+    from scipy.stats import rankdata
+    n = min(len(a), len(b))
+    if n < 3:
+        return 0.0
+    ra = rankdata(a[:n])
+    rb = rankdata(b[:n])
+    ra = ra - ra.mean()
+    rb = rb - rb.mean()
+    den = float(np.sqrt(np.dot(ra, ra) * np.dot(rb, rb)))
+    if den <= 0.0:
+        return 0.0
+    return float(np.dot(ra, rb) / den)
+
+
+_WORKER_MINER: Optional["GeneticFactorMiner"] = None
+_WORKER_DATA: Optional[tuple] = None
+
+
+def _worker_init(config, df_train, df_test, test_fwd, test_amount, test_date_groups):
+    """进程池 worker 初始化: 每进程独立 miner + 共享静态数据 (wyckoff 同款模式)。"""
+    global _WORKER_MINER, _WORKER_DATA
+    _WORKER_MINER = GeneticFactorMiner(config=config)
+    _WORKER_DATA = (df_train, df_test, test_fwd, test_amount, test_date_groups)
+
+
+def _eval_fitness_worker(tree) -> float:
+    if _WORKER_MINER is None or _WORKER_DATA is None:
+        return -1.0
+    df_train, df_test, tf, ta, tg = _WORKER_DATA
+    try:
+        return _WORKER_MINER.evaluate_fitness(
+            tree, df_train, df_test,
+            test_fwd=tf, test_amount=ta, test_date_groups=tg,
+        )
+    except Exception:
+        return -1.0
 
 
 
@@ -71,20 +113,24 @@ class OpSqrt(Operator):
 
 
 class OpRank(Operator):
-    """横截面百分位秩 [0, 1]"""
+    """横截面百分位秩 [0, 1] (面板: 当日横截面 = 当日股票间秩)"""
     name = "rank"; arity = 1; weight = 0.8
     def apply(self, args):
         s = args[0]
-        if "code" not in s.name and not hasattr(s, "index"):
-            return s.rank(pct=True)
-        return s.groupby(level=0).rank(pct=True) if isinstance(s.index, pd.MultiIndex) else s.rank(pct=True)
+        if isinstance(s.index, pd.MultiIndex):
+            return s.groupby(level=1).rank(pct=True)
+        return s.rank(pct=True)
 
 
 class OpScale(Operator):
-    """横截面 Z-score"""
+    """横截面 Z-score (面板: 当日股票间标准化)"""
     name = "scale"; arity = 1; weight = 0.8
     def apply(self, args):
         s = args[0]
+        if isinstance(s.index, pd.MultiIndex):
+            gmean = s.groupby(level=1).transform("mean")
+            gstd = s.groupby(level=1).transform("std")
+            return (s - gmean) / gstd.where(gstd > 1e-12)
         mu, std = s.mean(), s.std()
         return (s - mu) / std.replace(0, np.nan) if hasattr(std, "replace") else (s - mu) / max(std, 1e-10)
 
@@ -94,6 +140,8 @@ class OpDelay(Operator):
     def apply(self, args):
         series = args[0]
         days = self._resolve_constant(args[1], default=1)
+        if isinstance(series.index, pd.MultiIndex):
+            return series.groupby(level=0).shift(days)
         return series.shift(days)
 
     def _resolve_constant(self, arg, default=1):
@@ -109,6 +157,8 @@ class OpDelta(Operator):
     def apply(self, args):
         series = args[0]
         n = self._resolve_n(args[1], default=5)
+        if isinstance(series.index, pd.MultiIndex):
+            return series.groupby(level=0).diff(n)
         return series.diff(n)
 
     def _resolve_n(self, arg, default=5):
@@ -124,6 +174,8 @@ class OpSMA(Operator):
     def apply(self, args):
         series = args[0]
         n = self._resolve_n(args[1], default=10)
+        if isinstance(series.index, pd.MultiIndex):
+            return _roll_grouped(series, n, n // 2, "mean")
         return series.rolling(window=n, min_periods=n // 2).mean()
 
     def _resolve_n(self, arg, default=10):
@@ -139,6 +191,8 @@ class OpStd(Operator):
     def apply(self, args):
         series = args[0]
         n = self._resolve_n(args[1], default=20)
+        if isinstance(series.index, pd.MultiIndex):
+            return _roll_grouped(series, n, n // 2, "std")
         return series.rolling(window=n, min_periods=n // 2).std()
 
     def _resolve_n(self, arg, default=20):
@@ -154,6 +208,8 @@ class OpTsSum(Operator):
     def apply(self, args):
         series = args[0]
         n = OpSMA._resolve_n(self, args[1], default=10)
+        if isinstance(series.index, pd.MultiIndex):
+            return _roll_grouped(series, n, n // 2, "sum")
         return series.rolling(window=n, min_periods=n // 2).sum()
 
 
@@ -161,7 +217,10 @@ class OpTsMin(Operator):
     """滚动最小值"""
     name = "ts_min"; arity = 2; weight = 0.6
     def apply(self, args):
-        series = args[0]; n = OpSMA._resolve_n(self, args[1], default=20)
+        series = args[0]
+        n = OpSMA._resolve_n(self, args[1], default=20)
+        if isinstance(series.index, pd.MultiIndex):
+            return _roll_grouped(series, n, n // 2, "min")
         return series.rolling(window=n, min_periods=n // 2).min()
 
 
@@ -169,7 +228,10 @@ class OpTsMax(Operator):
     """滚动最大值"""
     name = "ts_max"; arity = 2; weight = 0.6
     def apply(self, args):
-        series = args[0]; n = OpSMA._resolve_n(self, args[1], default=20)
+        series = args[0]
+        n = OpSMA._resolve_n(self, args[1], default=20)
+        if isinstance(series.index, pd.MultiIndex):
+            return _roll_grouped(series, n, n // 2, "max")
         return series.rolling(window=n, min_periods=n // 2).max()
 
 
@@ -298,8 +360,8 @@ class GPTree:
         op_name = node.op.name
         child_strs = [self._to_str(c) for c in node.children]
         if node.op.arity == 1:
-            return f"{op_name}({child_strs[0]})"
-        return f"({child_strs[0]} {op_name} {child_strs[1]})"
+            return f"{op_name}({child_strs[0] if child_strs else '?'})"
+        return f"({child_strs[0] if child_strs else '?'} {op_name} {child_strs[1] if len(child_strs) > 1 else '?'})"
 
     def to_python_code(self, func_name: str, comment: str = "") -> str:
         """生成 Python 因子函数代码"""
@@ -458,19 +520,70 @@ DEFAULT_SERIES_OPS = [
 ]
 
 
-def _extract_ret1(df): return df["close"].pct_change(fill_method=None)
-def _extract_ret5(df): return df["close"].pct_change(5, fill_method=None)
-def _extract_ret10(df): return df["close"].pct_change(10, fill_method=None)
-def _extract_ret20(df): return df["close"].pct_change(20, fill_method=None)
+def _is_panel(df) -> bool:
+    """是否多股票面板 (MultiIndex (code, date))"""
+    return isinstance(getattr(df, "index", None), pd.MultiIndex)
+
+
+def _roll_grouped(series: pd.Series, window: int, min_periods: int, method: str) -> pd.Series:
+    """逐股票分组滚动窗口 (面板下避免跨股票边界泄漏)"""
+    rolling = series.groupby(level=0).rolling(window=window, min_periods=min_periods)
+    res = getattr(rolling, method)()
+    # pandas GroupBy.rolling 结果会在最前面附加分组键层级 → 移除后按原索引对齐
+    if getattr(res.index, "nlevels", 1) > getattr(series.index, "nlevels", 1):
+        res = res.droplevel(0)
+    return res.reindex(series.index)
+
+
+def _extract_ret1(df):
+    close = df["close"]
+    if _is_panel(df):
+        return close.groupby(level=0).pct_change(fill_method=None)
+    return close.pct_change(fill_method=None)
+
+
+def _extract_ret5(df):
+    close = df["close"]
+    if _is_panel(df):
+        return close.groupby(level=0).pct_change(5, fill_method=None)
+    return close.pct_change(5, fill_method=None)
+
+
+def _extract_ret10(df):
+    close = df["close"]
+    if _is_panel(df):
+        return close.groupby(level=0).pct_change(10, fill_method=None)
+    return close.pct_change(10, fill_method=None)
+
+
+def _extract_ret20(df):
+    close = df["close"]
+    if _is_panel(df):
+        return close.groupby(level=0).pct_change(20, fill_method=None)
+    return close.pct_change(20, fill_method=None)
+
+
 def _extract_vol20(df):
-    ret = df["close"].pct_change(fill_method=None)
+    ret = _extract_ret1(df)
+    if _is_panel(df):
+        return _roll_grouped(ret, 20, 10, "std")
     return ret.rolling(window=20, min_periods=10).std()
+
+
 def _extract_rsi14(df):
-    ret = df["close"].diff()
-    gain = ret.clip(lower=0).rolling(14).mean()
-    loss = (-ret.clip(upper=0)).rolling(14).mean()
+    close = df["close"]
+    if _is_panel(df):
+        ret = close.groupby(level=0).diff()
+        gain = _roll_grouped(ret.clip(lower=0), 14, 14, "mean")
+        loss = _roll_grouped((-ret.clip(upper=0)), 14, 14, "mean")
+    else:
+        ret = close.diff()
+        gain = ret.clip(lower=0).rolling(14).mean()
+        loss = (-ret.clip(upper=0)).rolling(14).mean()
     rs = gain / loss.replace(0, np.nan)
     return 100 - (100 / (1 + rs))
+
+
 def _extract_vwap(df):
     amt = df["amount"].astype(float) if "amount" in df.columns else df["volume"] * df["close"]
     return amt / df["volume"].replace(0, np.nan)
@@ -655,9 +768,9 @@ class GeneticFactorMiner:
         )
 
         n1.op, n1.terminal, n1.const_value, n1.children = \
-            n2.op, n2.terminal, n2.const_value, list(n2.children)
+            n2.op, n2.terminal, n2.const_value, [copy.deepcopy(c) for c in n2.children]
         n2.op, n2.terminal, n2.const_value, n2.children = \
-            backup1.op, backup1.terminal, backup1.const_value, backup1.children
+            backup1.op, backup1.terminal, backup1.const_value, [copy.deepcopy(c) for c in backup1.children]
 
         # 检查深度约束
         if parent1.depth > self.config.max_depth:
@@ -668,7 +781,7 @@ class GeneticFactorMiner:
                 const_value=n2.const_value, children=list(n2.children),
             )
 
-        return parent1, parent2
+        return self._sanitize_tree(parent1), self._sanitize_tree(parent2)
 
     def _point_mutation(self, tree: GPTree) -> GPTree:
         """点变异: 替换随机节点"""
@@ -702,6 +815,22 @@ class GeneticFactorMiner:
             # 重新生长到合理深度
             tree.root = self._grow_tree(self.config.max_depth)
 
+        return self._sanitize_tree(tree)
+
+    def _sanitize_tree(self, tree: GPTree) -> GPTree:
+        """修复树中算子-子节点数量失配 (遗传算子可能产生的畸形节点)。"""
+        def fix(node: Node) -> None:
+            if node.op is not None:
+                want = node.op.arity
+                while len(node.children) < want:
+                    node.children.append(self._random_terminal())
+                while len(node.children) > want:
+                    node.children.pop()
+            elif node.children:
+                node.children.clear()
+            for c in node.children:
+                fix(c)
+        fix(tree.root)
         return tree
 
     # ─── 适应度评估 ──────────────────────────────────────────────────────
@@ -833,13 +962,11 @@ class GeneticFactorMiner:
             return -1.0
 
     def _compute_ic_np(self, f: np.ndarray, r: np.ndarray) -> float:
-        from scipy import stats
         n = min(len(f), len(r))
         if n < 20:
             return 0.0
         try:
-            ic, _ = stats.spearmanr(f[:n], r[:n])
-            return ic if not np.isnan(ic) else 0.0
+            return _fast_spearman(f[:n], r[:n])
         except Exception:
             return 0.0
 
@@ -852,12 +979,10 @@ class GeneticFactorMiner:
         return f - beta * a
 
     def _compute_amount_correlation_np(self, f: np.ndarray, a: np.ndarray) -> float:
-        from scipy import stats
         if len(f) < 20 or np.unique(f).size < 2 or np.unique(a).size < 2:
             return 0.0
         try:
-            c, _ = stats.spearmanr(f, a)
-            return abs(c) if not np.isnan(c) else 0.0
+            return abs(_fast_spearman(f, a))
         except Exception:
             return 0.0
 
@@ -1019,135 +1144,143 @@ class GeneticFactorMiner:
         test_date_groups = [np.array(v, dtype=np.intp) for v in date_to_indices.values()
                             if len(v) >= 20]
 
-        for gen in range(self.config.n_generations):
-            # 评估适应度 (使用预计算数据)
-            n_jobs = max(1, self.config.n_jobs)
-            if n_jobs > 1:
-                fitness = [None] * len(population)
-                eval_fn = partial(
-                    self.evaluate_fitness,
-                    df_train=df_train, df_test=df_test,
-                    test_fwd=test_fwd_np, test_amount=test_amount_np,
-                    test_date_groups=test_date_groups,
-                )
-                with ThreadPoolExecutor(max_workers=n_jobs) as pool:
-                    fut_map = {pool.submit(eval_fn, tree): i for i, tree in enumerate(population)}
+        from concurrent.futures import ProcessPoolExecutor
+        n_jobs = max(1, self.config.n_jobs)
+        pool = None
+        if n_jobs > 1:
+            pool = ProcessPoolExecutor(
+                max_workers=n_jobs,
+                initializer=_worker_init,
+                initargs=(self.config, df_train, df_test, test_fwd_np, test_amount_np, test_date_groups),
+            )
+        try:
+            for gen in range(self.config.n_generations):
+                # 评估适应度 (使用预计算数据; 进程池并行, 避开 GIL)
+                if pool is not None:
+                    fitness = [None] * len(population)
+                    fut_map = {pool.submit(_eval_fitness_worker, tree): i for i, tree in enumerate(population)}
                     for fut in as_completed(fut_map):
                         idx = fut_map[fut]
                         try:
                             fitness[idx] = fut.result()
                         except Exception:
                             fitness[idx] = -1.0
-            else:
-                fitness = []
-                for i, tree in enumerate(population):
-                    f = self.evaluate_fitness(
-                        tree, df_train, df_test,
-                        test_fwd=test_fwd_np, test_amount=test_amount_np,
-                        test_date_groups=test_date_groups,
-                    )
-                    fitness.append(f)
+                else:
+                    fitness = []
+                    for i, tree in enumerate(population):
+                        f = self.evaluate_fitness(
+                            tree, df_train, df_test,
+                            test_fwd=test_fwd_np, test_amount=test_amount_np,
+                            test_date_groups=test_date_groups,
+                        )
+                        fitness.append(f)
 
-            # 精英
-            n_elite = max(1, int(self.config.pop_size * self.config.elitism_ratio))
-            elite_idx = np.argsort(fitness)[-n_elite:]
-            elites = [population[i] for i in elite_idx]
-            elite_f = [fitness[i] for i in elite_idx]
+                # 适应度共享 (多样性): 公式签名相同的个体按克隆数惩罚,
+                # 防止种群塌缩到单一低复杂度吸引子 (如 vwap / returns_20d)。
+                # select_fitness 只供锦标赛选择使用, 原始 fitness 仍用于精英/报告。
+                sig_counts = Counter(self._formula_signature(t) for t in population)
+                select_fitness = list(fitness)
+                if self.config.diversity_pressure > 0:
+                    for i, t in enumerate(population):
+                        c = sig_counts[self._formula_signature(t)]
+                        if c > 1:
+                            select_fitness[i] = fitness[i] - 0.02 * (c - 1)
 
-            best_f = max(fitness)
-            self.best_fitness_history.append(best_f)
-            if best_f > 0:
-                best_idx = fitness.index(best_f)
-                self.best_individuals.append((population[best_idx], best_f))
+                # 精英
+                n_elite = max(1, int(self.config.pop_size * self.config.elitism_ratio))
+                elite_idx = np.argsort(fitness)[-n_elite:]
+                elites = [population[i] for i in elite_idx]
+                elite_f = [fitness[i] for i in elite_idx]
 
-            # 记录 (含多样性指标)
-            mean_f = float(np.mean([f for f in fitness if f > -1]))
-            n_valid = sum(1 for f in fitness if f > -0.5)
+                best_f = max(fitness)
+                self.best_fitness_history.append(best_f)
+                if best_f > 0:
+                    best_idx = fitness.index(best_f)
+                    self.best_individuals.append((population[best_idx], best_f))
+    
+                # 记录 (含多样性指标)
+                mean_f = float(np.mean([f for f in fitness if f > -1]))
+                n_valid = sum(1 for f in fitness if f > -0.5)
+    
+                # 计算种群 amount 相关性和多样性
+                formula_set = set()
+                amount_dep_count = 0
+                for t in population:
+                    formula_set.add(self._formula_signature(t))
+                    if self._has_amount_terminal(t):
+                        amount_dep_count += 1
+                diversity_ratio = len(formula_set) / len(population)
+                amount_dep_ratio = amount_dep_count / len(population)
+    
+                if gen == 0 or (gen + 1) % 5 == 0 or gen == self.config.n_generations - 1:
+                    print(f"  [GP] Gen {gen + 1:2d}/{self.config.n_generations}  "
+                          f"best={best_f:.4f}  mean={mean_f:.4f}  "
+                          f"valid={n_valid}/{len(population)}  "
+                          f"div={diversity_ratio:.2f}  amount%={amount_dep_ratio:.2f}")
+    
+                # 下一代
+                new_pop = list(elites)
+                while len(new_pop) < self.config.pop_size:
+                    p1 = self._tournament_select(population, select_fitness)
+                    p2 = self._tournament_select(population, select_fitness)
+    
+                    if p1 is None or p2 is None:
+                        new_pop.append(self.generate_random_tree())
+                        continue
+    
+                    # 深拷贝用于遗传操作
+                    import copy
+                    c1, c2 = copy.deepcopy(p1), copy.deepcopy(p2)
+    
+                    if self.rng.random() < self.config.crossover_rate:
+                        try:
+                            c1, c2 = self._subtree_crossover(c1, c2)
+                        except Exception:
+                            pass
+    
+                    if self.rng.random() < self.config.mutation_rate:
+                        c1 = self._point_mutation(c1)
+                    if self.rng.random() < self.config.mutation_rate:
+                        c2 = self._point_mutation(c2)
+    
+                    new_pop.append(c1)
+                    if len(new_pop) < self.config.pop_size:
+                        new_pop.append(c2)
+    
+                population = new_pop[:self.config.pop_size]
 
-            # 计算种群 amount 相关性和多样性
-            formula_set = set()
-            amount_dep_count = 0
-            for t in population:
-                formula_set.add(self._formula_signature(t))
-                if self._has_amount_terminal(t):
-                    amount_dep_count += 1
-            diversity_ratio = len(formula_set) / len(population)
-            amount_dep_ratio = amount_dep_count / len(population)
-
-            if gen == 0 or (gen + 1) % 5 == 0 or gen == self.config.n_generations - 1:
-                print(f"  [GP] Gen {gen + 1:2d}/{self.config.n_generations}  "
-                      f"best={best_f:.4f}  mean={mean_f:.4f}  "
-                      f"valid={n_valid}/{len(population)}  "
-                      f"div={diversity_ratio:.2f}  amount%={amount_dep_ratio:.2f}")
-
-            # 下一代
-            new_pop = list(elites)
-            while len(new_pop) < self.config.pop_size:
-                p1 = self._tournament_select(population, fitness)
-                p2 = self._tournament_select(population, fitness)
-
-                if p1 is None or p2 is None:
-                    new_pop.append(self.generate_random_tree())
-                    continue
-
-                # 深拷贝用于遗传操作
-                import copy
-                c1, c2 = copy.deepcopy(p1), copy.deepcopy(p2)
-
-                if self.rng.random() < self.config.crossover_rate:
-                    try:
-                        c1, c2 = self._subtree_crossover(c1, c2)
-                    except Exception:
-                        pass
-
-                if self.rng.random() < self.config.mutation_rate:
-                    c1 = self._point_mutation(c1)
-                if self.rng.random() < self.config.mutation_rate:
-                    c2 = self._point_mutation(c2)
-
-                new_pop.append(c1)
-                if len(new_pop) < self.config.pop_size:
-                    new_pop.append(c2)
-
-            population = new_pop[:self.config.pop_size]
-
-        # 最终排序 (使用预计算数据)
-        n_jobs = max(1, self.config.n_jobs)
-        if n_jobs > 1:
-            final_fitness = [None] * len(population)
-            eval_fn = partial(
-                self.evaluate_fitness,
-                df_train=df_train, df_test=df_test,
-                test_fwd=test_fwd_np, test_amount=test_amount_np,
-                test_date_groups=test_date_groups,
-            )
-            with ThreadPoolExecutor(max_workers=n_jobs) as pool:
-                fut_map = {pool.submit(eval_fn, tree): i for i, tree in enumerate(population)}
+            # 最终排序 (复用进程池)
+            if pool is not None:
+                final_fitness = [None] * len(population)
+                fut_map = {pool.submit(_eval_fitness_worker, tree): i for i, tree in enumerate(population)}
                 for fut in as_completed(fut_map):
                     idx = fut_map[fut]
                     try:
                         final_fitness[idx] = fut.result()
                     except Exception:
                         final_fitness[idx] = -1.0
-        else:
-            final_fitness = []
-            for tree in population:
-                f = self.evaluate_fitness(
-                    tree, df_train, df_test,
-                    test_fwd=test_fwd_np, test_amount=test_amount_np,
-                    test_date_groups=test_date_groups,
-                )
-                final_fitness.append(f)
-
-        sorted_idx = np.argsort(final_fitness)[::-1]
-        results = [(population[i], final_fitness[i]) for i in sorted_idx[:50]]
-
-        # 报告 Top-5 详情
-        print(f"\n  [GP] Top-5 存活因子:")
-        for i, (tree, f) in enumerate(results[:5]):
-            has_amt = "⚠️ amount" if self._has_amount_terminal(tree) else "✓ no-amount"
-            print(f"    #{i+1}: fitness={f:.4f}  depth={tree.depth}  "
-                  f"complexity={tree.complexity:.1f}  {has_amt}")
-            print(f"         formula: {tree.to_formula()[:80]}")
-
-        return results
+            else:
+                final_fitness = []
+                for tree in population:
+                    f = self.evaluate_fitness(
+                        tree, df_train, df_test,
+                        test_fwd=test_fwd_np, test_amount=test_amount_np,
+                        test_date_groups=test_date_groups,
+                    )
+                    final_fitness.append(f)
+    
+            sorted_idx = np.argsort(final_fitness)[::-1]
+            results = [(population[i], final_fitness[i]) for i in sorted_idx[:50]]
+    
+            # 报告 Top-5 详情
+            print(f"\n  [GP] Top-5 存活因子:")
+            for i, (tree, f) in enumerate(results[:5]):
+                has_amt = "⚠️ amount" if self._has_amount_terminal(tree) else "✓ no-amount"
+                print(f"    #{i+1}: fitness={f:.4f}  depth={tree.depth}  "
+                      f"complexity={tree.complexity:.1f}  {has_amt}")
+                print(f"         formula: {tree.to_formula()[:80]}")
+    
+            return results
+        finally:
+            if pool is not None:
+                pool.shutdown()

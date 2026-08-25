@@ -130,6 +130,7 @@ def process_stock(symbol: str, observations: List[dict]) -> List[dict]:
 
 
 def run():
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     log("Loading v4_results.json ...")
     with open(OUTPUT_DIR / 'v4_results.json') as f:
         v4 = json.load(f)

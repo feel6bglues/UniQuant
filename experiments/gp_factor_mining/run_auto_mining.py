@@ -141,7 +141,7 @@ def the_reaper(candidates: list, df: pd.DataFrame) -> list:
         windows.append((ws, we, ss, se))
 
     print(f"  Walk-Forward: {len(windows)} 窗口 (train={train_w}d, test={test_w}d)")
-    print(f"  RAM 策略数: {n_rand}")
+    print(f"  PBO 采样数: {n_bootstrap}")
 
     for idx, (tree, fit) in enumerate(candidates):
         formula = tree.to_formula()

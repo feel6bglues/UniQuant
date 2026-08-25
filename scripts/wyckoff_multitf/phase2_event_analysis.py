@@ -104,6 +104,8 @@ def process_stock(symbol: str, observations: List[dict]) -> List[dict]:
 
 
 def run():
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+
     src = OUTPUT_DIR / 'phase1_results.json'
     if not src.exists():
         src = OUTPUT_DIR / 'v4_results.json'

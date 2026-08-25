@@ -178,7 +178,7 @@ def load_checkpoint(path: Path) -> tuple[list, set]:
     if path.exists():
         with open(path) as f:
             data = json.load(f)
-        obs = [Obs(s=o['s'], cutoff=o['c'], month_phase=o['p'], day_spring=o['ds'],
+        obs = [Obs(symbol=o['s'], cutoff=o['c'], month_phase=o['p'], day_spring=o['ds'],
                    fwd_1m=o['f1'], fwd_3m=o['f3'], fwd_6m=o['f6'])
                for o in data['obs']]
         completed = set(data['completed'])

@@ -166,6 +166,8 @@ def build_wss_lookup(event_data: list[dict], min_obs: int = 15) -> dict:
 
 
 def main():
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+
     event_src = OUTPUT_DIR / "phase2_event_results.json"
     if not event_src.exists():
         print(f"ERROR: {event_src} not found. Run phase2_event_analysis.py first.")

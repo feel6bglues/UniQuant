@@ -498,11 +498,18 @@ def load_obs(path: Path) -> List[RollingObs]:
 
 
 def main():
-    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    OBS_PATH = OUTPUT_DIR / "rolling_panel.json"
+    import argparse
+    parser = argparse.ArgumentParser(description="Wyckoff v3 Rolling Panel Verification")
+    parser.add_argument("--max-stocks", type=int, default=1000, help="Max stocks to process (default: 1000, use 5445 for full)")
+    parser.add_argument("--output-suffix", type=str, default="", help="Suffix for output directory (e.g. _full)")
+    args = parser.parse_args()
+
+    output_dir = Path(str(OUTPUT_DIR) + args.output_suffix)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    OBS_PATH = output_dir / "rolling_panel.json"
     t0 = time.time()
     print("=" * 80)
-    print("Wyckoff Multi-Timeframe Verification v3 — Rolling Panel")
+    print(f"Wyckoff Multi-Timeframe Verification v3 — Rolling Panel (max_stocks={args.max_stocks})")
     print("=" * 80)
 
     obs: List[RollingObs] = []
@@ -514,10 +521,10 @@ def main():
         # Universe
         from scripts.wyckoff_multitf.a_universe import scan_universe, stratified_sample
         from scripts.wyckoff_multitf.config import VerifierConfig
-        cfg = VerifierConfig()
+        cfg = VerifierConfig(max_stocks=args.max_stocks)
         records = scan_universe(cfg)
-        sampled = stratified_sample(records, seed=42)
-        stocks = [r.symbol for r in sampled[:1000]]
+        sampled = stratified_sample(records, seed=42, n_per=args.max_stocks // 5 + 1)
+        stocks = [r.symbol for r in sampled[:args.max_stocks]]
         print(f"Universe: {len(stocks)} stocks (stratified {len(records)} → {len(sampled)} → {len(stocks)})")
 
         # Rolling panel
@@ -548,7 +555,7 @@ def main():
         "meta": {"n_stocks": len(stocks), "n_observations": len(obs), "elapsed_s": time.time() - t0},
         "hypotheses": {name: {"supported": r.supported, "p_value": r.p_value, "effect": r.effect, "detail": r.detail} for name, r in results.items()},
     }
-    out_path = OUTPUT_DIR / "v3_results.json"
+    out_path = output_dir / "v3_results.json"
     with open(out_path, "w") as f:
         json.dump(out, f, indent=2, default=str)
     print(f"\nSaved to {out_path}")
