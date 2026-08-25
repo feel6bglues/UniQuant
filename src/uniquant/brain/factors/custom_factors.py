@@ -2,6 +2,7 @@
 from .registry import FactorRegistry
 import pandas as pd
 import numpy as np
+from numpy.lib.stride_tricks import sliding_window_view
 
 
 def compute_momentum_20d(df: pd.DataFrame) -> pd.Series:
@@ -104,6 +105,28 @@ def compute_illiq_20d(df: pd.DataFrame, **kwargs) -> pd.Series:
     return illiq.rolling(window=20, min_periods=10).mean() * 1e9
 
 
+def _rolling_rank_pct_last(s: pd.Series, window: int = 20) -> pd.Series:
+    """滚动窗口内最后一个值在窗口内的百分位秩 (pandas rank pct=True 等价)。
+
+    原实现 rolling().apply(lambda x: pd.Series(x).rank(pct=True).iloc[-1])
+    每窗口构造一个 Series, 50 只股票 ~77s (占全因子计算 99%)。
+    用 sliding_window_view 向量化, 语义逐位等价 (含平均秩处理 ties + NaN 掩码)。
+    """
+    vals = s.to_numpy(dtype=float)
+    n = len(vals)
+    out = np.full(n, np.nan)
+    if n < window:
+        return pd.Series(out, index=s.index)
+    win = sliding_window_view(vals, window)
+    last = win[:, -1]
+    has_nan = np.isnan(win).any(axis=1)
+    less = np.sum(win < last[:, None], axis=1)
+    equal = np.sum(win == last[:, None], axis=1)
+    rank_pct = (less + (equal + 1) / 2.0) / window
+    out[window - 1:] = np.where(has_nan, np.nan, rank_pct)
+    return pd.Series(out, index=s.index)
+
+
 def compute_pv_divergence_20d(df: pd.DataFrame, **kwargs) -> pd.Series:
     """
     量价背离因子 (Price-Volume Divergence)
@@ -119,12 +142,8 @@ def compute_pv_divergence_20d(df: pd.DataFrame, **kwargs) -> pd.Series:
     """
     if "close" not in df.columns or "volume" not in df.columns:
         return pd.Series(index=df.index, dtype=float)
-    close_rank = df["close"].rolling(window=20).apply(
-        lambda x: pd.Series(x).rank(pct=True).iloc[-1] if len(x) >= 5 else np.nan
-    )
-    vol_rank = df["volume"].rolling(window=20).apply(
-        lambda x: pd.Series(x).rank(pct=True).iloc[-1] if len(x) >= 5 else np.nan
-    )
+    close_rank = _rolling_rank_pct_last(df["close"], window=20)
+    vol_rank = _rolling_rank_pct_last(df["volume"], window=20)
     return vol_rank - close_rank
 
 
@@ -173,6 +192,140 @@ def compute_idiosyncratic_vol_20d(df: pd.DataFrame, **kwargs) -> pd.Series:
     residual = returns - local_trend
     ivol = residual.rolling(window=20, min_periods=10).std() * np.sqrt(252)
     return -ivol  # 取负: 高因子值=低IVOL=做多信号
+
+
+# ─── 逻辑驱动因子方向族 (2026-08-19) ──────────────────────────────────
+# 文献调研见 docs/analysis/LOGIC_FACTOR_RESEARCH_PLAN.md
+# P1 基线确认仅 2 因子正 OOS IC (illiq_20d +0.070, idio_vol +0.075),
+# P2 GP 挖掘 0/25 幸存 → 转向有金融学理论支撑的逻辑因子。
+
+
+def compute_max_ret_20d(df: pd.DataFrame, **kwargs) -> pd.Series:
+    """
+    MAX 效应因子 (Bali, Cakici & Whitelaw 2011)
+
+    彩票偏好理论: 投资者对"彩票型"股票(过去曾出现极端正收益)
+    有过度需求, 推高当前价格, 导致未来收益偏低。
+    MAX = 过去 20 日最大日收益率。
+    因子值 = MAX (高 MAX = 彩票偏好 = 预期低收益)。
+    IC 预期: 负值 (高 MAX → 低未来收益)。
+    """
+    if "close" not in df.columns:
+        return pd.Series(index=df.index, dtype=float)
+    ret = df["close"].pct_change(fill_method=None)
+    return ret.rolling(window=20, min_periods=10).max()
+
+
+def compute_reversal_1d(df: pd.DataFrame, **kwargs) -> pd.Series:
+    """
+    1 日反转因子 (Jegadeesh 1990)
+
+    短期反转: 微观结构噪声(买卖报价反弹、做市商补偿)导致
+    日度收益负自相关。A 股个人投资者占比高, 追涨杀跌行为
+    更突出, 反转效应较美股更显著。
+    因子值 = −1 × 昨日收益率 (高因子值 = 昨日跌 = 预期今日涨)。
+    IC 预期: 正值 (昨日跌 → 今日涨)。
+    """
+    if "close" not in df.columns:
+        return pd.Series(index=df.index, dtype=float)
+    return -df["close"].pct_change(1, fill_method=None)
+
+
+def compute_amivest_20d(df: pd.DataFrame, **kwargs) -> pd.Series:
+    """
+    Amivest 流动性比率因子
+
+    Amivest (1970s) 是最早的流动性度量之一, 与 Amihud ILLIQ 反号:
+    Amivest = 单位价格变动所承载的成交额, 值越高 = 流动性越好。
+    ILLIQ 度量"非流动性"(价格冲击), Amivest 度量"流动性"(深度)。
+    两者包含互补信息, 但方向相反。
+    因子值 = mean(amount / |r|, 20d)。
+    IC 预期: 负值 (高流动性 → 低收益, 流动性溢价的反面)。
+    """
+    if "close" not in df.columns or "amount" not in df.columns:
+        return pd.Series(index=df.index, dtype=float)
+    ret_abs = df["close"].pct_change(fill_method=None).abs()
+    ret_abs = ret_abs.clip(lower=1e-10)
+    ratio = df["amount"] / ret_abs
+    ratio = ratio.replace([np.inf, -np.inf], np.nan)
+    return ratio.rolling(window=20, min_periods=10).mean()
+
+
+def compute_range_20d(df: pd.DataFrame, **kwargs) -> pd.Series:
+    """
+    20 日价格区间比因子
+
+    高波动股票的溢价补偿: 用 H/L 区间替代标准差度量波动率,
+    对极端值更稳健 (Parkinson 1980 极差波动率近似)。
+    因子值 = (max_high_20d - min_low_20d) / close。
+    IC 预期: 正值 (高波动 → 高风险溢价 → 高收益)。
+    """
+    if "close" not in df.columns or "high" not in df.columns or "low" not in df.columns:
+        return pd.Series(index=df.index, dtype=float)
+    high_max = df["high"].rolling(window=20, min_periods=10).max()
+    low_min = df["low"].rolling(window=20, min_periods=10).min()
+    return (high_max - low_min) / df["close"].replace(0, np.nan)
+
+
+def compute_skew_20d(df: pd.DataFrame, **kwargs) -> pd.Series:
+    """
+    日收益率偏度因子
+
+    彩票偏好的另一代理变量 (Kumar 2009): 高正偏度 = 右尾厚 =
+    彩票需求强 = 当前定价过高 = 未来收益低。
+    因子值 = 过去 20 日日收益率偏度。
+    IC 预期: 负值 (高正偏度 → 低未来收益)。
+    """
+    if "close" not in df.columns:
+        return pd.Series(index=df.index, dtype=float)
+    ret = df["close"].pct_change(fill_method=None)
+    return ret.rolling(window=20, min_periods=10).skew()
+
+
+def compute_reversal_5d(df: pd.DataFrame, **kwargs) -> pd.Series:
+    """
+    5 日反转因子
+
+    周度反转: A 股个人投资者周度追涨杀跌行为更显著。
+    因子值 = −1 × 过去 5 日收益率。
+    P1 基线 momentum_20d 的 OOS IC = -0.062, 暗示 20d 反转成立,
+    5d 反转预期更强。
+    IC 预期: 正值 (过去 5 日跌 → 未来 5 日涨)。
+    """
+    if "close" not in df.columns:
+        return pd.Series(index=df.index, dtype=float)
+    return -df["close"].pct_change(5, fill_method=None)
+
+
+def compute_reversal_20d(df: pd.DataFrame, **kwargs) -> pd.Series:
+    """
+    20 日反转因子
+
+    P1 基线 momentum_20d 的 OOS IC = -0.062, 说明 20d 动量实际
+    为负即反转成立。本因子显式取负, 使方向与预期一致。
+    因子值 = −1 × 过去 20 日收益率。
+    IC 预期: 正值 (过去 20 日跌 → 未来 5 日涨)。
+    """
+    if "close" not in df.columns:
+        return pd.Series(index=df.index, dtype=float)
+    return -df["close"].pct_change(20, fill_method=None)
+
+
+def compute_neg_range_20d(df: pd.DataFrame, **kwargs) -> pd.Series:
+    """
+    取反的 20 日价格区间比因子 (反彩票效应)
+
+    range_20d 的 IC 为 -0.0625, 方向与理论预期相反:
+    高波动→低收益 (反彩票解释, Ang et al. 2006)。
+    取反后 IC 为正, 对应反彩票效应: 低波动股票未来收益高。
+    因子值 = −(max_high_20d - min_low_20d) / close。
+    IC 预期: 正值 (低波动 → 高收益, 反彩票)。
+    """
+    if "close" not in df.columns or "high" not in df.columns or "low" not in df.columns:
+        return pd.Series(index=df.index, dtype=float)
+    high_max = df["high"].rolling(window=20, min_periods=10).max()
+    low_min = df["low"].rolling(window=20, min_periods=10).min()
+    return -(high_max - low_min) / df["close"].replace(0, np.nan)
 
 
 def compute_turnover_momentum_20d(df: pd.DataFrame) -> pd.Series:
@@ -305,6 +458,64 @@ def register_all() -> None:
         category="custom",
         default_weight=1.0,
         description="特质波动率因子 | -IVOL: 残差波动率, 做空高IVOL彩票股"
+    )
+
+    # ─── 逻辑驱动因子方向族注册 (2026-08-19) ──────────────────────────────
+    FactorRegistry.register(
+        name="max_ret_20d",
+        compute_func=compute_max_ret_20d,
+        category="custom",
+        default_weight=1.0,
+        description="MAX效应 | 20d最大日收益, 做空高MAX彩票股 (Bali et al. 2011)"
+    )
+    FactorRegistry.register(
+        name="reversal_1d",
+        compute_func=compute_reversal_1d,
+        category="custom",
+        default_weight=1.0,
+        description="1日反转 | 做多昨日跌股 (Jegadeesh 1990)"
+    )
+    FactorRegistry.register(
+        name="amivest_20d",
+        compute_func=compute_amivest_20d,
+        category="custom",
+        default_weight=1.0,
+        description="Amivest流动性比率 | mean(amt/|r|), 做空高流动性股"
+    )
+    FactorRegistry.register(
+        name="range_20d",
+        compute_func=compute_range_20d,
+        category="custom",
+        default_weight=1.0,
+        description="20d价格区间比 | (maxH-minL)/close, 做多高波动股"
+    )
+    FactorRegistry.register(
+        name="skew_20d",
+        compute_func=compute_skew_20d,
+        category="custom",
+        default_weight=1.0,
+        description="20d日收益率偏度 | 做空高正偏度彩票股 (Kumar 2009)"
+    )
+    FactorRegistry.register(
+        name="reversal_5d",
+        compute_func=compute_reversal_5d,
+        category="custom",
+        default_weight=1.0,
+        description="5日反转 | 做多过去5日跌股"
+    )
+    FactorRegistry.register(
+        name="reversal_20d",
+        compute_func=compute_reversal_20d,
+        category="custom",
+        default_weight=1.0,
+        description="20日反转 | 做多过去20日跌股 (P1基线momentum_20d IC=-0.062暗示)"
+    )
+    FactorRegistry.register(
+        name="neg_range_20d",
+        compute_func=compute_neg_range_20d,
+        category="custom",
+        default_weight=1.0,
+        description="取反20d价格区间比 | -(maxH-minL)/close, 反彩票效应 (Ang et al. 2006)"
     )
 
 
