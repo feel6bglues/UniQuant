@@ -56,8 +56,7 @@ tests/benchmark/*_intermediate.parquet
 /*.csv
 
 # Wyckoff research output (regenerable)
-scripts/wyckoff_multitf/output_v3/
-scripts/wyckoff_multitf/output_v4/
+scripts/wyckoff_multitf/output_*/
 scripts/wyckoff_verification/output/
 
 # Lock and cache files
