@@ -18,7 +18,7 @@ import argparse
 import json
 import sys
 import time
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from pathlib import Path
 
 import numpy as np
@@ -31,9 +31,6 @@ from uniquant.data.lake.storage_manager import StorageManager  # noqa: E402
 from uniquant.brain.wyckoff.engine import WyckoffEngine  # noqa: E402
 
 _MAIN_BOARD_PREFIXES = ("600", "601", "603", "605", "000", "001", "002", "003", "300", "301")
-_INDEX_EXCLUSIONS = ("000001", "000002", "000003", "000004", "000005",
-                     "000006", "000007", "000008", "000009", "0000", "0001",
-                     "0002", "0003", "0009", "399")
 
 
 def _is_etf(symbol: str) -> bool:
@@ -47,6 +44,22 @@ def _is_etf(symbol: str) -> bool:
         if prefix in ("159", "161", "162", "163", "164", "165", "166"):
             return True
     return False
+
+
+def _is_index(symbol: str) -> bool:
+    """符号级指数判定 (区别于裸 code 前缀): SH 板 000xxx = 上证指数,
+    SZ 板 399xxx = 深证指数. SZ 主板股票 (000001.SZ 等) 不被误杀."""
+    code, sep, exch = symbol.partition(".")
+    if not sep or not code.isdigit() or len(code) != 6:
+        return False
+    return (exch == "SH" and code.startswith("000")) or (
+        exch == "SZ" and code.startswith("399")
+    )
+
+
+def _is_excluded_instrument(symbol: str) -> bool:
+    """扫描池剔除: 指数 (000xxx.SH / 399xxx.SZ) 与 ETF 不参与候选筛选."""
+    return _is_index(symbol) or _is_etf(symbol)
 
 
 def _compute_fwd_returns(
@@ -93,12 +106,12 @@ def load_symbols(kind: str, storage: StorageManager) -> list[str]:
 
     all_symbols = storage.get_symbols()
     if kind == "all":
-        return sorted(all_symbols)
+        return sorted(s for s in all_symbols if not _is_index(s))
     if kind == "main_board":
         return sorted(
             s for s in all_symbols
             if s.startswith(_MAIN_BOARD_PREFIXES)
-            and not s.startswith(_INDEX_EXCLUSIONS)
+            and not _is_index(s)
         )
     raise SystemExit(f"未知 symbol 类型: {kind}")
 
@@ -209,6 +222,21 @@ def analyze_one(
         record["vdb_divergence"] = str(getattr(report, "vdb_divergence", "none"))
         record["lps_stage"] = str(getattr(report, "lps_stage", "not_test"))
 
+        record["sos_candidate_detected"] = bool(getattr(report, "sos_candidate_detected", False))
+        record["evr_state"] = str(getattr(report, "evr_state", "none"))
+        record["evr_level"] = int(getattr(report, "evr_level", 0) or 0)
+        record["evr_position_context"] = str(getattr(report, "evr_position_context", ""))
+        record["pattern_failure_detected"] = bool(getattr(report, "pattern_failure_detected", False))
+        record["pattern_failure_ratio"] = float(getattr(report, "pattern_failure_ratio", 0.0) or 0.0)
+        record["no_supply_detected"] = bool(getattr(report, "no_supply_detected", False))
+        record["nsd_detected"] = bool(getattr(report, "nsd_detected", False))
+        record["vdu_detected"] = bool(getattr(report, "vdu_detected", False))
+        record["event_cooldown_active"] = bool(getattr(report, "event_cooldown_active", False))
+        record["event_cooldown_days"] = int(getattr(report, "event_cooldown_days", 0) or 0)
+        record["range_score"] = float(getattr(report, "range_score", 0.0) or 0.0)
+        record["avwap"] = float(getattr(report, "avwap", 0.0) or 0.0)
+        record["bias200"] = float(getattr(report, "bias200", 0.0) or 0.0)
+
         pnf = getattr(report, "pnf_analysis", None)
         if isinstance(pnf, dict):
             record["pnf_hint"] = str(pnf.get("hint", "")) or str(pnf.get("phase_hint", ""))
@@ -224,6 +252,27 @@ def analyze_one(
     return record
 
 
+_W_ENGINE = None
+_W_STORAGE = None
+_W_INDEX = None
+
+
+def _worker_init(index_df: pd.DataFrame | None) -> None:
+    """每进程独立引擎/storage —— 消除共享 engine._code_prefix 竞态 (2026-08-18)."""
+    global _W_ENGINE, _W_STORAGE, _W_INDEX
+    from uniquant.brain.wyckoff.engine import WyckoffEngine
+    from uniquant.data.lake.storage_manager import StorageManager
+
+    _W_ENGINE = WyckoffEngine()
+    _W_STORAGE = StorageManager(str(PROJECT_ROOT / "data"))
+    _W_INDEX = index_df
+
+
+def _worker_task(args: tuple[str, str | None]) -> dict:
+    symbol, as_of = args
+    return analyze_one(symbol, _W_STORAGE, _W_INDEX, _W_ENGINE, as_of)
+
+
 def run_scan(symbols: list[str], max_workers: int, output_dir: Path, as_of: str | None = None) -> list[dict]:
     storage = StorageManager(str(PROJECT_ROOT / "data"))
     index_df = load_index_df(storage)
@@ -231,16 +280,15 @@ def run_scan(symbols: list[str], max_workers: int, output_dir: Path, as_of: str 
     print(f"待分析股票: {len(symbols)} 只, workers={max_workers}")
     if as_of:
         print(f"回放模式 as_of={as_of}")
-    engine = WyckoffEngine()
     results: list[dict] = []
     t0 = time.time()
-    with ThreadPoolExecutor(max_workers=max_workers) as pool:
-        futures = {pool.submit(analyze_one, s, storage, index_df, engine, as_of): s for s in symbols}
+    tasks = [(s, as_of) for s in symbols]
+    with ProcessPoolExecutor(max_workers=max_workers, initializer=_worker_init, initargs=(index_df,)) as pool:
+        futures = {pool.submit(_worker_task, t): t[0] for t in tasks}
         done = 0
         for fut in as_completed(futures):
             done += 1
-            rec = fut.result()
-            results.append(rec)
+            results.append(fut.result())
             if done % 500 == 0 or done == len(symbols):
                 elapsed = time.time() - t0
                 print(f"  进度 {done}/{len(symbols)} ({elapsed:.1f}s, {elapsed / max(done, 1):.3f}s/只)")

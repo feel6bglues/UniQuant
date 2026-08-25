@@ -52,6 +52,7 @@ class WyckoffAnalysisEngine:
         utad = False
         rr_ratio = 0.0
         bypassed = False
+        direction = ""
 
         if hasattr(result, "structure") and result.structure is not None:
             p = getattr(result.structure, "phase", None)
@@ -80,6 +81,8 @@ class WyckoffAnalysisEngine:
             if tp_conf is not None:
                 conf_str = str(tp_conf.value) if hasattr(tp_conf, "value") else str(tp_conf)
                 confidence = _CONFIDENCE_TO_FLOAT.get(conf_str, confidence)
+            # P0-1: direction 透传 (含 MTF 融合后的 final_report.trading_plan.direction)
+            direction = str(getattr(tp, "direction", ""))
 
         pnf_phase_hint = "neutral"
         pnf_breakout = False
@@ -114,6 +117,24 @@ class WyckoffAnalysisEngine:
         if hasattr(result, "relative_strength") and result.relative_strength:
             relative_strength = str(result.relative_strength)
 
+        sos_candidate_detected = False
+        if hasattr(result, "sos_candidate_detected"):
+            sos_candidate_detected = bool(result.sos_candidate_detected)
+
+        evr_state = str(getattr(result, "evr_state", "none"))
+        evr_level = int(getattr(result, "evr_level", 0))
+        evr_position_context = str(getattr(result, "evr_position_context", ""))
+        pattern_failure_detected = bool(getattr(result, "pattern_failure_detected", False))
+        pattern_failure_ratio = float(getattr(result, "pattern_failure_ratio", 0.0))
+        no_supply_detected = bool(getattr(result, "no_supply_detected", False))
+        nsd_detected = bool(getattr(result, "nsd_detected", False))
+        vdu_detected = bool(getattr(result, "vdu_detected", False))
+        event_cooldown_active = bool(getattr(result, "event_cooldown_active", False))
+        event_cooldown_days = int(getattr(result, "event_cooldown_days", 0))
+        range_score = float(getattr(result, "range_score", 0.0))
+        avwap = float(getattr(result, "avwap", 0.0))
+        bias200 = float(getattr(result, "bias200", 0.0))
+
         pnf_phase_divergence = None
         if hasattr(result, "pnf_phase_divergence"):
             pnf_phase_divergence = result.pnf_phase_divergence
@@ -126,11 +147,22 @@ class WyckoffAnalysisEngine:
         if hasattr(result, "lps_stage"):
             lps_stage = str(result.lps_stage)
 
+        # P2-1: MultiTimeframeResonance 标注 (只标注，不反向信号)
+        resonance_count = 0
+        resonance_dir = ""
+        resonance_strength = 0.0
+        if hasattr(result, "multi_timeframe") and result.multi_timeframe is not None:
+            mtf = result.multi_timeframe
+            resonance_count = int(getattr(mtf, "resonance_count", 0))
+            resonance_dir = str(getattr(mtf, "resonance_dir", ""))
+            resonance_strength = float(getattr(mtf, "resonance_strength", 0.0))
+
         return WyckoffOutput(
             phase=phase, confidence=confidence,
             spring=spring, utad=utad,
             price=price, rr_ratio=rr_ratio,
             bypassed=bypassed,
+            direction=direction,
             pnf_phase_hint=pnf_phase_hint,
             pnf_breakout=pnf_breakout,
             pnf_count_target=pnf_count_target,
@@ -142,6 +174,23 @@ class WyckoffAnalysisEngine:
             pnf_phase_divergence=pnf_phase_divergence,
             vdb_divergence=vdb_divergence,
             lps_stage=lps_stage,
+            resonance_count=resonance_count,
+            resonance_dir=resonance_dir,
+            resonance_strength=resonance_strength,
+            sos_candidate_detected=sos_candidate_detected,
+            evr_state=evr_state,
+            evr_level=evr_level,
+            evr_position_context=evr_position_context,
+            pattern_failure_detected=pattern_failure_detected,
+            pattern_failure_ratio=pattern_failure_ratio,
+            no_supply_detected=no_supply_detected,
+            nsd_detected=nsd_detected,
+            vdu_detected=vdu_detected,
+            event_cooldown_active=event_cooldown_active,
+            event_cooldown_days=event_cooldown_days,
+            range_score=range_score,
+            avwap=avwap,
+            bias200=bias200,
         )
 
     def run_wyckoff_analysis(

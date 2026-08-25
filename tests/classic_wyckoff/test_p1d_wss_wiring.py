@@ -46,6 +46,36 @@ def test_t1_wss_disabled_preserves_original_behavior():
     assert report.structural_score > 0.0
 
 
+# ─────────────────── T1b: 开但查找表缺失 → 显式告警 (P1-1) ───────────────────
+
+def test_t1b_wss_enabled_missing_lookup_warns():
+    """wss_enabled=True 但查找表路径缺失 → 显式 WARNING，非静默回退。
+
+    防止"看似开启实为死分支" (is_loaded 恒 False 却无诊断信号)。
+    """
+    import logging
+    records = []
+    class Capture(logging.Handler):
+        def emit(self, r): records.append(r)
+    handler = Capture()
+    logger = logging.getLogger("uniquant.brain.wyckoff.engine")
+    old_level = logger.level
+    logger.addHandler(handler)
+    logger.setLevel(logging.WARNING)
+    try:
+        with patch("uniquant.brain.wyckoff.engine.get_config",
+                   return_value=_mock_config(wss_enabled=True, wss_path="/nonexistent/wss.json")):
+            with patch("uniquant.brain.wyckoff.engine.os.path.exists", return_value=False):
+                WyckoffEngine()
+    finally:
+        logger.removeHandler(handler)
+        logger.setLevel(old_level)
+    joined = " ".join(r.getMessage() for r in records)
+    assert "WSS enabled but lookup path missing" in joined, (
+        f"启用但文件缺失时应告警，got logs: {joined!r}"
+    )
+
+
 # ─────────────────── T2: feature flag 开 + 预设 wss_lookup → 命中走 blended ───────────────────
 
 def test_t2_wss_enabled_hit_uses_blended():

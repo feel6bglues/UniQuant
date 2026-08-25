@@ -255,12 +255,13 @@ def merge_multitimeframe_reports(
     constraint_note = "维持日线结论"
 
     # 使用规则9或MultiTimeframeResonance进行多周期一致性判断
+    # P2-1: Resonance 标注始终计算（只标注，不反向信号）
+    resonance_result = MultiTimeframeResonance.resonance(
+        monthly_phase.value, weekly_phase.value, daily_phase.value
+    )
     cfg = get_config()
     use_mtf_resonance = cfg.get("wyckoff.mtf_resonance", True)
     if use_mtf_resonance:
-        resonance_result = MultiTimeframeResonance.resonance(
-            monthly_phase.value, weekly_phase.value, daily_phase.value
-        )
         alignment_type, alignment_desc = _resonance_to_rule9_alignment(
             resonance_result, monthly_phase, weekly_phase, daily_phase
         )
@@ -271,13 +272,14 @@ def merge_multitimeframe_reports(
 
     if alignment_type == "markdown_override":
         if (daily_report.trading_plan.direction == "做多" and (
-            daily_report.signal.signal_type in ("spring", "sos_candidate", "markup")
+            daily_report.signal.signal_type in ("spring", "markup")
+            or daily_report.sos_candidate_detected
         )):
             constraint_note = f"右侧强力突破信号，免于{alignment_desc}限制"
             final_report.trading_plan.direction = "做多"
             if "SOS" not in final_report.signal.description:
                 final_report.signal.description = "检测到SOS候选信号 " + final_report.signal.description
-                final_report.signal.signal_type = "sos_candidate"
+                final_report.sos_candidate_detected = True
         else:
             final_report.signal.signal_type = "no_signal"
             final_report.signal.confidence = ConfidenceLevel.D
@@ -310,6 +312,11 @@ def merge_multitimeframe_reports(
         alignment=alignment,
         summary=summary,
         constraint_note=constraint_note,
+        resonance_count=resonance_result['resonance_count'],
+        resonance_dir=resonance_result['resonance_dir'],
+        resonance_strength=MultiTimeframeResonance.resonance_strength(
+            monthly_phase.value, weekly_phase.value, daily_phase.value
+        ),
     )
 
     return final_report

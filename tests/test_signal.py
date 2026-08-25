@@ -141,14 +141,16 @@ class TestWyckoffSignalNormalizer:
         raw = {"type": "accumulation", "symbol": "600000", "confidence": 0.7}
         s = norm.normalize(raw)
         assert s.signal_type == SignalType.WYCKOFF_ACCUMULATION
-        assert s.direction == 1
+        # P0-6: 相位→方向映射抵销, direction 恒 0
+        assert s.direction == 0
 
     def test_distribution(self):
         norm = WyckoffSignalNormalizer()
         raw = {"type": "distribution", "confidence": 0.6}
         s = norm.normalize(raw)
         assert s.signal_type == SignalType.WYCKOFF_DISTRIBUTION
-        assert s.direction == -1
+        # P0-6: 不再注入 -1 方向
+        assert s.direction == 0
 
 
 class TestIndicatorSignalNormalizer:

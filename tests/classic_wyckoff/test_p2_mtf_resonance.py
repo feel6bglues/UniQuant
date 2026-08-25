@@ -1,4 +1,5 @@
-"""Tests for P2: MTF 统一 — MultiTimeframeResonance replaces rule9 in merge_multitimeframe_reports."""
+"""Tests for P2: MTF 统一 — MultiTimeframeResonance replaces rule9 in merge_multitimeframe_reports.
+P2-1: Resonance 标注接入交易决策（resonance_count/dir/strength 只标注，不反向）。"""
 
 from unittest.mock import patch
 
@@ -21,7 +22,7 @@ from uniquant.brain.wyckoff.rules import V3Rules
 
 
 def _make_report(phase: WyckoffPhase, direction: str = "做多",
-                 signal_type: str = "spring") -> WyckoffReport:
+                 signal_type: str = "spring", sos_candidate_detected: bool = False) -> WyckoffReport:
     return WyckoffReport(
         symbol="000001.SH",
         period="daily",
@@ -37,6 +38,7 @@ def _make_report(phase: WyckoffPhase, direction: str = "做多",
             confidence=ConfidenceLevel.B,
             current_qualification="test",
         ),
+        sos_candidate_detected=sos_candidate_detected,
     )
 
 
@@ -227,13 +229,13 @@ class TestResonanceMarkdownOverride:
             mock_cfg.return_value.get.return_value = True
             report = merge_multitimeframe_reports(
                 symbol="000001.SH",
-                daily_report=_make_report(WyckoffPhase.MARKUP, direction="做多", signal_type="sos_candidate"),
+                daily_report=_make_report(WyckoffPhase.MARKUP, direction="做多", signal_type="no_signal", sos_candidate_detected=True),
                 weekly_report=_make_report(WyckoffPhase.MARKUP),
                 monthly_report=_make_report(WyckoffPhase.MARKDOWN),
                 rules=V3Rules(),
             )
         assert report.trading_plan.direction == "做多"
-        assert report.signal.signal_type == "sos_candidate"
+        assert report.sos_candidate_detected is True
 
     def test_weekly_markdown_force_empty(self):
         with patch("uniquant.brain.wyckoff.analysis.get_config") as mock_cfg:
@@ -260,3 +262,61 @@ class TestResonanceMarkdownOverride:
             )
         assert report.signal.signal_type == "no_signal"
         assert report.trading_plan.direction == "空仓观望"
+
+
+class TestP21ResonanceAnnotation:
+    """P2-1: Resonance 标注接入交易决策 — 只标注 resonance_count/dir/strength，不反向信号。"""
+
+    def _merge(self, daily_phase, weekly_phase, monthly_phase):
+        with patch("uniquant.brain.wyckoff.analysis.get_config") as mock_cfg:
+            mock_cfg.return_value.get.return_value = True
+            return merge_multitimeframe_reports(
+                symbol="000001.SH",
+                daily_report=_make_report(daily_phase),
+                weekly_report=_make_report(weekly_phase),
+                monthly_report=_make_report(monthly_phase),
+                rules=V3Rules(),
+            )
+
+    def test_grid_mapping_number(self):
+        report = self._merge(WyckoffPhase.ACCUMULATION, WyckoffPhase.MARKUP, WyckoffPhase.ACCUMULATION)
+        mtf = report.multi_timeframe
+        assert mtf is not None
+        assert mtf.resonance_count == 3
+        assert mtf.resonance_dir == "bullish"
+        assert 0.9 < mtf.resonance_strength <= 1.0
+
+    def test_deprecated_annotation_neutral(self):
+        report = self._merge(WyckoffPhase.MARKUP, WyckoffPhase.MARKDOWN, WyckoffPhase.UNKNOWN)
+        mtf = report.multi_timeframe
+        assert mtf.resonance_dir == "conflicting"
+        assert mtf.resonance_count == 1
+        assert mtf.resonance_strength == 0.0
+
+    def test_fully_mixed_reaches_typecast(self):
+        report = self._merge(WyckoffPhase.DISTRIBUTION, WyckoffPhase.MARKDOWN, WyckoffPhase.DISTRIBUTION)
+        mtf = report.multi_timeframe
+        assert mtf.resonance_dir == "bearish"
+        assert mtf.resonance_count == 3
+        assert 0.9 < mtf.resonance_strength <= 1.0
+
+    def test_annotation_does_not_reverse_signal(self):
+        """注解绝不改变交易方向：强多头共振下 spring 做多保持不变。"""
+        report = self._merge(WyckoffPhase.ACCUMULATION, WyckoffPhase.MARKUP, WyckoffPhase.ACCUMULATION)
+        assert report.signal.signal_type == "spring"
+        assert report.trading_plan.direction == "做多"
+
+    def test_annotation_present_when_resonance_only(self):
+        """配置开启 mtf_resonance 时共振为信号级标注。"""
+        with patch("uniquant.brain.wyckoff.analysis.get_config") as mock_cfg:
+            mock_cfg.return_value.get.return_value = True
+            report = merge_multitimeframe_reports(
+                symbol="000001.SH",
+                daily_report=_make_report(WyckoffPhase.MARKUP),
+                weekly_report=_make_report(WyckoffPhase.MARKUP),
+                monthly_report=_make_report(WyckoffPhase.UNKNOWN),
+                rules=V3Rules(),
+            )
+        assert report.multi_timeframe is not None
+        assert report.multi_timeframe.resonance_dir == "bullish"
+        assert report.multi_timeframe.resonance_count == 2

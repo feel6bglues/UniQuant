@@ -419,6 +419,30 @@ class WyckoffOutput:
     pnf_phase_divergence: Optional[str] = None
     vdb_divergence: str = "none"
     lps_stage: str = "not_test"
+    # P2-1: MultiTimeframeResonance 标注 (只标注，不反向信号)
+    resonance_count: int = 0
+    resonance_dir: str = ""
+    resonance_strength: float = 0.0
+    # P0-1 (2026-08-12 深入再研究定稿): direction 透传 — 交易计划方向文本
+    # (做多/买入/轻仓试探/持有/空仓观望等)。仅供叙事层展示与 direction gate
+    # 使用，相位/spring/utad 不再直映射入场方向。
+    direction: str = ""
+    # P1-3: SOS 候选独立布尔标注字段 (不复用 signal_type)
+    sos_candidate_detected: bool = False
+    # P1-4~12: 标注面字段 (纯标注, 不改方向结论)
+    evr_state: str = "none"
+    evr_level: int = 0
+    evr_position_context: str = ""
+    pattern_failure_detected: bool = False
+    pattern_failure_ratio: float = 0.0
+    no_supply_detected: bool = False
+    nsd_detected: bool = False
+    vdu_detected: bool = False
+    event_cooldown_active: bool = False
+    event_cooldown_days: int = 0
+    range_score: float = 0.0
+    avwap: float = 0.0
+    bias200: float = 0.0
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -440,6 +464,24 @@ class WyckoffOutput:
             "pnf_phase_divergence": self.pnf_phase_divergence,
             "vdb_divergence": self.vdb_divergence,
             "lps_stage": self.lps_stage,
+            "resonance_count": self.resonance_count,
+            "resonance_dir": self.resonance_dir,
+            "resonance_strength": self.resonance_strength,
+            "wyckoff_direction": self.direction,
+            "sos_candidate_detected": self.sos_candidate_detected,
+            "evr_state": self.evr_state,
+            "evr_level": self.evr_level,
+            "evr_position_context": self.evr_position_context,
+            "pattern_failure_detected": self.pattern_failure_detected,
+            "pattern_failure_ratio": self.pattern_failure_ratio,
+            "no_supply_detected": self.no_supply_detected,
+            "nsd_detected": self.nsd_detected,
+            "vdu_detected": self.vdu_detected,
+            "event_cooldown_active": self.event_cooldown_active,
+            "event_cooldown_days": self.event_cooldown_days,
+            "range_score": self.range_score,
+            "avwap": self.avwap,
+            "bias200": self.bias200,
         }
 
     @classmethod
@@ -463,6 +505,24 @@ class WyckoffOutput:
             pnf_phase_divergence=data.get("pnf_phase_divergence"),
             vdb_divergence=str(data.get("vdb_divergence", "none")),
             lps_stage=str(data.get("lps_stage", "not_test")),
+            resonance_count=int(data.get("resonance_count", 0)),
+            resonance_dir=str(data.get("resonance_dir", "")),
+            resonance_strength=float(data.get("resonance_strength", 0.0)),
+            direction=str(data.get("wyckoff_direction", "")),
+            sos_candidate_detected=bool(data.get("sos_candidate_detected", False)),
+            evr_state=str(data.get("evr_state", "none")),
+            evr_level=int(data.get("evr_level", 0)),
+            evr_position_context=str(data.get("evr_position_context", "")),
+            pattern_failure_detected=bool(data.get("pattern_failure_detected", False)),
+            pattern_failure_ratio=float(data.get("pattern_failure_ratio", 0.0)),
+            no_supply_detected=bool(data.get("no_supply_detected", False)),
+            nsd_detected=bool(data.get("nsd_detected", False)),
+            vdu_detected=bool(data.get("vdu_detected", False)),
+            event_cooldown_active=bool(data.get("event_cooldown_active", False)),
+            event_cooldown_days=int(data.get("event_cooldown_days", 0)),
+            range_score=float(data.get("range_score", 0.0)),
+            avwap=float(data.get("avwap", 0.0)),
+            bias200=float(data.get("bias200", 0.0)),
         )
 
 

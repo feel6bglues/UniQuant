@@ -366,7 +366,7 @@ class TestSignalModule:
         raw = {"type": "spring", "confidence": 0.7, "symbol": "000001"}
         sig = norm.normalize(raw)
         assert sig.signal_type.value == "wyckoff_spring"
-        assert sig.direction == 1
+        assert sig.direction == 0
 
     def test_normalizer_indicator(self):
         from uniquant.signal.normalizer import IndicatorSignalNormalizer

@@ -5,6 +5,7 @@
 """
 
 from scripts.wyckoff_fixtures import (
+    synthetic_accumulation,
     synthetic_accumulation_event_sequence,
     synthetic_sine_wave,
 )
@@ -104,4 +105,18 @@ def test_score_distribution_spread():
     assert acc_score - unknown_score > 5.0, (
         f"分布未拉开: accumulation={acc_score}, unknown={unknown_score}, "
         f"差={acc_score - unknown_score:.2f} < 5.0"
+    )
+
+
+def test_wso_base_amplification_spreads_scores():
+    """P1-2: BASE_AMPLIFICATION 放大统计验证的事件 base，恢复判别力。
+
+    验证两个同相位 fixture 仅因事件质量不同即可拉开得分差距
+    (改造前 WSO base ±0.1 被相位启发式淹没，得分几乎无法区分)。
+    """
+    acc_full = _compute_score_from_fixture(synthetic_accumulation_event_sequence)
+    accum_simple = _compute_score_from_fixture(synthetic_accumulation)
+    assert acc_full - accum_simple > 3.0, (
+        f"P1-2: 完整积累事件序列应明显高于单事件积累, "
+        f"acc_full={acc_full}, accum_simple={accum_simple}"
     )

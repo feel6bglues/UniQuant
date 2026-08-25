@@ -135,49 +135,71 @@ class TestCZSCAdapter:
 
 class TestWyckoffAdapter:
     def _adapt(
-        self, phase: str = "unknown", confidence: float = 0.0, spring: bool = False, utad: bool = False, **kwargs
+        self, phase: str = "unknown", confidence: float = 0.0, spring: bool = False,
+        utad: bool = False, direction: str = "", **kwargs
     ) -> Optional[TradingSignal]:
         adapter = WyckoffAdapter()
         raw: Dict[str, Any] = {
             "wyckoff_phase": phase, "wyckoff_confidence": confidence,
-            "wyckoff_spring": spring, "wyckoff_utad": utad, "price": 10.0,
+            "wyckoff_spring": spring, "wyckoff_utad": utad,
+            "wyckoff_direction": direction, "price": 10.0,
         }
         raw.update(kwargs)
         return adapter.adapt(raw, "000001.SZ", timestamp=datetime.datetime(2024, 6, 1))
 
-    def test_accumulation_high_conf_returns_buy(self):
-        sig = self._adapt("accumulation", 0.7)
+    def test_bullish_zuoduo_returns_buy(self):
+        sig = self._adapt("accumulation", 0.7, direction="做多")
         assert sig is not None
         assert sig.action == "BUY"
 
-    def test_distribution_high_conf_returns_sell(self):
-        sig = self._adapt("distribution", 0.7)
+    def test_bullish_mairu_returns_buy(self):
+        sig = self._adapt("markup", 0.7, direction="买入")
         assert sig is not None
-        assert sig.action == "SELL"
+        assert sig.action == "BUY"
 
-    def test_unknown_phase_returns_none(self):
-        sig = self._adapt("unknown", 0.5)
+    def test_bullish_qingcang_returns_buy(self):
+        sig = self._adapt("unknown", 0.6, direction="轻仓试探")
+        assert sig is not None
+        assert sig.action == "BUY"
+
+    def test_no_direction_returns_none(self):
+        # P0-2: 无 direction 字段 → 相位/spring/utad 不再直映射入场
+        sig = self._adapt("accumulation", 0.7)
+        assert sig is None
+
+    def test_distribution_no_seLl_as_entry(self):
+        # P0-7: 恒不产 SELL-as-entry
+        sig = self._adapt("distribution", 0.7, direction="空仓观望")
+        assert sig is None
+
+    def test_spring_alone_no_buy(self):
+        # P0-2: spring 直映射移除
+        sig = self._adapt("markup", 0.6, spring=True)
+        assert sig is None
+
+    def test_utad_alone_no_sell(self):
+        # P0-7: utad 不再触发 SELL
+        sig = self._adapt("markup", 0.6, utad=True)
+        assert sig is None
+
+    def test_bearish_utad_bullish_direction_rejected(self):
+        # direction 不在入场集 → None (即便带 utad/spring)
+        sig = self._adapt("distribution", 0.7, utad=True, direction="做空")
         assert sig is None
 
     def test_low_confidence_returns_none(self):
-        sig = self._adapt("accumulation", 0.2)
+        # P0-4: 门槛 0.40 — 0.2 < 0.40 → None
+        sig = self._adapt("accumulation", 0.2, direction="做多")
         assert sig is None
 
-    def test_spring_triggers_buy(self):
-        sig = self._adapt("markup", 0.6, spring=True)
-        assert sig is not None
-        assert sig.action == "BUY"
+    def test_conf_below_gate_returns_none(self):
+        # P0-4: 0.35 < 0.40 → None
+        sig = self._adapt("accumulation", 0.35, direction="做多")
+        assert sig is None
 
-    def test_utad_triggers_sell(self):
-        sig = self._adapt("markup", 0.6, utad=True)
-        assert sig is not None
-        assert sig.action == "SELL"
-
-    def test_phase_fallback_key(self):
-        sig = WyckoffAdapter().adapt(
-            {"phase": "accumulation", "confidence": 0.7, "price": 10.0},
-            "000001.SZ", timestamp=datetime.datetime(2024, 6, 1),
-        )
+    def test_conf_at_gate_returns_buy(self):
+        # P0-4: 0.5 ≥ 0.40 → BUY
+        sig = self._adapt("accumulation", 0.5, direction="做多")
         assert sig is not None
         assert sig.action == "BUY"
 
@@ -186,28 +208,16 @@ class TestWyckoffAdapter:
         sig = adapter.adapt({}, "000001.SZ", timestamp=datetime.datetime(2024, 6, 1))
         assert sig is None
 
-    def test_markup_phase_returns_hold(self):
-        sig = self._adapt("markup", 0.6)
-        assert sig is not None
-        assert sig.action == "HOLD"
+    def test_markup_direction_hold_returns_none(self):
+        sig = self._adapt("markup", 0.6, direction="持有")
+        assert sig is None
 
-    def test_markdown_phase_returns_hold(self):
-        sig = self._adapt("markdown", 0.6)
-        assert sig is not None
-        assert sig.action == "HOLD"
-
-    def test_markup_with_spring_returns_buy(self):
-        sig = self._adapt("markup", 0.6, spring=True)
-        assert sig is not None
-        assert sig.action == "BUY"
-
-    def test_markdown_with_utad_returns_sell(self):
-        sig = self._adapt("markdown", 0.6, utad=True)
-        assert sig is not None
-        assert sig.action == "SELL"
+    def test_markdown_direction_blank_returns_none(self):
+        sig = self._adapt("markdown", 0.6, direction="")
+        assert sig is None
 
     def test_confidence_zero_returns_none(self):
-        sig = self._adapt("accumulation", 0.0)
+        sig = self._adapt("accumulation", 0.0, direction="做多")
         assert sig is None
 
 

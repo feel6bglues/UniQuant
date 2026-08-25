@@ -9,9 +9,26 @@ from unittest.mock import patch
 
 import numpy as np
 import pandas as pd
+import pytest
 
 from scripts.wyckoff_fixtures import synthetic_accumulation, synthetic_trading_range
 from uniquant.brain.wyckoff.engine import WyckoffEngine
+
+
+@pytest.fixture(autouse=True)
+def _wss_off():
+    """RS/杠杆测试针对 WSS 无关的确定性基线：
+    - 禁用 WSS 避免 0.7*WSS 混合分改变相位结果；
+    - 固定 structural_adjust_enabled=True（P3 测试撰写时的配置语境，
+      与 P0-5 默认关闭无关），保证 P3 降级链置信度断言确定。
+    """
+    with patch("uniquant.brain.wyckoff.engine.get_config") as mc:
+        mc.return_value.get.side_effect = lambda k, d=None: {
+            "wyckoff.wss_enabled": False,
+            "wyckoff.wss_lookup_path": "",
+            "wyckoff.structural_adjust_enabled": True,
+        }.get(k, d)
+        yield
 
 
 class MockRSResult:
@@ -95,14 +112,20 @@ def test_spring_systemic_decline_position_downgrade():
 
 
 def test_spring_leader_position_unchanged():
-    """T5: spring + RS=leader → 仓位不变(与基准对照一致)。"""
+    """T5: spring + RS=leader → 仓位不变(与基准对照一致，保留有效信号)。
+
+    P3-T3 仅对 systemic_decline 降仓；leader 不降级 → 保留 P0-1 产出的
+    强置信 spring 方向 (轻仓试探)，而非 revert 回 空仓观望。
+    """
     df = synthetic_trading_range(seed=42)
     engine = WyckoffEngine()
     with patch("uniquant.brain.wyckoff.engine.rs_classify", return_value=MockRSResult("leader")):
         report = engine.analyze(df, symbol="TEST.SH", index_df=df)
     assert report.signal.signal_type == "spring"
     assert report.relative_strength == "leader"
-    assert report.trading_plan.direction == "空仓观望"
+    assert report.trading_plan.direction != "空仓观望", (
+        "RS=leader 不降级：应保留 spring 信号动作 (轻仓试探)"
+    )
 
 
 # ─────────────────── 边界情况 ───────────────────

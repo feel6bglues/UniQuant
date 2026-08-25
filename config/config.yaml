@@ -491,9 +491,33 @@ batch:
 
 # Wyckoff 分析配置
 wyckoff:
-  wss_enabled: false  # 默认关, A/B 后再决定开启
+  wss_enabled: true  # 2026-08-07: 已训练 wss_lookup_v2.json (1000 只/87977 obs/418 seqs), A/B 后开启
   wss_lookup_path: "scripts/wyckoff_multitf/output_v4/wss_lookup_v2.json"
   mtf_resonance: true  # 使用 MultiTimeframeResonance 替代 rule9 多周期一致性判断
+  # 2026-08-07 红蓝对抗验证 (WYCKOFF_VERIFICATION_RED_BLUE_20260807.md):
+  #   accumulation 双窗口超额收益为负 (-1.87%/-1.37%) → 蓄势不承诺上涨。
+  #   accumulation_downgrade=true 时 ACCUMULATION 相位所有多头方向降 1 档
+  #   (做多→轻仓试探, 轻仓试探→观察等待), 避免在蓄势标签上下重注。
+  accumulation_downgrade: true
+
+  # P0 (2026-08-12 深入再研究定稿, WYCKOFF_DEEP_DIVE_20260812.md 第6节):
+  #   引擎目标态 = 叙事 + 风控层, 完全不产方向入场信号。
+  #   P0-2: direction gate — adapter 仅 direction∈{做多,买入,轻仓试探} 且置信≥门槛 产出 BUY, 恒不产 SELL-as-entry。
+  #   P0-4: 置信门槛 0.30→0.40 (T1b: 若门槛可实质拦截弱置信 BUY)。
+  #   P0-5: structural_adjust_enabled 默认关 (T2: 标记置信度无排序力, 结构分仅存叙事字段)。
+  direction_gate_enabled: true
+  confidence_gate: 0.40
+  structural_adjust_enabled: false
+
+  # P1-3 (WYCKOFF_DEEP_DIVE_20260812.md §6): SOS 候选独立布尔标注 (不复用 signal_type)
+  sos_candidate_annotation: true
+
+  # P1-11 (WYCKOFF_DEEP_DIVE_20260812.md §6, 默认关 + 参数化, R3 裁决):
+  #   T5 三窗验证 W2 过度触发 (45%/46.7%) → 默认关; FSM FORCE_EXIT→SELL(1.0) 为唯一常开止损层。
+  #   参数供未来窗口预注册 T5 全 PASS 后开启使用。
+  stoploss_guard_enabled: false
+  stoploss_guard_depth_pct: 15
+  stoploss_guard_grace_days: 3
 
   # 检测器阈值校准 (A/B 对比用, 默认值=当前硬编码值)
   # 校准脚本: scripts/wyckoff_calibrate.py

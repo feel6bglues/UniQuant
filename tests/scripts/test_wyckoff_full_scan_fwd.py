@@ -7,10 +7,76 @@ import pytest
 
 from scripts.wyckoff_full_scan import (
     _is_etf,
+    _is_index,
     _compute_fwd_returns,
     _truncate_to_as_of,
     build_empirical_table,
 )
+
+
+# ── is_index ──────────────────────────────────────────────────────────────────
+
+@pytest.mark.parametrize("symbol,expected", [
+    ("000001.SH", True),
+    ("000300.SH", True),
+    ("000905.SH", True),
+    ("399001.SZ", True),
+    ("399006.SZ", True),
+    ("600519.SH", False),
+    ("000001.SZ", False),
+    ("000858.SZ", False),
+    ("002415.SZ", False),
+    ("300750.SZ", False),
+    ("688981.SH", False),
+    ("510050.SH", False),
+    ("159915.SZ", False),
+])
+def test_is_index(symbol: str, expected: bool) -> None:
+    assert _is_index(symbol) == expected
+
+
+# ── load_symbols('all') 剔除指数 ────────────────────────────────────────────
+
+class _StubStorage:
+    """最小 storage stub: 仅暴露 get_symbols, 返回含指数/股票/ETF 的混合列表."""
+
+    def __init__(self, symbols: list[str]) -> None:
+        self._symbols = symbols
+
+    def get_symbols(self) -> list[str]:
+        return self._symbols
+
+
+def test_load_symbols_all_excludes_index_but_keeps_stocks_and_etf() -> None:
+    from scripts.wyckoff_full_scan import load_symbols
+
+    mixed = [
+        "000001.SH", "000300.SH", "399001.SZ", "399006.SZ",  # 指数 (应剔除)
+        "600519.SH", "000001.SZ", "300750.SZ", "688981.SH",  # 个股 (保留)
+        "510050.SH", "159915.SZ",                            # ETF (保留, is_etf 标注)
+    ]
+    out = load_symbols("all", _StubStorage(mixed))
+    assert "000001.SH" not in out
+    assert "000300.SH" not in out
+    assert "399001.SZ" not in out
+    assert "399006.SZ" not in out
+    assert "600519.SH" in out
+    assert "000001.SZ" in out
+    assert "300750.SZ" in out
+    assert "688981.SH" in out
+    assert "510050.SH" in out
+    assert "159915.SZ" in out
+
+
+def test_load_symbols_all_keeps_sz_main_board_stock() -> None:
+    """回归: 旧 _INDEX_EXCLUSIONS 裸前缀 ('0000') 曾误杀 000001.SZ 主板股."""
+    from scripts.wyckoff_full_scan import load_symbols
+
+    symbols = ["000001.SZ", "000858.SZ", "000001.SH"]
+    out = load_symbols("all", _StubStorage(symbols))
+    assert "000001.SZ" in out
+    assert "000858.SZ" in out
+    assert "000001.SH" not in out
 
 
 # ── is_etf ────────────────────────────────────────────────────────────────────

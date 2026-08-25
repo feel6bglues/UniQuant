@@ -28,13 +28,20 @@ class DummyRiskReward:
 class DummyTradingPlan:
     confidence = DummyConfidence()
 
+class DummyMTF:
+    resonance_count = 3
+    resonance_dir = "bullish"
+    resonance_strength = 1.0
+
 class DummyReport:
     """Minimal replacement for WyckoffReport dataclass."""
-    def __init__(self, structure=None, signal=None, risk_reward=None, trading_plan=None):
+    def __init__(self, structure=None, signal=None, risk_reward=None, trading_plan=None,
+                 multi_timeframe=None):
         self.structure = structure
         self.signal = signal
         self.risk_reward = risk_reward
         self.trading_plan = trading_plan
+        self.multi_timeframe = multi_timeframe
 
 
 @pytest.fixture
@@ -78,6 +85,35 @@ class TestExtractFromReport:
         assert output.rr_ratio == 2.5
         assert output.price == 100.0
         assert output.confidence > 0.5  # "A" → 0.9
+
+    def test_mtf_resonance_annotation_preserved(self):
+        """P2-1: resonance_count/dir/strength 标注透传至 WyckoffOutput."""
+        from uniquant.services.analysis.wyckoff_analysis_engine import WyckoffAnalysisEngine
+
+        report = DummyReport(
+            structure=DummyStructure(),
+            signal=DummySignal(),
+            risk_reward=DummyRiskReward(),
+            trading_plan=DummyTradingPlan(),
+            multi_timeframe=DummyMTF(),
+        )
+        engine = WyckoffAnalysisEngine(MagicMock())
+        output = engine._extract_from_report(report, price=100.0)
+
+        assert output.resonance_count == 3
+        assert output.resonance_dir == "bullish"
+        assert output.resonance_strength == 1.0
+
+    def test_mtf_resonance_default_when_absent(self, full_report):
+        """报告无 multi_timeframe 时共振标注保持默认 (0/""/0.0)。"""
+        from uniquant.services.analysis.wyckoff_analysis_engine import WyckoffAnalysisEngine
+
+        engine = WyckoffAnalysisEngine(MagicMock())
+        output = engine._extract_from_report(full_report, price=100.0)
+
+        assert output.resonance_count == 0
+        assert output.resonance_dir == ""
+        assert output.resonance_strength == 0.0
 
     def test_empty_report_fallback(self, empty_report):
         """Report with all-None fields should produce default WyckoffOutput."""

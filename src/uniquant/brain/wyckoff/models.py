@@ -455,6 +455,9 @@ class Step3Result:
     utad_quality: str = "无"
     utad_date: Optional[str] = None
     st_detected: bool = False
+    # P1-3 (2026-08-12 深入再研究定稿): SOS 候选独立布尔标注字段。
+    # st_detected 的语义化别名，不复用 signal_type="sos_candidate"。
+    sos_candidate_detected: bool = False
     lps_confirmed: bool = False  # v3.0 规则6
     lps_stage: str = "not_test"  # P0-A: "not_test" | "test_held" | "lps_confirmed" | "invalidated"
     test_low: Optional[float] = None  # P0-A: 测试K线最低价
@@ -663,6 +666,10 @@ class MultiTimeframeContext:
     alignment: str = "single_timeframe"
     summary: str = ""
     constraint_note: str = ""
+    # P2-1: MultiTimeframeResonance 标注 — 只标注，不反向信号
+    resonance_count: int = 0
+    resonance_dir: str = ""  # bullish | bearish | conflicting | ""
+    resonance_strength: float = 0.0
 
 
 @dataclass
@@ -701,6 +708,22 @@ class WyckoffReport:
     vdb_divergence: str = "none"
     # P0-A: LPS 阶段判定
     lps_stage: str = "not_test"
+    # P1-3: SOS 候选独立布尔标注 (不复用 signal_type)
+    sos_candidate_detected: bool = False
+    # P1-4~12: 标注面字段 (纯标注, 不改方向结论)
+    evr_state: str = "none"  # "bullish_divergence" | "bearish_divergence" | "none"
+    evr_level: int = 0  # 0-5
+    evr_position_context: str = ""
+    pattern_failure_detected: bool = False
+    pattern_failure_ratio: float = 0.0
+    no_supply_detected: bool = False
+    nsd_detected: bool = False
+    vdu_detected: bool = False
+    event_cooldown_active: bool = False
+    event_cooldown_days: int = 0
+    range_score: float = 0.0
+    avwap: float = 0.0
+    bias200: float = 0.0
 
     def to_markdown(self) -> str:
         """转换为 Markdown 格式"""

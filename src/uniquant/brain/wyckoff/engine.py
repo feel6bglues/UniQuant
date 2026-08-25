@@ -80,6 +80,12 @@ from uniquant.brain.indicators.indicators import Indicators
 logger = get_logger(__name__)
 
 
+# P1-2 (2026-08-07): WSO 事件序列 base 放大系数。
+# 实证 WSO base 在真实数据上仅 ±0.1 量级，线性 min-max 导致结构分严重拥挤，
+# 无法排序信号。放大统计验证过的 base，恢复事件质量的判别力。
+BASE_AMPLIFICATION = 5.0
+
+
 def _downgrade_confidence(level: str) -> str:
     """CF-C4: 假突破惩罚 → 置信度降 1 级 (A→B, B→C, C→D, D→D)."""
     order = ["A", "B", "C", "D"]
@@ -87,6 +93,19 @@ def _downgrade_confidence(level: str) -> str:
         idx = order.index(level)
         return order[min(idx + 1, len(order) - 1)]
     return "D"
+
+
+def _downgrade_direction(direction: str) -> str:
+    """红蓝对抗 (2026-08-07) : ACCUMULATION 蓄势超额为负, 多头方向降 1 档。
+
+    做多/买入 → 轻仓试探; 轻仓试探 → 观察等待; 其他保持。
+    纯函数, 不改变空仓方向语义。
+    """
+    if direction in ("做多", "买入"):
+        return "轻仓试探"
+    if direction == "轻仓试探":
+        return "观察等待"
+    return direction
 
 
 def _apply_structural_adjustment(
@@ -154,12 +173,25 @@ def _compute_structural_score(
     - spring/utad 已确认按质量加成 (0.07/0.03)；
     - clamp 到 [-1, 1] → min-max 映射到 [0, 100]。
     - P1-C 再校准: 权重放大使升级路径可达 (max ≈ 70.2)，降级路径可达 (min ≈ 44.1)。
+    - P1-2 修正 (2026-08-07): 实证 WSO base 在真实数据上仅有 ±0.1 量级
+      (p90=0.068, max=0.094)，线性 min-max 浪费 3/4 输出范围导致结构分
+      高度拥挤 (真实 p25=60.3 → p75=62.7, span 2.4)，无法排序信号。
+      将统计验证过的 WSO 事件序列 base 放大 BASE_AMPLIFICATION 倍，
+      使相位启发式不再淹没事件质量 → span 提升至 12+，且升级/降级
+      路径 (reachability) 均保持可达。
     """
     if scorer is not None and scorer.wss.is_loaded:
         seq_key = '>'.join(event_types)
-        base, _ = scorer.score_sequence(event_types, seq_key)
+        # 2026-08-18 修复: 复用 WSS lookup 但冷启动 WSO。
+        # WSOScorer.score_events 的 EMA 平滑 (self._last_score/_is_warm) 是
+        # 研究管线时间序列推进专用语义; 共享 scorer 跨股票/跨 MTF 调用会使
+        # structural_score 被前一次平滑历史污染 (同一输入不同结果)。
+        # 横截面评分须冷启动 → 每次以 lookup 引用新建无状态 scorer。
+        fresh = WyckoffScorer(wss_lookup=scorer.wss.lookup)
+        base, _ = fresh.score_sequence(event_types, seq_key)
     else:
         base, _ = event_sequence_score(event_types)
+    base *= BASE_AMPLIFICATION
     phase_bonus = 0.20 if phase != WyckoffPhase.UNKNOWN else -0.10
     event_bonus = 0.0
     if step3.spring_detected:
@@ -211,8 +243,41 @@ class WyckoffEngine:
                         "WSS enabled: loaded %d sequences from %s",
                         len(self._wss_scorer.wss.lookup), wss_path,
                     )
+                else:
+                    # P1-1: wss_enabled=true 但查找表缺失 → 显式告警而不是静默回退。
+                    # 防止"看似开启实为死分支" (is_loaded 恒 False)。
+                    logger.warning(
+                        "WSS enabled but lookup path missing (%s) — falling back to "
+                        "WSO-only. Run scripts/wyckoff_multitf/train_wss_lookup.py "
+                        "after generating phase2_event_results.json to populate it.",
+                        wss_path,
+                    )
         except Exception:
             logger.warning("WSS initialization failed, falling back to WSO-only", exc_info=True)
+
+        # 红蓝对抗 (2026-08-07): ACCUMULATION 蓄势超额为负 → 多头方向降 1 档。
+        # config wyckoff.accumulation_downgrade (默认 false 向后兼容; config.yaml 已开 true)。
+        self._accumulation_downgrade: bool = False
+        try:
+            cfg = get_config()
+            self._accumulation_downgrade = bool(
+                cfg.get("wyckoff.accumulation_downgrade", False)
+            )
+        except Exception:
+            logger.warning("accumulation_downgrade config read failed", exc_info=True)
+
+        # P0-5 (2026-08-12 深入再研究定稿): 结构分置信度加权默认关闭。
+        # config wyckoff.structural_adjust_enabled (默认 false) —
+        # T2 五窗实证显示标记置信度无排序力，结构分仅作叙事/标注字段，
+        # 不再对信号置信度等级做升降调整。
+        self._structural_adjust_enabled: bool = False
+        try:
+            cfg = get_config()
+            self._structural_adjust_enabled = bool(
+                cfg.get("wyckoff.structural_adjust_enabled", False)
+            )
+        except Exception:
+            logger.warning("structural_adjust_enabled config read failed", exc_info=True)
 
         # Load calibration thresholds from config
         self.calibration: dict = {}
@@ -314,6 +379,8 @@ class WyckoffEngine:
         else:  # 月线
             lookback = min(len(frame), self.monthly_lookback)
 
+        # P1-12: bias200 需要 ≥200 根 K 线，而默认 lookback=120 会截断，故在截断前保存全量 frame
+        full_frame = frame
         frame = frame.tail(lookback).reset_index(drop=True)
 
         # CN-C4: 预复权状态探测 (研究平台: 标记 + 降级，不拒绝)
@@ -389,7 +456,9 @@ class WyckoffEngine:
         except (ValueError, TypeError, KeyError):
             logger.warning("structural_score computation failed", exc_info=True)
             structural_score = 0.0
-        confidence = _apply_structural_adjustment(confidence, structural_score)
+        # P0-5: 结构分置信度加权仅当 config 开启时应用（默认关）。
+        if self._structural_adjust_enabled:
+            confidence = _apply_structural_adjustment(confidence, structural_score)
 
         # Step 5: 交易计划
         v3_plan = self._step5_trading_plan(step1, step3, step35, rr_result, confidence, df=frame)
@@ -446,6 +515,7 @@ class WyckoffEngine:
             relative_strength,
             relative_strength_detail,
             pnf_phase_divergence=step1.pnf_phase_divergence,
+            full_frame=full_frame,
         )
 
     def _step0_bc_tr_scan(
@@ -797,7 +867,33 @@ class WyckoffEngine:
         return None
 
     def _detect_sos(self, df: pd.DataFrame, ctx: dict, rule0: Rule0Result) -> Optional[dict]:
-        """Detect SOS (Sign of Strength) pattern."""
+        """P1-3: 检测 SOS (Sign of Strength) 候选信号。
+
+        判断条件:
+          1. 价格突破 TR 上沿 (close > boundary_upper * 0.98)
+          2. 量能确认 (volume > 20日均量 * 1.2)
+          3. 收盘价在 K 线上半部 (c_loc >= 0.5)
+        """
+        boundary_upper = rule0.boundary_upper if hasattr(rule0, "boundary_upper") else 0
+        if boundary_upper <= 0:
+            return None
+        recent = df.tail(5)
+        avg_vol = float(df["volume"].tail(20).mean()) if len(df) >= 20 else float(df["volume"].mean())
+        if avg_vol <= 0:
+            return None
+        for row in recent.itertuples():
+            c_val = float(row.close)
+            if c_val > boundary_upper * 0.98:
+                c_loc = (c_val - float(row.low)) / max(float(row.high) - float(row.low), 0.01)
+                if c_loc >= 0.5:
+                    vol_ratio = float(row.volume) / avg_vol
+                    if vol_ratio > 1.2:
+                        return {
+                            "date": str(row.date),
+                            "close": c_val,
+                            "vol_ratio": vol_ratio,
+                            "boundary_upper": boundary_upper,
+                        }
         return None
 
     def _step1_phase_determine(
@@ -1021,6 +1117,7 @@ class WyckoffEngine:
         utad_date = None
         utad_quality = "无"
         st_detected = False
+        sos_candidate_detected = False
         lps_confirmed = False
         lps_stage = "not_test"
         test_low = None
@@ -1092,7 +1189,14 @@ class WyckoffEngine:
                                 "平均",
                             ):  # 原：仅"高于平均"和"天量"
                                 st_detected = True
+                                sos_candidate_detected = True
                                 break
+
+        # P1-3: 独立 SOS 检测 (TR 上沿突破 + 量能确认，不拘泥于 ACCUMULATION 阶段)
+        if not sos_candidate_detected and step1.boundary_upper > 0:
+            sos_found = self._detect_sos(df, {}, rule0)
+            if sos_found is not None:
+                sos_candidate_detected = True
 
         # UTAD 检测（DISTRIBUTION 阶段）：X 列突破上沿 2%+ → 1-2 列内收回 + 放量确认
         if step1.phase == WyckoffPhase.DISTRIBUTION and step1.boundary_upper > 0:
@@ -1122,6 +1226,7 @@ class WyckoffEngine:
             utad_quality=utad_quality,
             utad_date=utad_date,
             st_detected=st_detected,
+            sos_candidate_detected=sos_candidate_detected,
             lps_confirmed=lps_confirmed,
             lps_stage=lps_stage,
             test_low=test_low,
@@ -1377,15 +1482,20 @@ class WyckoffEngine:
         elif step1.phase == WyckoffPhase.ACCUMULATION:
             # ACCUMULATION阶段：Spring+LPS确认后可做多
             if step3.spring_detected and step3.lps_confirmed:
-                if confidence.level in ("A", "B+"):
+                if confidence.level in ["A", "B+"]:
                     direction = "做多"
                 elif rr.rr_ratio >= 2.5:
                     direction = "做多"
                 else:
                     direction = "轻仓试探"
             elif step3.spring_detected:
-                # Spring已检测但LPS未确认，可观察
-                direction = "观察等待"
+                # Spring已检测但LPS未确认：
+                #   P0-1: 强置信(A/B/B+)或盈亏比>=1.5 -> 放开轻仓试探
+                #   否则保持观察(不做多越权)
+                if confidence.level in ["A", "B", "B+"] or rr.rr_ratio >= 1.5:
+                    direction = "轻仓试探"
+                else:
+                    direction = "观察等待"
             else:
                 direction = "空仓观望"
         elif step1.phase == WyckoffPhase.MARKUP:
@@ -1447,9 +1557,17 @@ class WyckoffEngine:
             # UNKNOWN阶段：根据子状态判断
             if step1.unknown_candidate in ("phase_a_candidate", "sc_st_candidate"):
                 if step3.spring_detected:
-                    direction = "观察等待"
+                    # P0-2: Spring + 强置信(A/B/B+)-> 放开轻仓试探, 否则观察
+                    if confidence.level in ["A", "B", "B+"] or rr.rr_ratio >= 1.5:
+                        direction = "轻仓试探"
+                    else:
+                        direction = "观察等待"
                 else:
                     direction = "空仓观望"
+            elif step3.spring_detected and (confidence.level in ["A", "B", "B+"] or rr.rr_ratio >= 1.5):
+                # P0-2: UNKNOWN 且 unknown_candidate 不在已知集, 但 Spring + 强置信
+                # - 不再无条件空仓观望, 进入方向判定（轻仓试探）
+                direction = "轻仓试探"
             else:
                 direction = "空仓观望"
 
@@ -1459,9 +1577,28 @@ class WyckoffEngine:
         limit_moves_data = [{"price": lm.price, "type": lm.move_type.value} for lm in limit_moves]
         atr_series = Indicators.calc_atr(df)
         current_atr = float(atr_series.iloc[-1]) if len(atr_series) > 0 else 0.0
-        # 涨跌停风控: 近20日有跌停记录的股票跳过
-        if any(lm.move_type == LimitMoveType.LIMIT_DOWN for lm in limit_moves):
-            direction = "空仓观望"
+        # 涨跌停风控: 近20日有涨停或跌停记录的股票跳过
+        last_close = float(df["close"].iloc[-1]) if df is not None and len(df) > 0 else None
+        for lm in limit_moves:
+            if lm.move_type == LimitMoveType.LIMIT_DOWN:
+                direction = "空仓观望"
+                break
+            if lm.move_type in (LimitMoveType.LIMIT_UP, LimitMoveType.BREAK_LIMIT_UP):
+                if last_close is not None:
+                    pre_idx = max(0, len(df) - 2)
+                    prev_close = float(df["close"].iloc[pre_idx])
+                    if prev_close > 0:
+                        limit_pct = 0.10
+                        if self._code_prefix in {"688", "689", "300", "301", "302"}:
+                            limit_pct = 0.20
+                        elif self._code_prefix in {"83", "87", "920"}:
+                            limit_pct = 0.30
+                        elif self._is_st:
+                            limit_pct = 0.05
+                        limit_price = prev_close * (1.0 + limit_pct)
+                        if abs(last_close - limit_price) / limit_price < 0.005:
+                            direction = "空仓观望"
+                            break
         stop_loss_result = self.rules.rule10_stop_loss(key_low, limit_moves_data, current_atr)
 
         # 多周期一致性声明
@@ -1511,6 +1648,17 @@ class WyckoffEngine:
                 )
                 direction = "空仓观望"
 
+        # 红蓝对抗 (2026-08-07): ACCUMULATION 蓄势超额为负 → 多头方向降 1 档。
+        # 需在假突破/涨跌停等强制空仓之后、且仅在 ACCUMULATION 才降级。
+        if (
+            self._accumulation_downgrade
+            and step1.phase == WyckoffPhase.ACCUMULATION
+            and direction in ("做多", "买入", "轻仓试探")
+        ):
+            downgraded = _downgrade_direction(direction)
+            if downgraded != direction:
+                direction = downgraded
+
         return V3TradingPlan(
             current_assessment=assessment,
             multi_timeframe_statement=multi_timeframe_statement,
@@ -1556,6 +1704,7 @@ class WyckoffEngine:
         relative_strength: Optional[str] = None,
         relative_strength_detail: Optional[dict] = None,
         pnf_phase_divergence: Optional[str] = None,
+        full_frame: Optional[pd.DataFrame] = None,
     ) -> WyckoffReport:
         """构建最终报告"""
         current_price = float(df.iloc[-1]["close"])
@@ -1578,6 +1727,8 @@ class WyckoffEngine:
         # 构建信号
         signal_type = "no_signal"
         signal_description = ""
+        sos_candidate_detected_flag = step3.sos_candidate_detected
+        current_price = float(df.iloc[-1]["close"]) if df is not None and len(df) > 0 else 0.0
 
         if step1.phase == WyckoffPhase.MARKUP:
             # SOS Candidate / Spring Confirmation detection:
@@ -1611,7 +1762,8 @@ class WyckoffEngine:
                                 is_post_spring_sos = True
 
             if is_post_spring_sos:
-                signal_type = "sos_candidate"
+                sos_candidate_detected_flag = True
+                signal_type = "markup"
                 signal_description = "处于上涨阶段 (Markup - SOS已确认)"
             else:
                 signal_type = "markup"
@@ -1634,7 +1786,7 @@ class WyckoffEngine:
         elif step3.utad_detected:
             signal_type = "utad"
             signal_description = "检测到UTAD假突破信号"
-        elif step3.st_detected:
+        elif step3.sos_candidate_detected:
             signal_type = "sos_candidate"
             signal_description = "检测到SOS候选信号"
         elif step1.phase == WyckoffPhase.ACCUMULATION:
@@ -1732,6 +1884,63 @@ class WyckoffEngine:
         chip_analysis = self._analyze_chips(df, structure)
 
         # SQ-C1: 结构完整性评分 (已在 _analyze_single 计算并加权置信度，此处直接透传)
+
+        # P1-4~12: 标注面计算 (纯标注, 不改方向结论)
+        evr_state, evr_level, evr_position_context = "none", 0, ""
+        if hasattr(step2, "vdb_divergence") and step2.vdb_divergence != "none":
+            evr_state = step2.vdb_divergence
+            evr_level = 3
+        pattern_failure_detected = False
+        pattern_failure_ratio = 0.0
+        if step1.boundary_upper > 0 and step1.boundary_lower > 0:
+            range_width = step1.boundary_upper - step1.boundary_lower
+            if range_width > 0 and current_price > 0:
+                if step1.phase == WyckoffPhase.ACCUMULATION and current_price < step1.boundary_lower:
+                    fail_dist = (step1.boundary_lower - current_price) / range_width
+                    if fail_dist > 0.33:
+                        pattern_failure_detected = True
+                        pattern_failure_ratio = fail_dist
+                elif step1.phase == WyckoffPhase.DISTRIBUTION and current_price > step1.boundary_upper:
+                    fail_dist = (current_price - step1.boundary_upper) / range_width
+                    if fail_dist > 0.33:
+                        pattern_failure_detected = True
+                        pattern_failure_ratio = fail_dist
+        no_supply_detected = bool(step3.spring_volume in ("地量", "萎缩") if step3.spring_volume else False)
+        nsd_detected = False
+        vdu_detected = False
+        if len(df) >= 5:
+            recent_vol = df["volume"].tail(5).mean()
+            hist_vol = df["volume"].tail(60).mean() if len(df) >= 60 else df["volume"].mean()
+            if hist_vol > 0:
+                vol_ratio = recent_vol / hist_vol
+                if vol_ratio < 0.5:
+                    vdu_detected = True
+                elif vol_ratio < 0.7:
+                    nsd_detected = True
+        event_cooldown_active = False
+        event_cooldown_days = 0
+        if step3.spring_detected or step3.utad_detected or sos_candidate_detected_flag:
+            event_cooldown_active = True
+            event_cooldown_days = 5
+        range_score = 0.0
+        if step1.boundary_upper > 0 and step1.boundary_lower > 0:
+            range_width = step1.boundary_upper - step1.boundary_lower
+            if range_width > 0:
+                range_score = min(round(structural_score / 100.0, 2), 1.0)
+        avwap = 0.0
+        if len(df) >= 5:
+            recent_5 = df.tail(5)
+            pv = (recent_5["close"] * recent_5["volume"]).sum()
+            v = recent_5["volume"].sum()
+            if v > 0:
+                avwap = round(float(pv / v), 2)
+        bias200 = 0.0
+        bias_base = full_frame if full_frame is not None and len(full_frame) >= 200 else df
+        if len(bias_base) >= 200:
+            ma200 = float(bias_base["close"].tail(200).mean())
+            if ma200 > 0:
+                bias200 = round((current_price - ma200) / ma200, 4)
+
         return WyckoffReport(
             symbol=symbol,
             period=period,
@@ -1753,6 +1962,20 @@ class WyckoffEngine:
             pnf_phase_divergence=pnf_phase_divergence,
             vdb_divergence=step2.vdb_divergence,
             lps_stage=step3.lps_stage,
+            sos_candidate_detected=sos_candidate_detected_flag,
+            evr_state=evr_state,
+            evr_level=evr_level,
+            evr_position_context=evr_position_context,
+            pattern_failure_detected=pattern_failure_detected,
+            pattern_failure_ratio=pattern_failure_ratio,
+            no_supply_detected=no_supply_detected,
+            nsd_detected=nsd_detected,
+            vdu_detected=vdu_detected,
+            event_cooldown_active=event_cooldown_active,
+            event_cooldown_days=event_cooldown_days,
+            range_score=range_score,
+            avwap=avwap,
+            bias200=bias200,
         )
 
     def _classify_unknown_candidate(
@@ -1923,6 +2146,13 @@ class WyckoffEngine:
     def _create_no_signal_report(self, symbol: str, period: str, reason: str) -> WyckoffReport:
         return create_no_signal_report(symbol, period, reason)
 
+    def _scan_buy_confidence_gate(self) -> float:
+        """P0-4: BUY 门槛 (config wyckoff.confidence_gate, 默认 0.40)。"""
+        try:
+            return float(get_config().get("wyckoff.confidence_gate", 0.40) or 0.40)
+        except Exception:
+            return 0.40
+
     def scan_signal(
         self,
         df: pd.DataFrame,
@@ -1968,15 +2198,13 @@ class WyckoffEngine:
                     utad_detected = True
             
             if report.trading_plan:
-                # TradingPlan 使用 direction 字段而非 action
+                # P0-6/P0-7 (2026-08-12 深入再研究定稿): 残留相位→方向映射抵销。
+                # 仅当 direction ∈ {做多,买入,轻仓试探} 且置信度 ≥ 门槛时产出 BUY；
+                # **恒不产 SELL**（其余一律 HOLD），相位/spring/utad 不再驱动 action。
                 direction_raw = str(getattr(report.trading_plan, 'direction', '空仓观望'))
-                # 扩展映射表，覆盖引擎输出的所有中文关键词
-                buy_keywords = ['long', '多头', '买入', '做多', '轻仓试探', '加仓', '建仓']
-                sell_keywords = ['short', '空头', '卖出', '做空', '减仓', '清仓']
-                if any(kw in direction_raw for kw in buy_keywords):
+                buy_keywords = ['做多', '买入', '轻仓试探']
+                if any(kw in direction_raw for kw in buy_keywords) and confidence >= self._scan_buy_confidence_gate():
                     action = 'BUY'
-                elif any(kw in direction_raw for kw in sell_keywords):
-                    action = 'SELL'
                 else:
                     action = 'HOLD'
             

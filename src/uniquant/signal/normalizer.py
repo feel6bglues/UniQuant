@@ -112,13 +112,16 @@ class WyckoffSignalNormalizer(SignalNormalizer):
         "sow": SignalType.WYCKOFF_SOW,
     }
 
+    # P0-6 (2026-08-12 深入再研究定稿): 相位→方向映射抵销。
+    # 五窗实证 (F7) 显示六类信号无跨窗同号显著，引擎为叙事+风控层，
+    # Wyckoff 归一化不再注入方向权重 (恒 0)。
     _DIRECTION_MAP: Dict[SignalType, int] = {
-        SignalType.WYCKOFF_ACCUMULATION: 1,
-        SignalType.WYCKOFF_SPRING: 1,
-        SignalType.WYCKOFF_LPS: 1,
-        SignalType.WYCKOFF_DISTRIBUTION: -1,
-        SignalType.WYCKOFF_UTAD: -1,
-        SignalType.WYCKOFF_SOW: -1,
+        SignalType.WYCKOFF_ACCUMULATION: 0,
+        SignalType.WYCKOFF_SPRING: 0,
+        SignalType.WYCKOFF_LPS: 0,
+        SignalType.WYCKOFF_DISTRIBUTION: 0,
+        SignalType.WYCKOFF_UTAD: 0,
+        SignalType.WYCKOFF_SOW: 0,
     }
 
     def normalize(self, raw_signal: Dict[str, Any]) -> Signal:

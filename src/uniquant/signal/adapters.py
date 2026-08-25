@@ -19,6 +19,8 @@ import datetime
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional
 
+from uniquant.shared.config_loader import get_config
+
 from ..shared.event_bus import EventBus
 from ..shared.event_types import SignalGenerated
 from ..shared.interfaces import TradingSignal
@@ -149,12 +151,17 @@ class CZSCAdapter(EngineAdapter):
 class WyckoffAdapter(EngineAdapter):
     """Wyckoff 引擎输出适配器
 
-    输入 keys: wyckoff_phase, wyckoff_confidence, wyckoff_spring, wyckoff_utad
-    输出: BUY (accumulation+spring) / SELL (distribution+utad) / HOLD
+    输入 keys: wyckoff_phase, wyckoff_confidence, wyckoff_direction
+    输出: BUY (direction ∈ {做多,买入,轻仓试探} 且置信度 ≥ 门槛) / None
+
+    P0-2/P0-4/P0-7 (2026-08-12 深入再研究定稿): 引擎目标态 = 叙事+风控层。
+    - 方向唯一来自 direction gate (config wyckoff.direction_gate_enabled)，
+      相位/spring/utad 直映射已删除。
+    - 置信门槛 config wyckoff.confidence_gate (默认 0.40)。
+    - **恒不产 SELL-as-entry**: 非入场方向一律返回 None，绝不产生 SELL。
     """
 
-    _BULLISH_PHASES = {"accumulation"}
-    _BEARISH_PHASES = {"distribution"}
+    _ENTRY_DIRECTIONS = {"做多", "买入", "轻仓试探"}
 
     def adapt(
         self,
@@ -163,37 +170,42 @@ class WyckoffAdapter(EngineAdapter):
         timestamp: Optional[datetime.datetime] = None,
         default_shares: int = 100,
     ) -> Optional[TradingSignal]:
-        phase = raw_output.get(
-            "wyckoff_phase", raw_output.get("phase", "unknown")
+        direction = str(
+            raw_output.get("wyckoff_direction", raw_output.get("direction", ""))
         )
         confidence = float(
             raw_output.get(
                 "wyckoff_confidence", raw_output.get("confidence", 0.0)
             )
         )
+        phase = str(
+            raw_output.get("wyckoff_phase", raw_output.get("phase", "unknown"))
+        )
         spring = raw_output.get("wyckoff_spring", False)
         utad = raw_output.get("wyckoff_utad", False)
 
-        if phase == "unknown" or confidence < 0.3:
+        try:
+            cfg = get_config()
+        except Exception:
+            cfg = {}
+        if not bool(cfg.get("wyckoff.direction_gate_enabled", True)):
+            return None
+        gate = float(cfg.get("wyckoff.confidence_gate", 0.40) or 0.40)
+
+        if direction not in self._ENTRY_DIRECTIONS or confidence < gate:
             return None
 
-        if spring or phase in self._BULLISH_PHASES:
-            action = "BUY"
-        elif utad or phase in self._BEARISH_PHASES:
-            action = "SELL"
-        else:
-            action = "HOLD"
-
         return TradingSignal(
-            action=action,
-            reason=f"Wyckoff phase={phase} spring={spring} utad={utad}",
+            action="BUY",
+            reason=f"Wyckoff direction={direction} phase={phase} spring={spring} utad={utad}",
             confidence=confidence,
-            shares=default_shares if action != "HOLD" else 0,
+            shares=default_shares,
             symbol=symbol,
             price=float(raw_output.get("price", 0.0)),
             timestamp=timestamp,
             metadata={
                 "wyckoff_phase": phase,
+                "wyckoff_direction": direction,
                 "wyckoff_spring": spring,
                 "wyckoff_utad": utad,
                 "wyckoff_rr_ratio": float(raw_output.get("rr_ratio", 0.0)),
@@ -615,6 +627,8 @@ class TradingSignalCollector:
             "wyckoff_confidence": data_pack.get("wyckoff_confidence", 0.0),
             "wyckoff_spring": data_pack.get("wyckoff_spring", False),
             "wyckoff_utad": data_pack.get("wyckoff_utad", False),
+            # P0-1: direction 透传
+            "wyckoff_direction": data_pack.get("wyckoff_direction", ""),
             "price": data_pack.get("price", 0.0),
             "rr_ratio": data_pack.get("rr_ratio", 0.0),
             "bypassed": data_pack.get("bypassed", False),

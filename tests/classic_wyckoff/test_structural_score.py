@@ -61,6 +61,25 @@ def test_structural_score_deterministic():
     assert report1.structural_score == report2.structural_score
 
 
+def test_structural_score_shared_engine_cross_call_deterministic():
+    """共享引擎实例跨多只股票/多次调用，structural_score 不得漂移 (2026-08-18 回归)。
+
+    历史 bug: _compute_structural_score 通过共享 self._wss_scorer 调用
+    score_sequence，而 WSOScorer 的 EMA 平滑状态 (_last_score/_is_warm) 跨
+    调用累积 —— 同一只股票在引擎先分析过别的股票后得分会变化。
+    修复: WSS 打分改用冷启动 WyckoffScorer (复用 lookup 引用)。
+    """
+    df_a = synthetic_accumulation(seed=42)
+    df_b = synthetic_distribution(seed=42)
+    fresh = WyckoffEngine().analyze(df_b, symbol="B.SH").structural_score
+
+    shared = WyckoffEngine()
+    for _ in range(3):
+        shared.analyze(df_a, symbol="A.SH")
+    after_a = shared.analyze(df_b, symbol="B.SH").structural_score
+    assert after_a == fresh
+
+
 def test_compute_structural_score_is_pure():
     """_compute_structural_score 直接调用两次结果一致。"""
     df = synthetic_accumulation(seed=42)
@@ -125,6 +144,7 @@ def test_adapter_metadata_structural_score():
     signal = adapter.adapt({
         "wyckoff_phase": "accumulation",
         "wyckoff_confidence": 0.6,
+        "wyckoff_direction": "做多",
         "structural_score": 60.0,
         "price": 10.0,
     }, symbol="TEST.SH")
