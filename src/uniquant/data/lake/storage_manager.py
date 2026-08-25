@@ -15,6 +15,37 @@ from ..utils.normalizer import normalize_column_names as _normalize_columns
 logger = get_logger("StorageManager")
 
 
+def is_index_symbol(symbol) -> bool:
+    """符号级指数判定 (2026-08-18 P0 数据净化, 与 scripts/wyckoff_full_scan._is_index 语义一致)。
+
+    "000001.SH" -> True (上证指数)
+    "399001.SZ" -> True (深证成指)
+    "000001.SZ" -> False (平安银行, SZ 主板股票)
+    "600000.SH" -> False
+    """
+    if symbol is None:
+        return False
+    if _isnan_symbol(symbol):
+        return False
+    symbol = str(symbol)
+    code, sep, exch = symbol.partition(".")
+    if not sep or not code.isdigit() or len(code) != 6:
+        return False
+    return (exch == "SH" and code.startswith("000")) or (
+        exch == "SZ" and code.startswith("399")
+    )
+
+
+def _isnan_symbol(symbol) -> bool:
+    """NaN 判定 (pd.isna 对 str 安全)"""
+    try:
+        import pandas as pd
+
+        return bool(pd.isna(symbol))
+    except Exception:
+        return False
+
+
 class StorageManager:
     """
     存储管理器
@@ -373,11 +404,19 @@ class StorageManager:
         file_path = self.daily_dir / f"{symbol}.parquet"
         return file_path.exists()
 
-    def get_symbols(self):
-        """获取所有已存储的股票代码"""
+    def get_symbols(self, exclude_indices: bool = True):
+        """获取所有已存储的股票代码
+
+        Args:
+            exclude_indices: 默认 True, 剔除指数 (SH 000xxx / SZ 399xxx, 符号级判定)。
+                2026-08-18 P0 净化: daily/ 曾混入 554 指数文件, 因子/扫描管线应只处理股票。
+                需要指数时显式传 False。
+        """
         symbols = []
         for file in self.daily_dir.glob("*.parquet"):
             symbols.append(file.stem)
+        if exclude_indices:
+            symbols = [s for s in symbols if not is_index_symbol(s)]
         logger.info(f"获取到 {len(symbols)} 个已存储的股票代码")
         return symbols
 

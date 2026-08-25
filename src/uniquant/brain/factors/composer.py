@@ -319,29 +319,43 @@ class FactorComposer:
             return factor_df
 
         self.last_diagnostics["orthogonalization_attempted"] = True
-        
+
         F = factor_df.values
         n, k = F.shape
-        
-        F_centered = F - F.mean(axis=0)
-        
+
+        # 真实数据下按日期横截面标准化后仍可能存在 NaN/inf
+        # (单只股票日期、全 NaN 因子切片等)。剔除非有限行再正交化,
+        # 避免 scipy.linalg.eigh(np.cov(NaN)) 抛错。
+        finite_rows = np.all(np.isfinite(F), axis=1)
+        if int(finite_rows.sum()) < 2:
+            self.last_diagnostics["orthogonalization_failed"] = True
+            self.last_diagnostics["orthogonalization_error"] = "no finite rows"
+            return factor_df
+
+        F_clean = F[finite_rows]
+        F_centered = F_clean - F_clean.mean(axis=0)
+
         cov_matrix = np.cov(F_centered.T)
-        
+
         try:
             eigenvalues, eigenvectors = linalg.eigh(cov_matrix)
-            
+
             eigenvalues = np.maximum(eigenvalues, 1e-10)
-            
+
             D_inv_sqrt = np.diag(1.0 / np.sqrt(eigenvalues))
-            
+
             cov_inv_sqrt = eigenvectors @ D_inv_sqrt @ eigenvectors.T
-            
-            F_orth = F_centered @ cov_inv_sqrt
+
+            F_orth_clean = F_centered @ cov_inv_sqrt
+
+            orth_std = F_orth_clean.std(axis=0, ddof=0)
+            orth_std = np.where(orth_std == 0, np.nan, orth_std)
+            F_orth_clean = (F_orth_clean - F_orth_clean.mean(axis=0)) / orth_std
+
+            F_orth = np.full_like(F, np.nan, dtype=float)
+            F_orth[finite_rows] = np.where(np.isfinite(F_orth_clean), F_orth_clean, np.nan)
 
             orth_df = pd.DataFrame(F_orth, index=factor_df.index, columns=factor_df.columns)
-            orth_std = orth_df.std(ddof=0).replace(0, np.nan)
-            orth_df = (orth_df - orth_df.mean()) / orth_std
-            
             return orth_df.replace([np.inf, -np.inf], np.nan)
 
         except linalg.LinAlgError as e:

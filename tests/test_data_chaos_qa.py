@@ -517,6 +517,31 @@ class TestStorageManagerChaos:
         assert "600002.SH" in symbols
         assert "600003.SH" in symbols
 
+    def test_get_symbols_excludes_indices(self, storage):
+        from uniquant.data.lake.storage_manager import is_index_symbol
+
+        df = _make_ohlcv(3)
+        storage.save_data("000001.SH", df)
+        storage.save_data("399001.SZ", df)
+        storage.save_data("600004.SH", df)
+        storage.save_data("000001.SZ", df)
+        symbols = storage.get_symbols()
+        assert "600004.SH" in symbols
+        assert "000001.SZ" in symbols
+        assert "000001.SH" not in symbols
+        assert "399001.SZ" not in symbols
+        assert is_index_symbol("000001.SH") is True
+        assert is_index_symbol("399001.SZ") is True
+        assert is_index_symbol("000001.SZ") is False
+
+    def test_get_symbols_exclude_indices_false(self, storage):
+        df = _make_ohlcv(3)
+        storage.save_data("000001.SH", df)
+        storage.save_data("600005.SH", df)
+        symbols = storage.get_symbols(exclude_indices=False)
+        assert "000001.SH" in symbols
+        assert "600005.SH" in symbols
+
     def test_normalize_stock_code(self, storage):
         assert storage._normalize_stock_code("600000.SH") == "600000.SH"
         assert storage._normalize_stock_code("SH.600000") == "600000.SH"

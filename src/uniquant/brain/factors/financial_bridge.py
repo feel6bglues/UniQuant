@@ -86,6 +86,16 @@ MARKET_SUFFIX_MAP = {
 }
 
 
+
+def _report_year_series(s: pd.Series) -> pd.Series:
+    """报告期序列 → 年份整数序列 (datetime / int YYYYMMDD / str 均可)。"""
+    if pd.api.types.is_datetime64_any_dtype(s):
+        return s.dt.year.astype(int)
+    if pd.api.types.is_numeric_dtype(s):
+        return s.astype("int64") // 10000
+    return s.astype(str).str.slice(0, 4).astype(int)
+
+
 class FinancialFactorBridge:
     """
     财务因子桥接器
@@ -242,14 +252,23 @@ class FinancialFactorBridge:
         """
         if df.empty or "eps" not in df.columns:
             return df
-        
+
         df = df.copy()
         df = df.sort_values(["code", "report_date"])
-        
-        df["eps_ttm"] = df.groupby("code")["eps"].transform(
+
+        # 财报行为同年累计值(YTD, TDX/东财口径实测确认):
+        # 先按年边界差分为单季, 再滚动 4 季求和。跨年 Q1 为新累计起点, 直接保留。
+        years = _report_year_series(df["report_date"])
+        prev_same_code_same_year = (
+            df["code"].eq(df["code"].shift(1)) & years.eq(years.shift(1))
+        )
+        single_quarter = df["eps"].where(
+            ~prev_same_code_same_year, df["eps"] - df["eps"].shift(1)
+        )
+        df["eps_ttm"] = single_quarter.groupby(df["code"]).transform(
             lambda x: x.rolling(window=self.EPS_TTM_WINDOW, min_periods=1).sum()
         )
-        
+
         logger.debug(f"Calculated eps_ttm for {len(df)} records")
         return df
     

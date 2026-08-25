@@ -66,14 +66,15 @@ class TestFinancialFactorBridge:
         assert result.empty
     
     def test_calculate_eps_ttm(self, bridge, sample_financial_df):
-        """测试 TTM EPS 计算"""
+        """测试 TTM EPS 计算 (输入为同年累计值 YTD: 先差分单季再滚动求和)"""
         mapped = bridge.map_fields(sample_financial_df)
         result = bridge.calculate_eps_ttm(mapped)
-        
+
         assert "eps_ttm" in result.columns
-        
+
+        # 累计值 [0.5, 0.6, 0.55, 0.65] → 单季 [0.5, 0.1, -0.05, 0.1]
         last_eps_ttm = result.iloc[-1]["eps_ttm"]
-        expected = sample_financial_df["基本每股收益"].sum()
+        expected = 0.5 + (0.6 - 0.5) + (0.55 - 0.6) + (0.65 - 0.55)
         assert abs(last_eps_ttm - expected) < 0.01
     
     def test_calculate_pe_pb(self, bridge, sample_daily_df, sample_financial_df):
@@ -349,3 +350,61 @@ class TestScanPipelineFinancialIntegration:
         assert "pb" in pipeline.combined_df.columns
         assert pd.isna(pipeline.combined_df.iloc[0]["pe_ttm"])
         assert pipeline.combined_df.iloc[1]["pe_ttm"] == pytest.approx(6.0)
+
+
+class TestCumulativeToTTM:
+    """TDX 财报行为累计值(YTD): EPS_TTM 必须先转单季再滚动求和。
+
+    真实锚点 (600519 贵州茅台): 20260630 基本每股收益=35.57 为 H1'26 累计,
+    naive rolling(4).sum() 会把 65.66+21.76+35.57 当单季相加 → 虚增。
+    """
+
+    @pytest.fixture
+    def bridge(self):
+        return FinancialFactorBridge()
+
+    def _cum_df(self, rows, code="600519.SH"):
+        return pd.DataFrame(
+            {"code": [code] * len(rows), "report_date": [r[0] for r in rows],
+             "基本每股收益": [r[1] for r in rows]}
+        )
+
+    def test_ttm_full_window_cross_year(self, bridge):
+        """完整4季窗口: TTM@Q1'18 = H1'17单季25 + Q3单季15 + FY单季20 + Q1'18单季24 = 84."""
+        rows = [(20170331, 20.0), (20170630, 45.0), (20170930, 60.0),
+                (20171231, 80.0), (20180331, 24.0)]
+        out = bridge.calculate_eps_ttm(bridge.map_fields(self._cum_df(rows)))
+        got = dict(zip(out["report_date"], out["eps_ttm"]))
+        assert got[20171231] == pytest.approx(80.0)   # FY 单季和 = 全年
+        assert got[20180331] == pytest.approx(84.0)
+
+    def test_year_start_resets_cumulative(self, bridge):
+        """跨年边界: 新年 Q1 是新累计起点, 不与上年相减。"""
+        rows = [(20221231, 100.0), (20230331, 24.0)]
+        out = bridge.calculate_eps_ttm(bridge.map_fields(self._cum_df(rows)))
+        got = dict(zip(out["report_date"], out["eps_ttm"]))
+        assert got[20230331] == pytest.approx(124.0)  # FY'22单季100 + Q1'23单季24
+
+    def test_codes_isolated(self, bridge):
+        """多股票互不污染。"""
+        rows_a = [(20170331, 20.0), (20170630, 45.0)]
+        rows_b = [(20170331, 1.0), (20170630, 3.0)]
+        df = pd.concat([self._cum_df(rows_a, "600519.SH"), self._cum_df(rows_b, "000001.SZ")])
+        out = bridge.calculate_eps_ttm(bridge.map_fields(df))
+        got = out.set_index(["code", "report_date"])["eps_ttm"]
+        assert got[("000001.SZ", 20170630)] == pytest.approx(3.0)
+        assert got[("600519.SH", 20170630)] == pytest.approx(45.0)
+
+    def test_naive_sum_bug_is_fixed(self, bridge):
+        """回归锁: 完整窗口下正确 TTM ≠ 累计值朴素求和。
+
+        茅台系真实量级: 单季序列 [21.76, 11.76, 17.68, 14.46, 24.0]
+        TTM@Q1'26 = 11.76+17.68+14.46+24.0 = 67.90;
+        naive 累计和 = 33.52+51.2+65.66+24.0 = 174.38。
+        """
+        rows = [(20250331, 21.76), (20250630, 33.52), (20250930, 51.20),
+                (20251231, 65.66), (20260331, 24.00)]
+        out = bridge.calculate_eps_ttm(bridge.map_fields(self._cum_df(rows)))
+        got = dict(zip(out["report_date"], out["eps_ttm"]))
+        assert got[20260331] == pytest.approx(67.90)
+        assert got[20260331] != pytest.approx(174.38)
