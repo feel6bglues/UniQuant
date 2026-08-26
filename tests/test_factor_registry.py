@@ -1,6 +1,8 @@
 import logging
+
 import pytest
 
+from uniquant.brain.factors.custom_factors import register_all
 from uniquant.brain.factors.registry import FactorAccessLevel, FactorRegistry
 
 
@@ -17,6 +19,10 @@ def clean_registry():
     logger = logging.getLogger("FactorRegistry")
     logger.propagate = True
     yield
+    # 恢复生产注册, 防止单例污染下游测试 (P11 修复: 曾致
+    # test_custom_factor_registered / test_fundamental_factors 全量跑 flaky)
+    FactorRegistry._factors.clear()
+    register_all()
 
 def test_factor_registration():
     FactorRegistry.register(name="f1", compute_func=dummy_factor1, category="test", default_weight=1.5)

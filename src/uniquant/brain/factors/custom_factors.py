@@ -343,9 +343,277 @@ def compute_turnover_momentum_20d(df: pd.DataFrame) -> pd.Series:
         turnover = df["volume"] * df["close"] / df["circulating_market_cap"].replace(0, np.nan)
     elif "circulating_market_cap" in df.columns and "amount" in df.columns:
         turnover = df["amount"] / df["circulating_market_cap"].replace(0, np.nan)
+    elif "free_float_shares" in df.columns:
+        # P11 (2026-08-26): 经 bridge extra_fields 合并 自由流通股(股) 后可算
+        turnover = df["volume"] / df["free_float_shares"].replace(0, np.nan)
     else:
         return pd.Series(index=df.index, dtype=float)
     return turnover.pct_change(20, fill_method=None)
+
+
+# ─── 基本面价值/质量因子族 (2026-08-26, P11) ──────────────────────────────
+# 前置条件: 日线主表先经 FinancialFactorBridge.process(extra_fields=...) 合并财务列;
+# 缺列时返回全 NaN Series (与 turnover_momentum_20d 缺 turnover 列同先例)。
+# 预注册文档: docs/analysis/FUNDAMENTAL_FACTOR_PREREGISTRATION.md
+# 注: 日线湖为不复权原始价, 财务字段为披露时点名义值 → 比值口径时点正确。
+
+
+def _fundamental_ratio(
+    df: pd.DataFrame, numer_cols: list[str], denom_col: str,
+    require_positive_denom: bool = True,
+) -> pd.Series:
+    """基本面比值通用助手: 分子线性组合 ÷ 分母, 缺列/除零返回 NaN。"""
+    missing = [c for c in (*numer_cols, denom_col) if c not in df.columns]
+    if missing:
+        return pd.Series(index=df.index, dtype=float)
+    numer = df[numer_cols[0]].astype(float)
+    for col in numer_cols[1:]:
+        numer = numer - df[col].astype(float)  # 仅支持两列相减 (rev-cost 形态)
+    denom = df[denom_col].astype(float).replace(0, np.nan)
+    if require_positive_denom:
+        denom = denom.where(denom > 0)
+    return numer / denom
+
+
+def compute_ep_ttm(df: pd.DataFrame, **kwargs) -> pd.Series:
+    """
+    EP 因子: 盈利收益率 = EPS_TTM / 收盘价
+
+    金融学假设:
+    - Fama-French (1992/1993): 高 E/P 股票未来收益更高 (价值溢价)
+    - 行为解释: 投资者对成长股过度外推, 对低估值股票系统性低估
+    - 相比 PE 倒数形式的优势: 亏损股 (EPS<0) 自然得到负 EP 排序靠后,
+      无需剔除或截断
+    - IC 预期: 正值 (高 EP → 高未来收益)
+    """
+    return _fundamental_ratio(df, ["eps_ttm"], "close", require_positive_denom=False)
+
+
+def compute_bp(df: pd.DataFrame, **kwargs) -> pd.Series:
+    """
+    BP 因子: 账面市值比 = BPS / 收盘价
+
+    金融学假设:
+    - Fama-French HML 的直接代理; 高 B/P = 市场对其净资产定价低
+    - 风险解释: 高 B/P 公司多处于财务困境, 要求风险补偿
+    - IC 预期: 正值 (高 BP → 高未来收益)
+    """
+    return _fundamental_ratio(df, ["bps"], "close", require_positive_denom=False)
+
+
+def compute_cfp_ttm(df: pd.DataFrame, **kwargs) -> pd.Series:
+    """
+    CFP 因子: 现金流收益率 = OCF_PS_TTM / 收盘价
+
+    金融学假设:
+    - Lakonishok, Shleifer & Vishny (1994): 现金流 yield 优于盈利 yield —
+      现金流更难被盈余管理操纵
+    - 与 EP 组合可分离"应计虚增"与"真实现金创造"
+    - IC 预期: 正值 (高 CFP → 高未来收益)
+    """
+    return _fundamental_ratio(df, ["ocf_ps_ttm"], "close", require_positive_denom=False)
+
+
+def compute_sp_ttm(df: pd.DataFrame, **kwargs) -> pd.Series:
+    """
+    SP 因子: 销售收益率 = Revenue_TTM / (收盘价 × 总股本)
+
+    金融学假设:
+    - Barbee, Mukherji & Raines (1996): S/P 在美国市场预测力优于 B/P
+    - 营收比利润更难操纵, 且对周期底部亏损股仍有定义
+    - IC 预期: 正值 (高 SP → 高未来收益)
+    """
+    if not {"revenue_ttm", "total_shares", "close"} <= set(df.columns):
+        return pd.Series(index=df.index, dtype=float)
+    market_cap = (
+        df["close"].astype(float) * df["total_shares"].astype(float).where(
+            lambda x: x > 0
+        )
+    ).replace(0, np.nan)
+    return df["revenue_ttm"].astype(float) / market_cap
+
+
+def compute_gross_profitability(df: pd.DataFrame, **kwargs) -> pd.Series:
+    """
+    毛利盈利能力因子 = (Revenue_TTM − Operating_Cost_TTM) / 总资产
+
+    金融学假设:
+    - Novy-Marx (2013): 毛利/资产是盈利质量最纯净的度量 — 毛利在利润表
+      上游, 远离应计操纵; G/P 高的公司每单位资产创造更多经济租金
+    - ⚠️ 对立假设 (预注册登记): 本项目 P5 实测 roe@fwd63 IC=-0.0780、
+      P6 实测 roe 在 trend_on|vol_low +0.029 vs vol_high −0.129 翻转 →
+      A 股该窗口"质量溢价"整体存疑, GP 可能整体无效甚至负向
+    - IC 预期: 正值; 若整体 ≤0 则按对立假设记录, 不改判
+    """
+    return _fundamental_ratio(df, ["revenue_ttm", "operating_cost_ttm"], "total_assets")
+
+
+def compute_accruals(df: pd.DataFrame, **kwargs) -> pd.Series:
+    """
+    应计因子 = (归母净利_TTM − OCF_TTM) / 总资产
+
+    金融学假设:
+    - Sloan (1996): 应计异象 — 利润中现金含量低 (高应计) 的公司,
+      未来收益系统性更低 (应计不可持续 + 盈余管理信号)
+    - A 股盈余管理普遍, 该效应可能更强
+    - IC 预期: 负值 (高应计 → 低未来收益)
+    """
+    if not {"net_profit_parent_ttm", "ocf_ttm", "total_assets"} <= set(df.columns):
+        return pd.Series(index=df.index, dtype=float)
+    assets = df["total_assets"].astype(float).replace(0, np.nan).where(lambda x: x > 0)
+    return (df["net_profit_parent_ttm"].astype(float)
+            - df["ocf_ttm"].astype(float)) / assets
+
+
+def compute_turnover_20d(df: pd.DataFrame, **kwargs) -> pd.Series:
+    """
+    20 日平均换手率因子 = mean(volume / 自由流通股, 20d)
+
+    金融学假设:
+    - Datar, Naik & Radcliffe (1998): 高换手率股票流动性大、
+      投资者过度交易/追捧, 未来收益低 (换手率异象)
+    - 自由流通股来自最近季报快照 (merge_asof backward), 季内近似恒定
+    - IC 预期: 负值 (高换手 → 低未来收益); 与 illiq_20d 反号但信息源不同
+      (交易活跃度 vs 价格冲击)
+    """
+    if not {"volume", "free_float_shares"} <= set(df.columns):
+        return pd.Series(index=df.index, dtype=float)
+    turnover = df["volume"].astype(float) / df["free_float_shares"].astype(float).replace(0, np.nan)
+    return turnover.rolling(window=20, min_periods=10).mean()
+
+
+# ─── P12 尾部风险因子族 (2026-08-26) ──────────────────────────────────────
+# 预注册: docs/analysis/P12_PREREGISTRATION_TAIL_CHIP_FACTORS.md
+
+
+def compute_cvar_95_60d(df: pd.DataFrame, **kwargs) -> pd.Series:
+    """
+    CVaR 因子: 60 日窗内最差 5% 日收益均值 (≈最差 3 日均值, 左尾预期损失)
+
+    金融学假设:
+    - Kelly & Jiang (2014): 尾部风险横截面有正溢价; Atilgan et al. (2020) 国际证据
+    - 对立假设 (预注册登记): 若 IVOL/反彩票主导则高左尾=低未来收益
+      (vol_60d IC=-0.104 先例同向)
+    - IC 预期: 正值 (深左尾 → 高补偿)
+    """
+    if "close" not in df.columns:
+        return pd.Series(index=df.index, dtype=float)
+    rets = df["close"].pct_change(fill_method=None)
+
+    def _cvar(x: np.ndarray) -> float:
+        vals = x[~np.isnan(x)]
+        if len(vals) < 30:
+            return np.nan
+        k = max(1, int(np.ceil(0.05 * len(vals))))
+        return float(np.sort(vals)[:k].mean())
+
+    return rets.rolling(window=60, min_periods=40).apply(_cvar, raw=True)
+
+
+def compute_max_drawdown_20d(df: pd.DataFrame, **kwargs) -> pd.Series:
+    """
+    最大回撤因子: 20 日窗内峰谷最大跌幅 (≤0, 越深越负)
+
+    金融学假设:
+    - De Bondt & Thaler (1985) 过度反应: 深跌股被系统性超卖 → 未来反弹
+    - 与 reversal 族同向但度量路径依赖下行深度 (信息源不同)
+    - IC 预期: 正值 (更深回撤 → 更高未来收益); 对立假设: 崩盘延续为负
+    """
+    if "close" not in df.columns:
+        return pd.Series(index=df.index, dtype=float)
+    close = df["close"].astype(float).to_numpy()
+    n = len(close)
+    out = np.full(n, np.nan)
+    w = 20
+    if n < w:
+        return pd.Series(out, index=df.index)
+    win = sliding_window_view(close, w)
+    valid = (~np.isnan(win)).all(axis=1) & (win > 0).all(axis=1)
+    peak = np.where(np.isnan(win), -np.inf, win)
+    peak = np.maximum.accumulate(peak, axis=1)
+    with np.errstate(invalid="ignore", divide="ignore"):
+        mdd = np.where(win > 0, win / peak - 1.0, np.nan).min(axis=1)
+    out[w - 1:] = np.where(valid, mdd, np.nan)
+    return pd.Series(out, index=df.index)
+
+
+def compute_downside_semivol_20d(df: pd.DataFrame, **kwargs) -> pd.Series:
+    """
+    下行半波动因子: √(mean(r² | r<0)) × √252
+
+    金融学假设:
+    - Ang et al. (2006): 下行风险与 IVOL 同族 — 高下行波动股票被彩票需求
+      推高定价, 未来收益低 (本项目 vol_60d IC=-0.104 同向先例)
+    - 半偏差形式对少数极端亏损日稳健 (区别于仅统计负收益日的 std)
+    - IC 预期: 负值 (高下行半波动 → 低未来收益)
+    """
+    if "close" not in df.columns:
+        return pd.Series(index=df.index, dtype=float)
+    rets = df["close"].pct_change(fill_method=None)
+    neg_sq = rets.where(rets < 0, 0.0) ** 2
+    return np.sqrt(neg_sq.rolling(window=20, min_periods=15).mean()) * np.sqrt(252)
+
+
+def compute_kurtosis_20d(df: pd.DataFrame, **kwargs) -> pd.Series:
+    """
+    峰度因子: 20 日日收益超额峰度 (pandas 样本 kurtosis)
+
+    金融学假设:
+    - 彩票偏好族: 投资者对肥尾分布 (小概率大涨大跌) 过度需求,
+      推高当期价格 → 未来低收益 (Bali et al. 2011 MAX/skew 同族扩展)
+    - IC 预期: 负值 (高峰度 → 低未来收益)
+    """
+    if "close" not in df.columns:
+        return pd.Series(index=df.index, dtype=float)
+    rets = df["close"].pct_change(fill_method=None)
+    return rets.rolling(window=20, min_periods=15).kurt()
+
+
+# ─── P12 筹码结构因子族 (2026-08-26) ──────────────────────────────────────
+# 输入列由测试脚本在季频财务帧上派生 q-o-q 变化率后经 bridge extra_fields 合并;
+# 缺列全 NaN (先例安全)。分母口径陷阱见预注册 §2 Batch B 设计说明。
+
+
+def _chip_passthrough(df: pd.DataFrame, col: str) -> pd.Series:
+    if col not in df.columns:
+        return pd.Series(index=df.index, dtype=float)
+    return pd.to_numeric(df[col], errors="coerce")
+
+
+def compute_holder_num_chg_1q(df: pd.DataFrame, **kwargs) -> pd.Series:
+    """
+    股东户数变化因子: ln(股东人数) 季度环比变化率 (季报快照 PIT)
+
+    金融学假设:
+    - 户数增加 = 筹码分散 = 散户接盘 → 未来收益低 (Dhar & Zhu 2006 散户偏好;
+      A 股筹码集中度实证主流方向)
+    - IC 预期: 负值 (户数增 → 看跌)
+    """
+    return _chip_passthrough(df, "holder_num_chg_1q")
+
+
+def compute_inst_shares_chg_1q(df: pd.DataFrame, **kwargs) -> pd.Series:
+    """
+    机构持股变化因子: 机构持股总量季度环比变化率
+
+    金融学假设:
+    - 机构净增持 = 知情交易者流入 → 未来收益高 (Nofsinger & Sias 1999;
+      A 股机构增减持信号效应)
+    - ⚠️ 口径: 总量含被动指数成分, 且生效走保守披露偏移路径
+    - IC 预期: 正值 (机构增持 → 看涨)
+    """
+    return _chip_passthrough(df, "inst_shares_chg_1q")
+
+
+def compute_top10_float_chg_1q(df: pd.DataFrame, **kwargs) -> pd.Series:
+    """
+    大股东持股变化因子: 十大流通股东合计持股季度环比变化率
+
+    金融学假设:
+    - 大股东/重要股东增持 = 内部人信号 → 未来收益高
+    - IC 预期: 正值 (十大流通增持 → 看涨)
+    """
+    return _chip_passthrough(df, "top10_float_chg_1q")
 
 
 def register_all() -> None:
@@ -516,6 +784,111 @@ def register_all() -> None:
         category="custom",
         default_weight=1.0,
         description="取反20d价格区间比 | -(maxH-minL)/close, 反彩票效应 (Ang et al. 2006)"
+    )
+
+    # ─── 基本面价值/质量因子族注册 (2026-08-26, P11) ──────────────────────
+    # 依赖日线主表预合并财务列 (bridge extra_fields), 缺列时全 NaN
+    FactorRegistry.register(
+        name="ep_ttm",
+        compute_func=compute_ep_ttm,
+        category="fundamental",
+        default_weight=1.0,
+        description="EP盈利收益率 | eps_ttm/close, 做多深度价值 (Fama-French)"
+    )
+    FactorRegistry.register(
+        name="bp",
+        compute_func=compute_bp,
+        category="fundamental",
+        default_weight=1.0,
+        description="BP账面市值比 | bps/close, HML代理 (Fama-French 1993)"
+    )
+    FactorRegistry.register(
+        name="cfp_ttm",
+        compute_func=compute_cfp_ttm,
+        category="fundamental",
+        default_weight=1.0,
+        description="CFP现金流收益率 | ocf_ps_ttm/close, 抗盈余管理 (LSV 1994)"
+    )
+    FactorRegistry.register(
+        name="sp_ttm",
+        compute_func=compute_sp_ttm,
+        category="fundamental",
+        default_weight=1.0,
+        description="SP销售收益率 | revenue_ttm/市值, 营收yield (Barbee 1996)"
+    )
+    FactorRegistry.register(
+        name="gross_profitability",
+        compute_func=compute_gross_profitability,
+        category="fundamental",
+        default_weight=1.0,
+        description="毛利盈利能力 | (rev_ttm-cost_ttm)/总资产 (Novy-Marx 2013; 对立假设已登记)"
+    )
+    FactorRegistry.register(
+        name="accruals",
+        compute_func=compute_accruals,
+        category="fundamental",
+        default_weight=1.0,
+        description="应计异象 | (归母净利_ttm-ocf_ttm)/总资产, 做多低应计 (Sloan 1996)"
+    )
+    FactorRegistry.register(
+        name="turnover_20d",
+        compute_func=compute_turnover_20d,
+        category="fundamental",
+        default_weight=1.0,
+        description="20d平均换手率 | volume/自由流通股, 换手率异象做空高换手 (Datar 1998)"
+    )
+
+    # ─── P12 尾部风险因子族注册 (2026-08-26) ──────────────────────────────
+    FactorRegistry.register(
+        name="cvar_95_60d",
+        compute_func=compute_cvar_95_60d,
+        category="custom",
+        default_weight=1.0,
+        description="CVaR左尾 | 60d最差5%日收益均值, 尾部风险溢价 (Kelly-Jiang 2014; 对立假设已登记)"
+    )
+    FactorRegistry.register(
+        name="max_drawdown_20d",
+        compute_func=compute_max_drawdown_20d,
+        category="custom",
+        default_weight=1.0,
+        description="20d最大回撤 | 峰谷深度≤0, 过度反应反弹 (De Bondt-Thaler 1985)"
+    )
+    FactorRegistry.register(
+        name="downside_semivol_20d",
+        compute_func=compute_downside_semivol_20d,
+        category="custom",
+        default_weight=1.0,
+        description="下行半波动 | √mean(r²|r<0)×√252, IVOL族 (Ang 2006)"
+    )
+    FactorRegistry.register(
+        name="kurtosis_20d",
+        compute_func=compute_kurtosis_20d,
+        category="custom",
+        default_weight=1.0,
+        description="超额峰度 | 20d日收益肥尾, 彩票偏好做空 (Bali 2011 同族)"
+    )
+
+    # ─── P12 筹码结构因子族注册 (2026-08-26, 需脚本派生列预合并) ────────────
+    FactorRegistry.register(
+        name="holder_num_chg_1q",
+        compute_func=compute_holder_num_chg_1q,
+        category="fundamental",
+        default_weight=1.0,
+        description="股东户数变化 | q-o-q变化率, 户数增=散户化看跌"
+    )
+    FactorRegistry.register(
+        name="inst_shares_chg_1q",
+        compute_func=compute_inst_shares_chg_1q,
+        category="fundamental",
+        default_weight=1.0,
+        description="机构持股变化 | 机构持股总量q-o-q变化率, 净增持看涨"
+    )
+    FactorRegistry.register(
+        name="top10_float_chg_1q",
+        compute_func=compute_top10_float_chg_1q,
+        category="fundamental",
+        default_weight=1.0,
+        description="十大流通股东变化 | 合计持股q-o-q变化率, 大股东信号"
     )
 
 

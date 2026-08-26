@@ -50,6 +50,14 @@ FINANCIAL_FIELD_MAPPINGS: List[FieldMapping] = [
     FieldMapping("经营活动产生的现金流量净额", "ocf", "float"),
     FieldMapping("投资活动产生的现金流量净额", "icf", "float"),
     FieldMapping("筹资活动产生的现金流量净额", "fcf", "float"),
+    # P11 基本面因子扩展 (2026-08-26): 成本/股本/流通股
+    FieldMapping("其中：营业成本", "operating_cost", "float"),
+    FieldMapping("总股本", "total_shares", "float"),
+    FieldMapping("自由流通股(股)", "free_float_shares", "float"),
+    # P12 筹码结构扩展 (2026-08-26): 股东户数/机构持股/十大流通
+    FieldMapping("股东人数(户)", "holder_num", "float"),
+    FieldMapping("机构持股总量(股)", "inst_shares", "float"),
+    FieldMapping("十大流通股东持股数量合计(股)", "top10_float_shares", "float"),
 ]
 
 FIELD_MAPPING_DICT: Dict[str, str] = {m.chinese_name: m.standard_name for m in FINANCIAL_FIELD_MAPPINGS}
@@ -66,7 +74,20 @@ FINANCIAL_FIELD_ALIASES: Dict[str, List[str]] = {
     "gross_margin": ["销售毛利率", "销售毛利率(%)(非金融类指标)"],
     "net_margin": ["销售净利率", "销售净利率(%)", "净利润率(非金融类指标)"],
     "net_profit_deducted": ["扣除非经常性损益净利润", "扣除非经常性损益后的净利润", "扣除非经常性损益后的净利润.1"],
+    "operating_cost": ["营业成本"],
 }
+
+# TDX 档案流量字段存储口径 (2026-08-26 实测冻结, 预注册 P11):
+# 锚点交叉验证 600519/000001.SZ/300750/002594/601318 2024 年报 —
+#   营业收入四季加总与年报披露精确一致 → 单季值口径;
+#   归母净利/OCF 年内单调递增且 Q4=全年 → 累计 YTD 口径。
+# - 累计 YTD 字段: TTM 须先按年边界差分为单季再滚动求和
+CUMULATIVE_FLOW_FIELDS = frozenset({
+    "eps", "net_profit", "net_profit_parent", "net_profit_deducted",
+    "ocf", "ocf_ps",
+})
+# - 单季字段: TTM 直接滚动 4 季求和
+SINGLE_QUARTER_FLOW_FIELDS = frozenset({"revenue", "operating_cost"})
 
 ANNOUNCEMENT_DATE_COLS = [
     "财报公告日期",
@@ -243,51 +264,82 @@ class FinancialFactorBridge:
     def calculate_eps_ttm(self, df: pd.DataFrame) -> pd.DataFrame:
         """
         计算 TTM EPS (最近4个季度累加)
-        
+
         Args:
             df: 财务数据 DataFrame，需包含 eps, report_date, code
-            
+
         Returns:
             添加 eps_ttm 列的 DataFrame
         """
-        if df.empty or "eps" not in df.columns:
+        return self.calculate_field_ttm(df, "eps")
+
+    def calculate_field_ttm(self, df: pd.DataFrame, field: str) -> pd.DataFrame:
+        """
+        按冻结口径计算任意流量字段的 TTM (最近4个季度累加)
+
+        口径规则 (见 CUMULATIVE_FLOW_FIELDS / SINGLE_QUARTER_FLOW_FIELDS 注释):
+        - 累计 YTD 字段: 年边界差分为单季后滚动求和
+        - 单季字段: 直接滚动求和
+
+        Args:
+            df: 财务数据 DataFrame，需包含 {field}, report_date, code
+            field: 标准字段名 (如 "eps" / "revenue" / "ocf_ps")
+
+        Returns:
+            添加 {field}_ttm 列的 DataFrame; 字段缺失时原样返回
+        """
+        if df.empty:
+            return df
+        if field not in CUMULATIVE_FLOW_FIELDS and field not in SINGLE_QUARTER_FLOW_FIELDS:
+            raise ValueError(
+                f"field '{field}' 未登记 TTM 口径 (须属于 "
+                f"CUMULATIVE_FLOW_FIELDS 或 SINGLE_QUARTER_FLOW_FIELDS)"
+            )
+        if field not in df.columns:
             return df
 
         df = df.copy()
         df = df.sort_values(["code", "report_date"])
 
-        # 财报行为同年累计值(YTD, TDX/东财口径实测确认):
-        # 先按年边界差分为单季, 再滚动 4 季求和。跨年 Q1 为新累计起点, 直接保留。
-        years = _report_year_series(df["report_date"])
-        prev_same_code_same_year = (
-            df["code"].eq(df["code"].shift(1)) & years.eq(years.shift(1))
-        )
-        single_quarter = df["eps"].where(
-            ~prev_same_code_same_year, df["eps"] - df["eps"].shift(1)
-        )
-        df["eps_ttm"] = single_quarter.groupby(df["code"]).transform(
+        if field in CUMULATIVE_FLOW_FIELDS:
+            # 财报行为同年累计值(YTD, TDX/东财口径实测确认):
+            # 先按年边界差分为单季, 再滚动 4 季求和。跨年 Q1 为新累计起点, 直接保留。
+            years = _report_year_series(df["report_date"])
+            prev_same_code_same_year = (
+                df["code"].eq(df["code"].shift(1)) & years.eq(years.shift(1))
+            )
+            single_quarter = df[field].where(
+                ~prev_same_code_same_year, df[field] - df[field].shift(1)
+            )
+        else:
+            single_quarter = df[field]
+
+        df[f"{field}_ttm"] = single_quarter.groupby(df["code"]).transform(
             lambda x: x.rolling(window=self.EPS_TTM_WINDOW, min_periods=1).sum()
         )
 
-        logger.debug(f"Calculated eps_ttm for {len(df)} records")
+        logger.debug(f"Calculated {field}_ttm for {len(df)} records")
         return df
     
     def calculate_pe_pb(
         self,
         daily_df: pd.DataFrame,
         financial_df: pd.DataFrame,
-        price_col: str = "qfq_close"
+        price_col: str = "qfq_close",
+        extra_fields: List[str] | None = None,
     ) -> pd.DataFrame:
         """
         计算 PE_TTM 和 PB
-        
+
         Args:
             daily_df: 日线数据 DataFrame，需包含 date, code, qfq_close
             financial_df: 财务数据 DataFrame，需包含 report_date, code, eps_ttm, bps
             price_col: 价格列名
-            
+            extra_fields: 额外并入日线主表的财务列名 (标准名或 *_ttm)。
+                None=默认行为 (仅 eps_ttm/bps/pe_ttm/pb), 向后兼容。
+
         Returns:
-            合并后的 DataFrame，包含 pe_ttm, pb 列
+            合并后的 DataFrame，包含 pe_ttm, pb 及请求的 extra 列
         """
         if daily_df.empty:
             logger.warning("Daily DataFrame is empty")
@@ -327,6 +379,9 @@ class FinancialFactorBridge:
             fin_cols.append("eps_ttm")
         if "bps" in financial_df.columns:
             fin_cols.append("bps")
+        for field in extra_fields or []:
+            if field not in fin_cols and field in financial_df.columns:
+                fin_cols.append(field)
         
         fin_subset = financial_df[fin_cols].drop_duplicates(subset=["code", "report_date"])
         fin_subset = fin_subset.sort_values(effective_date_col)
@@ -388,25 +443,39 @@ class FinancialFactorBridge:
         self,
         daily_df: pd.DataFrame,
         financial_df: pd.DataFrame,
-        price_col: str = "qfq_close"
+        price_col: str = "qfq_close",
+        extra_fields: List[str] | None = None,
     ) -> pd.DataFrame:
         """
         完整处理流程: 字段映射 → TTM计算 → PE/PB计算 → 合并
-        
+
         Args:
             daily_df: 日线数据 DataFrame
             financial_df: 财务数据 DataFrame
             price_col: 价格列名
-            
+            extra_fields: 额外并入日线主表的财务列 (标准名或 *_ttm)。
+                *_ttm 字段自动按冻结口径先算 TTM。None=默认行为。
+
         Returns:
             合并后的 DataFrame
         """
         financial_mapped = self.map_fields(financial_df)
-        
+
         financial_with_ttm = self.calculate_eps_ttm(financial_mapped)
-        
-        result = self.calculate_pe_pb(daily_df, financial_with_ttm, price_col)
-        
+
+        for field in extra_fields or []:
+            if field.endswith("_ttm"):
+                base = field[: -len("_ttm")]
+                if base != "eps":
+                    financial_with_ttm = self.calculate_field_ttm(
+                        financial_with_ttm, base
+                    )
+            # 非 _ttm 存量字段已在 map_fields 后原样存在, 无需预处理
+
+        result = self.calculate_pe_pb(
+            daily_df, financial_with_ttm, price_col, extra_fields=extra_fields
+        )
+
         return result
     
     @handle_errors(ValueError, KeyError, TypeError, default_return=pd.DataFrame(), log_level=logging.ERROR)

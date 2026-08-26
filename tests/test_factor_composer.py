@@ -1,6 +1,7 @@
 import pytest
 import pandas as pd
 import numpy as np
+from uniquant.brain.factors.custom_factors import register_all
 from uniquant.brain.factors.registry import FactorRegistry
 from uniquant.brain.factors.composer import FactorComposer
 from uniquant.brain.factors.analyzer import FactorICResult
@@ -20,6 +21,9 @@ def setup_registry():
     FactorRegistry.register("a", factor_a, default_weight=0.5)
     FactorRegistry.register("b", factor_b, default_weight=1.5)
     yield
+    # 恢复生产注册, 防止单例污染下游测试 (P11 修复)
+    FactorRegistry._factors.clear()
+    register_all()
 
 @pytest.fixture
 def sample_df():
