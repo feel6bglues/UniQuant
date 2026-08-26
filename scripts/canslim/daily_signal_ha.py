@@ -25,31 +25,29 @@ TOP_N = 30
 AMOUNT_FLOOR = None
 LIMIT_UP_PCT = 0.095
 MA_WINDOW = 200
-VOL_ROLL = 20
 VOL_PIT_WINDOW = 750
 VOL_PIT_MIN = 250
-VOL_Q = (0.33, 0.67)
 SIGNAL_DIR = PROJECT_ROOT / "results/h_a_signals"
 
 
 def compute_state(idx: pd.DataFrame, as_of: str | None) -> dict:
+    """状态判定 — 复用 canonical pit_vol_states (P7 冻结参数), 消除重复实现。"""
+    from scripts.factor_mining.conditional_stats import pit_vol_states
+
     idx = idx.sort_values("date").copy()
     idx["date"] = pd.to_datetime(idx["date"])
     if as_of:
         idx = idx[idx["date"] <= pd.Timestamp(as_of)]
     close = idx["close"]
     trend_on = bool(close.iloc[-1] > close.rolling(MA_WINDOW).mean().iloc[-1])
-    vol20 = close.pct_change().rolling(VOL_ROLL).std()
-    q_lo = vol20.rolling(VOL_PIT_WINDOW, min_periods=VOL_PIT_MIN).quantile(VOL_Q[0])
-    q_hi = vol20.rolling(VOL_PIT_WINDOW, min_periods=VOL_PIT_MIN).quantile(VOL_Q[1])
-    v, lo, hi = vol20.iloc[-1], q_lo.iloc[-1], q_hi.iloc[-1]
-    if any(pd.isna(x) for x in (v, lo, hi)):
-        vol_state = "insufficient_history"
-    else:
-        vol_state = "vol_low" if v <= lo else ("vol_mid" if v <= hi else "vol_high")
+    states = pit_vol_states(idx[["date", "close"]],
+                            window=VOL_PIT_WINDOW, min_periods=VOL_PIT_MIN)
+    last_date = idx["date"].iloc[-1]
+    tail = states[states["date"] == last_date]
+    vol_state = str(tail.iloc[-1]["vol_state"]) if len(tail) else "insufficient_history"
     hot_bull = bool(trend_on and vol_state == "vol_high")
     return {
-        "as_of": str(idx["date"].iloc[-1].date()),
+        "as_of": str(last_date.date()),
         "idx_close": round(float(close.iloc[-1]), 2),
         "trend_on": trend_on,
         "vol_state": vol_state,

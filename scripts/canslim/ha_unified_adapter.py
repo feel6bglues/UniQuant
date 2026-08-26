@@ -1,4 +1,4 @@
-"""H-A → unified_engine 适配器 (验证集成路径)。
+"""H-A → unified_engine 适配器 (集成路径验证 + 全市场聚合回测)。
 
 将 H-A 条件 illiq 持仓决策转换为 TradingSignal 序列,
 按股票逐一调用 unified_engine.run() 后汇总为组合净值。
@@ -9,9 +9,20 @@
   3. 逐一股票: 生成 TradingSignal → unified_engine.run()
   4. 汇总组合净值, 与 standalone 对照
 
+--full 模式 (2026-08-26 工程化第二件: 全股票聚合回测):
+  - 不采样, 全净化池参与; 全部 ever_held 股票过生产引擎
+  - 聚合口径 (冻结): N=len(ever_held) 个等权子账户池,
+    组合日收益 = mean(slot 日收益; 缺失日填 0=停牌资金冻结),
+    与 P8 的 30-slot 轮换再平衡口径不同 —— 无换股资金回流复利,
+    属保守口径; 目的为验证生产引擎成本模型下的量级一致性
+  - 对照参照 (研究脚本口径, 冻结): P8 STRAT-A 500只 +15.82%/夏普1.33/
+    回撤−12.9%; P10 FULL 4943只 +9.98%/0.93/−22.2%
+  - 引擎成本: 万三佣金+万五印花税+千一滑点+单笔最低5元 (≈单边18bp+
+    滑点), 近收盘成交假设同 P8
+
 用法:
-    python3 scripts/canslim/ha_unified_adapter.py --limit 5
-    python3 scripts/canslim/ha_unified_adapter.py
+    python3 scripts/canslim/ha_unified_adapter.py --limit 5   # 冒烟
+    python3 scripts/canslim/ha_unified_adapter.py --full      # 全市场聚合
 
 输出: results/factor_mining/ha_unified_adapter.json
 """
@@ -76,21 +87,17 @@ def load_hot_days(dates_index: pd.DatetimeIndex) -> pd.Series:
     return st.set_index("date")["hot"].reindex(dates_index).fillna(False)
 
 
-def build_holdings_map(df: pd.DataFrame, hot_days: pd.Series) -> dict[str, list]:
-    """返回 {date_code: [holding_codes]} 映射。"""
-    from uniquant.brain.factors.custom_factors import compute_illiq_20d
-
+def build_holdings_map(df: pd.DataFrame, hot_days: pd.Series) -> dict[str, set]:
+    """返回 {date: holding_codes_set} 映射 (复用 panel 已算的 illiq_20d 列)。"""
     fin = load_financial_codes()
     df = df[~df["code"].str[:6].isin(fin)].copy()
     dates = sorted(df["date"].unique())
-    codes = sorted(df["code"].unique())
-    illiq_mat = {c: {} for c in codes}
-    for code in codes:
-        sub = df[df["code"] == code].sort_values("date")
-        s = compute_illiq_20d(sub.reset_index(drop=True))
-        for i, dt in enumerate(sub["date"]):
-            if i < len(s) and pd.notna(s.iloc[i]):
-                illiq_mat[code][dt] = s.iloc[i]
+    # illiq 查询表: {date: {code: value}} — 复用 build_panel 预计算列, 免逐股重算
+    illiq_lookup: dict = {dt: {} for dt in dates}
+    sub = df[df["illiq_20d"].notna() & (df["illiq_20d"] > 0)]
+    for dt, c, v in zip(sub["date"].to_numpy(), sub["code"].to_numpy(),
+                        sub["illiq_20d"].to_numpy(dtype=float)):
+        illiq_lookup[dt][c] = v
     prev_close = df.pivot(index="date", columns="code", values="close").sort_index()
     gap = prev_close / prev_close.shift(1) - 1
     hmap = {}
@@ -99,29 +106,104 @@ def build_holdings_map(df: pd.DataFrame, hot_days: pd.Series) -> dict[str, list]
         hot = bool(hot_days.get(dt, False))
         rebal = (ti - last_rebal) >= REBALANCE_EVERY
         if hot and (not hmap.get(dt) or rebal):
-            candidates = []
-            for c in codes:
-                iv = illiq_mat[c].get(dt)
-                if iv is not None and iv > 0 and pd.notna(gap.at[dt, c]) and gap.at[dt, c] < LIMIT_UP_PCT:
-                    candidates.append((c, iv))
+            day_gap = gap.loc[dt] if dt in gap.index else pd.Series(dtype=float)
+            candidates = [
+                (c, iv) for c, iv in illiq_lookup[dt].items()
+                if c in day_gap.index and pd.notna(day_gap[c])
+                and day_gap[c] < LIMIT_UP_PCT
+            ]
             candidates.sort(key=lambda x: -x[1])
-            hmap[dt] = [c for c, _ in candidates[:TOP_N]]
+            hmap[dt] = {c for c, _ in candidates[:TOP_N]}
             last_rebal = ti
         elif not hot:
-            hmap[dt] = []
+            hmap[dt] = set()
             last_rebal = -10**9
         else:
-            hmap[dt] = hmap.get(dt, [])
+            hmap[dt] = hmap.get(dt, set())
     return hmap
+
+
+def run_stock_engine(sym: str, panel: pd.DataFrame, hmap: dict,
+                     slot_capital: float, engine: UnifiedBacktestEngine):
+    """单只股票: 持仓映射 → TradingSignal → 引擎。返回 (daily_returns, dates) | None。"""
+    sd = panel[panel["code"] == sym].sort_values("date").copy()
+    sd = sd.rename(columns={"code": "symbol", "close": "close", "volume": "volume"})
+    sd = sd[["date", "open", "high", "low", "close", "volume"]].dropna().reset_index(drop=True)
+    if len(sd) < 100:
+        return None
+    signals = []
+    in_pos = False
+    for dt in sorted(hmap.keys()):
+        hold = sym in hmap.get(dt, [])
+        if hold and not in_pos:
+            px = sd[sd["date"] == dt]["close"]
+            if not len(px):
+                continue
+            shares = int(slot_capital / float(px.iloc[0]) / 100) * 100
+            if shares > 0:
+                signals.append(TradingSignal(action="BUY", shares=shares,
+                                             symbol=sym, timestamp=pd.Timestamp(dt)))
+            in_pos = True
+        elif not hold and in_pos:
+            signals.append(TradingSignal(action="SELL", shares=999999,
+                                         symbol=sym, timestamp=pd.Timestamp(dt)))
+            in_pos = False
+    if not signals:
+        return None
+    try:
+        result = engine.run(sd, signals, symbol=sym)
+        return result.daily_returns, list(pd.to_datetime(sd["date"])), result
+    except Exception as e:
+        print(f"  {sym} ERR: {type(e).__name__}: {str(e)[:60]}")
+        return None
+
+
+def aggregate_portfolio(stock_returns: dict[str, tuple[list, list]]) -> dict:
+    """等权子账户池聚合: 组合日收益 = mean(slot 收益; 缺失日填 0)。
+
+    双口径 (2026-08-26 对账固化):
+    - slot_pool: 原始口径, 任一时刻仅 ~TOP_N/N slot 在场
+    - scaled_30: 资金效率归一 ×(N/TOP_N), 近似 P8/P10 30-slot 轮换;
+      线性缩放不改变夏普, 仅放大收益/回撤
+    """
+    mat = {}
+    for sym, (rets, dts) in stock_returns.items():
+        s = pd.Series(rets, index=pd.DatetimeIndex(dts), dtype=float)
+        mat[sym] = s
+    frame = pd.DataFrame(mat).fillna(0.0).sort_index()
+    port_daily = frame.mean(axis=1)
+
+    def _stats(r: pd.Series) -> tuple:
+        equity = (1.0 + r).cumprod()
+        roll_max = equity.cummax()
+        mdd = float(((roll_max - equity) / roll_max).max())
+        n_years = len(r) / 244.0
+        ann = float(equity.iloc[-1] ** (1.0 / max(n_years, 1e-9)) - 1.0)
+        sharpe = float(r.mean() / max(r.std(), 1e-12) * np.sqrt(244))
+        return ann, sharpe, -mdd
+
+    ann, sharpe, mdd = _stats(port_daily)
+    scale = len(stock_returns) / TOP_N
+    ann_s, _, mdd_s = _stats(port_daily * scale)
+    return {
+        "slot_pool": {"ann_return": round(ann, 4), "sharpe": round(sharpe, 4),
+                      "max_drawdown": round(mdd, 4)},
+        "scaled_30": {"ann_return": round(ann_s, 4), "sharpe": round(sharpe, 4),
+                      "max_drawdown": round(mdd_s, 4), "scale": round(scale, 3),
+                      "note": "~P8/P10 30-slot rotation convention"},
+        "n_slots": len(stock_returns), "n_days": int(len(port_daily)),
+    }
 
 
 def main(argv=None):
     ap = argparse.ArgumentParser(description="H-A → unified_engine 适配器")
     ap.add_argument("--limit", type=int, default=None)
+    ap.add_argument("--full", action="store_true",
+                    help="全市场聚合回测 (不采样, 全部 ever_held 过引擎)")
     args = ap.parse_args(argv)
     t0 = time.time()
 
-    panel = build_panel(args.limit)
+    panel = build_panel(None if args.full else (args.limit or 500))
     hot = load_hot_days(pd.DatetimeIndex(sorted(panel["date"].unique())))
     print(f"[1/3] 面板 {panel['code'].nunique()} 只 × {panel['date'].nunique()} 天")
 
@@ -130,63 +212,66 @@ def main(argv=None):
     hmap = build_holdings_map(panel, hot)
     print(f"[2/3] 持仓映射: {sum(1 for v in hmap.values() if v)} 天有持仓")
 
-    # 选取 ever-hold 的股票做引擎验证
     ever_held = sorted(set(c for v in hmap.values() for c in v))
     total_capital = 1e7  # 1000 万
-    print(f"  ever_held 股票 {len(ever_held)} 只, 验证前 5 只")
+    n_run = len(ever_held) if args.full else min(5, len(ever_held))
+    print(f"  ever_held {len(ever_held)} 只, 本次运行 {n_run} 只 "
+          f"({'FULL' if args.full else 'smoke'})")
 
-    engine = UnifiedBacktestEngine(
-        initial_capital=total_capital / TOP_N,
-        commission_rate=0.0003,
-        stamp_duty_rate=0.0005,
-        slippage_rate=0.0010,
-        min_commission=5.0,
-    )
-
-    results = []
-    for sym in ever_held[:5]:
-        sd = panel[panel["code"] == sym].sort_values("date").copy()
-        sd = sd.rename(columns={"code": "symbol", "close": "close", "volume": "volume"})
-        sd = sd[["date", "open", "high", "low", "close", "volume"]].dropna().reset_index(drop=True)
-        if len(sd) < 100:
+    stock_returns: dict[str, tuple] = {}
+    per_stock_stats = []
+    for k, sym in enumerate(ever_held[:n_run]):
+        engine = UnifiedBacktestEngine(
+            initial_capital=total_capital / TOP_N,
+            commission_rate=0.0003,
+            stamp_duty_rate=0.0005,
+            slippage_rate=0.0010,
+            min_commission=5.0,
+        )
+        out = run_stock_engine(sym, panel, hmap, total_capital / TOP_N, engine)
+        if out is None:
             continue
-        signals = []
-        in_pos = False
-        for dt in sorted(hmap.keys()):
-            hold = sym in hmap.get(dt, [])
-            if hold and not in_pos:
-                px = sd[sd["date"] == dt]["close"]
-                if not len(px):
-                    continue
-                shares = int((total_capital / TOP_N) / float(px.iloc[0]) / 100) * 100
-                if shares > 0:
-                    signals.append(TradingSignal(action="BUY", shares=shares,
-                                                symbol=sym, timestamp=pd.Timestamp(dt)))
-                in_pos = True
-            elif not hold and in_pos:
-                signals.append(TradingSignal(action="SELL", shares=999999,
-                                            symbol=sym, timestamp=pd.Timestamp(dt)))
-                in_pos = False
-        if not signals:
-            continue
-        try:
-            result = engine.run(sd, signals, symbol=sym)
-            results.append({"symbol": sym, "total_return": round(result.total_return, 4),
-                            "sharpe": round(result.sharpe, 4),
-                            "max_drawdown": round(result.max_drawdown, 4),
-                            "n_trades": len(signals)})
-            print(f"  {sym}: ret={result.total_return:+.2%} sharpe={result.sharpe:.2f} "
-                  f"dd={result.max_drawdown:.2%} trades={len(signals)}")
-        except Exception as e:
-            print(f"  {sym} ERR: {type(e).__name__}: {str(e)[:60]}")
+        rets, dts, result = out
+        stock_returns[sym] = (rets, dts)
+        per_stock_stats.append({
+            "symbol": sym, "total_return": round(result.total_return, 4),
+            "sharpe": round(result.sharpe, 4),
+            "max_drawdown": round(result.max_drawdown, 4),
+            "n_trades": len(result.trades),
+        })
+        if (k + 1) % 50 == 0:
+            print(f"  ... {k+1}/{n_run} 只完成")
 
-    report = {"_meta": {"elapsed_sec": round(time.time() - t0, 1),
-                        "engine_params": {"commission": 0.0003, "stamp": 0.0005,
-                                          "slippage": 0.0010, "min_commission": 5.0}},
-              "results": results}
+    agg = aggregate_portfolio(stock_returns) if (
+        args.full and len(stock_returns) > 2) else None
+
+    report = {
+        "_meta": {"elapsed_sec": round(time.time() - t0, 1),
+                  "full": bool(args.full),
+                  "n_ever_held": len(ever_held),
+                  "engine_params": {"commission": 0.0003, "stamp": 0.0005,
+                                    "slippage": 0.0010, "min_commission": 5.0},
+                  "aggregate_convention": "equal-weight slot pool, NaN->0",
+                  "reference_p8_strat_a": {"universe": 500, "ann": 0.1582,
+                                           "sharpe": 1.33, "mdd": -0.129},
+                  "reference_p10_full": {"universe": 4943, "ann": 0.0998,
+                                         "sharpe": 0.93, "mdd": -0.222}},
+        "per_stock": per_stock_stats,
+        "aggregate": agg,
+    }
+    if agg:
+        sp, sc = agg["slot_pool"], agg["scaled_30"]
+        print(f"[3/3] 聚合 ({agg['n_slots']} slots × {agg['n_days']} 天)")
+        print(f"  slot_pool : 年化 {sp['ann_return']:+.2%} 夏普 {sp['sharpe']:.2f} "
+              f"回撤 {sp['max_drawdown']:.2%}")
+        print(f"  scaled_30 : 年化 {sc['ann_return']:+.2%} 夏普 {sc['sharpe']:.2f} "
+              f"回撤 {sc['max_drawdown']:.2%} (×{sc['scale']}, ~P10 口径 "
+              f"+9.98%/0.93/−22.2%)")
+    else:
+        print(f"[3/3] 引擎验证完成: {len(per_stock_stats)} 只股票")
     OUT_PATH.parent.mkdir(parents=True, exist_ok=True)
     OUT_PATH.write_text(json.dumps(report, ensure_ascii=False, indent=1))
-    print(f"[3/3] 引擎验证完成: {len(results)} 只股票, 报告 → {OUT_PATH}")
+    print(f"报告 → {OUT_PATH}")
     return 0
 
 
