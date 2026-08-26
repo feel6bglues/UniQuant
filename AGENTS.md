@@ -4,8 +4,13 @@
 >
 > UniQuant: A-share quantitative research and trading platform.
 >
+> **Updated 2026-08-26 (P13 H-A 工程化三件套: 全市场聚合对账通过)**: 工程化收口。**(1) PIT 状态逻辑统一**: `daily_signal_ha.compute_state` 弃内联复制改用 canonical `conditional_stats.pit_vol_states`(4 消费者全归一, 删 VOL_ROLL/VOL_Q 死常量), 5 一致性测试锁定。**(2) 全股票聚合回测** (`ha_unified_adapter.py --full`): 5018 只面板 → ever_held **385 只**全部过生产引擎(万三佣金/万五印花税/千一滑点/单笔最低5元/T+1/lot取整), 双口径聚合——slot_pool +0.97%/夏普1.12/回撤−1.71%, **scaled_30 ×12.83 资金效率归一 +12.55%/1.12/−20.10% vs P10 研究口径 +9.98%/0.93/−22.2% → 生产引擎与研究管线无系统性实现偏差, 真实成本下可交易性确认**。实施中修复性能缺陷: build_holdings_map 曾逐股重算 illiq(5000 只×1600d 双层循环, 首跑 100min 未完)→复用 build_panel 预计算列+hmap set 化→全流程 ~20min。聚合口径差异(docstring 冻结): slot 池无换股资金回流复利, 属保守; scaled_30 为线性杠杆近似。**(3) 实盘对账监控 `reconcile_ha.py`** (全新, 此前零代码): `diff_signal_files`(ENTER_CASH 清仓名单/ENTER_HOT 建仓名单/REBALANCE added-removed-kept) + `build_reconciliation`(目标权重 vs 账户 CSV 快照逐标的 MISSING/EXTRA/DRIFT/OK, drift_tol_pp 容差带, total_value 含现金, healthy→exit 0) + CLI(--prev-signal 事件流/--prices 价格表缺省读数据湖); 合成数据 13 用例锁契约, 端到端冒烟验证 exit-code 语义。新增 `tests/scripts/test_ha_engineering.py` 13 用例; 全量 **2316 passed / 8 skipped / 0 failed**, 改动文件 ruff 0。
+>
+> **Updated 2026-08-26 (P12 尾部风险+筹码因子: 0/7 幸存 → 因子挖掘正式终结)**: 第四轮独立证伪闭环。**Batch A 尾部风险×4 (纯价格)**: `cvar_95_60d/max_drawdown_20d/downside_semivol_20d/kurtosis_20d`——方向门 4/4 全对（cvar +0.052/mdd +0.023 正、semivol −0.052 负）但 PBO 全灭或残差门灭；**max_drawdown_20d 为四批研究最接近幸存者**（G1-G4 全过、PBO=0.166 全批唯一达标）仍被动量残差门灭（res −0.038, pos_frac 6%）——深跌反弹=纯动量 beta，与 P3 reversal 同构。**Batch B 筹码流×3 (P4 季频快照 q-o-q 变化率, 免 level 分母口径陷阱——机构持股含限售国资 >自由流通 100% 实测确认)**: `holder_num_chg_1q`(方向✓/PBO 0.166✓ 但 |IC|=0.0094 差线败)/`inst_shares_chg_1q`/`top10_float_chg_1q`(无信号)——季频低频信息 fwd5 视野衰减殆尽（视野错配如实记录）。**四轮独立收敛终局**: P2(GP 0/25)/P3(价量 0)/P11(基本面 0/7)/P12(尾部+筹码 0/7)——"截面预测力集中于动量"已覆盖数据挖掘、价量、基本面、尾部风险、筹码结构五维度；按预案 §3 **因子挖掘正式终结**，主线收敛 H-A 工程化。产物 `results/factor_mining/p12_tail_chip_factor_test.json`、预注册 `docs/analysis/P12_PREREGISTRATION_TAIL_CHIP_FACTORS.md`、脚本 `scripts/factor_mining/run_p12_factor_test.py`（含 `derive_chip_change_frames` 中文→标准名映射派生，冒烟曾抓未映射真 bug）；bridge 增 holder_num/inst_shares/top10_float_shares 映射；loader 增 `financial_frames=` override；7 新因子注册。实施过程修复 2 处测试自身错误（常价 CVaR=0 数学正解/PIT 拦截晚生效年报）。全量 **2303 passed / 8 skipped / 0 failed**，改动文件 ruff 0。
+>
+> **Updated 2026-08-26 (P11 基本面价值/质量因子: 方向 7/7 全对但五门 0 幸存 + TDX 双口径 TTM 真 bug 防线)**: P4 财务底座首次接入因子研究。**数据口径重大发现（预注册前实测冻结）**：TDX 档案利润表混合两种口径——`营业收入/营业成本`为**单季值**（比亚迪 7771 亿/平安集团 10289 亿四季加总与年报精确一致），`eps/归母净利/OCF`为**累计 YTD**——`financial_bridge.py` 新增 `calculate_field_ttm` 双口径 TTM（`CUMULATIVE_FLOW_FIELDS` 年边界差分 / `SINGLE_QUARTER_FLOW_FIELDS` 直滚）+ `operating_cost/total_shares/free_float_shares` 映射 + `process(extra_fields=)` 扩展合并（默认行为不变）；日线湖确认不复权原始价 → EP/BP 比值时点正确。**7 新因子注册**（`ep_ttm/bp/cfp_ttm/sp_ttm/gross_profitability/accruals/turnover_20d`，category=fundamental，缺列全 NaN 先例安全）。**500 只×1600d×17 窗预注册跑数（财务覆盖 99.35%）→ 五门裁决 0/7 幸存**：方向门 7/7 全对（bp+0.060/sp+0.047/cfp+0.030 正、accruals−0.017/turnover−0.077 负，A 股基本面异象方向结构与文献一致），但 **PBO 全灭（0.42-0.67≥0.2）∧ 动量残差门再灭价值族**（控 mom20 后 bp/sp/cfp 残差 IC 翻负至 −0.048~−0.025、pos_frac 低至 0%——表观价值溢价完全由动量 beta 解释，低 BP 股=前期跌多的反转股）；gross_profitability 唯一过 PBO(0.166)+残差门(+0.016,71%窗) 但原始 IC=−0.0174 为负 → **对立假设证实：A 股质量溢价不存在**（独立复现 P5 ROE 成长陷阱）。至此 P2(GP)/P3(价量)/P11(基本面) 三赛道独立收敛：截面预测力集中于动量的结论扩展到基本面维度；按预案不做事后条件化挖掘，因子主线收敛至 H-A 工程化。产物 `results/factor_mining/fundamental_factor_test.json`、预注册 `docs/analysis/FUNDAMENTAL_FACTOR_PREREGISTRATION.md`、脚本 `scripts/factor_mining/run_fundamental_factor_test.py`、`data_loader.merge_financial_metrics()`。**顺带根治既有测试隔离缺陷**：test_factor_registry/test_factor_composer 的 autouse fixture 清空注册单例后不恢复 → teardown 补 `register_all()`（曾致 test_custom_factor_registered 与新测试全量跑 flaky）；全量 **2282 passed / 8 skipped / 0 failed**，改动文件 ruff 0（scripts/wyckoff_multitf/v9_* 存量 18 处非本次引入未动）。
+>
 > **Updated 2026-08-25 (P10/D+10 容量验证 + 工程化落地)**: H-A 工程化两件套。**(1) 全市场容量验证（预注册 F1-F3）**：全市场 4943 只同参重跑——年化 +9.98%/夏普 0.93/回撤 −22.2%，对照 500 采样同代码路径 +13.18%/1.08（P8 原始 +15.82%/1.33）→ **采样含幸运成分，真实预期应以全市场口径为准**；F1(夏普≥1.0)差线 FAIL、地板块（2000万 ADV 地板）夏普 0.78 但回撤减半至 −12.8%→F2 按冻结判据 FAIL（illiq alpha 恰在小盘尾部，地板剔 alpha）；**容量画像：持仓名单 ADV 合计中位 ~28.5 亿/日，按 10% 参与率折算策略容量 ≈ 2850 万元级**——散户/小资金可执行，机构不可直接承载。产物 `capacity_validation.json`。**(2) 每日信号运行器 `daily_signal_ha.py`**：状态判定(MA200+PIT波动分位)→空仓或 Top30 目标组合 JSON 输出，实测当前(2026-07-23)处于过热牛态并产出 30 只目标（合格池 5033）。**(3) unified_engine 适配器 `ha_unified_adapter.py`**：将 H-A 持仓决策转换为 TradingSignal 序列，验证 5 只股票通过引擎完整回测（含万三佣金、万五印花税、千一滑点、单笔最低 5 元），集成路径确认可行。工程化剩余缺口：全股票聚合回测、实盘对账监控。
-> **: H-A 工程化两件套。**(1) 全市场容量验证（预注册 F1-F3）**：全市场 4943 只同参重跑——年化 +9.98%/夏普 0.93/回撤 −22.2%，对照 500 采样同代码路径 +13.18%/1.08（P8 原始 +15.82%/1.33）→ **采样含幸运成分，真实预期应以全市场口径为准**；F1(夏普≥1.0)差线 FAIL、地板块（2000万 ADV 地板）夏普 0.78 但回撤减半至 −12.8%→F2 按冻结判据 FAIL（illiq alpha 恰在小盘尾部，地板剔 alpha）；**容量画像：持仓名单 ADV 合计中位 ~28.5 亿/日，按 10% 参与率折算策略容量 ≈ 2850 万元级**——散户/小资金可执行，机构不可直接承载。产物 `capacity_validation.json`。**(2) 每日信号运行器 `daily_signal_ha.py`**：状态判定(MA200+PIT波动分位)→空仓或 Top30 目标组合 JSON 输出，实测当前(2026-07-23)处于过热牛态并产出 30 只目标（合格池 5033）。工程化剩余缺口：分钟级执行/滑点模型、实盘对账监控、unified_engine 接入。
 >
 > **Updated 2026-08-25 (P9 隔夜/日内因子: 短窗口 OOS 全败 + 日内动量反向发现)**: 分钟数据审计后 A+B 双源落地——B=本机 Wine 通达信客户端 6.1GB（5186 只 .lc5，破解量纲陷阱：OHLC 字段为压缩轨迹不可用、bar 级 VWAP=amount/volume 真实可用），A=服务器分页拉取 492/500（重叠期相关=1.0、scale=1.0，接缝 QA PASS）。拼接窗口 **287 天（2025-06-24→2026-08-25）**。预注册三因子验证：**F1/F2 隔夜动量无信号**（|t|<1）；**F3 日内动量强反向**——fwd5 IC=-0.0522(t=-2.85)、fwd21 -0.0655(残差 -2.60)，前后半一致，方向与预注册(+1)相反 → 按纪律判 FAIL；"日内动量为正"的美股文献前提在 A 股同样被反转结构覆盖，与 P3/P5 第三方收敛。产物 `overnight_validation.json`、`lc5_reader.py`/`convert_local_lc5.py`/`fetch_minute5_server.py`/`run_overnight_validation.py`。⚠️ 边界：单 regime 窗口、287 天功效有限。至此 P1-P9 完成九轮证伪闭环：**唯一幸存策略 = H-A 条件 illiq（P8 已验证可交易形态）**。
 >
@@ -134,6 +139,48 @@ Phase A-K v2.0 deep audit (2026-07-06): code quality (Fair, 116 duplicates, Wyck
 - `idiosyncratic_vol_20d` 残差 IC 翻负为 **-0.0563** → 同理
 
 结论：**无因子通过全部四重门（含动量残差）**，A 股截面预测力高度集中于动量。详见 "P3 逻辑因子" 段。
+
+## Recent Work (2026-08-26) — P13 H-A 工程化三件套 (状态归一 + 全市场聚合 + 实盘对账)
+
+| 件 | 结果 |
+|---|---|
+| **① PIT 状态逻辑统一** | `daily_signal_ha.compute_state` 弃内联复制 → canonical `pit_vol_states`（第 4 消费者归一）；删 VOL_ROLL/VOL_Q 死常量；5 一致性测试（canonical 等价/as_of 截断/短历史 insufficient/hot_bull 合取/MA200 定义） |
+| **② 全股票聚合回测** | `ha_unified_adapter.py --full`：5018 只面板 → ever_held **385 只**全部过生产引擎；双口径 slot_pool(+0.97%/1.12/−1.71%) 与 **scaled_30(+12.55%/1.12/−20.10%) vs P10 +9.98%/0.93/−22.2% → 引擎↔研究无系统性偏差**，真实成本可交易性确认。性能修复：build_holdings_map 复用预计算 illiq 列 + hmap set 化（100min+→~20min） |
+| **③ 实盘对账监控** | 新建 `scripts/canslim/reconcile_ha.py`：`diff_signal_files`(状态转换事件流: ENTER_CASH/ENTER_HOT/REBALANCE added-removed-kept) + `build_reconciliation`(逐标的 MISSING/EXTRA/DRIFT/OK, drift_tol_pp, total 含现金, healthy exit 0) + CLI(--prev-signal/--prices)；端到端冒烟验证 exit-code 语义 |
+
+产物：`results/factor_mining/ha_unified_adapter.json`（含 per_stock 385 只明细）、`results/h_a_reconcile/`（对账报告输出目录）、`tests/scripts/test_ha_engineering.py` 13 用例。
+
+## Recent Work (2026-08-26) — P12 尾部风险+筹码因子 (0/7 幸存 → 因子挖掘正式终结)
+
+第四轮独立证伪闭环，两批共 7 因子同面板同五门：
+
+| 项 | 结果 |
+|---|---|
+| **Batch A 尾部风险×4 (纯价格)** | `cvar_95_60d`(+0.052,ICIR4.0)/`max_drawdown_20d`(+0.023)/`downside_semivol_20d`(−0.052)/`kurtosis_20d`(−0.003 无信号)——方向 4/4 全对但 PBO 全灭或残差门灭；**max_drawdown_20d 为四批研究最接近幸存者**(G1-G4 全过、PBO=0.166 全批唯一达标)仍被动量残差门灭(res −0.038, pos_frac 6%)——深跌反弹=纯动量 beta |
+| **Batch B 筹码流×3 (P4 数据)** | 设计修正：机构持股/十大流通均含限售国资(level 比值分母口径不可靠, 茅台 >100% 实测)→改用 **q-o-q 变化率**；`holder_num_chg_1q`(方向✓/PBO 0.166✓ 但 \|IC\|=0.0094 差线败)、`inst_shares_chg_1q`/`top10_float_chg_1q`(|IC|<0.005 无信号)——季频低频信息 fwd5 视野衰减殆尽(视野错配如实记录) |
+| **四轮收敛终局** | P2(GP 0/25)+P3(价量 0)+P11(基本面 0/7)+P12(尾部+筹码 0/7)：截面预测力集中于动量已覆盖五维度；按预案 §3 **因子挖掘正式终结**，主线收敛 H-A 工程化(daily_signal_ha.py 生产化+实盘对账) |
+| **工程增量** | bridge 增 `股东人数(户)/机构持股总量(股)/十大流通股东持股数量合计(股)` 映射；loader `merge_financial_metrics(financial_frames=)` override 参数；脚本 `derive_chip_change_frames()` 中文→标准名映射后派生变化率(**冒烟抓真 bug**: 未映射直接派生→覆盖 0%)；7 新因子注册(category=custom/fundamental) |
+| **测试** | `tests/test_p12_factors.py` 21 用例；修复 2 处测试自身错误(常价 CVaR=0 数学正解/PIT 正确拦截晚生效年报)；全量 **2303 passed / 8 skipped / 0 failed**, 改动文件 ruff 0 |
+
+产物：`results/factor_mining/p12_tail_chip_factor_test.json`、预注册 `docs/analysis/P12_PREREGISTRATION_TAIL_CHIP_FACTORS.md`(含 §5 结果登记)、脚本 `scripts/factor_mining/run_p12_factor_test.py`。
+
+## Recent Work (2026-08-26) — P11 基本面价值/质量因子 (双口径 TTM 底座 + 五门 0 幸存)
+
+P4 财务底座首次接入因子研究，按预注册纪律完成价值/质量赛道证伪闭环：
+
+| 项 | 结果 |
+|---|---|
+| **数据口径发现（预注册前冻结）** | TDX 档案利润表**混合口径**：`营业收入/其中：营业成本`=单季值（比亚迪 7771 亿、平安集团 10289 亿四季加总与年报精确一致），`eps/归母净利/OCF/每股OCF`=累计 YTD（年内单调递增、Q4=全年）；存量字段(bps/总资产/总股本/自由流通股)不做 TTM。锚点：600519 eps_ttm@FY2024=68.64 复验通过 |
+| **bridge 扩展** | `financial_bridge.py`：`CUMULATIVE_FLOW_FIELDS`(年边界差分)/`SINGLE_QUARTER_FLOW_FIELDS`(直滚) 冻结常量 + 通用 `calculate_field_ttm(field)` + 新映射 operating_cost/total_shares/free_float_shares + `process(extra_fields=)` 扩展合并（默认行为不变，向后兼容测试锁定）；`calculate_eps_ttm` 重构为 field_ttm 特例 |
+| **7 新因子注册** | `ep_ttm/bp/cfp_ttm/sp_ttm` (value) + `gross_profitability/accruals/turnover_20d` (quality/micro)，category=fundamental；缺列全 NaN 先例安全；`turnover_momentum_20d` 增 free_float_shares fallback（原全 NaN） |
+| **数据加载器** | `data_loader.merge_financial_metrics()`：逐股读 `data/lake/financial/*.parquet` → bridge PIT merge_asof 并入日线长表；无财务文件股票保持 NaN |
+| **预注册跑数** | 500 只×1600d×17 窗（与 P1/P3 同面板），财务覆盖 **99.35%**，1993s；公告日浮点→全量走报告期+披露偏移保守路径（无未来泄露，单测锁定尾日不可见未生效年报） |
+| **五门裁决** | **0/7 幸存**：方向门 7/7 全对（bp+0.060/sp+0.047/cfp+0.030 正、accruals−0.017/turnover−0.077 负）→ A 股基本面异象方向结构与文献一致；但 PBO 全灭(0.42-0.67≥0.2) ∧ 动量残差门灭价值族（控 mom20 后 bp/sp/cfp 残差 −0.048~−0.025、pos_frac 低至 0%）→ 表观价值溢价=动量 beta（低 BP 股=前期跌多反转股） |
+| **对立假设证实** | gross_profitability 唯一过 PBO(0.166)+残差门(+0.016,71%窗) 但原始 IC=−0.0174 为负 → **A 股质量溢价不存在**（独立复现 P5 ROE 成长陷阱 roe@fwd63 −0.0780） |
+| **三赛道收敛** | P2(GP 挖掘 0/25)+P3(价量逻辑 0 通过)+P11(基本面 0/7)：截面预测力集中于动量的结论扩展至基本面维度；不做事后条件化挖掘（防 p-hacking），主线收敛 H-A 工程化 |
+| **测试根治** | test_factor_registry/test_factor_composer autouse fixture 清空单例后不恢复（既有污染源，曾致 test_custom_factor_registered flaky）→ teardown 补 `_factors.clear()+register_all()`；新增 `tests/test_fundamental_factors.py` 30 用例 + loader 2 用例；全量 **2282 passed / 8 skipped / 0 failed**，改动文件 ruff 0 |
+
+产物：`results/factor_mining/fundamental_factor_test.json`、`docs/analysis/FUNDAMENTAL_FACTOR_PREREGISTRATION.md`（含 §9 结果登记）、`scripts/factor_mining/run_fundamental_factor_test.py`。⚠️ 边界：17 窗 PBO 功效限制（基线常态≈0.42）、单一 regime 窗口、退市股财务覆盖不全（下界影响）。
 
 ## Recent Work (2026-08-25) — P10/D+10 容量验证 + H-A 工程化
 
