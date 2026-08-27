@@ -87,8 +87,13 @@ def load_hot_days(dates_index: pd.DatetimeIndex) -> pd.Series:
     return st.set_index("date")["hot"].reindex(dates_index).fillna(False)
 
 
-def build_holdings_map(df: pd.DataFrame, hot_days: pd.Series) -> dict[str, set]:
-    """返回 {date: holding_codes_set} 映射 (复用 panel 已算的 illiq_20d 列)。"""
+def build_holdings_map(df: pd.DataFrame, hot_days: pd.Series,
+                       amount_floor: float | None = None) -> dict[str, set]:
+    """返回 {date: holding_codes_set} 映射 (复用 panel 已算的 illiq_20d 列)。
+
+    amount_floor: 成交额地板 (元)。None=不限; 2e7 = P10 F2 地板变体
+    (45 日中位成交额, daily_signal 同款)。
+    """
     fin = load_financial_codes()
     df = df[~df["code"].str[:6].isin(fin)].copy()
     dates = sorted(df["date"].unique())
@@ -100,17 +105,30 @@ def build_holdings_map(df: pd.DataFrame, hot_days: pd.Series) -> dict[str, set]:
         illiq_lookup[dt][c] = v
     prev_close = df.pivot(index="date", columns="code", values="close").sort_index()
     gap = prev_close / prev_close.shift(1) - 1
+    # 45 日中位成交额 (地板过滤; 与 daily_signal 口径一致)
+    floor_lookup: dict = {}
+    if amount_floor:
+        amt = df.pivot_table(index="date", columns="code", values="amount",
+                             aggfunc="last").sort_index()
+        amt_med = amt.rolling(45, min_periods=20).median()
+        floor_lookup = {dt: set(amt_med.loc[dt].dropna()[
+            amt_med.loc[dt] >= amount_floor].index)
+            for dt in amt_med.index}
     hmap = {}
     last_rebal = -10**9
     for ti, dt in enumerate(dates):
         hot = bool(hot_days.get(dt, False))
         rebal = (ti - last_rebal) >= REBALANCE_EVERY
-        if hot and (not hmap.get(dt) or rebal):
+        # 非再平衡热日沿用前一交易日持仓 (5 日再平衡鞍律; P8 同款)
+        carried = hmap.get(dates[ti - 1], set()) if ti > 0 else set()
+        if hot and rebal:
             day_gap = gap.loc[dt] if dt in gap.index else pd.Series(dtype=float)
+            allowed = floor_lookup.get(dt) if floor_lookup else None
             candidates = [
                 (c, iv) for c, iv in illiq_lookup[dt].items()
                 if c in day_gap.index and pd.notna(day_gap[c])
                 and day_gap[c] < LIMIT_UP_PCT
+                and (allowed is None or c in allowed)
             ]
             candidates.sort(key=lambda x: -x[1])
             hmap[dt] = {c for c, _ in candidates[:TOP_N]}
@@ -119,7 +137,7 @@ def build_holdings_map(df: pd.DataFrame, hot_days: pd.Series) -> dict[str, set]:
             hmap[dt] = set()
             last_rebal = -10**9
         else:
-            hmap[dt] = hmap.get(dt, set())
+            hmap[dt] = carried
     return hmap
 
 
