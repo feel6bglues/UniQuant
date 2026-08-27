@@ -181,3 +181,91 @@ class TestBuildReconciliation:
         pos = _holdings_csv(tmp_path, [("A", 100)], cash=500.0)
         rep = build_reconciliation(sig, pos, prices={"A": 25.0})
         assert np.isclose(rep["summary"]["total_value"], 3000.0)
+
+
+# ─── build_holdings_map 5 日再平衡鞍律回归 (P13 修复) ────────────────────────
+
+
+class TestHoldingsMapCadence:
+    def test_five_day_cadence_not_daily_rebuild(self):
+        """Top30 应只在再平衡日重建, 非再平衡热日沿用旧持仓 (修复每日重建 bug)。"""
+        from scripts.canslim.ha_unified_adapter import (
+            build_holdings_map, build_panel, load_hot_days,
+        )
+
+        panel = build_panel(200)
+        hot = load_hot_days(pd.DatetimeIndex(sorted(panel["date"].unique())))
+        hmap = build_holdings_map(panel, hot)
+
+        # 统计连续热日内的持仓变更次数
+        consec_changes = 0
+        prev = None
+        for d in sorted(hmap.keys()):
+            s = hmap[d]
+            if s and prev is not None:
+                if s != prev:
+                    consec_changes += 1
+            prev = s
+            if not s:
+                prev = None
+        total_hot_days = sum(1 for v in hmap.values() if v)
+
+        # 修复前: 几乎每天都重建 (变更/天≈1.0); 修复后最大 ≈ REBALANCE_EVERY 天一次
+        assert total_hot_days > 20
+        assert consec_changes / total_hot_days < 0.6
+
+    def test_holdings_persist_between_rebalances(self):
+        from scripts.canslim.ha_unified_adapter import (
+            build_holdings_map, build_panel, load_hot_days,
+        )
+
+        panel = build_panel(200)
+        hot = load_hot_days(pd.DatetimeIndex(sorted(panel["date"].unique())))
+        hmap = build_holdings_map(panel, hot)
+
+        # 找一段连续 ≥5 个热日, 内部应无变更 (鞍律)
+        dates = sorted(hmap.keys())
+        for i in range(len(dates) - 4):
+            if hmap[dates[i]] and all(hmap[dates[j]] for j in range(i, i + 5)):
+                assert hmap[dates[i]] == hmap[dates[i + 1]] == hmap[dates[i + 4]]
+                return
+        assert False, "未找到连续5热日窗口"
+
+
+# ─── SlotRotationSim 算术合成验证 ────────────────────────────────────────────
+
+
+class TestRotationSimArithmetic:
+    def test_two_slot_exact_nav_with_impact(self):
+        """2 slot × 3 天 A/B: NAV 含市场冲击(0.1%)精确手算匹配。"""
+        from scripts.canslim.ha_rotation_sim import SlotRotationSim
+
+        A, B = "600001.SH", "000002.SZ"
+        dates = pd.bdate_range("2024-01-02", periods=3)
+        idx = pd.DatetimeIndex(dates)
+        closes = pd.DataFrame({A: [10.0, 11.0, 10.5], B: [20.0, 21.0, 22.0]},
+                              index=idx)
+        pre = closes.shift(1)
+        vol = pd.DataFrame({A: [1e6] * 3, B: [1e6] * 3}, index=idx)
+        adv = vol.copy()
+        hmap = {dates[0]: {A, B}, dates[1]: {A, B}, dates[2]: set()}
+        z = {"commission_rate": 1e-9, "stamp_duty_rate": 1e-9,
+             "slippage_rate": 1e-9, "min_commission": 0.0}
+        res = SlotRotationSim(n_slots=2, initial_capital=200000.0,
+                              engine_params=z).run(
+            closes, pre, vol, adv, hmap, list(idx), nav_capture=True)
+        got = [float(x) for x in res["_nav"].to_numpy()]
+        # 手算 (冲击 impact=0.001, vol/adv=1):
+        # slot0 budget=10万, 买价=10*1.001=10.01 → shares=int(10万/10.01/100)*100=9900,
+        #   成本=9900*10.01=99099, 结余=901
+        # slot1 budget=10万, 买价=20*1.001=20.02 → shares=int(10万/20.02/100)*100=4900,
+        #   成本=4900*20.02=98098, 结余=1902
+        day0 = 9900 * 10.0 + 901.0 + 4900 * 20.0 + 1902.0       # 199802
+        day1 = 9900 * 11.0 + 901.0 + 4900 * 21.0 + 1902.0       # 214602
+        # day2 全卖: 卖价 A=10.5*0.999=10.4895, B=22*0.999=21.978 → 各扣印花税(万5)
+        sellA = 9900 * (10.5 * 0.999) - 9900 * (10.5 * 0.999) * 0.0005
+        sellB = 4900 * (22.0 * 0.999) - 4900 * (22.0 * 0.999) * 0.0005
+        day2 = sellA + sellB + 901.0 + 1902.0
+        assert np.isclose(got[0], day0, atol=1.0), got
+        assert np.isclose(got[1], day1, atol=1.0), got
+        assert np.isclose(got[2], day2, atol=1.0), got
