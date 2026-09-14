@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>基本面因子效用工程化 · 可推进工作计划（顶尖量化算法工程师视角）</title>
+<style>
+  :root{
+    --bg:#f7f8fa; --card:#ffffff; --ink:#1f2733; --sub:#5b6675; --line:#e4e8ee;
+    --blue:#1f6feb; --blue-bg:#eef4ff; --green:#1a9d5a; --green-bg:#eafaf0;
+    --amber:#c97a0a; --amber-bg:#fff6e8; --red:#d23b3b; --red-bg:#fdecec;
+    --purple:#7b3fd1; --purple-bg:#f4ecff;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;line-height:1.65;font-size:15px}
+  .wrap{max-width:1180px;margin:0 auto;padding:32px 26px 64px}
+  header.top{background:linear-gradient(120deg,#0f2c54,#1f6feb);color:#fff;border-radius:16px;padding:30px 34px;margin-bottom:26px}
+  header.top h1{margin:0 0 8px;font-size:25px;letter-spacing:.5px}
+  header.top p{margin:4px 0;opacity:.92;font-size:14px}
+  .tag{display:inline-block;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.3);padding:3px 11px;border-radius:999px;font-size:12.5px;margin:8px 6px 0 0}
+  h2{font-size:20px;margin:34px 0 14px;padding-left:12px;border-left:5px solid var(--blue)}
+  h3{font-size:16.5px;margin:24px 0 10px;color:#0f2c54}
+  h4{font-size:14.5px;margin:16px 0 8px;color:var(--sub)}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:13px;padding:20px 22px;margin:14px 0;box-shadow:0 1px 3px rgba(20,40,80,.04)}
+  .grid{display:grid;gap:14px}
+  .g2{grid-template-columns:1fr 1fr}
+  .g3{grid-template-columns:repeat(3,1fr)}
+  .g4{grid-template-columns:repeat(4,1fr)}
+  @media(max-width:880px){.g2,.g3,.g4{grid-template-columns:1fr}}
+  table{border-collapse:collapse;width:100%;font-size:13.5px;margin:10px 0}
+  th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+  th{background:#f0f3f8;color:#0f2c54;font-weight:600}
+  tr:nth-child(even) td{background:#fafbfd}
+  code{background:#eef1f5;padding:1px 6px;border-radius:5px;font-size:12.5px;font-family:"SFMono-Regular",Consolas,monospace;color:#b3378f}
+  .pill{display:inline-block;padding:2px 9px;border-radius:999px;font-size:12px;font-weight:600}
+  .p-blue{background:var(--blue-bg);color:var(--blue)}
+  .p-green{background:var(--green-bg);color:var(--green)}
+  .p-amber{background:var(--amber-bg);color:var(--amber)}
+  .p-red{background:var(--red-bg);color:var(--red)}
+  .p-purple{background:var(--purple-bg);color:var(--purple)}
+  .note{font-size:12.8px;color:var(--sub);border-left:3px solid var(--line);padding:4px 0 4px 12px;margin:8px 0}
+  .kbd{background:#0f2c54;color:#fff;padding:1px 7px;border-radius:5px;font-size:11.5px;font-weight:600}
+  .roadmap{display:flex;gap:0;margin:18px 0;flex-wrap:wrap}
+  .rm-stage{flex:1;min-width:150px;border:1px solid var(--line);border-radius:10px;padding:12px;margin:4px;background:#fff;position:relative}
+  .rm-stage .ph{font-weight:700;color:var(--blue);font-size:13px}
+  .rm-stage .wk{font-size:11.5px;color:var(--sub);margin-top:2px}
+  .rm-stage .ds{font-size:12px;margin-top:6px}
+  .dep{font-size:12px;color:var(--amber);margin-top:6px}
+  ul.tight{margin:6px 0;padding-left:20px}
+  ul.tight li{margin:4px 0}
+  .callout{border-radius:11px;padding:14px 16px;margin:14px 0;font-size:13.5px}
+  .c-red{background:var(--red-bg);border:1px solid #f3c0c0}
+  .c-green{background:var(--green-bg);border:1px solid #bfe6cd}
+  .c-blue{background:var(--blue-bg);border:1px solid #c4d8fb}
+  .c-amber{background:var(--amber-bg);border:1px solid #f0d6a8}
+  .mono{font-family:"SFMono-Regular",Consolas,monospace;font-size:12px}
+  .legend{font-size:12px;color:var(--sub);margin:6px 0 0}
+  .footer{font-size:12px;color:var(--sub);border-top:1px solid var(--line);margin-top:36px;padding-top:16px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="top">
+  <h1>基本面量化因子 · 效用实证化与工程落地工作计划</h1>
+  <p>基于阶段1（文献核实+因子提取）与阶段2（互联网金工资料综合）结论，将四条建议落为可推进的算法工程计划</p>
+  <p>角色视角：顶尖量化金融算法工程师 + 实盘纪律审查　|　复用资产：<code>wb-finance-skill/scripts/quant/factor_multi.py</code> · <code>factor_fundamental.py</code></p>
+  <div>
+    <span class="tag">样本 2010–2025</span>
+    <span class="tag">PIT 时点对齐</span>
+    <span class="tag">walk-forward</span>
+    <span class="tag">毛/净分离</span>
+    <span class="tag">拥挤监控前置</span>
+  </div>
+</header>
+
+<!-- ============ 0. 总览 ============ -->
+<h2>0. 计划总览与设计原则</h2>
+<div class="card">
+  <h3>一句话目标</h3>
+  <p>把阶段2论坛的"年度观感"（质量周期巨震、价值陷阱、红利拥挤、2021基本面大回撤）转化为 <b>可复核、可外推、可上线的数字与信号</b>，并验证"自由现金流是否真是质量/红利的进化版"这一关键假设。</p>
+
+  <h3>六条不可妥协的工程纪律（来自 v2 红蓝对抗裁决）</h3>
+  <div class="grid g3">
+    <div class="callout c-red"><b>① 时点对齐（PIT）</b><br>财报必须用 <code>ann_date</code> 取数，绝不用 <code>end_date</code>。否则前视偏差会让 IC 虚高 30–100%。这是基本面回测第一死穴。</div>
+    <div class="callout c-red"><b>② 毛/净分离</b><br>所有 IC/IR/超额都标"毛（无成本）"与"净（双边千三~千五+冲击）"。实盘预期 = 券商回测 × 0.3~0.5 − 摩擦。</div>
+    <div class="callout c-amber"><b>③ walk-forward</b><br>样本内/外严格滚动。后视镜结论（价值2021后回归）禁止当外推规律。</div>
+    <div class="callout c-amber"><b>④ 牛熊拆分</b><br>单给全样本 IC 是耍流氓。必须按牛/熊/震荡分别报告，因子效力高度依赖样本期（阶段1已证实）。</div>
+    <div class="callout c-blue"><b>⑤ 拥挤前置</b><br>拥挤度信号（WS4）与因子效用（WS1）并行建设，红灯先降仓（v2 §9.5）。</div>
+    <div class="callout c-blue"><b>⑥ 低相关优先</b><br>WS2 组合权重由相关性/逆方差决定，高相关策略不分散风险。</div>
+  </div>
+
+  <h3>复用资产（不重写轮子）</h3>
+  <table>
+    <tr><th>模块</th><th>路径</th><th>本计划用途</th></tr>
+    <tr><td><code>factor_multi.py</code> · <code>SignalEngine</code></td><td><code>wb-finance-skill/scripts/quant/</code></td><td>IC/IR 计算、分层回测、等权/IC加权/正交化组合。已内置前向偏差、行业中性化、Z-score——WS1/WS2 直接调。</td></tr>
+    <tr><td><code>factor_fundamental.py</code></td><td>同上</td><td>PE/PB/ROE/增长率多维打分，作为 WS1 质量/价值因子的基线实现与对照。</td></tr>
+    <tr><td>阶段1 提取清单</td><td><code>基本面因子提取与引用核实_阶段1.html</code></td><td>因子族定义与稳健性排序的输入。</td></tr>
+    <tr><td>阶段2 综合结论</td><td><code>基本面因子_互联网金工资料综合_阶段2.html</code></td><td>效用演化假设（年度观感）待验证清单。</td></tr>
+    <tr><td>v2 熔断框架</td><td><code>...v2修订版.html §9.5</code></td><td>WS4 拥挤信号的最终输出端。</td></tr>
+  </table>
+  <p class="note">依赖声明：<code>factor_multi.py</code> 需 <code>pandas/numpy/requests</code>。若 skill 目录内 scripts 不可直接 import，先用 <code>Skill</code> 确认路径或将其复制到工作区 <code>scripts/quant/</code> 再调用。</p>
+</div>
+
+<!-- ============ 1. 路线图 ============ -->
+<h2>1. 阶段划分与里程碑（路线图）</h2>
+<div class="card">
+  <div class="roadmap">
+    <div class="rm-stage">
+      <div class="ph">Phase 0</div>
+      <div class="wk">第 1–2 周</div>
+      <div class="ds"><b>数据与 PIT 基础设施</b><br>拉数、字段映射、时点对齐、月度截面快照仓库</div>
+      <div class="dep">⬛ 所有 WS 的总前置</div>
+    </div>
+    <div class="rm-stage">
+      <div class="ph">WS1</div>
+      <div class="wk">第 2–5 周</div>
+      <div class="ds"><b>效用实证化</b><br>5 因子 IC/IR 滚动 + 牛熊 + 2024-02 压力</div>
+      <div class="dep">▶ 依赖 Phase 0</div>
+    </div>
+    <div class="rm-stage">
+      <div class="ph">WS2</div>
+      <div class="wk">第 5–8 周</div>
+      <div class="ds"><b>多策略回测</b><br>复制"基础+卫星"低相关组合</div>
+      <div class="dep">▶ 依赖 WS1 因子</div>
+    </div>
+    <div class="rm-stage">
+      <div class="ph">WS3</div>
+      <div class="wk">第 6–8 周</div>
+      <div class="ds"><b>FCF 深挖</b><br>FCF 是否质量/红利进化版</div>
+      <div class="dep">▶ 可与 WS1 并行</div>
+    </div>
+    <div class="rm-stage">
+      <div class="ph">WS4</div>
+      <div class="wk">第 3–6 周</div>
+      <div class="ds"><b>拥挤度工程化</b><br>指数→熔断开关</div>
+      <div class="dep">▶ 与 WS1 并行、独立数据</div>
+    </div>
+  </div>
+  <p class="legend">说明：WS3（FCF 用同一快照仓库）与 WS4（拥挤度用估值/成交/资金流独立数据）可在 Phase 0 完成后与 WS1 并行推进；WS2 必须等 WS1 因子定义冻结后再组装。</p>
+
+  <h3>关键里程碑与验收闸门</h3>
+  <table>
+    <tr><th>闸门</th><th>时间</th><th>交付</th><th>通过标准</th></tr>
+    <tr><td>M0</td><td>第2周末</td><td>快照仓库 + PIT 校验报告</td><td>PIT 校验：随机抽 50 只×3 期，ann_date 取数无误；截面数≥180 月；非退市存活股占比可解释</td></tr>
+    <tr><td>M1</td><td>第5周末</td><td>WS1 因子效用表 + 牛熊拆分 + 压力测试</td><td>5 因子全样本+牛熊+2024-02 三视图齐备；每个因子给"实盘可预期 IC 区间"</td></tr>
+    <tr><td>M2</td><td>第8周末</td><td>WS2 组合回测 + WS3 FCF 结论 + WS4 熔断脚本</td><td>组合夏普/回撤优于单因子加权；FCF 正交性结论明确；拥挤指数可日更并触发一次模拟熔断</td></tr>
+  </table>
+</div>
+
+<!-- ============ 2. WS1 ============ -->
+<h2>2. WS1 · 效用实证化（把"年度观感"变成数字）</h2>
+<div class="card">
+  <h3>2.1 数据源与字段映射</h3>
+  <table>
+    <tr><th>数据</th><th>主源</th><th>接口/字段</th><th>用途</th></tr>
+    <tr><td>财报（时点）</td><td>Tushare</td><td><code>fina_indicator</code>(roe, roe_waa, grossprofit_margin, netprofit_margin, op_income, <b>ann_date, end_date</b>)、<code>cashflow</code>(n_cashflow_act, 资本开支项)</td><td>ROE / FCF / 质量多维</td></tr>
+    <tr><td>估值/市值</td><td>Tushare</td><td><code>daily_basic</code>(pe_ttm, pb, dv_ratio, dv_ttm, total_mv, circ_mv)</td><td>EP / BP / 股息率 / 中性化</td></tr>
+    <tr><td>行情/收益</td><td>Tushare</td><td><code>daily</code>(adj close)、<code>index_daily</code>(基准)</td><td>前向收益、超额</td></tr>
+    <tr><td>一致预期(SUE)</td><td>NeoData / 妙想</td><td>分析师 EPS  consensus、评级调整</td><td>SUE 预期项</td></tr>
+    <tr><td>行业分类</td><td>Tushare</td><td><code>index_classify</code>(申万一级) 或 <code>industry</code></td><td>行业中性化</td></tr>
+    <tr><td>资金流(供WS4)</td><td>NeoData / Tushare</td><td><code>moneyflow</code>、北向持仓</td><td>拥挤度子信号</td></tr>
+  </table>
+  <p class="note">SUE 预期项若一致预期覆盖不足（A股覆盖率低），降级方案：用 Tushare <code>forecast</code>/<code>express</code> 业绩预告的归母净利润同比，或以前 4 季均值外推作 proxy，并在报告中标注口径差异。</p>
+
+  <h3>2.2 五个因子的精确定义（写入因子库）</h3>
+  <div class="grid g2">
+    <div class="card" style="margin:0">
+      <h4>① ROE（质量代表性）</h4>
+      <p class="mono">ROE = 归母净利_ttm / 平均归母净资产</p>
+      <p>质量复合 = z(ROE) + z(毛利率) + z(净利增长率) − z(杠杆率) − z(应计利润/营收)。质量长期有效但周期巨震（阶段2：2021 质量因子最大回撤 −40%）。</p>
+    </div>
+    <div class="card" style="margin:0">
+      <h4>② EP（价值 / earnings yield）</h4>
+      <p class="mono">EP = 归母净利_ttm / 总市值 = 1 / PE_ttm</p>
+      <p>阶段1/2 共识：A股 <b>P/E &gt; B/M</b>（EP 优于 BP）。须防价值陷阱（低 EP 因基本面恶化而非低估）。</p>
+    </div>
+    <div class="card" style="margin:0">
+      <h4>③ SUE（标准化意外盈利）</h4>
+      <p class="mono">SUE = (实际EPS_q − 预期EPS_q) / σ(ΔEPS), 滚动 8 季</p>
+      <p>阶段2：SUE 多空 2021 降近一半。依赖一致预期质量，需口径标注。</p>
+    </div>
+    <div class="card" style="margin:0">
+      <h4>④ FCF yield（自由现金流）</h4>
+      <p class="mono">FCF_yield = (经营CF净额 − 资本开支)_ttm / 企业价值EV</p>
+      <p>国金样本期短、称指增全指年化 12.98%。WS3 独立验证其是否为质量/红利进化版。</p>
+    </div>
+    <div class="card" style="margin:0">
+      <h4>⑤ 股息率（红利）</h4>
+      <p class="mono">DY = dv_ttm（股息率 TTM）</p>
+      <p>长期有效但 2025 拥挤度达近 5 年 90% 分位（阶段2）。WS4 监控。</p>
+    </div>
+    <div class="card" style="margin:0">
+      <h4>中性化与标准化</h4>
+      <p>每层因子先做 <b>申万一级行业内 Z-score</b> + 对 <code>log(total_mv)</code> 回归取残差（行业+市值中性）。再用排名 IC（rank IC）抗极值。</p>
+    </div>
+  </div>
+
+  <h3>2.3 IC/IR 滚动方法（复用 factor_multi.py）</h3>
+  <ul class="tight">
+    <li><b>截面频率</b>：月度（每月末截面，因子值取"已公告"最新报告）。</li>
+    <li><b>收益标签</b>：T+1 至 T+21 交易日超额收益（相对中证500，亦跑相对中证1000/300 作为稳健性）。</li>
+    <li><b>指标</b>：rank IC 均值、std、<b>滚动 IR（24 月窗口）</b>、正率、t 值、分层（5 组）多空 spread 与单调性。</li>
+    <li><b>触发阈值</b>（来自 skill）：IC&gt;0.03 基本有效；IC&gt;0.1 必查前视；IR&gt;0.5 稳定；正率&gt;55% 方向稳。</li>
+    <li><b>walk-forward</b>：前 60 月训练定权，后滚动验证，严禁全样本调参。</li>
+  </ul>
+
+  <h3>2.4 牛熊样本拆分规则</h3>
+  <table>
+    <tr><th>状态</th><th>判定（万得全A / 沪深300）</th><th>覆盖时段（示例）</th></tr>
+    <tr><td>🟢 牛市</td><td>20D MA &gt; 250D MA 且 12M 收益 &gt; 0</td><td>2014H2–2015H1、2019–2021H1、2024H2–2025</td></tr>
+    <tr><td>🔴 熊市</td><td>20D MA &lt; 250D MA 且 12M 收益 &lt; 0</td><td>2015H2–2016、2018、2021H2–2024H1</td></tr>
+    <tr><td>⚪ 震荡</td><td>其余</td><td>2017、2023 部分</td></tr>
+  </table>
+  <p class="note">拆分目的：阶段1 已发现 Aalberg(2018) 未检出 B/M/盈利溢价而 Guo(2017) 检出——效力高度依赖样本期。必须分状态给 IC/IR，拒绝单一"有效/无效"标签。</p>
+
+  <h3>2.5 2024-02 压力测试窗口</h3>
+  <div class="callout c-red">
+    <b>窗口</b>：2024-01-29 ~ 2024-02-08（微盘/反转因子崩塌，中证2000 期间跌幅超 20%）。<br>
+    <b>测试项</b>：① 各因子多头组合期间收益与回撤；② 多空 spread 是否反转；③ 基本面因子（质量/价值/红利）相对量价因子的抗跌性；④ 崩塌后 20/60 日恢复速度。<br>
+    <b>用途</b>：验证 v2 §8 "反转列入动态降权、崩塌条件" 假设，并为 WS2 组合的抗压权重提供证据。
+  </div>
+
+  <h3>2.6 交付物（WS1）</h3>
+  <ul class="tight">
+    <li><code>ws1_factor_efficacy.csv</code>：5 因子 ×（全样本 / 牛 / 熊 / 震荡）×（毛 IC / IR / 正率 / 分层多空）完整矩阵。</li>
+    <li><code>ws1_rolling_ir.png</code>：滚动 IR 时间序列（验证 v2 "IR 3.47 不可复制" 的实盘区间）。</li>
+    <li><code>ws1_stress_202402.csv</code>：压力窗口逐因子表现。</li>
+    <li><b>结论页</b>：把阶段2"年度观感"逐条映射为数字（如"质量 2021 回撤 −40%"→ 因子实测曲线吻合度判定）。</li>
+  </ul>
+</div>
+
+<!-- ============ 3. WS2 ============ -->
+<h2>3. WS2 · 多策略回测（复刻国泰海通"基础+卫星"）</h2>
+<div class="card">
+  <h3>3.1 结构</h3>
+  <table>
+    <tr><th>层</th><th>组成</th><th>权重区间</th><th>来源</th></tr>
+    <tr><td>🟦 核心 Core</td><td>质量 × 价值 × 红利 合成（依 WS1 的 ICIR 定权）</td><td>60–70%</td><td>WS1 五个基本面因子中的 ①②③⑤</td></tr>
+    <tr><td>🟨 卫星 A</td><td>量价（动量/反转/低波/换手）</td><td>15–20%</td><td>v2 §4 量价族</td></tr>
+    <tr><td>🟩 卫星 B</td><td>企业行为（回购/分红/业绩预告修正/异常）</td><td>10–15%</td><td>阶段2 企业行为高 IR 卫星</td></tr>
+  </table>
+
+  <h3>3.2 组合方法（低相关优先）</h3>
+  <ul class="tight">
+    <li><b>层内</b>：因子正交化（Gram-Schmidt，factor_multi.py 已支持）后 ICIR 加权。</li>
+    <li><b>层间</b>：风险平价 / 逆方差加权（按各层滚动波动率），不简单等权——高相关层不分散风险。</li>
+    <li><b>基准</b>：中证500 / 中证1000 指增（相对基准超额 + 跟踪误差约束 ≤ 上限）。</li>
+  </ul>
+
+  <h3>3.3 对比维度与验收</h3>
+  <table>
+    <tr><th>对比项</th><th>核心单独</th><th>核心+卫星A</th><th>核心+卫星A+B（全）</th><th>单因子基准</th></tr>
+    <tr><td>年化超额（净）</td><td colspan="4" style="text-align:center">对比，预期全组合 &gt; 核心 &gt; 单因子</td></tr>
+    <tr><td>夏普 / 最大回撤</td><td colspan="4" style="text-align:center">全组合回撤应显著低于单因子加权（低相关分散）</td></tr>
+    <tr><td>层间相关性</td><td colspan="4" style="text-align:center">核心 vs 卫星 &lt; 0.5 方证明分散有效</td></tr>
+  </table>
+  <p class="note">对照阶段2 国君实证：多策略 300/500/1000 超额 6.6/7.7/8.9%、最大回撤仅 6.6/7.3/3.8%——本回测的净口径结果应落在该量级附近（打 5–7 折后），否则需查成本/前视。</p>
+  <h3>3.4 交付物</h3>
+  <ul class="tight">
+    <li><code>ws2_backtest_equity.png</code>：各配置权益曲线 + 基准。</li>
+    <li><code>ws2_layer_corr.csv</code>：层间/因子间相关系数矩阵。</li>
+    <li><code>ws2_report.html</code>：夏普/回撤/超额/换手对比表 + 容量提示。</li>
+  </ul>
+</div>
+
+<!-- ============ 4. WS3 ============ -->
+<h2>4. WS3 · 自由现金流（FCF）因子深挖</h2>
+<div class="card">
+  <h3>4.1 为何独立验证</h3>
+  <p>国金样本期短（称指增全指年化 12.98%、超额 7.89%），且 FCF 常被宣传为"质量/红利的进化版"。但短样本可能恰好踩中 2024–25 红利/价值风口。需在大样本上检验其 <b>增量信息</b>。</p>
+
+  <h3>4.2 验证协议</h3>
+  <ul class="tight">
+    <li><b>扩展样本</b>：用 Phase 0 快照跑 2010–2025 全周期 + 分阶段（牛/熊/2021–2024 价值低谷/2024–2025 红利牛市）。</li>
+    <li><b>正交性检验</b>：将 FCF_yield 对（质量复合, 红利）做回归取残差 → 测残差 IC/IR。残差显著 ⇒ 真有增量；不显著 ⇒ 只是质量/红利的线性组合（冗余）。</li>
+    <li><b>定义变体</b>：FCF/EV、FCF/市值、owner-earnings 三种口径对比，排除"换皮"嫌疑。</li>
+    <li><b>稳健性</b>：不同持有期（1M/3M/6M）、不同中性化（行业/市值/双中性）。</li>
+  </ul>
+  <h3>4.3 判定标准</h3>
+  <div class="grid g3">
+    <div class="callout c-green"><b>进化版（成立）</b><br>残差 IR &gt; 0.3 且全样本稳定，增量独立于质量/红利。</div>
+    <div class="callout c-amber"><b>部分重叠</b><br>残差有微弱增量但主要在红利牛市显著，平时冗余。</div>
+    <div class="callout c-red"><b>冗余/过拟合</b><br>残差 IC≈0，国金结果系短样本窗口偏差。</div>
+  </div>
+  <h3>4.4 交付物</h3>
+  <ul class="tight">
+    <li><code>ws3_fcf_orthogonality.csv</code>：FCF 对质量/红利回归残差 IC/IR。</li>
+    <li><code>ws3_fcf_vs_quality_dividend.png</code>：三因子 IC 时间序列叠加。</li>
+    <li><b>结论卡</b>：明确"是否纳入 WS2 核心合成"。</li>
+  </ul>
+</div>
+
+<!-- ============ 5. WS4 ============ -->
+<h2>5. WS4 · 拥挤度信号工程化（接入 v2 §9.5 熔断）</h2>
+<div class="card">
+  <h3>5.1 拥挤度指数构建</h3>
+  <p>把论坛口中的"红利拥挤 90% 分位"落成可监控的复合指标，三子信号等权合成：</p>
+  <table>
+    <tr><th>子信号</th><th>定义</th><th>数据</th><th>红灯阈值</th></tr>
+    <tr><td>估值分位</td><td>因子多头组合 PE/PB 现值在其自身历史（5年）分位</td><td>daily_basic</td><td>&gt; 90% 分位</td></tr>
+    <tr><td>成交占比</td><td>多头组合成交额 / 全市场成交额</td><td>daily (amount)</td><td>&gt; 90% 分位</td></tr>
+    <tr><td>资金流集中度</td><td>多头组合北向+基金净流入占比（z-score）</td><td>moneyflow / 北向持仓</td><td>z &gt; 2.0</td></tr>
+  </table>
+  <p class="note">复合拥挤指数 = 三子信号 z-score 均值，映射到 0–100。亦可分因子计算（红利/质量/价值各一条），WS2 组合按各因子红灯独立降权。</p>
+
+  <h3>5.2 接入 v2 §9.5 熔断开关</h3>
+  <div class="callout c-blue">
+    <b>触发链</b>：拥挤指数 &gt; 阈值（默认 90 分位，可调） → 触发 v2 §9.5 熔断 → 组合对该因子暴露 <b>线性降权至 50%</b>（或切防御） → 同时打日志告警。<br>
+    <b>辅助熔断</b>（v2 §9.5 已有）：波动率 &gt; 临界 / 成交集中度异常 → 全局降仓。<br>
+    <b>恢复</b>：指数回落至 70 分位以下且持续 5 日 → 恢复权重。
+  </div>
+
+  <h3>5.3 工程交付</h3>
+  <ul class="tight">
+    <li><code>crowding_index.py</code>：日更脚本，输出 <code>crowding_daily.csv</code>（分因子指数时间序列）。</li>
+    <li><code>circuit_breaker.py</code>：读取拥挤指数 + 波动率，输出降权指令 JSON，供 WS2 组合引擎调用。</li>
+    <li><b>看板</b>：红利/质量/价值三条拥挤曲线 + 历史红灯标记（含 2025 红利 90% 分位事件回放验证）。</li>
+  </ul>
+  <h3>5.4 验收</h3>
+  <p>回放 2025 红利拥挤事件：指数应在 90% 分位触发、降权后组合在该因子后续回撤中显著减损；模拟一次完整"触发→降权→恢复"闭环。</p>
+</div>
+
+<!-- ============ 6. 全局护栏 ============ -->
+<h2>6. 全局风险护栏（贯穿所有 WS）</h2>
+<div class="grid g2">
+  <div class="card" style="margin:0"><h4>🚫 前视偏差</h4><p>因子值严格用 T 日及之前（PIT ann_date）；收益用 T+1 起。factor_multi.py 已处理，但 SUE/资金流需自校验。</p></div>
+  <div class="card" style="margin:0"><h4>🚫 幸存者偏差</h4><p>快照含已退市股（用全 A 历史列表，非当前成分），否则 IC 系统性高估。</p></div>
+  <div class="card" style="margin:0"><h4>🚫 过拟合</h4><p>因子 ≤ 10 个强因子；walk-forward；回测拟合度 80–90% 合理，&gt;95% 报警。禁止按全样本挑参数。</p></div>
+  <div class="card" style="margin:0"><h4>💰 成本现实</h4><p>双边千三~千五 + 冲击（微盘加码）；换手约束；净口径才计入验收。</p></div>
+  <div class="card" style="margin:0"><h4>📉 容量约束</h4><p>超额 = 容量 × 流动性 × 不拥挤（v2 §6）；大资金需测 AUM 衰减。</p></div>
+  <div class="card" style="margin:0"><h4>🔌 数据源依赖</h4><p>Tushare/NeoData/妙想需 token；M0 前确认连通与配额，避免中途断供。</p></div>
+</div>
+
+<!-- ============ 7. 交付物总清单 ============ -->
+<h2>7. 交付物总清单与成功标准</h2>
+<div class="card">
+  <table>
+    <tr><th>Phase/WS</th><th>代码/文档</th><th>成功标准</th></tr>
+    <tr><td>Phase 0</td><td><code>snapshot_repo.parquet</code> + <code>pit_audit.md</code></td><td>截面≥180月；PIT 抽检验证通过</td></tr>
+    <tr><td>WS1</td><td><code>ws1_factor_efficacy.csv</code> / <code>ws1_rolling_ir.png</code> / <code>ws1_stress_202402.csv</code></td><td>三视图齐备；给实盘可预期 IC 区间</td></tr>
+    <tr><td>WS2</td><td><code>ws2_backtest_equity.png</code> / <code>ws2_layer_corr.csv</code> / <code>ws2_report.html</code></td><td>全组合夏普/回撤优于单因子；层间相关&lt;0.5</td></tr>
+    <tr><td>WS3</td><td><code>ws3_fcf_orthogonality.csv</code> / <code>ws3_*.png</code> / 结论卡</td><td>明确 FCF 是否纳入核心合成</td></tr>
+    <tr><td>WS4</td><td><code>crowding_index.py</code> / <code>circuit_breaker.py</code> / 看板</td><td>日更；回放 2025 红利事件触发正确</td></tr>
+    <tr><td>汇总</td><td><code>基本面因子效用实证_总报告.html</code></td><td>四条建议全部闭环，论坛观感→数字</td></tr>
+  </table>
+</div>
+
+<!-- ============ 8. 立即可执行 ============ -->
+<h2>8. 立即可执行的第一周任务（Kickoff）</h2>
+<div class="card">
+  <ol class="tight">
+    <li><b>连通性确认</b>：验证 Tushare / NeoData / 妙想 token 可用、配额充足（M0 前置）。</li>
+    <li><b>定位脚本</b>：确认 <code>factor_multi.py</code> / <code>factor_fundamental.py</code> 路径，写 import 测试（含 <code>SignalEngine</code> 调通）。</li>
+    <li><b>拉取元数据</b>：A 股全历史列表（含退市）、申万一级行业映射、交易日历。</li>
+    <li><b>建快照仓库骨架</b>：设计月度截面 schema（date, code, roe, ep, sue, fcf_yield, dy, industry, log_mv, fwd_ret_21d）。</li>
+    <li><b>PIT 校验脚本</b>：随机抽 50 只×3 期，比对 ann_date 取数逻辑。</li>
+  </ol>
+  <div class="callout c-amber">
+    <b>⚠️ 阻断项提示</b>：M0 能否通过，取决于数据源 token。若 Tushare/NeoData 未配置，Phase 0 无法启动——这一步需你确认凭证是否就绪，或由我先探测连通性。
+  </div>
+</div>
+
+<div class="footer">
+  本计划由量化金融算法工程师视角制定，复用 <code>wb-finance-skill</code> 因子框架，承接阶段1（文献核实+因子提取）与阶段2（互联网金工资料综合）结论。
+  所有收益口径遵循 v2 红蓝对抗裁决：毛/净分离、实盘打 5–7 折、拥挤前置。经验估计与未核数字均需在最终报告中标注"需核实"。
+  生成时间：2026-08-26 · 工作区：C:\Users\VMW\Documents\Workbuddy\
+</div>
+
+</div>
+</body>
+</html>

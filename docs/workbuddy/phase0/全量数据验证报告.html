@@ -1,0 +1,55 @@
+<!DOCTYPE html><html lang="zh"><head><meta charset="utf-8"><title>全量数据验证</title>
+<style>
+body{font-family:system-ui;max-width:1060px;margin:24px auto;padding:0 16px;color:#222;line-height:1.65}
+h1{color:#0b3d91;font-size:24px}h2{color:#0b3d91;border-left:4px solid #0b3d91;padding-left:8px;margin-top:36px}
+table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px}
+th,td{border:1px solid #ccc;padding:6px 9px;text-align:right}th{background:#f0f4fa;text-align:center}
+td:first-child{text-align:left}th:first-child{text-align:left}
+.pos{color:#c0392b;font-weight:bold}.neg{color:#27ae60}
+.box{background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:13px 17px;margin:13px 0}
+.warn{background:#fff8e6;border:1px solid #f0d9a8;border-radius:8px;padding:12px 16px;margin:13px 0}
+.hl{background:#fff4e6}.hl2{background:#e8f4ec}
+code{background:#f1f5f9;padding:2px 6px;border-radius:4px}
+</style></head><body>
+<h1>基本面因子工程化 · 全量数据验证报告</h1>
+<p>全A 5328 只全量口径 · 季频新核心 + 卫星检验 + 熔断/成本/压力测试 · 2026-08-27</p>
+
+<h2>一、全量验证结果（全A 5328 只, Top10%≈532, 无未来函数）</h2>
+<table><tr><th>策略</th><th>夏普</th><th>年化</th><th>回撤</th><th>Calmar</th><th>净值</th></tr>
+<tr class="hl"><td style="text-align:left"><b>季频新核心 (现金+FCFY+EP)</b></td><td class="pos"><b>0.348</b></td><td>10.4%</td><td class="neg">-48.5%</td><td>0.215</td><td>3.45</td></tr>
+<tr class="hl"><td style="text-align:left"><b>组合 (核心60 + 低波40)</b></td><td class="pos"><b>0.352</b></td><td>10.3%</td><td class="neg">-50.0%</td><td>0.206</td><td>3.04</td></tr>
+<tr><td style="text-align:left">卫星-动量 (Top10%)</td><td class="neg"><b>-0.088</b></td><td>2.8%</td><td class="neg">-66.4%</td><td>0.042</td><td>1.43</td></tr>
+<tr><td style="text-align:left">卫星-低波 (Top10%)</td><td>0.319</td><td>9.9%</td><td class="neg">-52.2%</td><td>0.189</td><td>3.01</td></tr>
+<tr><td style="text-align:left">基准 全A等权</td><td>0.195</td><td>7.2%</td><td class="neg">-58.8%</td><td>0.122</td><td>2.39</td></tr></table>
+
+<h2>二、关键发现 1：全A 动量反转（卫星构型不可迁移）</h2>
+<div class="warn"><b>⚠ 全A 上动量是显著负因子（夏普 -0.088）</b>——而 HS300 上动量有效（0.303）。A 股全市场（含小盘）呈现<b>动量反转</b>特征：追涨小盘被惩罚。<br>
+<b>推论：HS300 的"核心+动量+低波"卫星构型不能直接搬到全A</b>——含动量 25% 的组合在全A 被拖累至 0.240（vs 无动量 0.352）。<b>全A 正确构型 = 核心 + 低波（无动量）</b>。</div>
+
+<h2>三、关键发现 2：全A 熔断方案A 有害</h2>
+<table><tr><th>方案</th><th>夏普</th><th>年化</th><th>回撤</th></tr>
+<tr><td style="text-align:left">组合 (核心60+低波40) 无熔断</td><td class="pos">0.352</td><td>10.3%</td><td class="neg">-50.0%</td></tr>
+<tr><td style="text-align:left">+ 熔断A (合成≥75/≥85)</td><td class="neg">0.157</td><td>4.7%</td><td class="neg">-37.2%</td></tr></table>
+<div class="warn"><b>⚠ 全A 熔断方案A 大幅拖累（0.352→0.157）</b>：① 全A 拥挤度读数低（合成≥75 仅 2 个月），阈值标定失配；② 触发时切换到低波/防御，恰逢核心反弹期（错过收益）。<br>
+<b>与 HS300 相反</b>：HS300 年频下熔断A 有效（0.501→0.529）、季频下中性（0.559→0.553）；全A 下有害。<b>熔断是口径敏感工具，全A 应禁用或重新按全A 阈值标定（≥85 才开始防御）</b>。</div>
+
+<h2>四、成本敏感性（熔断组合参考）</h2>
+<div class="box">单边 0.1%→0.148 · 0.2%→0.140 · 0.3%→0.131（熔断组合基线低故绝对值无意义，斜率与 HS300 一致：每 +0.1% 成本 -0.009 夏普）。平均月换手 24.7%。</div>
+
+<h2>五、2024-02 微盘崩塌压力测试</h2>
+<table><tr><th>策略</th><th>2024-02 收益</th></tr>
+<tr><td style="text-align:left">季频新核心</td><td class="pos">+5.54%</td></tr>
+<tr><td style="text-align:left">组合60/40</td><td class="pos">+4.60%</td></tr>
+<tr><td style="text-align:left">熔断A</td><td class="pos">+4.03%</td></tr>
+<tr><td style="text-align:left">全A等权</td><td>+5.88%</td></tr></table>
+<div class="box">崩塌月核心组合收益为正且与等权相当——现金流质量因子的防御属性在全A 也成立（未出现超额回撤）。</div>
+
+<h2>六、三口径最终收敛（可信结论）</h2>
+<table><tr><th>口径</th><th>核心夏普</th><th>组合夏普</th><th>可信度</th></tr>
+<tr><td style="text-align:left">HS300 当前成分</td><td>0.492</td><td>0.559</td><td class="neg">低（幸存者偏差 +0.16）</td></tr>
+<tr><td style="text-align:left">HS300 历史成分代理</td><td>0.332</td><td>—</td><td class="pos">中</td></tr>
+<tr class="hl"><td style="text-align:left"><b>全A 全量（本报告）</b></td><td class="pos"><b>0.348</b></td><td class="pos"><b>0.352</b></td><td class="pos"><b>高（无成分偏差）</b></td></tr></table>
+<div class="box hl2"><b>✅ 三口径收敛</b>：全A 全量（0.348/0.352）与历史成分代理（0.332）互相印证，锚定 <b>0.33-0.35</b> 为 A 股基本面核心策略的<b>可信夏普区间</b>。
+HS300 当前成分的 0.49-0.56 为<b>幸存者偏差高估</b>（约 +32% 相对偏差）。<br>
+<b>最终落地建议</b>：① 全A 全量口径，季频新核心（现金+FCFY+EP）+ 低波 40%，预期夏普 ~0.35；② 不做全A 动量、不设全A 熔断；③ HS300 口径仅作大盘风格配置参考（需内化 -0.16 偏差）。</div>
+</body></html>

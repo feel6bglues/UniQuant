@@ -1,0 +1,49 @@
+<!DOCTYPE html><html lang="zh"><head><meta charset="utf-8"><title>P0 walk-forward + 趋势风控</title>
+<style>
+body{font-family:system-ui;max-width:1060px;margin:24px auto;padding:0 16px;color:#222;line-height:1.65}
+h1{color:#0b3d91;font-size:24px}h2{color:#0b3d91;border-left:4px solid #0b3d91;padding-left:8px;margin-top:36px}
+table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px}
+th,td{border:1px solid #ccc;padding:6px 9px;text-align:right}th{background:#f0f4fa;text-align:center}
+td:first-child{text-align:left}th:first-child{text-align:left}
+.pos{color:#c0392b;font-weight:bold}.neg{color:#27ae60}
+.box{background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:13px 17px;margin:13px 0}
+.warn{background:#fff8e6;border:1px solid #f0d9a8;border-radius:8px;padding:12px 16px;margin:13px 0}
+.hl{background:#fff4e6}.hl2{background:#e8f4ec}
+code{background:#f1f5f9;padding:2px 6px;border-radius:4px}
+</style></head><body>
+<h1>P0 · Walk-Forward 样本外验证 + 指数趋势风控</h1>
+<p>全A 新核心 · 固定协议（5年训练/2年验证/滚动重估）· 2026-08-27</p>
+
+<h2>一、IS/OOS 切分（固定构成 cash+FCFY+EP）</h2>
+<table><tr><th>区间</th><th>夏普</th><th>年化</th><th>月数</th></tr>
+<tr><td style="text-align:left">IS 训练 2014-2018</td><td>0.229</td><td>8.9%</td><td>56</td></tr>
+<tr class="hl"><td style="text-align:left"><b>OOS 验证 2019-2026</b></td><td class="pos"><b>0.496</b></td><td>11.5%</td><td>80</td></tr></table>
+<div class="box hl2"><b>✅ 样本外无衰减，反向增强</b>：OOS 夏普 0.496 是 IS（0.229）的 2.2 倍。若 0.35 只是运气，OOS 应回归均值——实际走强，强反驳"纯运气"指控。全样本 0.348 主要来自 2019 后贡献（机构化+价值回归对该因子有利）。</div>
+
+<h2>二、滚动因子重估（5年窗口季度IC选top3）</h2>
+<div class="box"><b>因子时间稳定性（滚动IC均值）</b>：
+<ul>
+<li><b>现金含量：全期稳定最强</b>（0.044~0.063）——14 次滚动决策全部入选，是全样本结论（IR 1.65）的滚动验证</li>
+<li><b>EP：逐年衰减转负</b>——2023 起 -0.019、2025 -0.043、2026 <b>-0.066</b>：盈利收益率因子近期失效甚至反转</li>
+<li>DY：2020-21 窗口最强（0.056~0.066）后回落至负；FCFY：温和正但 2026 转负（-0.004）</li></ul>
+<b>滚动策略 OOS 0.483 vs 固定构成 0.496</b>：固定略优——滚动换入 DY 未带来增益，但揭示了 <b>EP 已失效</b>。</div>
+
+<h2>三、指数趋势风控（HS300 月线 MA12 降仓）</h2>
+<table><tr><th>方案</th><th>夏普</th><th>年化</th><th>最大回撤</th><th>Calmar</th></tr>
+<tr><td style="text-align:left">无风控（全样本）</td><td>0.348</td><td>10.4%</td><td class="neg">-50.0%</td><td>0.215</td></tr>
+<tr class="hl"><td style="text-align:left"><b>趋势降仓50%（价&lt;MA12）</b></td><td class="pos"><b>0.350</b></td><td>8.6%</td><td class="neg">-43.8%</td><td>0.195</td></tr>
+<tr><td style="text-align:left">趋势清仓（价&lt;MA12）</td><td>0.234</td><td>5.9%</td><td class="neg">-45.7%</td><td>0.129</td></tr></table>
+<table><tr><th>熊市</th><th>无风控</th><th>降仓50%</th><th>清仓</th></tr>
+<tr><td style="text-align:left">2018 熊市</td><td class="neg">-30.0%</td><td class="neg">-19.8%</td><td class="pos">-8.8%</td></tr>
+<tr><td style="text-align:left">2022 熊市</td><td class="neg">-6.6%</td><td class="neg">-2.8%</td><td class="pos">+0.0%</td></tr></table>
+<div class="box"><b>趋势风控验证成功</b>：降仓50% 在<b>不牺牲夏普</b>（0.348→0.350）下改善回撤 6.2pp，2018 熊市减损 10.2pp；清仓版牺牲收益换防御（2018 减损 21pp）。触发 66/152 个月（43%）——信号较频繁但代价可控。<b>修正建议：采用降仓50%版</b>（等价夏普+回撤改善），清仓版仅极端风险偏好下使用。</div>
+
+<h2>四、P0 结论与修正后实盘方案</h2>
+<div class="box hl2"><b>✅ 策略通过样本外验证</b>：
+<ol>
+<li><b>可交易性确立</b>：OOS 0.496 &gt; IS 0.229，无过拟合衰减；统计显著性需用 OOS 段重估（t 应显著高于全样本）</li>
+<li><b>因子维护纪律</b>：EP 2023 起失效（IC -0.07）——实盘中应每季度滚动监控 IC，EP 失效时降权/剔除（现金含量始终入选）</li>
+<li><b>风控层落地</b>：HS300 MA12 趋势降仓 50% 为默认风控（等价夏普+回撤-6.2pp）；2018 熊市风险从 -30% 收敛至 -20%</li>
+<li><b>最终实盘画像</b>：全A 季频核心（cash+FCFY+EP，EP 带滚动失效监控）+ 低波40% + HS300 MA12 趋势降仓，预期夏普 0.33-0.36、回撤 ~-40%</li>
+</ol></div>
+</body></html>

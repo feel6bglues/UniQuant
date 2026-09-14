@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>基本面量化因子 · 引用核实与因子提取（阶段1）</title>
+<style>
+  :root{
+    --bg:#f5f7fa; --card:#fff; --ink:#1f2a37; --muted:#5b6573; --line:#e3e8ef;
+    --brand:#1f5fd6; --brand2:#0f8a6a; --warn:#c0392b; --amber:#c77d1a;
+    --shadow:0 1px 3px rgba(16,24,40,.06),0 8px 24px rgba(16,24,40,.05);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;line-height:1.7;font-size:15px}
+  .wrap{max-width:1120px;margin:0 auto;padding:0 20px 80px}
+  header.hero{background:linear-gradient(135deg,#0f5f52,#0a3d6b);color:#fff;padding:40px 20px 32px;margin-bottom:24px}
+  header.hero .inner{max-width:1120px;margin:0 auto}
+  header.hero h1{margin:0 0 6px;font-size:24px}
+  header.hero p{margin:3px 0;opacity:.92;font-size:13.5px}
+  .badges{margin-top:12px}
+  .badge{display:inline-block;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.28);padding:4px 11px;border-radius:999px;font-size:12px;margin:3px 5px 3px 0}
+  section{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:24px 26px;margin:18px 0;box-shadow:var(--shadow)}
+  h2{font-size:20px;margin:0 0 6px;display:flex;align-items:center;gap:10px}
+  h2 .num{width:30px;height:30px;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;font-size:15px;flex:0 0 auto;color:#fff;background:var(--brand2)}
+  h3{font-size:16px;margin:18px 0 6px}
+  p{margin:9px 0}
+  .lead{color:var(--muted);font-size:13.5px}
+  table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.3px}
+  th,td{border:1px solid var(--line);padding:9px 11px;text-align:left;vertical-align:top}
+  th{background:#eef6f3;color:#14402f;font-weight:600}
+  tbody tr:nth-child(even){background:#fafcfb}
+  .tag{display:inline-block;font-size:11.5px;padding:1px 7px;border-radius:6px;margin:1px 2px}
+  .tag.ok{background:#e8f5ef;color:var(--brand2)} .tag.r{background:#fdecea;color:var(--warn)}
+  .tag.o{background:#fdf2e0;color:var(--amber)} .tag.b{background:#eaf1fd;color:var(--brand)} .tag.g{background:#f3f0fb;color:#6b46c1}
+  .src{font-size:12px;color:var(--muted);border-left:3px solid var(--brand2);padding:2px 0 2px 10px;margin:6px 0;background:#f6faf8}
+  .note{background:#fff8ec;border:1px solid #f3e2bf;border-radius:10px;padding:12px 14px;margin:12px 0;font-size:13.5px}
+  .warnbox{background:#fdecea;border:1px solid #f3c4bd;border-radius:10px;padding:12px 16px;margin:12px 0;font-size:13.5px}
+  .newbox{background:#eef7f2;border:1px solid #bfe6d6;border-left:5px solid var(--brand2);border-radius:10px;padding:13px 16px;margin:14px 0}
+  .callout{background:#eaf1fd;border-radius:10px;padding:12px 16px;margin:14px 0;font-size:14px;border-left:4px solid var(--brand)}
+  .legend{font-size:12px;color:var(--muted);margin-top:6px}
+  .disc{background:#fbf3f2;border:1px solid #eccdc9;border-radius:12px;padding:14px 18px;margin:24px 0;font-size:12.8px;color:#7a3b34}
+  footer{color:var(--muted);font-size:12.5px;text-align:center;margin-top:26px;line-height:1.8}
+  .mini{font-size:12px;color:var(--muted)}
+  ul.tight{margin:8px 0;padding-left:20px} ul.tight li{margin:5px 0}
+  .pill{font-weight:700}
+</style>
+</head>
+<body>
+<header class="hero">
+  <div class="inner">
+    <h1>基本面量化因子 · 引用核实与因子提取 <span class="badge" style="background:#ffd54a;color:#5a3e00">阶段1</span></h1>
+    <p>基于《量化金融中国证券投资模式与成功因子研究报告 v2 修订版》｜ 研究日期：2026-08-26</p>
+    <p>本阶段交付：① 文件引用报告逐条核实（含修正提示）② 基本面因子清单提取。后续阶段再深入"用途与效用"实证。</p>
+    <div class="badges">
+      <span class="badge">引用核实</span><span class="badge">因子提取</span><span class="badge">实证溯源</span>
+    </div>
+  </div>
+</header>
+<div class="wrap">
+
+<!-- 核实总览 -->
+<section>
+  <h2><span class="num">1</span>引用报告核实总览</h2>
+  <p class="lead">核查对象 = v2 文件末尾「参考文献 [1]–[13]」。结论是：<b>国外学术/机构报告基本可公开核验且核心结论成立；国内券商研报因引用模糊（无确切标题/作者/日期）无法精确定位，仅方向性可信。</b></p>
+  <table>
+    <thead><tr><th>编号</th><th>引用内容（v2 原文）</th><th>核实状态</th><th>核实结果与修正提示</th></tr></thead>
+    <tbody>
+      <tr><td>[1]</td><td>Sharpe(1964); Fama&amp;French(1993,2015); Carhart(1997)</td><td><span class="tag ok">✅ 已确证</span></td><td>均为经典文献，真实存在，模型演进链条无误。</td></tr>
+      <tr><td>[2]</td><td>Grinold&amp;Kahn(1994/2000)《Active Portfolio Management》</td><td><span class="tag ok">✅ 已确证</span></td><td>IR=IC×TC×√BR 主动管理基本定律，真实可引用。</td></tr>
+      <tr><td>[3]</td><td>MSCI Barra CNE5(2013)</td><td><span class="tag ok">✅ 已确证</span></td><td>真实存在（Barra China Equity Model）。另查得 MSCI 官方博客《Which Factors Mattered in China?》(2008–2017)，其对 A 股风格因子方向性的实证与本研究的"基本面因子用途"高度相关（见 §3）。</td></tr>
+      <tr><td>[4]</td><td>Asness et al.(2013) Value&amp;Momentum Everywhere; Frazzini-Kabiller-Pedersen QMJ; AQR BAB</td><td><span class="tag ok">✅ 已确证</span></td><td>均为 AQR 真实研究；QMJ（质量因子）、BAB（低 Beta）可迁移至 A 股质量/低波因子框架。</td></tr>
+      <tr><td>[5]</td><td>Aalberg &amp; Schubart(2018)《Factor Models in China》; Zhang et al.(2017) reversal in China</td><td><span class="tag ok">✅ 已确证</span></td><td><b>两项均查到原文。</b><br>• Aalberg&amp;Schubart：哥本哈根商学院硕士论文(2018,120页)，A股四/五因子模型平均 R²≈0.92（<b>印证 v2 的 0.92</b>）；但其样本<b>未检出 B/M、盈利能力、投资溢价</b>，仅 Size 与中期反转显著。<br>• Zhang et al.：《Economic Modelling》69(2018)26–37，DOI 10.1016/j.econmod.2017.09.003。<b>证实 P/E 解释力强于 B/M、短期反转强于中期动量</b>（<b>印证 v2 的 A 股两条经验法则</b>）。</td></tr>
+      <tr><td>[6]–[10]</td><td>华泰/中信/国泰海通/广发/国君/国信/西南 等券商金工研报</td><td><span class="tag o">⚠️ 不可精确定位</span></td><td>引用<b>无确切报告标题、作者、发布日期与编号</b>（如"华泰五因子A股实证(2017)"），属卖方内部/付费资料，公开网络无法逐篇核验。但方向性可信：查得华泰确有"财务质量因子"系列（测 51 个质量因子）、国君 QMJ/质优研究等，与 v2 口径一致。<b>建议落地前以原始研报复核具体数字。</b></td></tr>
+      <tr><td>[11]–[13]</td><td>量化规模1.83万亿、2024-02回撤、期货贴水区间</td><td><span class="tag o">⚠️ 经验估计</span></td><td>v2 已自标"需核实"。规模/回撤/贴水均为行业公开报道口径，量级合理但精确数须以交易所、中金所及监管/媒体记录核实。<b>不影响基本面因子研究主线。</b></td></tr>
+    </tbody>
+  </table>
+  <div class="warnbox"><b>🔎 核实中发现的 1 处重要张力（需写入后续研究）：</b>v2 在 §4 将"质量(ROE/现金流)"定性为<b>强·稳健</b>、"价值(P/E&gt;B/M)"定性为<b>中–强</b>，但 Aalberg&amp;Schubart(2018) 在其样本中<b>未检出 B/M 与盈利能力溢价</b>，而 Guo et al.(2017) 又检出显著的 Size/Value/Profitability 溢价。说明 <b>A 股价值与质量因子的效力高度依赖样本期与检验方法</b>——这对"用途与效用"研究是核心约束，不能简单说"质量永远有效"。</div>
+</section>
+
+<!-- 补充实证 -->
+<section>
+  <h2><span class="num">2</span>本次核实新补充的权威实证（支撑基本面因子）</h2>
+  <ul class="tight">
+    <li><b>Guo, Zhang, Zhang, Zhang (2017)《The five-factor asset pricing model tests for the Chinese stock market》(ScienceDirect)：</b>A股检出<b>显著 Size、Value、Profitability 溢价</b>，Investment(CMA) 弱且冗余；五因子通过 GRS 检验。<span class="mini">→ 直接支持"基本面盈利/价值因子在 A 股有效"。</span></li>
+    <li><b>《The five-factor model, short-term reversal, and ownership structure – the case of China》(2022)：</b>五因子优于三因子；<b>短期反转高度显著</b>，HML(B/M)偏弱，CMA 冗余；另提出"国有/机构持股"因子。17.57% 的国内共同基金采用亏损的短期动量策略。</li>
+    <li><b>《Noisy prices and the FF five-factor model in China》：</b>SMB、HML、RMW 在 A 股重要；<b>Value 在 A 股非冗余</b>（与美股相反）；CMA 冗余。</li>
+    <li><b>MSCI《Which Factors Mattered in China?》(2008–2017) 风格因子方向性：</b>
+      <ul class="tight">
+        <li>盈利收益率(E/P，价值代理) 与市场同向（正方向性）；</li>
+        <li>盈利能力(profitability)、成长(growth) 因子与市场<b>反向</b>（市场好时其收益偏低）；</li>
+        <li>账面市值比(B/P)、股息率 呈<b>凸性</b>（牛熊两端都正）；</li>
+        <li>流动性、规模、中盘 长期<b>负收益</b>（即小/中盘、低流动性股票平均跑赢）→ 规模效应；</li>
+        <li>短期反转、分析师情绪、季节性 长期<b>正收益</b> → 反转与情绪因子。</li>
+      </ul>
+      <span class="mini">→ 这是"基本面因子在 A 股如何随市况表现"最一手的实证地图。</span>
+    </li>
+  </ul>
+</section>
+
+<!-- 基本面因子提取 -->
+<section>
+  <h2><span class="num">3</span>基本面量化因子提取清单（来自 v2 + 核实补强）</h2>
+  <p class="lead">提取口径：以 v2 §2/§4/§9.2 为锚，凡<b>源自财报、估值、盈利质量、预期</b>的因子归为"基本面因子"；规模(Size)、低波动/低Beta 属"风格/风险因子"，单列标注边界。v2 §9.2 的组合构建中基本面占 <b>30%</b>（量价60%/基本面30%/事件10%）。</p>
+
+  <h3>3.1 核心基本面因子（纯财报/估值/预期）</h3>
+  <table>
+    <thead><tr><th>因子类别</th><th>代表指标</th><th>A股实证效力（来源）</th><th>v2 原定位</th><th>核实备注 / 用途提示</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><b>价值 Value</b></td>
+        <td>PE(E/P)、PB(B/P)、PCF、PS、EV/EBITDA、股息率</td>
+        <td><span class="tag ok">长期有效·周期性</span><br>Zhang(2017): P/E&gt;B/M；MSCI(08–17): E/P 正方向性、B/P 凸性；某回测(10–24): 价值 IC≈4.2%、IR0.65、年化超额+6.8%（<span class="tag o">需核实</span>）</td>
+        <td>中–强；2021后回归；防价值陷阱（行业中性）</td>
+        <td>熊市/震荡强、牛市弱；须<b>行业中性</b>避免退化为金融/周期暴露。与质量组合可提升夏普。</td>
+      </tr>
+      <tr>
+        <td><b>质量 Quality</b></td>
+        <td>ROE、ROA、毛利率、净利率稳定性、低负债率、现金流质量、应计利润</td>
+        <td><span class="tag ok">稳定有效</span><br>Guo(2017): RMW 显著改善模型；华泰: 测 51 个质量因子，<b>单季ROE(平均法净资产)最优</b>，偏大盘池更有效，2016底起盈利能力类多空收益稳</td>
+        <td>强·稳健；底仓因子，机构化后持续有效</td>
+        <td>最稳定因子之一；但 Aalberg(2018) 样本未检出盈利溢价 → <b>效力随样本期分化</b>，需 walk-forward 校验。</td>
+      </tr>
+      <tr>
+        <td><b>成长 / 一致预期 Growth</b></td>
+        <td>营收增速、净利增速、资本扩张、<b>SUE(标准化预期外盈利)</b>、分析师一致预期修正</td>
+        <td><span class="tag ok">中–强·变体有效</span><br>直接成长常失效(过度预期超买)；"稳健增长"或"超预期(SUE)"变体有效；产业趋势期 IC 提升</td>
+        <td>中–强；产业趋势期 IC 提升</td>
+        <td>高成长≠高收益；<b>SUE/盈利惊喜</b>比单纯增速更 robust，是 A 股基本面因子里"预期差"的载体。</td>
+      </tr>
+      <tr>
+        <td><b>盈利能力 RMW</b><br><span class="mini">(FF五因子)</span></td>
+        <td>营业利润率(OP)、ROE 衍生</td>
+        <td><span class="tag ok">强</span><br>Guo(2017)、Noisy-prices(China): RMW 重要且非冗余</td>
+        <td>（并入质量）</td>
+        <td>与"质量"高度重叠，可合并；A 股显著优于 CMA。</td>
+      </tr>
+      <tr>
+        <td><b>投资风格 CMA</b><br><span class="mini">(FF五因子)</span></td>
+        <td>总资产/账面权益增长率(InvA/InvB)</td>
+        <td><span class="tag r">弱·冗余</span><br>多研究(Guo2017、Noisy-prices、2022文): CMA 在 A 股冗余</td>
+        <td>（未单列）</td>
+        <td><b>不单独使用</b>，已被价值/盈利吸收；若建模应剔除防多重共线。</td>
+      </tr>
+      <tr>
+        <td><b>红利 Dividend</b></td>
+        <td>股息率</td>
+        <td><span class="tag ok">长期有效</span><br>MSCI: 股息率呈凸性；中证红利低波长期有效</td>
+        <td>（价值子类）</td>
+        <td>价值/质量混合体，提供"确定性溢价"，熊市防御属性强。</td>
+      </tr>
+      <tr>
+        <td><b>杠杆 Leverage</b><br><span class="mini">(CNE5风格)</span></td>
+        <td>资产负债率、市值/账面杠杆</td>
+        <td><span class="tag b">中</span><br>CNE5 风格因子之一，低杠杆偏质量维度</td>
+        <td>（质量子类）</td>
+        <td>常与质量合并；低杠杆在去杠杆周期有效。</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>3.2 边界因子（风格/风险类，与基本面交叉）</h3>
+  <table>
+    <thead><tr><th>因子</th><th>归类</th><th>A股效力</th><th>提取说明</th></tr></thead>
+    <tbody>
+      <tr><td>规模 Size(小市值)</td><td>风格/市场因子</td><td><span class="tag ok">长期显著·衰减中</span></td><td>v2 已降级为<b>风险因子控上限</b>；严格说非纯基本面，但 A 股历史最肥 α，列于此供组合权重参考。</td></tr>
+      <tr><td>低波动 / 低Beta(BAB)</td><td>风险因子</td><td><span class="tag ok">有效</span></td><td>A 股低波跑赢高波；loadings 由基本面风险驱动，常与质量/价值叠加成"防御底仓"。</td></tr>
+      <tr><td>分析师情绪 / 一致预期修正</td><td>基本面衍生(预期)</td><td><span class="tag ok">长期正收益</span></td><td>MSCI: 分析师情绪因子长期正收益；属"预期差"维度，与 SUE 同归基本面预期族。</td></tr>
+    </tbody>
+  </table>
+
+  <div class="newbox"><span class="h">提取结论：A股可落地的"基本面因子族"</span>
+  按稳健性排序（综合 v2 与本次核实）：<b>质量(ROE/现金流) ≈ 价值(P/E) ＞ 红利 ＞ 成长/SUE(变体) ＞ RMW(并质量) ＞ 杠杆(并质量)</b>；<b>CMA 剔除</b>；规模/低波作边界风险因子。这与 MSCI(08–17)、Guo(2017) 的实证方向一致，也与 v2「反转&gt;动量、P/E&gt;B/M、质量/价值机构化后回归」四条法则自洽。
+  </div>
+</section>
+
+<!-- 张力与下一步 -->
+<section>
+  <h2><span class="num">2</span>关键张力与下一步研究方向</h2>
+  <div class="callout">
+  <b>本阶段已澄清的核心张力（决定后续研究边界）：</b>
+  <ol class="tight" style="margin:4px 0">
+    <li><b>价值/质量效力的时间分化</b>：Aalberg(2018) 未检出、Guo(2017) 检出 → 后续须做<b>分样本期(牛/熊/震荡)的效力拆解</b>，而非给单一"有效/无效"标签。</li>
+    <li><b>反转 vs 基本面</b>：Zhang(2017) 明确指出反转收益<b>无法被系统性风险与基本面因子解释</b> → 基本面因子与量价反转是<b>低相关互补族</b>，这正是 v2 §10「多策略低相关配置」的底层逻辑。</li>
+    <li><b>券商数字不可精确定位</b>：国内研报引用模糊，后续若需引用具体 RankIC/IR，须回到原始研报核验。</li>
+  </ol>
+  </div>
+  <h3>下一阶段（"用途与效用"深研）建议清单</h3>
+  <ul class="tight">
+    <li><b>用途层</b>：基本面因子在指数增强(沪深300/中证500/1000)、市场中性、红利低波 Smart Beta 中的具体配置权重与中性化处理（行业/市值中性对质量因子影响最大）。</li>
+    <li><b>效用层</b>：对各基本面因子做 IC/IR 滚动分布 + 牛熊样本拆分 + 2024-02 压力测试（套用 v2 §5/§8 纪律），给出<b>实盘可预期区间</b>而非回测峰值。</li>
+    <li><b>合成层</b>：质量×价值×红利 的等权/ICIR 加权合成，对比单因子与合成后的夏普/最大回撤。</li>
+    <li><b>数据源</b>：用 妙想/NeoData/Tushare 拉 A 股财报与估值，对 ROE、EP、SUE、股息率做 2010–2025 实证复核（可编写回测脚本，复用 wb-finance-skill 内置 factor 框架）。</li>
+  </ul>
+</section>
+
+<div class="disc">
+  <b>免责声明</b>：本阶段交付为「文献核实 + 因子提取」，引用结论来自公开学术文献（Aalberg&amp;Schubart 2018、Zhang et al. 2017/2018、Guo et al. 2017、MSCI 官方博客等）与 v2 报告转述。券商研报因引用模糊未逐篇核验，具体数字以原始研报为准。文中"需核实"标记项（如某回测 IC/年化）为公开网络摘录，精确性须复核。所有内容仅供参考，不构成投资建议。
+</div>
+
+<footer>
+  基本面量化因子 · 引用核实与因子提取（阶段1）｜ 2026-08-26 ｜ 作为"用途与效用"深研的底层素材
+</footer>
+</div>
+</body>
+</html>

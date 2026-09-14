@@ -1,0 +1,375 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Phase 0 缩小版 PoC · 五因子 IC/IR 引擎演示</title>
+<style>
+:root{--bg:#f7f8fa;--card:#fff;--ink:#1f2733;--sub:#5b6675;--line:#e4e8ee;--blue:#1f6feb;--green:#1a9d5a;--amber:#c97a0a;--red:#d23b3b}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;line-height:1.6;font-size:15px}
+.wrap{max-width:1120px;margin:0 auto;padding:28px 24px 60px}
+header{background:linear-gradient(120deg,#0f2c54,#1f6feb);color:#fff;border-radius:16px;padding:24px 30px;margin-bottom:20px}
+header h1{margin:0 0 6px;font-size:22px}header p{margin:3px 0;opacity:.92;font-size:13px}
+h2{font-size:18px;margin:26px 0 10px;padding-left:12px;border-left:5px solid var(--blue)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:13px;padding:16px 18px;margin:10px 0;overflow:auto}
+table.t{border-collapse:collapse;width:100%;font-size:12.5px;margin:6px 0}
+table.t th,table.t td{border:1px solid var(--line);padding:5px 8px;text-align:right}
+table.t th{background:#f0f3f8;color:#0f2c54;position:sticky;top:0}
+table.t td:first-child,table.t th:first-child{text-align:left}
+.call{border-radius:11px;padding:11px 14px;font-size:13px;margin:10px 0}
+.c-a{background:#fff6e8;border:1px solid #f0d6a8}.c-g{background:#eafaf0;border:1px solid #bfe6cd}.c-r{background:#fdecec;border:1px solid #f3c0c0}
+code{background:#eef1f5;padding:1px 5px;border-radius:5px;font-size:12px}
+.legend{font-size:12px;color:var(--sub)}
+.footer{font-size:11.5px;color:var(--sub);border-top:1px solid var(--line);margin-top:28px;padding-top:12px}
+</style></head><body><div class="wrap">
+<header><h1>Phase 0 · 缩小版 PoC — 五因子 IC/IR 引擎演示</h1>
+<p>基本面因子效用工程化工作计划 · 用户选择"先跑缩小版 PoC"</p>
+<p>样本：15 只跨风格龙头　|　数据：NeoData（真实返回字段）　|　收益窗：2025-01 → 2026-08 月线次月收益</p></header>
+
+<h2>1. 方法论与边界（必读）</h2>
+<div class="card">
+<div class="call c-a"><b>⚠️ 这是"方法论演示"，不是 WS1 全样本实证。</b>
+<ul style="margin:6px 0;padding-left:20px">
+<li><b>样本小</b>：仅 15 只龙头，非全 A；月度 IC 观察点 ≈ 9 个，IR 统计意义有限。</li>
+<li><b>因子为"当前快照"</b>：ROE/EP/PE分位取最新已公告值，不是按月 PIT 时变因子。WS1 需 Tushare/妙想 提供历史财报时点。</li>
+<li><b>前瞻收益</b>：用月线次月收益（close[t+1]/close[t]-1）作为因子在 t 时刻的"前瞻收益"，截面 rank IC = Spearman(因子, 次月收益)。</li>
+<li><b>字段可用性</b>：ROE/EP/PE分位稳定返回；FCF/成长/股息率随调用波动（NeoData 结构不确定）。下方覆盖数见因子表。</li>
+</ul></div>
+<div class="call c-g"><b>✅ 本 PoC 证明</b>：IC/IR 引擎（rank_ic / rolling_ir / evaluate_factors）在真实数据上可运行，解析链路正确；一旦换上 TushareClient，<b>同一引擎零改动</b>即可升至 WS1 全样本（2010–2025，180+ 月，PIT 时变因子，牛熊拆分 + 2024-02 压力测试）。</div>
+</div>
+
+<h2>2. 因子截面（15 只龙头，真实值）</h2>
+<div class="card">
+<table class="dataframe t">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>ROE</th>
+      <th>EP</th>
+      <th>SUE_proxy</th>
+      <th>FCF_yield</th>
+      <th>DY</th>
+      <th>PE_pct</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>600519.SH</th>
+      <td>36.0200</td>
+      <td>0.0500</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>11.9107</td>
+    </tr>
+    <tr>
+      <th>000858.SZ</th>
+      <td>23.0035</td>
+      <td>0.0454</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>54.4251</td>
+    </tr>
+    <tr>
+      <th>601318.SH</th>
+      <td>13.0080</td>
+      <td>0.1600</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>0.2481</td>
+    </tr>
+    <tr>
+      <th>600036.SH</th>
+      <td>14.0049</td>
+      <td>0.1513</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>46.7328</td>
+    </tr>
+    <tr>
+      <th>000333.SZ</th>
+      <td>21.0029</td>
+      <td>0.0668</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>84.2845</td>
+    </tr>
+    <tr>
+      <th>002594.SZ</th>
+      <td>26.0500</td>
+      <td>0.0331</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>51.4475</td>
+    </tr>
+    <tr>
+      <th>600900.SH</th>
+      <td>15.0071</td>
+      <td>0.0523</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>22.8288</td>
+    </tr>
+    <tr>
+      <th>601012.SH</th>
+      <td>-13.0010</td>
+      <td>0.2000</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>38.7097</td>
+    </tr>
+    <tr>
+      <th>000001.SZ</th>
+      <td>10.0800</td>
+      <td>0.1931</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>57.2374</td>
+    </tr>
+    <tr>
+      <th>600276.SH</th>
+      <td>14.0073</td>
+      <td>0.0250</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>3.9702</td>
+    </tr>
+    <tr>
+      <th>603259.SH</th>
+      <td>16.0078</td>
+      <td>0.0451</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>53.4326</td>
+    </tr>
+    <tr>
+      <th>300750.SZ</th>
+      <td>24.0013</td>
+      <td>0.0488</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>21.8362</td>
+    </tr>
+    <tr>
+      <th>600030.SH</th>
+      <td>8.0900</td>
+      <td>0.0935</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>0.2481</td>
+    </tr>
+    <tr>
+      <th>000651.SZ</th>
+      <td>25.0042</td>
+      <td>0.1252</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>64.5988</td>
+    </tr>
+    <tr>
+      <th>601888.SH</th>
+      <td>7.0088</td>
+      <td>0.0374</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>17.8660</td>
+    </tr>
+  </tbody>
+</table>
+<p class="legend">各列非空计数 — ROE:15 / EP:15 / SUE_proxy:0 / FCF_yield:0 / DY:0 / PE_pct:15（共 15 只）。EP=1/PE；SUE_proxy=归母净利润同比(%)；FCF_yield=FCF/EV；DY=滚动股息率(%)。</p>
+</div>
+
+<h2>3. 逐月截面 rank IC（因子 × 月份）</h2>
+<div class="card">
+<table class="dataframe t">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>ROE</th>
+      <th>EP</th>
+      <th>SUE_proxy</th>
+      <th>FCF_yield</th>
+      <th>DY</th>
+    </tr>
+    <tr>
+      <th>month</th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>202412</th>
+      <td>-0.396</td>
+      <td>-0.182</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+    </tr>
+    <tr>
+      <th>202512</th>
+      <td>0.264</td>
+      <td>0.014</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+    </tr>
+    <tr>
+      <th>202601</th>
+      <td>0.114</td>
+      <td>0.243</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+    </tr>
+    <tr>
+      <th>202602</th>
+      <td>0.582</td>
+      <td>-0.114</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+    </tr>
+    <tr>
+      <th>202603</th>
+      <td>0.168</td>
+      <td>0.104</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+    </tr>
+    <tr>
+      <th>202604</th>
+      <td>0.343</td>
+      <td>0.114</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+    </tr>
+    <tr>
+      <th>202605</th>
+      <td>-0.229</td>
+      <td>0.150</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+    </tr>
+    <tr>
+      <th>202606</th>
+      <td>0.339</td>
+      <td>0.100</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+    </tr>
+    <tr>
+      <th>202607</th>
+      <td>-0.018</td>
+      <td>0.529</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+    </tr>
+  </tbody>
+</table>
+<p class="legend">每个单元格 = 该月截面内 Spearman(因子快照, 次月收益)。空白=该月可用股票&lt;5 只或因子缺失。</p>
+</div>
+
+<h2>4. IC / IR 聚合汇总</h2>
+<div class="card">
+<table class="dataframe t">
+  <thead>
+    <tr style="text-align: right;">
+      <th>factor</th>
+      <th>meanIC</th>
+      <th>IC_std</th>
+      <th>IR</th>
+      <th>n_obs</th>
+      <th>verdict</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>ROE</td>
+      <td>0.1298</td>
+      <td>0.3043</td>
+      <td>0.426</td>
+      <td>9</td>
+      <td>✅&gt;0.03</td>
+    </tr>
+    <tr>
+      <td>EP</td>
+      <td>0.1063</td>
+      <td>0.2059</td>
+      <td>0.516</td>
+      <td>9</td>
+      <td>✅&gt;0.03</td>
+    </tr>
+    <tr>
+      <td>SUE_proxy</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>0</td>
+      <td>⚠️样本不足</td>
+    </tr>
+    <tr>
+      <td>FCF_yield</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>0</td>
+      <td>⚠️样本不足</td>
+    </tr>
+    <tr>
+      <td>DY</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>0</td>
+      <td>⚠️样本不足</td>
+    </tr>
+    <tr>
+      <td>COMPOSITE(等权z)</td>
+      <td>0.1917</td>
+      <td>0.3384</td>
+      <td>0.566</td>
+      <td>9</td>
+      <td>✅预览 WS2 核心</td>
+    </tr>
+  </tbody>
+</table>
+<p class="legend">meanIC=各月 rank IC 均值；IC_std=标准差；IR=meanIC/IC_std；n_obs=有效月点数。判定阈值 |meanIC|&gt;0.03 为弱有效（小样本仅作方向参考）。COMPOSITE=可用因子等权 z-score 合成，预览 WS2 "核心"组合思路。</p>
+</div>
+
+<h2>5. 与既有结论的对照</h2>
+<div class="card">
+<div class="call c-r"><b>读图须知</b>：小样本 IC 可能正负交替、绝对值偏大（15 只股票截面噪声高），<b>不应直接外推为全市场效力</b>。本 PoC 价值在于"引擎跑通 + 流程可复现"，而非给出稳健的因子效力数字。</div>
+<div class="call c-g"><b>对照 v2 / 阶段2 论坛共识</b>：质量(ROE)与价值(EP)在长期有效但周期巨震；红利(股息率)2025 拥挤；FCF 是否为质量/红利进化版需 WS3 独立验证；这些命题的<b>定量裁决</b>仍须待 WS1 全样本（Tushare/妙想解锁后）。</div>
+</div>
+
+<h2>6. 下一步</h2>
+<div class="card">
+<ol style="margin:6px 0;padding-left:20px">
+<li><b>解锁批量数据源</b>（Tushare 或 妙想 MCP）→ 升 WS1 全样本。</li>
+<li>复用本 PoC 的 IC/IR 引擎，仅替换数据客户端（TushareClient 接口同 NeoDataClient）。</li>
+<li>WS2 多策略回测 / WS3 FCF 正交 / WS4 拥挤度熔断 顺序推进。</li>
+</ol>
+</div>
+
+<div class="footer">缩小版 PoC：用 NeoData 真实返回字段在 15 只龙头上跑通五因子 IC/IR 引擎，作为 WS1 全样本前的可行性验证。所有数值来自 NeoData 实时返回；方法论边界已明确标注。生成：2026-08-26 · 工作区：C:\Users\VMW\Documents\Workbuddy\phase0\</div>
+</div></body></html>

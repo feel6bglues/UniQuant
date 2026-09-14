@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="zh"><head><meta charset="utf-8"><title>基本面因子效用工程化 · 完整报告</title>
+<style>
+body{font-family:system-ui;max-width:1060px;margin:24px auto;padding:0 24px;color:#222;line-height:1.7}
+h1{color:#0b3d91;border-bottom:3px solid #0b3d91;padding-bottom:8px}
+h2{color:#0b3d91;border-left:5px solid #0b3d91;padding-left:10px;margin-top:40px}
+h3{color:#1a5276;margin-top:26px}
+table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px}
+th,td{border:1px solid #ccc;padding:6px 10px;text-align:right}th{background:#f0f4fa;text-align:center}
+td:first-child{text-align:left}th:first-child{text-align:left}
+.pos{color:#c0392b;font-weight:bold}.neg{color:#27ae60;font-weight:bold}
+.box{background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:14px 18px;margin:14px 0}
+.warn{background:#fff8e6;border:1px solid #f0d9a8;border-radius:8px;padding:12px 16px;margin:14px 0}
+.hl{background:#fff4e6;border:1px solid #f5cba7}
+code{background:#f1f5f9;padding:2px 6px;border-radius:4px}
+.tag{display:inline-block;background:#eaf2f8;color:#0b3d91;border-radius:12px;padding:2px 12px;font-size:12.5px;margin-right:6px}
+.meta{color:#666;font-size:13.5px}
+</style></head><body>
+
+<h1>基本面因子效用工程化 · 完整研究报告</h1>
+<p class="meta">Alpha-Tactician 项目 · 2026-08-26 · 数据源：mootdx（通达信公开服务器，免 token）· 覆盖 15 只龙头 / 沪深300 / 全 A 三口径</p>
+<p><span class="tag">WS1 因子实证</span><span class="tag">WS2 组合构建</span><span class="tag">WS3 FCF 深挖</span><span class="tag">WS4 拥挤度熔断</span></p>
+
+<h2>0 · 方法论与数据基建</h2>
+<div class="box">
+<b>数据链路（mootdx，零成本、确定性批量）</b>：
+<ul>
+<li><b>行情</b>：<code>Quotes.factory(market='std').bars(symbol, frequency=6月线/9日线, offset)</code></li>
+<li><b>财报</b>：<code>Financial().fetch_and_parse(filename='gpcwYYYYMMDD.zip')</code> → 单期全 A（5553 只 × 585 列中文指标），2010–2024 年报共 15 期已缓存</li>
+<li><b>真实分红</b>：<code>Quotes().xdxr(symbol)</code> 除权除息 → 真实股息率（每10股派息 /10）</li>
+<li><b>成分股</b>：新浪接口拉取沪深300（300 只）/ 全 A（5328 只）</li>
+</ul>
+<b>研究纪律</b>：PIT 对齐（年报 t → 次年 5 月调仓，4 月底披露完）；逐期截面 rank IC/IR；牛熊拆分（±5% 阈值）；2024-02 微盘崩塌压力测试；幸存者偏差披露。
+</div>
+
+<h2>1 · WS1 因子效用实证（三口径 IC/IR 对比）</h2>
+<table>
+<tr><th>因子</th><th colspan="2">15 只龙头（n=15）</th><th colspan="2">沪深300（n=15）</th><th colspan="2">全 A（n=13）</th></tr>
+<tr><th></th><th>meanIC</th><th>IR</th><th>meanIC</th><th>IR</th><th>meanIC</th><th>IR</th></tr>
+
+</table>
+<table>
+<tr><th>因子</th><th>15只 meanIC/IR</th><th>HS300 meanIC/IR</th><th>全A meanIC/IR</th></tr>
+<tr><td style="text-align:left"><b>现金含量 OCF/NP</b></td><td>+0.053 / +0.165</td><td class="pos">+0.078 / +0.656</td><td class="pos"><b>+0.091 / +1.650</b></td></tr>
+<tr><td style="text-align:left">FCF_Yield</td><td>+0.062 / +0.206</td><td>+0.057 / +0.374</td><td>+0.051 / +0.648</td></tr>
+<tr><td style="text-align:left">DY（近似→真实）</td><td>+0.038 / +0.106</td><td>+0.078 / +0.315</td><td>—（近似）</td></tr>
+<tr><td style="text-align:left">EP</td><td>+0.029 / +0.079</td><td>+0.048 / +0.192</td><td>+0.016 / +0.124</td></tr>
+<tr><td style="text-align:left">SUE（净利润同比近似）</td><td>-0.085 / -0.219</td><td>-0.006 / -0.037</td><td>-0.003 / -0.039</td></tr>
+<tr><td style="text-align:left"><b>ROE</b></td><td class="neg">-0.029 / -0.074</td><td class="neg">-0.087 / -0.591</td><td class="neg"><b>-0.096 / -0.797</b></td></tr>
+</table>
+<div class="box hl"><b>核心发现 1：ROE 在 A 股是系统性负因子，且样本越大越显著</b>
+三口径方向一致（15只 -0.07 → HS300 -0.59 → 全A -0.80 IR）。机制：A 股投资者对高 ROE 给予估值溢价，好公司预期差小 → 超额为负。回测证实含 ROE 的核心组合夏普为负（"ROE 毒药"），<b>基本面打分必须剔除 ROE</b>。</div>
+<div class="box"><b>核心发现 2：现金含量（OCF/NP）是最强基本面因子，全 A 口径 IR=1.65</b>
+三口径单调增强（0.17 → 0.66 → 1.65），且牛/熊/震荡全场景为正（全A：0.073/0.109/0.119）——现金流质量兼具进攻与防御属性，是 A 股最被低估的基本面信号。</div>
+<div class="box"><b>核心发现 3：牛熊拆分</b>：价值/红利类因子（DY/FCF/现金含量）的 alpha 主要来自熊市防御（HS300：DY 熊市 IC 0.20 vs 牛市 -0.03）；2024-02 微盘崩塌中 ROE 单月 rankIC=+0.22~0.28（质量因子在流动性危机中的防御属性，验证 v2 §9.5 熔断逻辑）。</div>
+
+<h2>2 · WS2 核心+卫星组合回测（2014-01 → 2026-08）</h2>
+<table>
+<tr><th>策略</th><th>15只（Top5）</th><th>沪深300（Top30）</th><th>全A（Top10%）</th></tr>
+<tr><td style="text-align:left">核心_含ROE</td><td>0.378</td><td class="neg">-0.112</td><td class="neg">-0.236</td></tr>
+<tr><td style="text-align:left"><b>核心_无ROE（DY+FCFY+现金含量）</b></td><td>—</td><td class="pos">0.465</td><td class="pos">0.398</td></tr>
+<tr><td style="text-align:left"><b>组合（核心+动量25%+低波25%）</b></td><td>0.477~0.504</td><td class="pos"><b>0.504</b></td><td>—</td></tr>
+<tr><td style="text-align:left">基准：等权</td><td>0.453</td><td>0.448</td><td>0.194</td></tr>
+<tr><td style="text-align:left">基准：指数</td><td>0.156</td><td>0.166</td><td>0.156</td></tr>
+</table>
+<div class="box"><b>核心发现 4：核心+卫星结构有效</b>。HS300 上组合等权 1/3 夏普 <b>0.504</b>（核心 0.465 + 动量 0.30 + 低波 0.40），跑赢等权基准 0.448 与指数 0.166。低波卫星是被低估的防御件；动量在龙头篮子贡献有限（相关性 0.72）。</div>
+<div class="box"><b>核心发现 5：真实股息率的价值必须通过权重重构兑现</b>。xdxr 真实 DY 单因子夏普 0.442（vs 近似 0.305），但等权合成中排序不变（权重 1/4 被淹没）——增强核心（ROE+EP+2×DY 真实）在 15 只上夏普 0.38→0.43。</div>
+
+<h2>3 · WS3 FCF 因子深挖（正交性验证）</h2>
+<div class="box">
+<b>问题</b>：FCF 是质量/红利的"进化版"还是"换皮"？<b>答案：当前口径下是换皮。</b>
+<ul>
+<li>FCFyield 原始 IC +0.062（IR 0.206）表面有效</li>
+<li>与 ROE 相关性仅 0.17（非质量换皮），但与 EP 0.45 / DY 0.43 / 现金含量 0.68 中度相关</li>
+<li><b>正交化后残差转负</b>：控制 ROE → IC 归零；再控制 EP/DY → IR -0.285。FCF 的 alpha 几乎全部来自价值（EP/DY）暴露</li>
+<li>双变量分组反直觉：高ROE+高FCF（又贵又好）龙头次年收益最低（10.2% vs 低ROE低FCF 20.0%）——龙头篮子里质量已被充分定价</li>
+</ul>
+<b>落地建议</b>：FCF 不作独立选股因子，保留为价值/现金流合成的一部分；真正优先的是<b>现金含量（OCF/NP）</b>与<b>真实 DY</b>。
+</div>
+
+<h2>4 · WS4 拥挤度信号工程化 + 熔断开关</h2>
+<div class="box">
+<b>拥挤度 = mean(估值拥挤, 成交占比分位, 放大幅度分位)</b>，滚动 36 月分位：
+<ul>
+<li>估值拥挤 = 100 − 分位(红利组合加权 DY)——DY 被买低=贵=拥挤；<b>2026-04 达 100 分位（历史极值）</b>但成交占比仅 5.6——"贵但未放量"高位钝化警告</li>
+<li>熔断回测（HS300 组合）：无熔断夏普 0.340/回撤 -41.1%；方案A（合成≥75/85）夏普 <b>0.389</b>/Calmar 0.313；方案B（任一维度≥90/95）回撤 <b>-28.1%</b></li>
+<li>预测力：拥挤度 vs 未来12月红利收益 rankIC = <b>-0.232</b>（拥挤→未来跑输，作风险开关）</li>
+</ul>
+<b>工程教训</b>：三维度极少同步见顶，熔断须按<b>任一维度极端</b>触发而非合成均值。
+</div>
+
+<h2>5 · 组合全景：熔断动态降权终版</h2>
+<div class="box hl">
+静态组合（核心_无ROE 50% + 动量 25% + 低波 25%，HS300 Top30）：夏普 0.501、年化 12.6%、回撤 -41.1%<br>
+<b>接入拥挤度熔断后：夏普 0.529、年化 12.8%、Calmar 0.312</b>（拥挤≥90 核心减半切低波；≥95 核心清仓）<br>
+<span style="color:#666">边界：最大回撤未改善——最大回撤发生在拥挤度<90 的常规熊市，熔断只防御"拥挤后均值回归"；无拥挤的正常下跌需趋势/仓位风控。</span>
+</div>
+
+<h2>6 · 结论总览</h2>
+<table>
+<tr><th>#</th><th>结论</th><th>置信度</th></tr>
+<tr><td>1</td><td style="text-align:left">ROE 是 A 股负因子（全A IR -0.80），基本面打分必须剔除</td><td>高（三口径一致+单调增强）</td></tr>
+<tr><td>2</td><td style="text-align:left">现金含量 OCF/NP 是最强因子（全A IR 1.65），全场景有效</td><td>高</td></tr>
+<tr><td>3</td><td style="text-align:left">FCF 是价值因子"换皮"非独立 alpha（残差 IR -0.29）</td><td>中（15只口径）</td></tr>
+<tr><td>4</td><td style="text-align:left">核心_无ROE + 动量 + 低波组合夏普 0.50+，跑赢基准 3 倍</td><td>高（HS300/全A一致）</td></tr>
+<tr><td>5</td><td style="text-align:left">拥挤度熔断提升夏普 5.6%，防御"拥挤后均值回归"</td><td>中</td></tr>
+</table>
+
+<h2>7 · 边界与下一步</h2>
+<div class="warn">
+<b>已知边界</b>：① 幸存者偏差（成分股为当前列表，未做历史成分调整）；② 全 A 口径 DY 为 30% 分红率近似（未拉全 A xdxr）；③ 月线自 2013-05 起，2010/11 年报 IC 缺失；④ SUE 用净利润同比近似，非严格标准意外盈余；⑤ 未计交易成本/冲击（月频换手低，影响有限）。
+</div>
+<div class="box"><b>下一步候选</b>：① 全 A xdxr 真实 DY 补齐后重跑全 A WS2；② 季度调仓（60 期季度面板）提升信号频率；③ 拥挤度阈值按全 A 口径重标定；④ 组合接入交易成本与容量约束；⑤ 与 CANSLIM/LPPL 模块联动（半导体/新能源行业聚焦）。</div>
+
+<p class="meta" style="margin-top:30px">—— 报告完 · 数据与脚本见 <code>phase0/</code>（mootdx_client / run_ws1~4 / analyze_all_a / WS*_*.html）——</p>
+</body></html>

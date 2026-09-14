@@ -465,6 +465,74 @@ def compute_accruals(df: pd.DataFrame, **kwargs) -> pd.Series:
             - df["ocf_ttm"].astype(float)) / assets
 
 
+# ─── P14 现金流价值裁决因子族 (2026-08-28) ──────────────────────────────
+# 外部研究 (docs/workbuddy/互联网金工量化_全链路汇总报告_2026-08-28.md) 主张:
+#   现金含量 OCF/NP 为全A 最强基本面因子 (IR 1.650)、FCF_Yield 0.648、
+#   真实 DY 0.315; 但其结论未过动量残差门 → 本案用五门框架裁决。
+# 数据: ocf_ttm/capex_ttm 由 bridge 双口径 TTM 提供; dividend 由
+#   scripts/factor_mining/fetch_dividend_data.py 拉取 (data/lake/dividend)。
+# 缺列全 NaN (先例安全, 沿用 P11 惯例)。
+
+
+def compute_cash_ratio(df: pd.DataFrame, **kwargs) -> pd.Series:
+    """
+    现金含量因子 = OCF_TTM / 归母净利_TTM
+
+    外部主张 (待裁决):
+    - 外部研究: 全A IR +1.650, 三口径 (龙头/HS300/全A) 全场景为正, "最被低估信号"
+    - 金融学: 盈利质量 — 利润中现金流含量高者, 盈余管理少、盈利可持续
+    - 对立假设 (本项目 P11 规律): 该比值可能只是动量/反转 beta,
+      控 mom20 后残差 IC 或翻负 → 双向裁决, 不预设通过
+    - IC 预期: 正值 (高现金含量 → 高未来收益)
+    - ⚠️ 选择性披露: require_positive_denom=True (净利>0 才定义) →
+      亏损股整批排除, 截面覆盖需披露 (红队 R3)
+    """
+    return _fundamental_ratio(df, ["ocf_ttm"], "net_profit_parent_ttm",
+                              require_positive_denom=True)
+
+
+def compute_fcf_yield(df: pd.DataFrame, **kwargs) -> pd.Series:
+    """
+    FCF 收益率因子 = (OCF_TTM − CAPEX_TTM) / 市值
+
+    外部主张 (待裁决):
+    - 外部研究: FCF_Yield 全A IR +0.648; 但正交化 (控 EP/DY) 后残差 IR −0.285
+      → 外部自认"价值因子换皮"; 本案进一步控动量裁决
+    - 金融学: 自由现金流 yield 是质量/价值的复合度量 (Damodaran)
+    - 对立假设: 与 P11 cfp_ttm (OCF_PS/close) 仅差 CAPEX 项 → 冗余预检先行
+      (T5: 截面 spearman>0.9 则宣告非独立增量)
+    - IC 预期: 正值 (高 FCF yield → 高未来收益)
+    """
+    if not {"ocf_ttm", "capex_ttm", "total_shares", "close"} <= set(df.columns):
+        return pd.Series(index=df.index, dtype=float)
+    mcap = (
+        df["close"].astype(float) * df["total_shares"].astype(float).where(
+            lambda x: x > 0
+        )
+    ).replace(0, np.nan)
+    fcf = df["ocf_ttm"].astype(float) - df["capex_ttm"].astype(float).fillna(0)
+    return fcf / mcap
+
+
+def compute_real_dy(df: pd.DataFrame, **kwargs) -> pd.Series:
+    """
+    真实股息率因子 = 年度每股现金分红 / 收盘价
+
+    外部主张 (待裁决):
+    - 外部研究: 真实 DY 全A 年频夏普 0.312 (vs 近似 DY 0.398 = EP 代理幻觉);
+      "全A 必须用真实 DY"
+    - 金融学: 股息率价值信号 (Gordon); 真实分红不可伪造
+    - 数据: data/lake/dividend/{code}.parquet 拉取的年度 dps 合计,
+      由脚本侧合并为 dividend_yoy 列并入日线主表 (见 run_cash_fcf_dy_test.py)
+    - 对立假设: 高 DY 股=低成长/成熟大盘, 可能只是市值/动量 beta
+    - IC 预期: 正值 (高真实 DY → 高未来收益)
+    """
+    if "dividend_dps_ttm" not in df.columns:
+        return pd.Series(index=df.index, dtype=float)
+    close = df["close"].astype(float).replace(0, np.nan)
+    return df["dividend_dps_ttm"].astype(float) / close
+
+
 def compute_turnover_20d(df: pd.DataFrame, **kwargs) -> pd.Series:
     """
     20 日平均换手率因子 = mean(volume / 自由流通股, 20d)
@@ -836,6 +904,31 @@ def register_all() -> None:
         category="fundamental",
         default_weight=1.0,
         description="20d平均换手率 | volume/自由流通股, 换手率异象做空高换手 (Datar 1998)"
+    )
+
+    # ─── P14 现金流价值裁决因子族注册 (2026-08-28) ───────────────────────
+    # 预注册: docs/analysis/P14_CASH_FCF_DY_PREREGISTRATION.md
+    # 外部研究候选 (docs/workbuddy/), 经本项目五门框架裁决; 缺列全 NaN 先例安全
+    FactorRegistry.register(
+        name="cash_ratio",
+        compute_func=compute_cash_ratio,
+        category="fundamental",
+        default_weight=1.0,
+        description="现金含量 | ocf_ttm/归母净利_ttm(净利>0), 外部IR1.65候选待裁决"
+    )
+    FactorRegistry.register(
+        name="fcf_yield",
+        compute_func=compute_fcf_yield,
+        category="fundamental",
+        default_weight=1.0,
+        description="FCF收益率 | (ocf_ttm-capex_ttm)/市值, 外部候选待裁决 (冗余预检T5)"
+    )
+    FactorRegistry.register(
+        name="real_dy",
+        compute_func=compute_real_dy,
+        category="fundamental",
+        default_weight=1.0,
+        description="真实股息率 | 年度每股分红/close (data/lake/dividend), 外部候选待裁决"
     )
 
     # ─── P12 尾部风险因子族注册 (2026-08-26) ──────────────────────────────

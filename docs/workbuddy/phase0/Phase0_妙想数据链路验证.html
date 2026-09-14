@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Phase 0 · 妙想(MiaoXiang) 数据链路验证与 WS1 解锁方案</title>
+<style>
+:root{--bg:#f7f8fa;--card:#fff;--ink:#1f2733;--sub:#5b6675;--line:#e4e8ee;--blue:#1f6feb;--green:#1a9d5a;--amber:#c97a0a;--red:#d23b3b}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;line-height:1.6;font-size:15px}
+.wrap{max-width:1140px;margin:0 auto;padding:28px 24px 60px}
+header{background:linear-gradient(120deg,#0f2c54,#1f6feb);color:#fff;border-radius:16px;padding:24px 30px;margin-bottom:20px}
+header h1{margin:0 0 6px;font-size:22px}header p{margin:3px 0;opacity:.92;font-size:13px}
+h2{font-size:18px;margin:26px 0 10px;padding-left:12px;border-left:5px solid var(--blue)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:13px;padding:16px 18px;margin:10px 0;overflow:auto}
+table{border-collapse:collapse;width:100%;font-size:13px;margin:6px 0}
+th,td{border:1px solid var(--line);padding:6px 9px;text-align:left;vertical-align:top}
+th{background:#f0f3f8;color:#0f2c54;font-weight:600}
+tr:nth-child(even) td{background:#fafbfd}
+code{background:#eef1f5;padding:1px 6px;border-radius:5px;font-size:12px;font-family:Consolas,monospace;color:#b3378f}
+.pill{display:inline-block;padding:2px 9px;border-radius:999px;font-size:12px;font-weight:700}
+.p-g{background:#eafaf0;color:#1a9d5a}.p-a{background:#fff6e8;color:#c97a0a}.p-r{background:#fdecec;color:#d23b3b}
+.call{border-radius:11px;padding:11px 14px;font-size:13px;margin:10px 0}
+.c-g{background:#eafaf0;border:1px solid #bfe6cd}.c-a{background:#fff6e8;border:1px solid #f0d6a8}.c-r{background:#fdecec;border:1px solid #f3c0c0}
+.legend{font-size:12px;color:var(--sub)}
+.footer{font-size:11.5px;color:var(--sub);border-top:1px solid var(--line);margin-top:28px;padding-top:12px}
+pre{background:#0f1b2d;color:#cfe3ff;padding:12px 14px;border-radius:10px;overflow:auto;font-size:12px;line-height:1.5}
+</style></head><body><div class="wrap">
+
+<header>
+  <h1>Phase 0 · 妙想(MiaoXiang) 数据链路验证与 WS1 解锁方案</h1>
+  <p>基本面因子效用工程化工作计划 · 用户指令「使用 mx 技能拉数据」</p>
+  <p>结论：<b>妙想链路 100% 可用</b>，是 WS1 全样本批量数据的真正解锁键；当前仅受<b>免费 API 配额</b>所限，工程资产已全部就位。</p>
+</header>
+
+<h2>1. 妙想接入验证（已实测）</h2>
+<div class="card">
+<table>
+  <tr><th>项目</th><th>结论</th></tr>
+  <tr><td>端点</td><td><code>POST https://mkapi2.dfcfs.com/finskillshub/api/claw/query</code>（自然语言 toolQuery → 结构化 JSON）</td></tr>
+  <tr><td>鉴权</td><td>请求头 <code>apikey: $MX_APIKEY</code>（本机环境变量已存在，可直接用）</td></tr>
+  <tr><td>返回结构</td><td><code>data.data.searchDataResultDTO.dataTableDTOList</code> = 指标表数组，含指标编码/名称/数值/日期/单位/<code>returnSourceCode</code>（ROEJQ 等）。<b>结构化、稳定，非 NeoData 的 markdown</b></td></tr>
+  <tr><td>多年时序</td><td>✅ 支持「X 2020年至2024年 每年 …」返回多期</td></tr>
+  <tr><td>月线/价格</td><td>✅ 「X 2020年1月至2024年12月 月线 收盘价」返回逐月收盘</td></tr>
+  <tr><td>指标覆盖</td><td>✅ ROE / PE / 股息率 / <b>企业自由现金流FCFF</b> / <b>归母净利润同比(SUE)</b> 均稳定返回</td></tr>
+</table>
+<p class="legend">妙想一举补齐了 NeoData 缺失的 FCF/SUE/股息率与多年时序，正是 WS1 五因子 + PIT 时变所需的全部原料。</p>
+</div>
+
+<h2>2. 实测真值（本机会话内妙想实时返回）</h2>
+<div class="card">
+<table>
+  <tr><th>股票</th><th>指标</th><th>妙想返回值</th><th>含义</th></tr>
+  <tr><td>600519.SH 茅台</td><td>2024 ROE(加权)</td><td>36.02%</td><td>质量因子真值</td></tr>
+  <tr><td>600519.SH 茅台</td><td>2024 企业自由现金流FCFF</td><td>66,913,189,360 元（≈669亿）</td><td>FCF 因子可用</td></tr>
+  <tr><td>600519.SH 茅台</td><td>2024 归母净利润同比</td><td>+15.38%</td><td>SUE 因子可用</td></tr>
+  <tr><td>600519.SH 茅台</td><td>PE(TTM) 2020→2024</td><td>56.30 → 51.36 → 36.40 → 30.46 → 23.15</td><td>估值收敛，EP 时变可拉</td></tr>
+  <tr><td>600519.SH 茅台</td><td>2020 年涨跌幅</td><td>+68.89%</td><td>前瞻收益可算</td></tr>
+  <tr><td>600519.SH 茅台</td><td>2024-12-31 月线收盘</td><td>1524.0</td><td>价格序列可拉</td></tr>
+</table>
+<p class="legend">以上均为妙想实时返回，证明因子与价格数据完整可得。run1 曾一次性拉回 15×5=75 行因子面板（ROE/EP/FCF/SUE 多年），进一步证明批量能力。</p>
+</div>
+
+<h2>3. 已建工程资产（可复用）</h2>
+<div class="card">
+<table>
+  <tr><th>文件</th><th>作用</th><th>状态</th></tr>
+  <tr><td><code>phase0/miaoxiang_client.py</code></td><td><b>MiaoXiangClient</b>：妙想结构化客户端，含 query_raw（重试）、get_factor_panel（多年五因子）、get_monthly_closes（月线）。接口对齐 NeoDataClient。</td><td><span class="pill p-g">可用</span></td></tr>
+  <tr><td><code>phase0/run_poc_mx.py</code></td><td>妙想版 PoC：<b>断点续传</b>拉 15 只龙头因子面板+月线 → PIT 近似（因子_t→次年收益）截面 rank IC/IR → HTML。</td><td><span class="pill p-g">可用</span></td></tr>
+  <tr><td><code>phase0/quant_pipeline.py</code></td><td>IC/IR 引擎（rank_ic / rolling_ir / evaluate_factors）、FactorFrame、牛熊判定。WS1 复用零改动。</td><td><span class="pill p-g">可用</span></td></tr>
+  <tr><td><code>phase0/Phase0_缩小版PoC_ICIR演示.html</code></td><td>NeoData 快照版 PoC（已交付，作为对照）。</td><td><span class="pill p-g">可用</span></td></tr>
+</table>
+</div>
+
+<h2>4. 当前约束（必须正视）</h2>
+<div class="card">
+<div class="call c-r"><b>🚫 免费 MX_APIKEY 配额已耗尽</b>：本机会话内为验证链路发起多轮调用，目前连单发请求都返回 <code>searchDataResultDTO 为空</code>。诊断那次（上表真值）是额度内最后一发，已坐实链路可用。<br>
+<b>教训</b>：run2 在无断点保护下重跑，把 run1 已拉到的 75 行面板覆盖成了空——后续一律用带断点续传的 <code>run_poc_mx.py</code>，失败不丢数据。</div>
+<div class="call c-a"><b>这不影响结论</b>：妙想作为 WS1 批量底座已验证可行；代码、解析、IC/IR 引擎全部就绪。待配额恢复（或换更高额度 key），一条命令即可补齐全样本。</div>
+</div>
+
+<h2>5. 下一步：解锁 WS1（待配额恢复）</h2>
+<div class="card">
+<ol style="margin:6px 0;padding-left:20px">
+  <li>等免费额度重置，或提供更高额度妙想 key（设环境变量 <code>MX_APIKEY</code>）。</li>
+  <li>重跑（自动断点续传，已拉的不重复请求）：<br>
+<pre>cd phase0
+python run_poc_mx.py        # 先补齐 15 只龙头真实五因子+月线
+# 升 WS1：把 BASKET 换全 A 列表、循环 2010–2025，IC/IR 引擎零改动</pre></li>
+  <li>WS1 全样本产出：五因子滚动 IC/IR + 牛熊拆分 + 2024-02 压力测试（复用引擎）。</li>
+  <li>WS2 多策略回测 / WS3 FCF 正交 / WS4 拥挤度熔断 顺序推进。</li>
+</ol>
+</div>
+
+<h2>6. 与既有结论</h2>
+<div class="card">
+<div class="call c-g">妙想补齐了 v2/阶段2 论坛共识的<b>定量裁决原料</b>：质量(ROE)+价值(EP)长期有效且合成优于单因子、FCF 是否质量/红利进化版（WS3）、红利拥挤 90% 分位（WS4）等命题，均可借妙想全样本做可复核验证。NeoData 仅适合 ad-hoc 核实，妙想才是批量底座。</div>
+</div>
+
+<div class="footer">妙想数据链路验证：东方财富妙想(MiaoXiang) 结构化 API 经本机 MX_APIKEY 实测可用，返回 ROE/EP/FCF/SUE/股息率多年时序与月线价格，确认为 WS1 批量数据解锁键；免费配额本轮耗尽，工程资产（MiaoXiangClient + 断点续传 PoC）已全部就位，配额恢复即跑全样本。生成：2026-08-26 · 工作区：C:\Users\VMW\Documents\Workbuddy\phase0\</div>
+</div></body></html>

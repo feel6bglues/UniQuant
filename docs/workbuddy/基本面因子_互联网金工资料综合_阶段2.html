@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>基本面量化因子 · 互联网金工资料综合（阶段2）</title>
+<style>
+  :root{
+    --bg:#f5f7fa; --card:#fff; --ink:#1f2a37; --muted:#5b6573; --line:#e3e8ef;
+    --brand:#1f5fd6; --brand2:#0f8a6a; --warn:#c0392b; --amber:#c77d1a;
+    --shadow:0 1px 3px rgba(16,24,40,.06),0 8px 24px rgba(16,24,40,.05);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;line-height:1.7;font-size:15px}
+  .wrap{max-width:1160px;margin:0 auto;padding:0 20px 80px}
+  header.hero{background:linear-gradient(135deg,#0f5f52,#0a3d6b);color:#fff;padding:40px 20px 32px;margin-bottom:24px}
+  header.hero .inner{max-width:1160px;margin:0 auto}
+  header.hero h1{margin:0 0 6px;font-size:24px}
+  header.hero p{margin:3px 0;opacity:.92;font-size:13.5px}
+  .badges{margin-top:12px}
+  .badge{display:inline-block;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.28);padding:4px 11px;border-radius:999px;font-size:12px;margin:3px 5px 3px 0}
+  section{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:24px 26px;margin:18px 0;box-shadow:var(--shadow)}
+  h2{font-size:20px;margin:0 0 6px;display:flex;align-items:center;gap:10px}
+  h2 .num{width:30px;height:30px;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;font-size:15px;flex:0 0 auto;color:#fff;background:var(--brand2)}
+  h3{font-size:16px;margin:18px 0 6px}
+  p{margin:9px 0}
+  .lead{color:var(--muted);font-size:13.5px}
+  table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.3px}
+  th,td{border:1px solid var(--line);padding:9px 11px;text-align:left;vertical-align:top}
+  th{background:#eef6f3;color:#14402f;font-weight:600}
+  tbody tr:nth-child(even){background:#fafcfb}
+  .tag{display:inline-block;font-size:11.5px;padding:1px 7px;border-radius:6px;margin:1px 2px}
+  .tag.ok{background:#e8f5ef;color:var(--brand2)} .tag.r{background:#fdecea;color:var(--warn)}
+  .tag.o{background:#fdf2e0;color:var(--amber)} .tag.b{background:#eaf1fd;color:var(--brand)} .tag.g{background:#f3f0fb;color:#6b46c1}
+  .src{font-size:12px;color:var(--muted);border-left:3px solid var(--brand2);padding:2px 0 2px 10px;margin:6px 0;background:#f6faf8}
+  .note{background:#fff8ec;border:1px solid #f3e2bf;border-radius:10px;padding:12px 14px;margin:12px 0;font-size:13.5px}
+  .warnbox{background:#fdecea;border:1px solid #f3c4bd;border-radius:10px;padding:12px 16px;margin:12px 0;font-size:13.5px}
+  .newbox{background:#eef7f2;border:1px solid #bfe6d6;border-left:5px solid var(--brand2);border-radius:10px;padding:13px 16px;margin:14px 0}
+  .callout{background:#eaf1fd;border-radius:10px;padding:12px 16px;margin:14px 0;font-size:14px;border-left:4px solid var(--brand)}
+  .legend{font-size:12px;color:var(--muted);margin-top:6px}
+  .tl{position:relative;padding-left:22px}
+  .tl:before{content:"";position:absolute;left:6px;top:4px;bottom:4px;width:2px;background:var(--brand2)}
+  .tl-item{position:relative;margin:10px 0;padding:8px 12px;background:#f4faf8;border-radius:8px;border:1px solid #d6ece4}
+  .tl-item:before{content:"";position:absolute;left:-19px;top:14px;width:10px;height:10px;border-radius:50%;background:var(--brand2);border:2px solid #fff}
+  .tl-year{font-weight:700;color:var(--brand2)}
+  ul.tight{margin:8px 0;padding-left:20px} ul.tight li{margin:5px 0}
+  .disc{background:#fbf3f2;border:1px solid #eccdc9;border-radius:12px;padding:14px 18px;margin:24px 0;font-size:12.8px;color:#7a3b34}
+  footer{color:var(--muted);font-size:12.5px;text-align:center;margin-top:26px;line-height:1.8}
+  .mini{font-size:12px;color:var(--muted)}
+</style>
+</head>
+<body>
+<header class="hero">
+  <div class="inner">
+    <h1>基本面量化因子 · 互联网金工资料综合 <span class="badge" style="background:#ffd54a;color:#5a3e00">阶段2</span></h1>
+    <p>基于 v2 报告 + 阶段1（引用核实与因子提取）｜ 研究日期：2026-08-26</p>
+    <p>本阶段：大规模收集国内金工/量化论坛与社区资料（2021–2026），汇总后与学术/券商研报交叉综合，聚焦基本面因子的<b>用途与效用演化</b>。</p>
+    <div class="badges"><span class="badge">论坛资料</span><span class="badge">2021–2026</span><span class="badge">效用演化</span><span class="badge">交叉印证</span></div>
+  </div>
+</header>
+<div class="wrap">
+
+<!-- 资料地图 -->
+<section>
+  <h2><span class="num">1</span>资料来源地图（本阶段收集覆盖）</h2>
+  <p class="lead">说明：本阶段以"论坛/社区 + 机构金工公开文"为主，弥补阶段1中"国内券商研报引用模糊、无法精确定位"的缺口。以下来源均可公开访问，观点代表市场一线从业者与散户量化作者的实战观察。</p>
+  <table>
+    <thead><tr><th>类型</th><th>来源</th><th>覆盖时段</th><th>代表性内容</th></tr></thead>
+    <tbody>
+      <tr><td>量化平台社区</td><td>聚宽 JoinQuant 社区</td><td>2024</td><td>【2024A股因子分析】大类因子收益统计：低波/低股价/价值居前，成长/规模落后</td></tr>
+      <tr><td>投资社区</td><td>雪球（xueqiu）</td><td>2024–2026</td><td>三因子价值组合实盘、六因子实战有效性重排、红利低波拥挤与轮动讨论</td></tr>
+      <tr><td>内容聚合</td><td>今日头条 / 腾讯新闻 / 东方财富财富号</td><td>2024–2025</td><td>红利低波"持有一年没赚钱"复盘、鹏扬500质量超额归因、质量因子科普</td></tr>
+      <tr><td>技术社区</td><td>CSDN 量化交易与投资社区</td><td>2024H2–2025H1</td><td>A股量化因子策略展望：基本面→价量转变、2025Q1成长强/质量稳健</td></tr>
+      <tr><td>券商金工（公开）</td><td>国金 / 国盛 / 东北 / 国泰海通 / 华证 / 华泰</td><td>2021–2025</td><td>自由现金流因子指增、增强ETF、质量因子构建、2025选股复盘、价值策略优化</td></tr>
+      <tr><td>知识/百科</td><td>长桥证券、百度百科（质量风格）、叩富/新浪因子哲学</td><td>—</td><td>A股主要因子共识总结、质量风格定义(2025华证新质量)、因子衰减预警</td></tr>
+    </tbody>
+  </table>
+  <div class="note"><b>方法学提示：</b>论坛/社区资料以<b>个体经验、局部回测、观点性结论</b>为主，样本期与数据口径参差，不能等同学术论文的严谨性；但海量一线观点叠加后形成的<b>"市场共识/争议边界"</b>，恰是阶段1学术结论最好的现实校验场。</div>
+</section>
+
+<!-- 效用演化时间线 -->
+<section>
+  <h2><span class="num">2</span>基本面因子效用演化时间线（2021–2026）</h2>
+  <p class="lead">将收集资料按年份梳理，呈现价值/质量/成长/红利/低波五类基本面相关因子的"有用→失效→回归→轮动"轨迹。</p>
+  <div class="tl">
+    <div class="tl-item"><span class="tl-year">2021</span> ｜ <b>基本面因子集体大回撤</b><br>
+      价值策略有效性下滑（华泰：重估收益由正转负）；质量因子最大绝对回撤达 <span class="tag r">40%</span>、相对回撤逾20%（世诚投资）；盈利因子多头月均收益骤降至 0.02%（2017–20为1.05%）；SUE 多空收益降近一半（1.42%→0.76%）；市场"锚"从基本面切到估值，成长/小盘占优。</div>
+    <div class="tl-item"><span class="tl-year">2022–2023</span> ｜ <b>避险驱动低估值/红利抬头</b><br>
+      质量因子持续弱；低估值、红利、央国企逐步占优（防御需求上升，利率下行）。此阶段价值/红利开始修复，但质量仍未回归。</div>
+    <div class="tl-item"><span class="tl-year">2024</span> ｜ <b>红利/低波/价值赢家，质量年内边际回归</b><br>
+      聚宽：【2024因子分析】低股价、低波动、<b>价值居前三</b>，成长/规模落寞；发现报告周报：年内价值/大市值/动量/质量/红利正、成长负；<b>鹏扬500质量超额一骑绝尘</b>——盈利因子+13.9%、杠杆+14.1%、成长+12%（盈利/杠杆经历3年回撤后强势回归）；华证发布新版质量因子（RankIC>3%，大盘/中盘 RankIC 5.48%/4.58%）。</div>
+    <div class="tl-item"><span class="tl-year">2025</span> ｜ <b>风格反转：小盘/成长/质量爆发，红利降温</b><br>
+      雪球六因子重排：2024赢家(红利/低波/价值)2025转平淡甚至跑输；<b>价值 IC 从 0.06 降至 0.02</b>；质量下半年起主导(2026Q1 IC 0.07居前)；低波仍为"压舱石"(年化9.8%、回撤-8.7%)；红利低波拥挤度此前达近5年90%高位，资金撤离转投成长主线。</div>
+    <div class="tl-item"><span class="tl-year">2025H2–2026</span> ｜ <b>质量超配、低波打底、红利不追高</b><br>
+      共识：质量是当前最值得超配的基本面因子；红利长期逻辑未破（股息率5%+ vs 国债1.7%）但连续大涨后进入估值消化期，宜作"杠铃策略"压舱石而非满仓追涨。</div>
+  </div>
+  <div class="callout"><b>时间线核心结论：</b>基本面因子的效用<b>呈强周期性、跨年均值回归</b>。"去年最好的因子今年大概率反转"是论坛高频共识——这与阶段1发现的"价值/质量效力高度依赖样本期"完全吻合，也从实战侧印证了学术分歧。</div>
+</section>
+
+<!-- 共识与争议 -->
+<section>
+  <h2><span class="num">3</span>论坛/社区共识 vs 争议</h2>
+  <h3>3.1 高度共识（多来源一致）</h3>
+  <table>
+    <thead><tr><th>共识点</th><th>支撑来源</th></tr></thead>
+    <tbody>
+      <tr><td><b>质量(ROE/现金流)长期有效，但阶段性剧烈回撤</b>（2021回撤40%为最痛记忆）</td><td>世诚/好买、鹏扬、华证新质量、头条质量科普</td></tr>
+      <tr><td><b>价值长期有效，但需防"价值陷阱"、且2021大回撤</b>；单纯低估值不够，需叠加质量/盈利改善（F-SCORE冷门价值）</td><td>华泰2021价值策略、国盛小盘价值F-SCORE、聚宽三因子</td></tr>
+      <tr><td><b>红利长期有效，但 2025 显著拥挤降温</b>；长期收益近一半来自分红再投而非价差</td><td>雪球红利讨论、腾讯/头条红利复盘</td></tr>
+      <tr><td><b>2021年以来基本面(业绩类)因子普遍回撤，量价+AI 模型与之高独立</b></td><td>国盛量化2025展望、CSDN展望</td></tr>
+      <tr><td><b>因子轮动/再平衡是铁律</b>，"因子投资不择时、靠再平衡"</td><td>雪球六因子、长桥因子总结</td></tr>
+      <tr><td><b>失效预警信号</b>：某因子连续6个月 IC<0.03 即警惕失效（如2021后"高PE+高景气"因子）</td><td>新浪因子哲学</td></tr>
+    </tbody>
+  </table>
+  <h3>3.2 争议 / 张力</h3>
+  <ul class="tight">
+    <li><b>"质量永远有效" vs "质量会巨亏"：</b>教科书与长周期回测说质量稳健，但 2021 实战中质量因子回撤 40%，说明其"稳健"是跨周期概念、非年度概念。</li>
+    <li><b>"红利失效了吗"：</b>一方认为只是风格轮动、底层现金流未恶化；另一方指出拥挤度90%高位+利率预期改变已实质性压制短期收益。论坛主流折中：长期未失效，短期进入消化期。</li>
+    <li><b>基本面 vs 量价的主导权：</b>2021前基本面为主流 alpha；2021后量价/AI 崛起，社区出现"基本面已死、量价为王"与"基本面是慢钱基石"两派对立，实际多为<b>多策略融合</b>。</li>
+    <li><b>自由现金流因子成新热点：</b>国金证券用自由现金流/企业价值因子做指增（中证全指增强年化12.98%、超额7.89%），被视为质量与红利的交叉进化，但样本期短（2023末–2025初）待更长验证。</li>
+  </ul>
+</section>
+
+<!-- 交叉印证 -->
+<section>
+  <h2><span class="num">4</span>与阶段1（学术/券商）的交叉印证</h2>
+  <table>
+    <thead><tr><th>阶段1 结论</th><th>本阶段论坛资料印证</th><th>一致性</th></tr></thead>
+    <tbody>
+      <tr><td>价值/质量效力高度依赖样本期（Aalberg未检出、Guo检出）</td><td>2021集体回撤 vs 2024质量回归 vs 2025价值IC骤降——同因子在不同时段效力天差地别</td><td><span class="tag ok">强印证</span></td></tr>
+      <tr><td>质量(ROE)≈价值(P/E) 为最稳健基本面因子族</td><td>论坛共识质量长期有效；华证新质量 RankIC>3%、华泰质量因子系列</td><td><span class="tag ok">强印证</span></td></tr>
+      <tr><td>CMA(投资) 剔除、规模/低波作边界</td><td>论坛几乎不单独讨论投资因子；低波被反复强调为"压舱石"</td><td><span class="tag ok">一致</span></td></tr>
+      <tr><td>红利被 v2 列为价值子类，长期有效</td><td>论坛：红利长期有效但2025拥挤，须再平衡——补充了 v2 未展开的"拥挤降温"维度</td><td><span class="tag b">补充</span></td></tr>
+      <tr><td>反转>动量、P/E>B/M（A股法则）</td><td>论坛价值策略强调结合动量优化(华泰)、低估值头部收益偏弱——侧面支持"纯价值/纯反转"需改良</td><td><span class="tag b">补充</span></td></tr>
+    </tbody>
+  </table>
+  <div class="newbox"><span class="h">综合判断</span>
+  学术（阶段1）与论坛（阶段2）在"基本面因子长期有效但强周期、质量/价值最稳健、需防拥挤与陷阱、应多策略低相关配置"上<b>高度自洽</b>。论坛为学术的"时间分化"提供了鲜活年度证据，并补上了 v2 报告偏弱的<b>实战轮动纪律与拥挤信号</b>。
+  </div>
+</section>
+
+<!-- 用途与效用 -->
+<section>
+  <h2><span class="num">5</span>基本面因子的实战用途与效用（论坛共识落地）</h2>
+  <h3>5.1 在指数增强中的配置</h3>
+  <ul class="tight">
+    <li><b>低频基本面 vs 中高频量价双轨：</b>公募新规下，基本面增强（估值/成长/分红/波动打分）2021以来年化超额 13.4%、回撤仅7.0%；量价+AI 增强 2024 超额 10.8%——两者相关性低，宜并行。</li>
+    <li><b>多策略融合是 2025 主流解法：</b>国泰海通多策略（基础60%+域内卫星30%+域外卫星10%）沪深300/500/1000 超额 6.6%/7.7%/8.9%，<b>最大回撤仅 6.6%/7.3%/3.8%</b>，行业偏离&lt;2%、个股偏离&lt;3%。</li>
+    <li><b>加权方式：ICIR 加权优于 IC 均值加权</b>（2025复盘：沪深300超额 10.7% vs 6.8%）——在因子收益下滑、波动加大时更稳。</li>
+  </ul>
+  <h3>5.2 质量因子的"负向筛选"用法（被低估的效用）</h3>
+  <p>新浪2025下半年策略：用 22 个风险指标（造假/现金流/经营风险）做质量负向筛选，沪深300/500/1000 年化超额 <b>-9.16%/-5.01%/-3.54%</b>（即"剔除差公司"本身即显著 alpha）。这是基本面因子最务实的用法之一——<b>排雷重于选优</b>。</p>
+  <h3>5.3 企业行为因子（基本面衍生）</h3>
+  <p>股东增持/回购/股权激励/定增具正面事件效应，沪深300/500 增强年化超额 6.82%/5.16%，年度胜率 87.5%、IR 1.56/2.02——信息比率极高，且与传统财务因子低相关。</p>
+  <h3>5.4 风险与纪律</h3>
+  <div class="warnbox"><b>四条论坛铁律：</b>① 因子不是稳赚，是"用某种不舒服换长期超额"，须能扛10年不割肉；② 不择时、靠再平衡（去年冠军今年多反转）；③ 拥挤度红灯（如红利90%分位）先降仓；④ IC连续6月&lt;0.03 即预警失效，启动替换。</div>
+</section>
+
+<!-- 后续 -->
+<section>
+  <h2><span class="num">6</span>综合后的研究结论与下一步</h2>
+  <div class="callout">
+  <b>阶段2综合结论：</b>基本面因子在 A 股的"用途"清晰——<b>质量（ROE/现金流/自由现金流）作底仓与排雷、价值作均值回归弹性、红利作防御压舱石、成长/SUE 作产业趋势弹性、企业行为作高 IR 卫星</b>；"效用"则高度<b>周期性且依赖样本期</b>，2021 大回撤、2024 质量回归、2025 红利降温是三大路标。论坛与学术一致指向：<b>单因子不押注、多低相关策略配置、拥挤度与 IC 衰减双预警、再平衡而非择时</b>。
+  </div>
+  <h3>可推进的下一步（建议）</h3>
+  <ul class="tight">
+    <li><b>效用实证化</b>：用 妙想/NeoData/Tushare 拉 2010–2025 财报与估值，对 ROE、EP、SUE、自由现金流、股息率做 IC/IR 滚动分布 + 牛熊样本拆分 + 2024-02 压力测试，把论坛的"年度观感"变成可复核数字（复用 wb-finance-skill 因子框架）。</li>
+    <li><b>多策略回测</b>：复刻国泰海通"基础+卫星"结构，测试基本面(质量×价值×红利) + 量价 + 企业行为 的低相关组合，对比单因子夏普/回撤。</li>
+    <li><b>自由现金流因子深挖</b>：国金样本期短，值得独立验证其是否真为质量/红利的进化版。</li>
+    <li><b>拥挤度信号工程化</b>：把论坛口中的"红利拥挤90%分位"落成可监控指标（估值分位+成交占比+资金流），接入 v2 §9.5 熔断开关。</li>
+  </ul>
+</section>
+
+<div class="disc">
+  <b>免责声明</b>：本阶段为「互联网金工/量化论坛与社区资料」的综合梳理，来源包括聚宽社区、雪球、今日头条/腾讯新闻/东方财富、CSDN、长桥、百度百科及国金/国盛/东北/国泰海通/华证/华泰等公开金工材料（2021–2026）。论坛观点代表一线从业者与散户量化作者的经验性、观点性结论，<b>非严谨学术回测</b>，样本期与口径参差，部分数字（如各因子年化/IC）为原作者回测或估算，精确性须以原始出处复核。所有内容仅供参考，不构成投资建议。
+</div>
+
+<footer>
+  基本面量化因子 · 互联网金工资料综合（阶段2）｜ 2026-08-26 ｜ 与阶段1（引用核实与因子提取）、v2报告构成完整研究链
+</footer>
+</div>
+</body>
+</html>

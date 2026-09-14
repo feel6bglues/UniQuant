@@ -1,17 +1,27 @@
-"""P11 — 基本面价值/质量因子族 Walk-Forward 测试。
+"""P14 — 现金流价值因子裁决 Walk-Forward 测试 (外部研究候选 × 本项目五门)。
 
-预注册冻结于 docs/analysis/FUNDAMENTAL_FACTOR_PREREGISTRATION.md (2026-08-26):
-- 7 新因子 (ep_ttm/bp/cfp_ttm/sp_ttm/gross_profitability/accruals/turnover_20d)
-  + 2 基线正因子对照 (illiq_20d/idiosyncratic_vol_20d)
-- 504/63 窗, 500 只 × 1600d, as-of 2026-05-29, 与 P3 同面板
-- 四重门 + 方向 + 动量残差门; 幸存 = 五门全过
-- 数据口径: TDX 财务双 TTM 口径 (营收成本单季直滚 / 利润现金流累计差分),
-  merge_asof 公告日 PIT 对齐
+预注册冻结于 docs/analysis/P14_CASH_FCF_DY_PREREGISTRATION.md (2026-08-28):
+- 3 新因子 (cash_ratio/fcf_yield/real_dy) + 基线正因子对照 (cfp_ttm/illiq_20d)
+- 504/63 窗, 500 只 × 1600d, as-of 2026-05-29, 与 P11/P12 同面板
+- 五门: 方向 (双向裁决) + IC (|OOS IC|>0.01) + ICIR (>0.5) + PBO (<0.2)
+  + 动量残差门 (控 mom20: 残差>0 且 tail>0 且 pos_frac≥2/3, 双向)
+- 数据口径: TDX 财务双 TTM (capex 2026-08-28 实测累计 YTD) +
+  data/lake/dividend 真实派现 (365d TTM, 无未来函数)
+- 冗余预检 (T5): fcf_yield vs cfp_ttm spearman=0.792<0.9 → 全部保留
+
+⚠️ 2026-08-28 D+15 重大修正 (fwd5 错位 bug + OOS 口径):
+  1. 原 `panel["fwd5"] = pct_change(-5).shift(-5)` 经 pandas 语义验证 =
+     close[t+5]/close[t+10]-1 (未来5-10日收益, 视野错位5天) → 改
+     `correct_fwd5 = close[t+5]/close[t]-1` (未来0-5日, 与 analyzer 官方一致)
+  2. 原 `oos_ic_mean` 取自 pipeline.w.ic_mean (= 训练窗 IC, 且 1/5/20 期再平均)
+     → 改真实 OOS 测试窗 panel 逐日 IC (five_gate.factor_gates)
+  3. 修复后 cash_ratio/fcf_yield 动量残差门实为 PASS (残差 IC +0.0119/+0.0133),
+     原 "动量 beta 幻影" 结论系 fwd5 错位伪影
 
 用法:
-    python3 scripts/factor_mining/run_fundamental_factor_test.py            # sample 500
-    python3 scripts/factor_mining/run_fundamental_factor_test.py --smoke    # sample 60
-    python3 scripts/factor_mining/run_fundamental_factor_test.py --full     # 全市场
+    python3 scripts/factor_mining/run_cash_fcf_dy_test.py            # sample 500
+    python3 scripts/factor_mining/run_cash_fcf_dy_test.py --smoke    # sample 60
+    python3 scripts/factor_mining/run_cash_fcf_dy_test.py --full     # 全市场
 """
 
 from __future__ import annotations
@@ -33,42 +43,46 @@ from scripts.factor_mining.data_loader import (  # noqa: E402
     merge_financial_metrics,
 )
 from scripts.factor_mining.five_gate import correct_fwd5, factor_gates  # noqa: E402
+from scripts.factor_mining.run_t5_redundancy_precheck import merge_dividend  # noqa: E402
 from uniquant.brain.factors.analyzer import FactorAnalyzer  # noqa: E402
 from uniquant.brain.factors.composer import FactorComposer  # noqa: E402
+from uniquant.brain.factors.custom_factors import (  # noqa: E402
+    compute_cash_ratio, compute_fcf_yield, compute_real_dy,
+    compute_cfp_ttm, compute_illiq_20d,
+)
 from uniquant.brain.factors.walk_forward_pipeline import (  # noqa: E402
     WalkForwardFactorPipeline,
 )
 from uniquant.shared.logger_factory import get_logger  # noqa: E402
 
-logger = get_logger("factor_mining.fundamental_factor_test")
+logger = get_logger("factor_mining.cash_fcf_dy_test")
 
-DEFAULT_OUT = PROJECT_ROOT / "results" / "factor_mining" / "fundamental_factor_test.json"
+DEFAULT_OUT = PROJECT_ROOT / "results" / "factor_mining" / "cash_fcf_dy_test.json"
 
-NEW_FACTORS = [
-    "ep_ttm", "bp", "cfp_ttm", "sp_ttm",
-    "gross_profitability", "accruals", "turnover_20d",
-]
-BASELINE_POSITIVE = ["illiq_20d", "idiosyncratic_vol_20d"]
+NEW_FACTORS = ["cash_ratio", "fcf_yield", "real_dy"]
+BASELINE_POSITIVE = ["cfp_ttm", "illiq_20d"]
 TEST_FACTORS = NEW_FACTORS + BASELINE_POSITIVE
 
-# 预注册 §2 冻结方向
+# 预注册 §2 冻结方向: 全部正 (外部研究主张), 双向裁决 (红队 R2)
 EXPECTED_DIRECTION = {
-    "ep_ttm": 1, "bp": 1, "cfp_ttm": 1, "sp_ttm": 1,
-    "gross_profitability": 1, "accruals": -1, "turnover_20d": -1,
-    "illiq_20d": 1, "idiosyncratic_vol_20d": 1,
+    "cash_ratio": 1, "fcf_yield": 1, "real_dy": 1,
+    "cfp_ttm": 1, "illiq_20d": 1,
 }
 
-VALUE_TRIO = ["ep_ttm", "bp", "cfp_ttm"]
+CASH_TRIO = ["cash_ratio", "fcf_yield", "real_dy"]
+
+# P14 新增财务列 (capex_ttm 由 bridge 计算; dividend_dps_ttm 由脚本侧合并)
+EXTRA = EXTRA_FINANCIAL_FIELDS + ["capex_ttm"]
 
 
 def _make_factor_func():
-    composer = FactorComposer()
-
     def _func(df: pd.DataFrame) -> pd.DataFrame:
-        out = composer.compute_all_factors(df, mode="backtest")
         result = df.copy()
-        for col in out.columns:
-            result[col] = out[col].to_numpy()
+        result["cash_ratio"] = compute_cash_ratio(df)
+        result["fcf_yield"] = compute_fcf_yield(df)
+        result["real_dy"] = compute_real_dy(df)
+        result["cfp_ttm"] = compute_cfp_ttm(df)
+        result["illiq_20d"] = compute_illiq_20d(df)
         return result
 
     return _func
@@ -89,40 +103,39 @@ def run_test(load_sample: int, full: bool, max_workers: int = 32):
     if df["date"].nunique() > lookback:
         cutoff = df["date"].sort_values().unique()[-lookback]
         df = df[df["date"] >= cutoff].reset_index(drop=True)
-        logger.info(f"回看截断: {str(cutoff)[:10]} 起 ({lookback} 交易日)")
 
-    logger.info("合并财务列 (PIT merge_asof)...")
-    df = merge_financial_metrics(
-        df, extra_fields=EXTRA_FINANCIAL_FIELDS, max_workers=max_workers
-    )
+    logger.info("合并财务列 (PIT merge_asof + capex_ttm)...")
+    df = merge_financial_metrics(df, extra_fields=EXTRA, max_workers=max_workers)
+    logger.info("合并真实分红 (dividend_dps_ttm, 365d TTM)...")
+    df = merge_dividend(df)
 
     logger.info(f"数据集: {df['code'].nunique()} 只, {df['date'].nunique()} 天, {len(df):,} 行")
-    for col in ("eps_ttm", "revenue_ttm", "total_assets", "free_float_shares"):
+    coverage = {}
+    for col in ("cash_ratio", "fcf_yield", "real_dy", "capex_ttm", "ocf_ttm"):
         if col in df.columns:
             cov = float(df[col].notna().mean())
-            logger.info(f"  财务列覆盖 {col}: {cov:.1%}")
+            coverage[col] = round(cov, 4)
+            logger.info(f"  {col} 覆盖: {cov:.1%}")
 
     panel = df.set_index(["code", "date"], drop=False)
     panel.index = panel.index.set_names(["code_idx", "date_idx"])
-    # 2026-08-28 fwd5 错位 bug 修复: 正确 = close[t+5]/close[t]-1 (未来0-5日)
+    # 2026-08-28 fwd5 错位 bug 修复: pct_change(-5).shift(-5)=未来5-10日收益(错位),
+    # 正确 = close[t+5]/close[t]-1 (未来0-5日, 与 analyzer 官方逐位一致)
     panel["fwd5"] = correct_fwd5(panel)
     panel["mom20"] = panel["close"].groupby(level=0).pct_change(20, fill_method=None)
 
     factor_func = _make_factor_func()
-
     logger.info("预计算因子值...")
     all_factors = factor_func(df)
     factor_cols_avail = [c for c in TEST_FACTORS if c in all_factors.columns]
     missing = [c for c in TEST_FACTORS if c not in all_factors.columns]
     if missing:
-        logger.warning(f"因子缺失 (财务列未覆盖?): {missing}")
+        logger.warning(f"因子缺失: {missing}")
     for col in factor_cols_avail:
         panel[col] = all_factors[col].to_numpy()
 
-    analyzer = FactorAnalyzer()
-    composer = FactorComposer()
     pipeline = WalkForwardFactorPipeline(
-        factor_analyzer=analyzer, factor_composer=composer,
+        factor_analyzer=FactorAnalyzer(), factor_composer=FactorComposer(),
         train_window=504, test_window=63, min_train_days=252,
     )
     result = pipeline.run(
@@ -134,15 +147,17 @@ def run_test(load_sample: int, full: bool, max_workers: int = 32):
     for name in factor_cols_avail:
         # 2026-08-28 修正: 原用 pipeline.w.ic_mean(=训练窗 IC, 且 1/5/20 期再平均)
         # 现统一用真实 OOS 测试窗 panel 逐日 IC (正确 fwd5), 见 five_gate.factor_gates
-        per_factor[name] = factor_gates(panel, result.windows, name, EXPECTED_DIRECTION[name])
+        d = factor_gates(panel, result.windows, name, EXPECTED_DIRECTION[name])
+        per_factor[name] = d
 
-    passing_value = [
-        n for n in VALUE_TRIO
+    # 复合 (全部通过三因子才构建; 双向裁决下, 通过者组合)
+    passing = [
+        n for n in CASH_TRIO
         if n in per_factor and per_factor[n].get("passed_all")
     ]
     composite_info = None
-    if passing_value:
-        logger.info(f"价值组合组件: {passing_value}")
+    if passing:
+        logger.info(f"复合组件: {passing}")
         comp_ics = []
         for w in result.windows:
             sub = panel[
@@ -154,7 +169,7 @@ def run_test(load_sample: int, full: bool, max_workers: int = 32):
             daily_comp = []
             for _, g in sub.groupby(level=1):
                 scores = []
-                for n in passing_value:
+                for n in passing:
                     f = g[n].dropna()
                     if f.notna().sum() < 20 or f.std() == 0:
                         continue
@@ -180,14 +195,14 @@ def run_test(load_sample: int, full: bool, max_workers: int = 32):
                 comp_ics.append(float(np.mean(daily_comp)))
         if comp_ics:
             composite_info = {
-                "components": passing_value,
+                "components": passing,
                 "oos_ic_mean": round(float(np.mean(comp_ics)), 4),
                 "oos_ic_std": round(float(np.std(comp_ics)), 4),
                 "n_windows": len(comp_ics),
             }
 
     print(f"\n{'='*96}")
-    print("P11 基本面价值/质量因子族 Walk-Forward 测试结果 (预注册 2026-08-26)")
+    print("P14 现金流价值因子裁决 Walk-Forward 测试 (预注册 2026-08-28)")
     print(f"{'='*96}")
     print(f"数据: {df['code'].nunique()} 只, {df['date'].nunique()} 天")
     print(f"Walk-Forward: {len(result.windows)} 窗 (504/63)")
@@ -208,25 +223,18 @@ def run_test(load_sample: int, full: bool, max_workers: int = 32):
               f"{d['pbo']:>7.3f} {d['n_windows']:>4} {sign:>4} "
               f"{cells[0]:>4} {cells[1]:>4} {cells[2]:>5} {cells[3]:>5} {cells[4]:>5}")
     if composite_info:
-        print(f"\n价值复合 ({'+'.join(composite_info['components'])}): "
+        print(f"\n现金流复合 ({'+'.join(composite_info['components'])}): "
               f"OOS IC={composite_info['oos_ic_mean']:+.4f} "
               f"(±{composite_info['oos_ic_std']:.4f}, {composite_info['n_windows']} 窗)")
     print(f"\n{'='*96}")
 
     report = {
         "_meta": {
-            "prereg": "docs/analysis/FUNDAMENTAL_FACTOR_PREREGISTRATION.md (2026-08-26)",
+            "prereg": "docs/analysis/P14_CASH_FCF_DY_PREREGISTRATION.md (2026-08-28)",
             "n_symbols": int(df["code"].nunique()),
-            "n_days": int(df["date"].nunique()),
             "as_of": "2026-05-29", "lookback_days": lookback,
             "sample": not full, "n_windows": len(result.windows),
-            "financial_coverage": {
-                col: round(float(df[col].notna().mean()), 4)
-                for col in ("eps_ttm", "revenue_ttm", "operating_cost_ttm",
-                            "net_profit_parent_ttm", "ocf_ttm", "ocf_ps_ttm",
-                            "total_assets", "total_shares", "free_float_shares")
-                if col in df.columns
-            },
+            "coverage": coverage,
             "elapsed_sec": round(time.time() - t0, 1),
         },
         "per_factor": per_factor,
@@ -237,9 +245,7 @@ def run_test(load_sample: int, full: bool, max_workers: int = 32):
             "n_passed_base_gates": sum(
                 1 for d in per_factor.values() if d.get("passed_all_base")
             ),
-            "n_correct_sign": sum(
-                1 for d in per_factor.values() if d.get("correct_sign")
-            ),
+            "n_correct_sign": sum(1 for d in per_factor.values() if d.get("correct_sign")),
         },
     }
     out_path = Path(DEFAULT_OUT)
@@ -251,14 +257,13 @@ def run_test(load_sample: int, full: bool, max_workers: int = 32):
 def main():
     import argparse
 
-    parser = argparse.ArgumentParser(description="基本面因子族 Walk-Forward 测试 (P11)")
-    parser.add_argument("--full", action="store_true")
-    parser.add_argument("--smoke", action="store_true")
-    parser.add_argument("--sample", type=int, default=None)
-    parser.add_argument("--max-workers", type=int, default=32)
-    args = parser.parse_args()
-    sample = args.sample if args.sample is not None else (60 if args.smoke else 500)
-    run_test(load_sample=sample, full=args.full, max_workers=args.max_workers)
+    ap = argparse.ArgumentParser(description="P14 现金流价值因子五门裁决")
+    ap.add_argument("--full", action="store_true")
+    ap.add_argument("--smoke", action="store_true")
+    ap.add_argument("--sample", type=int, default=500)
+    ap.add_argument("--max-workers", type=int, default=32)
+    args = ap.parse_args()
+    run_test(60 if args.smoke else args.sample, args.full, args.max_workers)
 
 
 if __name__ == "__main__":

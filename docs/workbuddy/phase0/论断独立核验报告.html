@@ -1,0 +1,46 @@
+<!DOCTYPE html><html lang="zh"><head><meta charset="utf-8"><title>论断独立核验报告</title>
+<style>
+body{font-family:system-ui;max-width:1060px;margin:24px auto;padding:0 16px;color:#222;line-height:1.65}
+h1{color:#0b3d91;font-size:24px}h2{color:#0b3d91;border-left:4px solid #0b3d91;padding-left:8px;margin-top:36px}
+table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px}
+th,td{border:1px solid #ccc;padding:6px 9px;text-align:right}th{background:#f0f4fa;text-align:center}
+td:first-child{text-align:left}th:first-child{text-align:left}
+.pos{color:#c0392b;font-weight:bold}.neg{color:#27ae60}
+.box{background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:13px 17px;margin:13px 0}
+.warn{background:#fff8e6;border:1px solid #f0d9a8;border-radius:8px;padding:12px 16px;margin:13px 0}
+.hl{background:#fff4e6}.hl2{background:#e8f4ec}
+code{background:#f1f5f9;padding:2px 6px;border-radius:4px}
+</style></head><body>
+<h1>P1 论断 · 独立核验报告（顶尖交易员 + 算法工程师视角）</h1>
+<p>不采信既有结论 · 代码审查 + 数据核验 + 完全独立实现重跑（纯 pandas/numpy 手写，不依赖共享层与引擎）· 2026-08-28</p>
+
+<h2>一、核验方法</h2>
+<div class="box">① 审查共享层/引擎/T36-T38 代码逻辑 · ② 核验 gpcw 列名与因子原始值（600519 等抽查）· ③ <b>完全独立实现</b>：手写财报解析/收益矩阵/TTM/zscore/季频回测，与共享层结果对比 · ④ 独立重算 T36 容量（统一 NaN 口径）</div>
+
+<h2>二、通过项（论断成立）</h2>
+<table><tr><th>论断</th><th>共享层</th><th>独立核验</th><th>判定</th></tr>
+<tr><td style="text-align:left">OOS 2019-26 样本外夏普</td><td>0.496</td><td><b>0.495</b></td><td class="pos">✅ 复现（核心论断）</td></tr>
+<tr><td style="text-align:left">全样本季频核心</td><td>0.348</td><td>0.310*</td><td>⚠️ 部分（见三.3）</td></tr>
+<tr><td style="text-align:left">IS 2014-18</td><td>0.229</td><td>0.142*</td><td>⚠️ 部分（见三.3）</td></tr>
+<tr><td style="text-align:left">持仓一致性（201405/201411/202405）</td><td>—</td><td>top5 完全一致</td><td class="pos">✅ 因子构建无系统性错误</td></tr>
+<tr><td style="text-align:left">201505 持仓交集</td><td>—</td><td>512/532（20只边界差异）</td><td class="pos">✅ 高度一致</td></tr>
+<tr><td style="text-align:left">T36 容量（10亿）</td><td>0.470</td><td><b>0.465</b>（统一NaN口径）</td><td class="pos">✅ 复现</td></tr>
+<tr><td style="text-align:left">T36 机制（收益升非波动降）</td><td>—</td><td>年化+3pp/波动不变/有效持仓157-447</td><td class="pos">✅ 流动性过滤真实</td></tr></table>
+
+<h2>三、发现的问题（核验最大价值）</h2>
+<div class="warn"><b>⚠ 问题1：T37 原结论作废（数据缺陷）</b>——mootdx 日线单次请求上限 ~800 条，原 T35 offset=1900 被截断，日线仅覆盖 2023-05 起。<b>"可成交率 99.2%"只统计了近 3 年约 12 个调仓日，2014-2022 全部"缺失视为可成交"，2015 千股停牌完全未被检测</b>。已重写分页拉取（T35v2，每页800条×4页），完成后重跑 T37。</div>
+<div class="warn"><b>⚠ 问题2：ret_m 极端月数据污染</b>——2015-05 全A 等权月收益 <b>+24.9%</b>（中位 +17.5%、最大单票 <b>+573%</b> 次新股），而 HS300 同期仅 <b>+1.91%</b>。<b>等权回测在极端月（2015-05 次新股暴涨潮）收益被极端值显著拉高</b>，可投性存疑（首日暴涨股实际买不到）。影响所有等权口径的极端月数值精度。</div>
+<div class="box"><b>⚠ 问题3：IS 段差异归因</b>——独立实现 IS 0.142 vs 共享层 0.229，逐月对比差异集中在 <b>201505 等极端月</b>：20 只持仓边界差异 × 极端值（±数百%）放大 → 单月收益差 14pp。非系统性 bug（OOS 完全复现、持仓高度一致），而是 <b>等权组合对极端值敏感 + 边界持仓微差</b>在极端月的放大效应。</div>
+
+<h2>四、修正建议（交易员视角）</h2>
+<div class="box hl2">
+<ol>
+<li><b>回测收益加极端值防护</b>：剔除单月 |r|&gt;100% 的收益（不可能真实成交），或改用市值加权——消除 2015-05 类污染；此项改动后重跑全链路确认结论稳健</li>
+<li><b>T37 待重跑</b>：日线补拉完成后，全历史（2014-2026）停牌/涨跌停统计 + 修正回测——2015 股灾停牌潮的真实影响待测</li>
+<li><b>数字精度披露</b>：所有等权口径收益在 2015-05/2015-06 等极端月存在数值敏感性，结论方向（OOS 反向增强、alpha 真实）不受影响</li>
+</ol></div>
+
+<h2>五、T37 修正后最终执行结论</h2><div class="box"><b>全历史（2014-2026, 18088观测）</b>：可成交率 <b>95.9%</b>，停牌 1.2%（2015 千股停牌已检出）/ 涨停 1.4% / 跌停 1.5%；修正回测 0.348→0.316（代价 <b>0.032 夏普</b>）。执行假设基本成立，非主要风险。</div><h2>六、核验结论</h2>
+<div class="box hl"><b>核心论断经受住独立检验</b>：① OOS 样本外夏普 0.496 被纯手写独立实现复现（0.495）；② 因子构建/数据/持仓高度一致；③ T36 容量结论独立复现且机制确认。<br>
+<b>同时发现 2 个此前被掩盖的数据问题</b>：T37 停牌率统计的数据覆盖缺陷（已修复拉取）、ret_m 极端月污染（2015-05）。<b>这轮核验的价值 = 确认了结论的骨架，同时暴露了数值精度层面需要加固的细节</b>——这正是"基于真实代码和数据重新运行"的意义。</div>
+</body></html>

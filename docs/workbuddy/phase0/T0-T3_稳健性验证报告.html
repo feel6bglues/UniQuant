@@ -1,0 +1,58 @@
+<!DOCTYPE html><html lang="zh"><head><meta charset="utf-8"><title>T0-T3 稳健性验证</title>
+<style>
+body{font-family:system-ui;max-width:1060px;margin:24px auto;padding:0 16px;color:#222;line-height:1.65}
+h1{color:#0b3d91;font-size:24px}h2{color:#0b3d91;border-left:4px solid #0b3d91;padding-left:8px;margin-top:36px}
+table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px}
+th,td{border:1px solid #ccc;padding:6px 9px;text-align:right}th{background:#f0f4fa;text-align:center}
+td:first-child{text-align:left}th:first-child{text-align:left}
+.pos{color:#c0392b;font-weight:bold}.neg{color:#27ae60}
+.box{background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:13px 17px;margin:13px 0}
+.warn{background:#fff8e6;border:1px solid #f0d9a8;border-radius:8px;padding:12px 16px;margin:13px 0}
+.hl{background:#fff4e6}.hl2{background:#e8f4ec}
+code{background:#f1f5f9;padding:2px 6px;border-radius:4px}
+</style></head><body>
+<h1>基本面因子工程化 · T0–T3 稳健性验证报告</h1>
+<p>工程重构 + 因子复核 + 组合全链路 + 幸存者偏差量化 · 2026-08-27<br>
+<span class="pos">⚠ 重大修正：HS300 当前成分口径的夏普存在 ~0.16 幸存者偏差高估</span></p>
+
+<h2>一、工程基座（T0）——共享层 + 回测引擎 + 基线回归</h2>
+<div class="box"><b>架构</b>：<code>pipeline_common.py</code>（财报面板 dict 索引 / 收益矩阵 / TTM / 因子缓存 / zscore）+ <code>backtest_engine.py</code>（调仓日历 / 持仓快照→换手率 / 成本模型 / 基线断言）。<br>
+<b>四基线全通过</b>：HS300 年频 0.4668 · HS300 季频 0.4917 · 全A 年频 0.2895 · 全A 季频 0.3099。<br>
+<b>修复 3 个真 bug</b>：① 持有段含下个调仓月（调仓月收益错归旧仓）② 首月未建仓（前 4 个月丢失）③ <b>季频因子用调仓月末价配月初收益=轻微未来函数</b>（虚假低夏普 0.132 → 修复后 0.31）。</div>
+
+<h2>二、T1 全A 因子复核 + 新核心（V2 建议验证）</h2>
+<table><tr><th>单因子 (季频 Top10%)</th><th>夏普</th><th>年化</th><th>回撤</th></tr>
+<tr><td style="text-align:left">现金含量 OCF/NP</td><td class="pos">0.366</td><td>11.5%</td><td class="neg">-54.8%</td></tr>
+<tr><td style="text-align:left">FCF_Yield</td><td>0.330</td><td>9.9%</td><td class="neg">-48.1%</td></tr>
+<tr><td style="text-align:left">DY (真实)</td><td>0.239</td><td>7.5%</td><td class="neg">-52.5%</td></tr>
+<tr><td style="text-align:left">EP</td><td>0.174</td><td>6.2%</td><td class="neg">-52.9%</td></tr></table>
+<div class="box"><b>相关性矩阵（2024 年报截面, 5106 只, spearman）</b><br>
+EP–DY <b>0.671</b>（高度冗余 → 近似 DY=EP 代理的微观证据）· FCFY–cash 0.514 · cash–EP <b>-0.129</b>（正交）· DY–cash -0.038。</div>
+<table><tr><th>核心版本 (全A 季频 Top10%)</th><th>夏普</th><th>年化</th><th>回撤</th><th>Calmar</th></tr>
+<tr class="hl"><td style="text-align:left"><b>新核心 现金+FCFY+EP</b></td><td class="pos"><b>0.348</b></td><td>10.4%</td><td class="neg">-48.5%</td><td>0.215</td></tr>
+<tr><td style="text-align:left">旧核心 现金+FCFY+DY</td><td>0.310</td><td>9.1%</td><td class="neg">-48.3%</td><td>0.189</td></tr>
+<tr><td style="text-align:left">四因子混合</td><td>0.278</td><td>8.4%</td><td class="neg">-48.3%</td><td>0.173</td></tr>
+<tr><td style="text-align:left">基准 全A等权</td><td>0.195</td><td>7.2%</td><td class="neg">-58.8%</td><td>0.122</td></tr></table>
+<div class="box hl"><b>✓ V2 建议成立</b>：全A 新核心（剔除 DY、加入 EP）夏普 +0.038——因子经济学解释：DY 与 EP 冗余（0.67），旧核心红利权重是"重复暴露"；新核心构成更分散（cash⊥EP）。季换手 31.8%，成本可控。</div>
+
+<h2>三、T2 HS300 季频组合全链路（成本敏感性）</h2>
+<table><tr><th>方案</th><th>夏普</th><th>年化</th><th>回撤</th><th>Calmar</th></tr>
+<tr class="hl"><td style="text-align:left"><b>季频组合 (核心50+动量25+低波25)</b></td><td class="pos"><b>0.559</b></td><td>12.9%</td><td class="neg">-36.5%</td><td>0.352</td></tr>
+<tr><td style="text-align:left">+ 熔断A</td><td>0.553</td><td>12.8%</td><td class="neg">-37.1%</td><td>0.344</td></tr></table>
+<div class="box"><b>成本敏感性（熔断A组合）</b>：单边 0.1%→0.544 · 0.2%→0.535 · <b>0.3%→0.527</b>——成本每 +0.1% 夏普仅 -0.009，0.3% 单边下仍 0.527。平均月换手 26.3%。<b>策略对成本不敏感，实盘可行。</b><br>
+<b>熔断A 在季频下无增益</b>（0.553 vs 0.559）：季频本身已吸收回撤控制价值（-36.5%），拥挤度熔断的防御场景被季频覆盖。</div>
+
+<h2>四、T3 幸存者偏差量化（本报告最重要发现）</h2>
+<table><tr><th>口径</th><th>夏普</th><th>年化</th><th>回撤</th></tr>
+<tr><td style="text-align:left">当前 HS300 成分（固定300）</td><td class="pos">0.492</td><td>12.2%</td><td class="neg">-30.9%</td></tr>
+<tr><td style="text-align:left">历史成分代理（每年市值 top300）</td><td>0.332</td><td>9.1%</td><td class="neg">-29.3%</td></tr>
+<tr><td style="text-align:left">全A（5328只）</td><td>0.310</td><td>9.1%</td><td class="neg">-48.3%</td></tr></table>
+<div class="warn"><b>⚠ 成分选择偏差 = -0.159 夏普（-3.1pp 年化）</b>——基于"当前 HS300 成分"的回测（含此前 V2 全部 HS300 结论）存在系统性高估，约 32% 相对偏差。
+当前成分=活下来的赢家（含幸存者），历史成分代理消除"成分选择"偏差后，核心策略真实夏普约 <b>0.33</b>。
+<b>修正结论</b>：HS300 组合 0.559 的真实水平约 0.40 量级；全A 口径（0.31）与历史成分代理（0.33）接近，<b>全A 结果反而更可信</b>。</div>
+<div class="box"><b>边界</b>：历史成分代理仍有局限——① 纯市值 top300 ≠ 真实 HS300 规则（流动性/行业约束）② 退市股缺失（mootdx 无退市数据）③ 市值代理含"上市存续"偏差。真实偏差可能略大于 0.16。</div>
+
+<h2>五、修正后的最终结论</h2>
+<div class="box hl2"><b>可信序</b>：全A 新核心 0.35 ≈ 历史成分代理 0.33 > 当前成分 HS300 0.49（高估）。<br>
+<b>落地建议</b>：① 全A 口径采用新核心（现金+FCFY+EP）0.348；② HS300 组合 0.559 视为上界，实盘预期 0.40-0.45（扣除幸存者偏差+成本）；③ 季频+月初执行（无未来函数）为标准口径；④ 历史成分代理应作为后续所有回测的默认口径。</div>
+</body></html>

@@ -26,6 +26,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
 from scripts.factor_mining.data_loader import load_universe, merge_financial_metrics  # noqa: E402
+from scripts.factor_mining.five_gate import correct_fwd5, factor_gates  # noqa: E402
 from uniquant.brain.factors.analyzer import FactorAnalyzer  # noqa: E402
 from uniquant.brain.factors.composer import FactorComposer  # noqa: E402
 from uniquant.brain.factors.walk_forward_pipeline import WalkForwardFactorPipeline  # noqa: E402
@@ -105,78 +106,6 @@ def _make_factor_func():
     return _func
 
 
-def block_bootstrap_pbo(oos_ics: list, n_bootstrap: int = 2000) -> float:
-    arr = np.array([x for x in oos_ics if np.isfinite(x)])
-    n = len(arr)
-    if n < 5:
-        return 1.0
-    rng = np.random.RandomState(42)
-    best_idx = int(np.argmax(arr))
-    block_size = max(1, int(n / 5))
-    n_blocks = int(np.ceil(n / block_size))
-    worse = 0
-    for _ in range(n_bootstrap):
-        blocks = rng.choice(n_blocks, size=n_blocks, replace=True)
-        boot = np.concatenate(
-            [arr[i * block_size: (i + 1) * block_size] for i in blocks]
-        )[:n]
-        cand = boot[: best_idx + 1] if best_idx < len(boot) else boot
-        if len(cand) and np.max(cand) >= arr[best_idx]:
-            worse += 1
-    return worse / n_bootstrap
-
-
-def _spearman_from_ranks(fr: pd.Series, rr: pd.Series) -> float | None:
-    fv, rv = fr.to_numpy(), rr.to_numpy()
-    n = len(fv)
-    num = n * float(np.dot(fv, rv)) - float(fv.sum()) * float(rv.sum())
-    den = np.sqrt(
-        (n * float(np.dot(fv, fv)) - float(fv.sum()) ** 2)
-        * (n * float(np.dot(rv, rv)) - float(rv.sum()) ** 2)
-    )
-    return num / den if den > 1e-12 else None
-
-
-def _daily_ic_series_for_window(panel: pd.DataFrame, factor_col: str) -> dict:
-    raw_ics, res_ics, tail_ics = [], [], []
-    for _, g in panel.groupby(level=1):
-        f = g[factor_col].dropna()
-        r = g["fwd5"].dropna()
-        m = g["mom20"].dropna()
-        common = f.index.intersection(r.index).intersection(m.index)
-        if len(common) < 20:
-            continue
-        ff_r = f.loc[common].rank().to_numpy()
-        rr_r = r.loc[common].rank().to_numpy()
-        mm_r = m.loc[common].rank().to_numpy()
-        raw = _spearman_from_ranks(pd.Series(ff_r), pd.Series(rr_r))
-        if raw is None:
-            continue
-        raw_ics.append(raw)
-        if mm_r.var() > 1e-12:
-            beta = np.cov(ff_r, mm_r)[0, 1] / mm_r.var()
-            res = pd.Series(ff_r - beta * mm_r).rank().to_numpy()
-            n = len(res)
-            num = n * float(np.dot(res, rr_r)) - float(res.sum()) * float(rr_r.sum())
-            den = np.sqrt(
-                (n * float(np.dot(res, res)) - float(res.sum()) ** 2)
-                * (n * float(np.dot(rr_r, rr_r)) - float(rr_r.sum()) ** 2)
-            )
-            res_ics.append(num / den if den > 1e-12 else 0.0)
-        th = np.quantile(mm_r, 0.9)
-        keep = mm_r <= th
-        if keep.sum() >= 20:
-            kf, kr = ff_r[keep], rr_r[keep]
-            nk = len(kf)
-            num = nk * float(np.dot(kf, kr)) - float(kf.sum()) * float(kr.sum())
-            den = np.sqrt(
-                (nk * float(np.dot(kf, kf)) - float(kf.sum()) ** 2)
-                * (nk * float(np.dot(kr, kr)) - float(kr.sum()) ** 2)
-            )
-            tail_ics.append(num / den if den > 1e-12 else 0.0)
-    return {"raw": raw_ics, "res": res_ics, "tail": tail_ics}
-
-
 def run_test(load_sample: int, full: bool, max_workers: int = 32):
     t0 = time.time()
 
@@ -213,7 +142,8 @@ def run_test(load_sample: int, full: bool, max_workers: int = 32):
 
     panel = df.set_index(["code", "date"], drop=False)
     panel.index = panel.index.set_names(["code_idx", "date_idx"])
-    panel["fwd5"] = panel["close"].groupby(level=0).pct_change(-5, fill_method=None).shift(-5)
+    # 2026-08-28 fwd5 错位 bug 修复: 正确 = close[t+5]/close[t]-1 (未来0-5日)
+    panel["fwd5"] = correct_fwd5(panel)
     panel["mom20"] = panel["close"].groupby(level=0).pct_change(20, fill_method=None)
 
     factor_func = _make_factor_func()
@@ -237,64 +167,10 @@ def run_test(load_sample: int, full: bool, max_workers: int = 32):
     )
 
     per_factor = {}
-    for name in TEST_FACTORS:
-        ic_vals = []
-        for w in result.windows:
-            ic = w.ic_mean.get(name)
-            if ic is not None and np.isfinite(ic):
-                ic_vals.append(ic)
-        if not ic_vals:
-            per_factor[name] = {"n_windows": 0, "note": "no valid window IC"}
-            continue
-        oos_mean, oos_std = float(np.mean(ic_vals)), float(np.std(ic_vals))
-        icir = oos_mean / max(oos_std, 1e-10)
-        pbo = block_bootstrap_pbo(ic_vals)
-        exp_dir = EXPECTED_DIRECTION[name]
-        correct_sign = (oos_mean > 0 and exp_dir > 0) or (oos_mean < 0 and exp_dir < 0)
-        d = {
-            "oos_ic_mean": round(oos_mean, 4), "oos_ic_std": round(oos_std, 4),
-            "oos_icir": round(icir, 4), "pbo": round(pbo, 4),
-            "n_windows": len(ic_vals),
-            "expected_direction": exp_dir, "correct_sign": bool(correct_sign),
-            "passed_ic": bool(abs(oos_mean) > 0.01),
-            "passed_icir": bool(abs(icir) > 0.5),
-            "passed_pbo": bool(pbo < 0.2),
-        }
-        d["passed_all_base"] = bool(
-            d["passed_ic"] and d["passed_icir"] and d["passed_pbo"] and correct_sign
-        )
-        per_factor[name] = d
-
     for name in factor_cols_avail:
-        d = per_factor.get(name, {})
-        if not d or d.get("n_windows", 0) == 0:
-            continue
-        res_all, tail_all, pos_windows, n_win = [], [], 0, 0
-        for w in result.windows:
-            sub = panel[
-                (panel.index.get_level_values(1) >= w.test_start)
-                & (panel.index.get_level_values(1) <= w.test_end)
-            ]
-            if sub.empty or name not in sub.columns:
-                continue
-            daily = _daily_ic_series_for_window(sub, name)
-            n_win += 1
-            if daily["res"]:
-                res_all.extend(daily["res"])
-                pos_windows += (np.mean(daily["res"]) > 0)
-            tail_all.extend(daily["tail"])
-        if res_all:
-            exp_dir = EXPECTED_DIRECTION[name]
-            res_m, tail_m = float(np.mean(res_all)), float(np.mean(tail_all))
-            frac_pos = pos_windows / max(n_win, 1)
-            if exp_dir < 0:
-                res_m, tail_m = -res_m, -tail_m
-                frac_pos = 1.0 - frac_pos
-            d["mom_res_mean"] = round(res_m, 4)
-            d["mom_tail_mean"] = round(tail_m, 4)
-            d["mom_pos_frac"] = round(frac_pos, 3)
-            d["passed_mom"] = bool(res_m > 0 and tail_m > 0 and frac_pos >= 2.0 / 3.0)
-            d["passed_all"] = bool(d.get("passed_all_base") and d["passed_mom"])
+        # 2026-08-28 修正: 原用 pipeline.w.ic_mean(=训练窗 IC, 且 1/5/20 期再平均)
+        # 现统一用真实 OOS 测试窗 panel 逐日 IC (正确 fwd5), 见 five_gate.factor_gates
+        per_factor[name] = factor_gates(panel, result.windows, name, EXPECTED_DIRECTION[name])
 
     print(f"\n{'='*96}")
     print("P12 尾部风险+筹码结构因子 Walk-Forward 测试结果 (预注册 2026-08-26)")

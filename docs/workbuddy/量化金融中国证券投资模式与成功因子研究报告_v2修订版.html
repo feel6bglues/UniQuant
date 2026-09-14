@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>量化金融中国证券投资模式与成功因子研究报告 · v2 修订版</title>
+<style>
+  :root{
+    --bg:#f5f7fa; --card:#ffffff; --ink:#1f2a37; --muted:#5b6573;
+    --line:#e3e8ef; --brand:#1f5fd6; --brand2:#0f8a6a; --warn:#c0392b; --amber:#c77d1a;
+    --shadow:0 1px 3px rgba(16,24,40,.06),0 8px 24px rgba(16,24,40,.05);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+    line-height:1.7;font-size:15px}
+  .wrap{max-width:1080px;margin:0 auto;padding:0 20px 80px}
+  header.hero{background:linear-gradient(135deg,#1f5fd6,#0f3a7a);color:#fff;padding:44px 20px 36px;margin-bottom:24px}
+  header.hero .inner{max-width:1080px;margin:0 auto}
+  header.hero h1{margin:0 0 6px;font-size:25px}
+  header.hero p{margin:3px 0;opacity:.92;font-size:13.5px}
+  .badges{margin-top:12px}
+  .badge{display:inline-block;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.28);
+    padding:4px 11px;border-radius:999px;font-size:12px;margin:3px 5px 3px 0}
+  .v2tag{background:#ffd54a;color:#5a3e00;font-weight:700}
+  section{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:24px 26px;margin:18px 0;box-shadow:var(--shadow)}
+  h2{font-size:20px;margin:0 0 6px;display:flex;align-items:center;gap:10px}
+  h2 .num{width:30px;height:30px;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;font-size:15px;flex:0 0 auto;color:#fff;background:var(--brand)}
+  h2 .num.n{background:var(--brand2)}
+  h3{font-size:16px;margin:18px 0 6px}
+  p{margin:9px 0}
+  .lead{color:var(--muted);font-size:13.5px}
+  table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px}
+  th,td{border:1px solid var(--line);padding:9px 11px;text-align:left;vertical-align:top}
+  th{background:#f0f4fa;color:#243044;font-weight:600}
+  tbody tr:nth-child(even){background:#fafbfd}
+  .tag{display:inline-block;font-size:11.5px;padding:1px 7px;border-radius:6px;margin:1px 2px}
+  .tag.r{background:#fdecea;color:var(--warn)} .tag.b{background:#eaf1fd;color:var(--brand)} .tag.g{background:#e8f5ef;color:var(--brand2)} .tag.o{background:#fdf2e0;color:var(--amber)}
+  .src{font-size:12px;color:var(--muted);border-left:3px solid var(--brand2);padding:2px 0 2px 10px;margin:6px 0;background:#f6faf8}
+  .note{background:#fff8ec;border:1px solid #f3e2bf;border-radius:10px;padding:12px 14px;margin:12px 0;font-size:13.5px}
+  .warnbox{background:#fdecea;border:1px solid #f3c4bd;border-radius:10px;padding:12px 16px;margin:12px 0;font-size:13.5px}
+  .newbox{background:#eef7f2;border:1px solid #bfe6d6;border-left:5px solid var(--brand2);border-radius:10px;padding:13px 16px;margin:14px 0}
+  .newbox .h{font-weight:700;color:var(--brand2);font-size:14px;display:block;margin-bottom:4px}
+  .callout{background:#eaf1fd;border-radius:10px;padding:12px 16px;margin:14px 0;font-size:14px;border-left:4px solid var(--brand)}
+  .chart{margin:14px 0}
+  .bar-row{display:flex;align-items:center;gap:10px;margin:9px 0}
+  .bar-label{flex:0 0 215px;font-size:12.5px;text-align:right;color:#33404f}
+  .bar-track{flex:1;background:#eef1f6;border-radius:8px;height:22px;position:relative;overflow:hidden}
+  .bar-fill{height:100%;border-radius:8px}
+  .bar-val{flex:0 0 60px;font-size:12.5px;font-weight:700}
+  .legend{font-size:12px;color:var(--muted);margin-top:6px}
+  .dot{display:inline-block;width:10px;height:10px;border-radius:3px;margin:0 4px 0 10px;vertical-align:middle}
+  .formula{background:#0f1c33;color:#e8f0ff;font-family:ui-monospace,Consolas,monospace;font-size:13px;
+    padding:12px 14px;border-radius:8px;margin:10px 0;overflow-x:auto}
+  ul.tight{margin:8px 0;padding-left:20px}
+  ul.tight li{margin:5px 0}
+  .disclaimer{background:#fbf3f2;border:1px solid #eccdc9;border-radius:12px;padding:14px 18px;margin:24px 0;font-size:12.8px;color:#7a3b34}
+  footer{color:var(--muted);font-size:12.5px;text-align:center;margin-top:26px;line-height:1.8}
+</style>
+</head>
+<body>
+<header class="hero">
+  <div class="inner">
+    <h1>量化金融 · 中国证券投资模式与成功因子研究报告 <span class="v2tag">v2 修订版</span></h1>
+    <p>基于《红蓝对抗专家评审》7 条修正重写 ｜ 研究日期：2026-08-26（修订）</p>
+    <p>核心变化：收益预期"毛/净分离 + 打折"｜ 补齐容量/对冲/压力测试 ｜ 中性化矛盾解法 ｜ 反转动态降权 ｜ 政策失效熔断</p>
+    <div class="badges">
+      <span class="badge">v1框架保留</span>
+      <span class="badge v2tag">v2 收益诚实化</span>
+      <span class="badge">实战四座大山已建模</span>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+<!-- 修订说明 -->
+<section>
+  <h2><span class="num">0</span>v1 → v2 修订对照表（对应评审清单）</h2>
+  <table>
+    <thead><tr><th>评审#</th><th>v1 缺陷</th><th>v2 修正</th><th>所在章节</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>回测数字当实盘数字</td><td>所有收益标注<b>毛/净、成本假设、样本内外</b>；要求展示 IC/IR 滚动分布</td><td>§5 收益真实性框架</td></tr>
+      <tr><td>2</td><td>无容量/流动性约束</td><td>给出<b>容量–超额衰减曲线</b>与量化多头 1.83 万亿背景</td><td>§6 容量与流动性</td></tr>
+      <tr><td>3</td><td>对冲摩擦被低估</td><td>量化<b>期货基差成本</b>与中性策略<b>盈亏临界式</b></td><td>§7 对冲基差</td></tr>
+      <tr><td>4</td><td>无极端压力测试</td><td>加入 <b>2024-02 微盘/反转崩塌</b> 情景 + 压力测试清单</td><td>§8 极端压力测试</td></tr>
+      <tr><td>5</td><td>中性化自相矛盾</td><td>小市值改<b>风险因子控上限</b>，用风险预算替代硬中性</td><td>§9.3 中性化解法</td></tr>
+      <tr><td>6</td><td>反转被神化</td><td>反转降级为<b>需压力测试 + 动态降权</b>因子，列明崩塌条件</td><td>§4 因子图谱 / §9.4</td></tr>
+      <tr><td>7</td><td>政策/行为盲区</td><td>补充<b>因子模型失效熔断开关</b>（波动率/成交集中度触发）</td><td>§9.5 熔断开关</td></tr>
+    </tbody>
+  </table>
+  <div class="callout"><b>v2 定位：</b>原报告的"知识框架"全部保留（因评审认定其正确），但<b>所有收益预期已重写</b>。一句话——<b>v1 告诉你"理论上能赚多少"，v2 告诉你"实盘大概率能落袋多少、以及什么会把你埋了"。</b></div>
+</section>
+
+<!-- 摘要 -->
+<section>
+  <h2><span class="num">1</span>研究摘要（首屏结论 · 已打折）</h2>
+  <div class="callout">
+    <b>最重要的修正：</b>原报告首屏的"华泰 AI 中证1000增强 年化超额 21.13%"是<b>券商回测、含低成本假设、样本内</b>的数字。经评审，其<b>实盘可预期区间约为 4%–10%/年（中位 ~7%）</b>，且中性策略还要再扣除 8%–12% 的期货基差成本。请以此为准建立收益预期，而非以 21% 为锚。
+  </div>
+  <div class="grid" style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+    <div class="kpi" style="background:#f7faff;border:1px solid #dde7fa;border-radius:12px;padding:13px 15px"><div style="font-size:21px;font-weight:700;color:var(--brand)">≈0.92</div><div style="font-size:12.5px;color:var(--muted)">A股四/五因子模型平均 R²（框架有效性，未变）</div></div>
+    <div class="kpi" style="background:#fff5f3;border:1px solid #f3c4bd;border-radius:12px;padding:13px 15px"><div style="font-size:21px;font-weight:700;color:var(--warn)">21%→~7%</div><div style="font-size:12.5px;color:var(--muted)">指增超额：披露值 vs 实盘可预期中位（已打折+扣成本）</div></div>
+  </div>
+  <p class="lead">v2 的四条主线不变（指数增强 / 市场中性 / 因子拥挤管理 / A股因子排序差异），但每条都补上了"容量、成本、压力测试、熔断"的实盘约束。详见 §5–§9。</p>
+</section>
+
+<!-- 国外经典（保留） -->
+<section>
+  <h2><span class="num">2</span>国外经典量化理论与模型（保留 v1 内容）</h2>
+  <p class="lead">评审认定此部分框架正确，仅做压缩呈现。详细来源见 v1 与参考文献。</p>
+  <ul class="tight">
+    <li><b>因子模型演进：</b>CAPM(1964) → FF 三因子(1993) → Carhart 四因子(1997) → FF 五因子(2015)。</li>
+    <li><b>主动管理基本定律：</b>IR = IC × TC × √BR（Grinold & Kahn, 1994）。提升 IR = 提高预测力 IC + 增加低相关广度 BR + 减少约束损耗 TC。</li>
+    <li><b>MSCI Barra CNE5：</b>1 国家 + 32 行业 + 10 风格因子，A 股事实标准；但<b>解释力自 2013 后中枢下移</b>（衡泰实证），风险模型本身会"退化"，使用时需滚动校验。</li>
+    <li><b>AQR 因子世界观：</b>价值 / 动量 / Carry / 质量(QMJ) / BAB（低 Beta）。</li>
+  </ul>
+  <div class="src">来源：Fama & French (1993,2015)；Carhart (1997)；Grinold & Kahn (1994)；MSCI CNE5 文档；AQR 研究。</div>
+</section>
+
+<!-- 券商研报（保留+标注） -->
+<section>
+  <h2><span class="num">3</span>券商金工研报精华（保留 + 口径标注）</h2>
+  <p class="lead">以下数字<b>均为各券商自家回测 / 样本内结果</b>，已标注成本假设与时段，<b>不代表实盘可复制收益</b>。实盘折算见 §5。</p>
+  <table>
+    <thead><tr><th>机构</th><th>代表结论（回测口径）</th><th>成本/时段标注</th></tr></thead>
+    <tbody>
+      <tr><td>华泰</td><td>全频段融合因子；AI 中证1000增强年化超额 21.13%、IR 3.47、5日 RankIC 11.3%</td><td><span class="tag o">回测·双边千四</span><span class="tag">2017初起</span></td></tr>
+      <tr><td>中信</td><td>离散化多因子、7 大风格因子；全球框架大中华区聚焦小市值+高流动性</td><td><span class="tag o">回测</span></td></tr>
+      <tr><td>国泰海通</td><td>因子拥挤四维监测（估值价差/配对相关性/长期反转/因子波动率）</td><td><span class="tag g">框架·可复用</span></td></tr>
+      <tr><td>广发</td><td>agru 深度学习因子 RankIC 13.94%、胜率 91.27%；宏观因子平价年化 7.7%</td><td><span class="tag o">回测</span><span class="tag">2025</span></td></tr>
+      <tr><td>国君</td><td>质优/QMJ 组合 CAGR 14.9%</td><td><span class="tag o">回测·2002起</span></td></tr>
+      <tr><td>国信</td><td>中证1000增强年内超额 21.45%</td><td><span class="tag o">区间回测</span></td></tr>
+      <tr><td>西南</td><td>拥挤度行业配置年化 18.89%、相对行业等权超额 11.51%</td><td><span class="tag o">回测</span></td></tr>
+    </tbody>
+  </table>
+  <div class="warnbox"><b>红队提醒（已写入 v2）：</b>上述 RankIC/IR/年化值高得反常（IC&gt;0.1 须查前瞻偏差），属"挑最好的因子展示"的 p-hacking 呈现；<b>务必用 §5 的折算纪律与 §8 的压力测试校核后再采信。</b></div>
+</section>
+
+<!-- 因子图谱（保留+反转降级） -->
+<section>
+  <h2><span class="num">4</span>A股有效因子图谱（反转已降级、小市值列为风险因子）</h2>
+  <table>
+    <thead><tr><th>因子</th><th>v2 定性判定</th><th>实战定位（修订）</th></tr></thead>
+    <tbody>
+      <tr><td>短期反转（3–20日）</td><td><span class="tag r">强但高风险</span></td><td><b>降级为"需压力测试+动态降权"因子</b>；崩塌条件：极端波动/流动性枯竭/政策反转趋势（见 §9.4）</td></tr>
+      <tr><td>质量（ROE/现金流）</td><td><span class="tag g">强·稳健</span></td><td>底仓因子，机构化后持续有效</td></tr>
+      <tr><td>价值（P/E &gt; B/M）</td><td><span class="tag g">中–强</span></td><td>2021后回归，作底仓；防价值陷阱（行业中性）</td></tr>
+      <tr><td>成长 / 一致预期</td><td><span class="tag g">中–强</span></td><td>产业趋势期 IC 提升</td></tr>
+      <tr><td>低波动 / 低 Beta（BAB）</td><td><span class="tag g">中–强</span></td><td>稳健增强</td></tr>
+      <tr><td>流动性 / 换手率</td><td><span class="tag g">强</span></td><td>量价核心，容量受限</td></tr>
+      <tr><td>中短期动量（机构票）</td><td><span class="tag">中</span></td><td>需波动过滤，非普适</td></tr>
+      <tr><td>小市值</td><td><span class="tag r">衰减中·风险因子</span></td><td><b>不再作纯 α，改为风险因子控上限</b>（见 §9.3）</td></tr>
+      <tr><td>机器学习/深度学习</td><td><span class="tag o">增量α·双刃</span></td><td>黑箱+高换手，须可解释化与衰减监控</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- §5 收益真实性 -->
+<section>
+  <h2><span class="num n">5</span>【v2新增】收益真实性框架：毛/净分离 + 折算纪律</h2>
+  <div class="newbox"><span class="h">修正点（评审#1）：把"回测毛收益"与"实盘净收益"严格分离</span>
+  券商披露值通常已含一个<b>理想化成本假设</b>（如华泰双边千四），但它对微盘股远不够。正确链条：
+  <div class="formula">实盘净超额 ≈ 回测披露超额 × 复制系数(0.3~0.5) − (真实全成本 − 披露假设成本) − 容量折损 − 基差成本(仅中性)</div>
+  </div>
+  <p>以华泰 AI 中证1000增强（披露 21.13%，含双边千四）为例的<b>实盘可预期区间测算（示例假设，需结合实盘校验）</b>：</p>
+  <div class="chart">
+    <div class="bar-row"><span class="bar-label">券商披露(回测·千四)</span><div class="bar-track"><div class="bar-fill" style="width:96%;background:linear-gradient(90deg,#c0392b,#e06b5e)"></div></div><span class="bar-val">21.1%</span></div>
+    <div class="bar-row"><span class="bar-label">实盘乐观(×0.5)</span><div class="bar-track"><div class="bar-fill" style="width:45%;background:linear-gradient(90deg,#1f5fd6,#3b82f6)"></div></div><span class="bar-val">10.6%</span></div>
+    <div class="bar-row"><span class="bar-label">实盘中值(×0.4−成本)</span><div class="bar-track"><div class="bar-fill" style="width:32%;background:linear-gradient(90deg,#0f8a6a,#21b589)"></div></div><span class="bar-val">~7%</span></div>
+    <div class="bar-row"><span class="bar-label">实盘保守(×0.3−成本)</span><div class="bar-track"><div class="bar-fill" style="width:18%;background:linear-gradient(90deg,#0f8a6a,#21b589)"></div></div><span class="bar-val">~4%</span></div>
+  </div>
+  <div class="legend"><span class="dot" style="background:#c0392b"></span>回测披露 <span class="dot" style="background:#1f5fd6"></span>乐观 <span class="dot" style="background:#0f8a6a"></span>实盘可预期。纵轴为年化超额收益率量级示意。</div>
+  <div class="note"><b>必须补充的方法论（v2 硬要求）：</b>任何因子/策略在采信前，须展示 <b>IC/IR 的滚动分布（而非单点峰值）</b>与<b>样本外 walk-forward 结果</b>。单点"RankIC 11.3%、IR 3.47"若无法给出滚动分位数（如 IR 在历史 25%/50%/75% 分位），视为未通过严谨性校验。</div>
+</section>
+
+<!-- §6 容量 -->
+<section>
+  <h2><span class="num n">6</span>【v2新增】容量与流动性约束：超额 = f(容量, 流动性, 拥挤度)</h2>
+  <div class="newbox"><span class="h">修正点（评审#2）：所有指增超额建立在"能成交"上</span>
+  背景：量化多头规模已增至约 <b>1.83 万亿元</b>（行业公开数据汇总，需核实）；2026 上半年已出现"剪刀差"（沪深300指增超额 7.28% &gt; 中证1000 4.07% &gt; 中证500 仅 0.85%），正是容量/拥挤摊薄超额的实证。
+  </div>
+  <table>
+    <thead><tr><th>AUM 占策略容量比</th><th>α 折损（定性）</th><th>说明</th></tr></thead>
+    <tbody>
+      <tr><td>0%–30%</td><td><span class="tag g">0%</span></td><td>容量宽松，超额接近回测</td></tr>
+      <tr><td>30%–60%</td><td><span class="tag o">20%–40%</span></td><td>开始摊薄，换手受限</td></tr>
+      <tr><td>60%–90%</td><td><span class="tag r">50%–80%</span></td><td>显著衰减，滑点上升</td></tr>
+      <tr><td>&gt;90%</td><td><span class="tag r">80%–100%</span></td><td>接近归零/转负，拥挤踩踏</td></tr>
+    </tbody>
+  </table>
+  <div class="warnbox"><b>v2 硬约束：</b>在采用任何策略前，<b>先问"它的容量上限是多少、当前管理规模占了几成"</b>。容量未知 = 超额不可信。微盘/反转类策略容量最小，最先触顶。</div>
+</section>
+
+<!-- §7 对冲基差 -->
+<section>
+  <h2><span class="num n">7</span>【v2新增】对冲基差成本与中性策略盈亏临界式</h2>
+  <div class="newbox"><span class="h">修正点（评审#3）：市场中性 ≠ 白捡 α，基差是实打实成本</span>
+  A 股融券极难，市场中性主要靠<b>股指期货</b>对冲；中证1000(IM)/中证2000 期货长期<b>高贴水</b>，负基差即对冲成本（示例经验区间 6%–12%/年，需核实具体合约与时段）。
+  <div class="formula">中性净收益 ≈ 多头毛α − 期货基差成本 − 执行成本 − 跟踪误差损耗
+盈亏临界：多头毛α &gt; 基差成本 + 执行成本</div>
+  </div>
+  <table>
+    <thead><tr><th>期货年化贴水(示例)</th><th>所需多头毛α(临界)</th><th>中性净收益(假设毛α=15%)</th></tr></thead>
+    <tbody>
+      <tr><td>6%</td><td><span class="tag o">&gt;6%</span></td><td><span class="tag g">+9% 左右</span></td></tr>
+      <tr><td>9%</td><td><span class="tag r">&gt;9%</span></td><td><span class="tag g">+6% 左右</span></td></tr>
+      <tr><td>12%</td><td><span class="tag r">&gt;12%</span></td><td><span class="tag o">+3% 左右</span></td></tr>
+    </tbody>
+  </table>
+  <div class="src">基差区间为经验估计（需以中金所/券商期货研究当期数据核实）；毛α=15%为示例假设。结论方向稳健：<b>贴水越高，中性策略越难盈利，需更高且更稳定的 α。</b></div>
+</section>
+
+<!-- §8 压力测试 -->
+<section>
+  <h2><span class="num n">8</span>【v2新增】极端压力测试：2024-02 微盘/反转崩塌</h2>
+  <div class="newbox"><span class="h">修正点（评审#4）：必须测"最坏那一周你能不能活"</span>
+  2024 年 2 月初，A 股微盘与反转因子集体回撤，量化中性/指增产品出现显著回撤（<b>单周回撤幅度 15%–20% 量级，具体产品需核实</b>），并触发"赎回 → 被动砍仓 → 踩踏"的死亡螺旋。这是检验任何 A 股量化策略的<b>标准压力情景</b>。
+  </div>
+  <h4>压力测试清单（每个策略上线前必答）</h4>
+  <ul class="tight">
+    <li>在该情景下，<b>最大回撤</b>是多少？是否在客户平仓线/预警线内？</li>
+    <li><b>恢复时长</b>多久（数周 vs 数月）？恢复期间是否会被赎回逼空？</li>
+    <li>压力情景下，<b>因子间相关性是否飙升</b>到 0.9+（分散化失效）？</li>
+    <li>流动性是否枯竭到<b>无法按模型成本成交</b>（滑点爆炸）？</li>
+    <li>是否有<b>独立风控线</b>（非模型内）能在回撤达阈值时强制降仓？</li>
+  </ul>
+  <div class="warnbox">若策略在 2024-02 类情景下回撤 &gt; 自身历史最大回撤的 2 倍、或相关性飙升导致对冲失效，则<b>不应以回测超额作为收益预期</b>，须下调风险预算或增设熔断（见 §9.5）。</div>
+</section>
+
+<!-- §9 实战框架修订 -->
+<section>
+  <h2><span class="num">9</span>实战投资框架（v2 修订版）</h2>
+
+  <h3>9.1 模式选择（保留，增约束）</h3>
+  <table>
+    <thead><tr><th>模式</th><th>v2 关键约束</th></tr></thead>
+    <tbody>
+      <tr><td>指数增强</td><td>收益预期按 §5 打折；监控容量占用率（§6）；基准极端化时防"分散踏空"</td></tr>
+      <tr><td>市场中性</td><td>先算基差临界（§7）；贴水高时宁可降低暴露也不硬扛</td></tr>
+      <tr><td>量化多头/轮动</td><td>单边敞口须设最大回撤硬止损；接受 §8 压力测试</td></tr>
+    </tbody>
+  </table>
+
+  <h3>9.2 组合构建流程（保留 v1，成本假设上调）</h3>
+  <p>股票池 → 因子层（量价60%/基本面30%/事件10%）→ 预处理（去极值/标准化/<b>行业中性 + 市值中性</b>）→ 组合优化（成分股≥80%、个股权重偏离≤0.8%、Barra 暴露&lt;0.3、周换手≤30%）→ 回测（前向零偏差、分层单调性、IC/IR、<b>样本外 walk-forward</b>）→ 监控。</p>
+  <div class="note"><b>v2 成本假设上修：</b>微盘股真实全成本（冲击+佣金+价差）单笔可至 1%–3%。若策略主战场在中证1000/2000，回测成本假设应从"双边千四"上调至覆盖冲击成本，否则超额虚高。</div>
+
+  <h3>9.3 中性化矛盾解法：小市值作风险因子控上限（修正#5）</h3>
+  <div class="newbox"><span class="h">解法：用"风险预算"替代"硬中性"</span>
+  不再对市值做<b>严格中性（暴露=0）</b>——那会砍掉 A 股历史最肥的 α。改为：
+  <ul class="tight" style="margin:6px 0">
+    <li><b>小市值设为风险因子</b>，给定风险预算上限（如净暴露控制在基准 ±X% 内，X 由容量与压力测试定）；</li>
+    <li><b>行业严格中性</b>（避免 PB 退化成银行暴露）；</li>
+    <li><b>风格暴露用风险预算约束</b>而非硬清零，在"追 α"与"控风险"间留弹性。</li>
+  </ul>
+  </div>
+
+  <h3>9.4 反转因子：动态降权与崩塌条件（修正#6）</h3>
+  <p>反转仍是 A 股有效因子，但<b>列入高风险名单</b>：</p>
+  <ul class="tight">
+    <li><b>动态降权：</b>当市场进入高波动/低流动性 regime，自动下调反转因子权重；</li>
+    <li><b>崩塌条件（触发即降权/暂停）：</b>① 中证1000/2000 波动率突破历史 90 分位；② 微盘流动性枯竭（成交额骤降 + 涨跌停蔓延）；③ 政策驱动的趋势性反转（如 2024-02 救市资金介入）。</li>
+  </ul>
+
+  <h3>9.5 因子模型失效熔断开关（修正#7）</h3>
+  <div class="newbox"><span class="h">政策/行为盲区兜底</span>
+  纯因子模型对政策拐点、叙事行情几乎零预测力。增设<b>独立于模型的熔断开关</b>：
+  <ul class="tight" style="margin:6px 0">
+    <li>当 <b>市场波动率</b>（如中证1000 IV / 等效指标）突破阈值 → 组合整体降仓至 Y%；</li>
+    <li>当 <b>成交集中度</b>（少数个股/板块成交占比）突破阈值 → 暂停动量/反转类因子，仅留质量/低波底仓；</li>
+    <li>当 <b>因子拥挤度</b>（国泰海通四维）亮红灯 → 先降仓再追问原因（评审纪律）。</li>
+  </ul>
+  </div>
+</section>
+
+<!-- §10 纪律 -->
+<section>
+  <h2><span class="num n">10</span>【v2】实战纪律（评审团一致意见）</h2>
+  <div class="callout">
+    <ol class="tight" style="margin:4px 0">
+      <li><b>收益打折：</b>把任何"年化超额"按 <b>3–5 折</b>折算，再扣 <b>8%–12%</b> 基差/冲击成本，才是中性策略的真实可预期收益。</li>
+      <li><b>多策略低相关配置：</b>量价 + 基本面 + 宏观 + 另类，定期测相关性，相关性飙升即预警，单因子不押注。</li>
+      <li><b>拥挤度是生命线：</b>红灯先降仓，不恋战。</li>
+      <li><b>按回撤反推仓位：</b>假设自己会在最差时点被赎回，按"最大回撤能否扛 12 个月"定仓位，而非按年化收益正推。</li>
+      <li><b>先过 §8 压力测试，再谈收益。</b></li>
+    </ol>
+  </div>
+</section>
+
+<!-- 参考文献 -->
+<section>
+  <h2><span class="num">11</span>参考文献与资料来源</h2>
+  <h4>国外权威论文 / 机构报告</h4>
+  <div class="ref">[1] Sharpe (1964); Fama & French (1993, 2015); Carhart (1997).</div>
+  <div class="ref">[2] Grinold & Kahn (1994/2000). <i>Active Portfolio Management.</i></div>
+  <div class="ref">[3] MSCI. <i>Barra China Equity Model (CNE5)</i> (2013).</div>
+  <div class="ref">[4] Asness et al. (2013) Value&Momentum Everywhere; Frazzini-Kabiller-Pedersen QMJ; AQR BAB.</div>
+  <div class="ref">[5] Aalberg & Schubart (2018). <i>Factor Models in China</i>; Zhang et al. (2017) reversal in China.</div>
+  <h4>国内券商研报（标注回测/样本内口径）</h4>
+  <div class="ref">[6] 华泰：五因子A股实证(2017)、全频段融合因子(2023)、超额回暖(2026) — <b>回测·双边千四</b>。</div>
+  <div class="ref">[7] 中信：多因子定价逻辑(2018)、全球多因子模型、OFI因子。</div>
+  <div class="ref">[8] 国泰海通：因子拥挤四维监测、拥挤度周报(2026)。</div>
+  <div class="ref">[9] 广发：Alpha因子库(2025)、宏观因子穿透(2025)。</div>
+  <div class="ref">[10] 国君质优/QMJ(2018)；国信指增周报；西南拥挤度行业配置。</div>
+  <h4>v2 新增背景数据</h4>
+  <div class="ref">[11] 量化多头规模约 1.83 万亿元、2026H1 指增"剪刀差" — 行业公开报道（需核实）。</div>
+  <div class="ref">[12] 2024-02 A股微盘/反转因子回撤、量化中性产品单周回撤 — 媒体/监管公开记录（幅度需核实具体产品）。</div>
+  <div class="ref">[13] 股指期货(IM/中证2000)贴水区间 — 中金所/券商期货研究（示例 6%–12%，需核实当期）。</div>
+
+  <div class="disclaimer">
+    <b>免责声明</b>：以上内容基于公开数据和量化分析，仅供参考，不构成投资建议。市场有风险，投资需谨慎。任何投资决策应结合个人风险承受能力、资金状况和投资目标独立判断，必要时咨询持牌专业机构。过往表现不预示未来收益。文中券商研报结论为历史回测/区间表现，存在模型误设、政策环境变化与因子失效风险；v2 中"实盘可预期区间""基差成本""容量折损""2024-02 回撤幅度"等为<b>基于公开信息的经验估计与示例假设</b>，精确数值须以原始研报、交易所及监管/媒体公开记录核实，本修订版对其不作保证。
+  </div>
+</section>
+
+<footer>
+  量化金融 · 中国证券投资模式与成功因子研究报告 v2 修订版 ｜ 2026-08-26 ｜ 基于红蓝对抗评审 7 条修正重写<br>
+  保留 v1 框架正确性，重写收益预期并补齐容量/对冲/压力测试/熔断等实盘约束。
+</footer>
+
+</div>
+</body>
+</html>

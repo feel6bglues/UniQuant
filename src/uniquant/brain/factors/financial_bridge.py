@@ -58,6 +58,8 @@ FINANCIAL_FIELD_MAPPINGS: List[FieldMapping] = [
     FieldMapping("股东人数(户)", "holder_num", "float"),
     FieldMapping("机构持股总量(股)", "inst_shares", "float"),
     FieldMapping("十大流通股东持股数量合计(股)", "top10_float_shares", "float"),
+    # P14 现金流价值裁决 (2026-08-28): 资本开支 (fcf_yield 分子 = OCF - CAPEX)
+    FieldMapping("购建固定资产、无形资产和其他长期资产支付的现金", "capex", "float"),
 ]
 
 FIELD_MAPPING_DICT: Dict[str, str] = {m.chinese_name: m.standard_name for m in FINANCIAL_FIELD_MAPPINGS}
@@ -85,6 +87,8 @@ FINANCIAL_FIELD_ALIASES: Dict[str, List[str]] = {
 CUMULATIVE_FLOW_FIELDS = frozenset({
     "eps", "net_profit", "net_profit_parent", "net_profit_deducted",
     "ocf", "ocf_ps",
+    # P14 2026-08-28: capex 实测 5/5 股年内单调递增且 Q4=全年 → 累计 YTD, 与 OCF 同口径
+    "capex",
 })
 # - 单季字段: TTM 直接滚动 4 季求和
 SINGLE_QUARTER_FLOW_FIELDS = frozenset({"revenue", "operating_cost"})

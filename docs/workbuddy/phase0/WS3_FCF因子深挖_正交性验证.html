@@ -1,0 +1,46 @@
+<!DOCTYPE html><html lang="zh"><head><meta charset="utf-8"><title>WS3 FCF因子深挖</title>
+<style>body{font-family:system-ui;max-width:1000px;margin:24px auto;padding:0 16px;color:#222;line-height:1.6}
+h1{color:#0b3d91}h2{color:#0b3d91;border-left:4px solid #0b3d91;padding-left:8px;margin-top:34px}
+table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px}
+th,td{border:1px solid #ccc;padding:6px 9px;text-align:right}th{background:#f0f4fa;text-align:center}
+td:first-child{text-align:left}th:first-child{text-align:left}
+.pos{color:#c0392b;font-weight:bold}.neg{color:#27ae60}
+.box{background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:13px 17px;margin:13px 0}
+.warn{background:#fff8e6;border:1px solid #f0d9a8;border-radius:8px;padding:12px 16px;margin:13px 0}
+code{background:#f1f5f9;padding:2px 6px;border-radius:4px}
+.big{font-size:1.05em;font-weight:bold}</style></head><body>
+<h1>WS3 · 自由现金流因子深挖（FCF 是进化版还是换皮？）</h1>
+<p>样本：15 只跨风格龙头 × 2010–2024 年报因子 → 次年收益（15 年，204 个观测）· 数据：mootdx gpcw + 月线 + <b>xdxr 真实除权除息</b></p>
+
+<h2>〇、数据升级：真实股息率</h2>
+<div class="box">首次接入 <code>xdxr</code>（除权除息）接口构建<b>真实 DY</b>（每股派息/年末价），替代此前 30% 分红率近似。<b>结果：真实 DY 是全场最强单因子</b>（meanIC 0.115 / IR 0.273），远高于近似版（IR 0.106）——之前用近似低估了红利因子。</div>
+
+<h2>一、因子截面相关性（15 年平均秩相关）</h2>
+<table><tr><th></th><th>fcfy</th><th>roe</th><th>ep</th><th>dy</th><th>cash_content</th></tr><tr><td style="text-align:left">fcfy</td><td>1.000</td><td>0.169</td><td>0.450</td><td>0.430</td><td>0.676</td></tr><tr><td style="text-align:left">roe</td><td>0.169</td><td>1.000</td><td>0.182</td><td>0.125</td><td>-0.119</td></tr><tr><td style="text-align:left">ep</td><td>0.450</td><td>0.182</td><td>1.000</td><td>0.663</td><td>-0.015</td></tr><tr><td style="text-align:left">dy</td><td>0.430</td><td>0.125</td><td>0.663</td><td>1.000</td><td>-0.001</td></tr><tr><td style="text-align:left">cash_content</td><td>0.676</td><td>-0.119</td><td>-0.015</td><td>-0.001</td><td>1.000</td></tr></table>
+<div class="box"><b>读法</b>：FCFyield 与 ROE 几乎正交（0.169）→ <b>不是"质量换皮"</b>；与 EP(0.450)/DY(0.430)/现金含量(0.676) 中度相关 → 含"价值 + 现金流质量"双重暴露。</div>
+
+<h2>二、FCF 正交化（控制质量/价值/红利后的残差 IC）</h2>
+<table><tr><th>残差因子</th><th>meanIC</th><th>IR</th><th>期数</th></tr><tr><td style="text-align:left">FCF 控制ROE</td><td class="neg">-0.0160</td><td>-0.064</td><td>15</td></tr><tr><td style="text-align:left">FCF 控制ROE+EP</td><td class="neg">-0.0454</td><td>-0.213</td><td>15</td></tr><tr><td style="text-align:left">FCF 控制ROE+EP+DY</td><td class="neg">-0.0544</td><td>-0.285</td><td>15</td></tr><tr><td style="text-align:left">FCF 控制ROE+DY</td><td class="neg">-0.0426</td><td>-0.157</td><td>15</td></tr></table>
+<table><tr><th>原始因子对照</th><th>meanIC</th><th>IR</th></tr>
+<tr><td style="text-align:left">FCFyield（原始）</td><td class="pos">+0.062</td><td>0.206</td></tr>
+<tr><td style="text-align:left">DY（真实）</td><td class="pos">+0.115</td><td>0.273</td></tr>
+<tr><td style="text-align:left">EP</td><td class="pos">+0.029</td><td>0.079</td></tr>
+<tr><td style="text-align:left">ROE</td><td class="neg">-0.029</td><td>-0.074</td></tr>
+<tr><td style="text-align:left">现金含量 OCF/NP</td><td class="pos">+0.053</td><td>0.165</td></tr></table>
+<div class="box"><b>核心证据</b>：FCF 单独 IC=+0.062，但控制 ROE 后残差 IC 归零（-0.016），再控制 EP/DY 后<b>转负</b>（IR -0.285）。→ <b>FCF 的 alpha 几乎全部来自其价值（EP/DY）暴露，独立增量信息 ≈ 0，甚至略负</b>。</div>
+
+<h2>三、双变量分组（ROE 中位 × FCFyield 中位，次年平均收益）</h2>
+<table><tr><th></th><th>FCF低</th><th>FCF高</th><th>FCF 增量</th></tr>
+<tr><td style="text-align:left">ROE低</td><td>20.0%</td><td>16.7%</td><td class="neg">-3.3pp</td></tr>
+<tr><td style="text-align:left">ROE高</td><td>17.3%</td><td>10.2%</td><td class="neg">-7.0pp</td></tr>
+<tr><td style="text-align:left">ROE 增量</td><td>-2.7pp</td><td class="neg">-6.5pp</td><td></td></tr></table>
+<div class="warn"><b>反直觉但重要的发现</b>："高 ROE + 高 FCF"（又贵又好）的龙头组合次年收益反而最低（10.2%），"低 ROE + 低 FCF"最高（20.0%）。在<b>已被充分定价的龙头篮子</b>里，质量/现金流越好 → 预期差越小 → 超额越低（估值透支）。这解释了 ROE/FCF 原始 IC 偏弱甚至为负。</div>
+
+<h2>四、结论（诚实版）</h2>
+<ul>
+<li>❌ <b>当前口径下 FCF 不是"质量/红利的进化版"</b>：其 alpha 主要来自与 EP/DY 的共线，正交化后无独立增量（IR -0.29）</li>
+<li>✅ 真正被低估的是 <b>真实股息率</b>（IR 0.273，全场最强）——优先在 WS2 核心中用真实 DY 替代近似</li>
+<li>⚠️ 边界：15 只龙头样本，全部"好公司"→ 反向结果可能源于估值透支而非 FCF 本身无效；<b>全 A 升级后需重验</b>（中小盘里 FCF 稀缺性定价可能完全不同）</li>
+<li>建议：WS2 核心打分改用 真实DY + EP 权重上调；全 A 阶段重跑本验证</li>
+</ul>
+</body></html>
