@@ -21,8 +21,16 @@
 
 from __future__ import annotations
 
+import sys
+from pathlib import Path
 import numpy as np
 import pandas as pd
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+from uniquant.research.gates.alpha_tier_engine import ClassAEvaluator
 
 
 def correct_fwd5(panel: pd.DataFrame, price_col: str = "close") -> pd.Series:
@@ -59,8 +67,9 @@ def daily_ic_series(panel: pd.DataFrame, factor_col: str) -> dict:
             continue
         raw_ics.append(raw)
         mv = mm_r
-        if mv.var() > 1e-12:
-            beta = np.cov(ff_r, mv)[0, 1] / mv.var()
+        mv_var = float(np.var(mv, ddof=1))
+        if mv_var > 1e-12:
+            beta = float(np.cov(ff_r, mv, ddof=1)[0, 1]) / mv_var
             res = pd.Series(ff_r - beta * mv).rank().to_numpy()
             n = len(res)
             num = n * float(np.dot(res, rr_r)) - float(res.sum()) * float(rr_r.sum())
@@ -104,6 +113,37 @@ def block_bootstrap_pbo(oos_ics: list, n_bootstrap: int = 2000) -> float:
     return worse / n_bootstrap
 
 
+def block_bootstrap_ic_ci(
+    oos_ics: list, n_bootstrap: int = 2000, ci_level: float = 0.95
+) -> dict:
+    """真实重叠块自助法计算 OOS IC 均值 95% 置信区间与零假设检验。"""
+    arr = np.array([x for x in oos_ics if np.isfinite(x)], dtype=np.float64)
+    n = len(arr)
+    if n < 3:
+        return {"ci_lower": 0.0, "ci_upper": 0.0, "bootstrap_p": 1.0, "is_significant": False}
+    rng = np.random.RandomState(42)
+    block_size = max(1, int(n / 4))
+    n_blocks = int(np.ceil(n / block_size))
+    boot_means = []
+    for _ in range(n_bootstrap):
+        blocks = rng.choice(n_blocks, size=n_blocks, replace=True)
+        sample = np.concatenate([arr[i * block_size: (i + 1) * block_size] for i in blocks])[:n]
+        boot_means.append(float(np.mean(sample)))
+    boot_arr = np.array(boot_means)
+    alpha = (1.0 - ci_level) / 2.0
+    low = float(np.percentile(boot_arr, alpha * 100))
+    high = float(np.percentile(boot_arr, (1.0 - alpha) * 100))
+    m = float(np.mean(arr))
+    p_zero = float(np.mean(boot_arr <= 0)) if m > 0 else float(np.mean(boot_arr >= 0))
+    is_sig = bool((low > 0 and high > 0) or (low < 0 and high < 0))
+    return {
+        "ci_lower": round(low, 4),
+        "ci_upper": round(high, 4),
+        "bootstrap_p": round(min(1.0, p_zero * 2.0), 4),
+        "is_significant": is_sig,
+    }
+
+
 def factor_gates(
     panel: pd.DataFrame,
     windows: list,
@@ -115,6 +155,7 @@ def factor_gates(
 
     每窗取测试段 panel → 逐日 raw/res/tail IC; oos_ic_mean = 各窗 raw IC 均值,
     ICIR = mean/std, PBO = 各窗 raw IC 块自助, 动量门 = res/tail/pos_frac。
+    集成 QTR-OS 科研门禁: Newey-West t-stat、块自助置信区间与 Class A 裁决。
     """
     per_win_raw, per_win_res = [], []
     res_all, tail_all, pos_windows, n_win = [], [], 0, 0
@@ -153,6 +194,10 @@ def factor_gates(
         res_m, tail_m = -res_m, -tail_m
         frac_pos = 1.0 - frac_pos
 
+    # 科研控制平面门禁指标计算
+    ci_res = block_bootstrap_ic_ci(per_win_raw, n_bootstrap)
+    _, t_nw, p_nw = ClassAEvaluator.compute_newey_west_t(np.array(per_win_raw), forecast_horizon=5)
+
     d = {
         "oos_ic_mean": round(oos_mean, 4),
         "oos_ic_std": round(oos_std, 4),
@@ -168,6 +213,12 @@ def factor_gates(
         "mom_tail_mean": round(tail_m, 4),
         "mom_pos_frac": round(frac_pos, 3),
         "passed_mom": bool(res_m > 0 and tail_m > 0 and frac_pos >= 2.0 / 3.0),
+        # Research OS 门禁增强指标
+        "newey_west_t": round(t_nw, 3),
+        "newey_west_p": round(p_nw, 5),
+        "ic_ci_95": [ci_res["ci_lower"], ci_res["ci_upper"]],
+        "bootstrap_sig": ci_res["is_significant"],
+        "class_a_supported": bool(abs(t_nw) >= 3.0 and ci_res["is_significant"] and (res_m > 0 and frac_pos >= 2.0 / 3.0)),
     }
     d["passed_all_base"] = bool(
         d["passed_ic"] and d["passed_icir"] and d["passed_pbo"] and correct_sign

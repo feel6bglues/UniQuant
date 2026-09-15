@@ -294,3 +294,84 @@ def test_alpha_tier_engine_rejection_at_class_b(empty_ledger, mock_search_space)
     assert report.passed_class_b is False
     assert report.final_tier == AlphaTier.TIER_A
     assert "未能通过 Class B" in report.rejection_reason
+
+
+def test_cheverud_nyholt_discounting_prevents_burnout(mock_search_space):
+    """验证 50 组高自相关参数寻优在 M_eff 折算下仅消耗少量财富，不发生 50 次熔断破产。"""
+    # 初始财富 0.05
+    ledger = DegreesOfFreedomLedger(initial_alpha_wealth=0.05)
+    k = 50
+    # 构造高度自相关的相关性矩阵 (rho = 0.95)
+    corr_matrix = np.full((k, k), 0.95)
+    np.fill_diagonal(corr_matrix, 1.0)
+
+    # 注册 50 次试验
+    for i in range(k):
+        ledger.register_trial(
+            experiment_id=f"exp_sweep_{i}",
+            hypothesis_id="hypo_momentum",
+            family_id="momentum_window_sweep",
+            search_space=mock_search_space,
+            test_statistic_name=StatisticType.IC_NEWEY_WEST_T,
+            raw_statistic_value=0.8,
+            sample_size_T=500,
+            cross_section_N=500,
+            p_raw=0.50,  # 明显不显著，不赚取发现奖励
+            factor_correlation_matrix=corr_matrix,
+            alpha_wealth_bid=0.001,
+        )
+
+    # 验证 50 次试验全部成功注册，未触发 PermissionError
+    assert ledger.total_trials == 50
+    # 50 次若是完全独立且无折算，将消耗 50 * 0.001 = 0.050 财富全部耗尽
+    # 在 Cheverud-Nyholt 折算下，M_eff 约为 2.5 ~ 3.5，消耗仅为 0.0057 左右
+    assert ledger.current_alpha_wealth > 0.040
+    assert ledger.current_alpha_wealth < 0.050
+
+
+def test_register_sweep_batch(mock_search_space):
+    """验证 register_sweep 批量注册与一次性 FDR 动态校正。"""
+    ledger = DegreesOfFreedomLedger(initial_alpha_wealth=0.05)
+    k = 10
+    corr = np.eye(k) * 0.8 + 0.2
+
+    trials_data = [
+        {
+            "test_statistic_name": StatisticType.IC_NEWEY_WEST_T,
+            "raw_statistic_value": 2.0 + i * 0.2,
+            "sample_size_T": 250,
+            "cross_section_N": 500,
+            "p_raw": 0.01 / (i + 1),
+            "metadata": {"window": 5 + i * 2},
+        }
+        for i in range(k)
+    ]
+
+    records = ledger.register_sweep(
+        experiment_id="sweep_01",
+        hypothesis_id="hypo_reversal",
+        family_id="fam_reversal",
+        search_space=mock_search_space,
+        trials_data=trials_data,
+        factor_correlation_matrix=corr,
+        family_budget=0.005,
+    )
+
+    assert len(records) == 10
+    assert ledger.total_trials == 10
+    # 至少前几个显著试验通过 FDR
+    assert any(r.passed_bh_fdr for r in records)
+
+
+def test_register_hypothesis():
+    """验证顶层经济学假说注册与基础出价扣除。"""
+    ledger = DegreesOfFreedomLedger(initial_alpha_wealth=0.05)
+    entry = ledger.register_hypothesis(
+        hypothesis_id="h_illiq_hot",
+        family_id="fam_illiq",
+        description="投机过热状态下小盘非流动性溢价爆发",
+        base_bid=0.005,
+    )
+
+    assert entry["hypothesis_id"] == "h_illiq_hot"
+    assert np.isclose(ledger.current_alpha_wealth, 0.045)

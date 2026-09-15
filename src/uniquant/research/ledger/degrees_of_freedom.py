@@ -138,15 +138,22 @@ class DegreesOfFreedomLedger:
         向账本注册一次试验，扣减 Alpha-Wealth，并动态更新该假设族的多重检验校正阈值。
         """
         with self._lock:
-            if self.current_alpha_wealth < alpha_wealth_bid:
+            m_eff = self.compute_effective_m(family_id, factor_correlation_matrix)
+            # 如果提供了相关性矩阵且包含多个检验，按 Cheverud-Nyholt M_eff / K 折算自由度损耗
+            if factor_correlation_matrix is not None and factor_correlation_matrix.shape[0] > 1:
+                k = float(factor_correlation_matrix.shape[0])
+                actual_bid = alpha_wealth_bid * (m_eff / k)
+            else:
+                actual_bid = alpha_wealth_bid
+
+            if self.current_alpha_wealth < actual_bid:
                 raise PermissionError(
-                    f"Alpha Wealth 耗尽 (当前余额: {self.current_alpha_wealth:.6f} < 申请配额: {alpha_wealth_bid})。"
+                    f"Alpha Wealth 耗尽 (当前余额: {self.current_alpha_wealth:.6f} < 申请配额: {actual_bid:.6f})。"
                     "由于历史过拟合与无效检验过多，已被 QTR-OS 科研控制平面锁定！"
                 )
 
-            self.current_alpha_wealth -= alpha_wealth_bid
+            self.current_alpha_wealth -= actual_bid
             n_trials = len(self.trials) + 1
-            m_eff = self.compute_effective_m(family_id, factor_correlation_matrix)
 
             rec = TrialRecord(
                 experiment_id=experiment_id,
@@ -160,7 +167,7 @@ class DegreesOfFreedomLedger:
                 cross_section_N=cross_section_N,
                 p_raw=p_raw,
                 effective_m=m_eff,
-                alpha_wealth_spent=alpha_wealth_bid,
+                alpha_wealth_spent=actual_bid,
                 code_git_sha=code_git_sha,
                 data_snapshot_hash=data_snapshot_hash,
                 metadata=metadata or {},
@@ -177,6 +184,97 @@ class DegreesOfFreedomLedger:
                 self.current_alpha_wealth += reward
 
             return rec
+
+    def register_sweep(
+        self,
+        experiment_id: str,
+        hypothesis_id: str,
+        family_id: str,
+        search_space: SearchSpaceSpec,
+        trials_data: List[Dict[str, Any]],
+        factor_correlation_matrix: Optional[np.ndarray] = None,
+        family_budget: float = 0.005,
+        code_git_sha: str = "",
+        data_snapshot_hash: str = "",
+    ) -> List[TrialRecord]:
+        """
+        向账本批量注册参数寻优族 (Hyperparameter Sweep / GP Evolution)。
+        使用 Cheverud-Nyholt M_eff 统一折算探索成本，单次整体扣减，杜绝单次尝试累加导致过早熔断。
+        """
+        with self._lock:
+            k = len(trials_data)
+            if k == 0:
+                return []
+
+            m_eff = self.compute_effective_m(family_id, factor_correlation_matrix)
+            discount_ratio = (m_eff / float(k)) if k > 1 and factor_correlation_matrix is not None else 1.0
+            actual_sweep_cost = family_budget * discount_ratio
+
+            if self.current_alpha_wealth < actual_sweep_cost:
+                raise PermissionError(
+                    f"Alpha Wealth 耗尽 (当前余额: {self.current_alpha_wealth:.6f} < 参数寻优预算: {actual_sweep_cost:.6f})。"
+                    "已被 QTR-OS 科研控制平面锁定！"
+                )
+
+            self.current_alpha_wealth -= actual_sweep_cost
+            per_trial_cost = actual_sweep_cost / float(k)
+
+            records: List[TrialRecord] = []
+            for t_data in trials_data:
+                n_trials = len(self.trials) + 1
+                rec = TrialRecord(
+                    experiment_id=experiment_id,
+                    hypothesis_id=hypothesis_id,
+                    family_id=family_id,
+                    trial_index=n_trials,
+                    search_space=search_space,
+                    test_statistic_name=t_data["test_statistic_name"],
+                    raw_statistic_value=t_data["raw_statistic_value"],
+                    sample_size_T=t_data["sample_size_T"],
+                    cross_section_N=t_data["cross_section_N"],
+                    p_raw=t_data["p_raw"],
+                    effective_m=m_eff,
+                    alpha_wealth_spent=per_trial_cost,
+                    code_git_sha=code_git_sha,
+                    data_snapshot_hash=data_snapshot_hash,
+                    metadata=t_data.get("metadata", {}),
+                )
+                self.trials.append(rec)
+                self._family_map.setdefault(family_id, []).append(rec)
+                records.append(rec)
+
+            self._recompute_family_adjustments(family_id)
+
+            # 若有试验通过 FDR，予以财富奖励
+            rewards = sum(
+                (self.alpha_nominal * self.fdr_nominal)
+                for r in records if r.passed_bh_fdr
+            )
+            self.current_alpha_wealth += rewards
+            return records
+
+    def register_hypothesis(
+        self,
+        hypothesis_id: str,
+        family_id: str,
+        description: str,
+        base_bid: float = 0.005,
+    ) -> Dict[str, Any]:
+        """向科研控制平面注册一个顶层独立经济学假说。"""
+        with self._lock:
+            if self.current_alpha_wealth < base_bid:
+                raise PermissionError(
+                    f"Alpha Wealth 耗尽，无法注册新假说 {hypothesis_id} "
+                    f"({self.current_alpha_wealth:.6f} < {base_bid:.6f})"
+                )
+            self.current_alpha_wealth -= base_bid
+            return {
+                "hypothesis_id": hypothesis_id,
+                "family_id": family_id,
+                "description": description,
+                "base_bid": base_bid,
+                "registered_at": datetime.now(timezone.utc).isoformat(),
+            }
 
     def _recompute_family_adjustments(self, family_id: str) -> None:
         """
