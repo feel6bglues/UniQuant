@@ -1,6 +1,5 @@
 import numpy as np
 import pandas as pd
-import pytest
 
 from uniquant.hands.backtest.monte_carlo import MonteCarloSimulator
 from uniquant.hands.backtest.sensitivity_analyzer import SensitivityAnalyzer
@@ -106,11 +105,8 @@ class TestOverfittingDetector:
 
     def test_mdd_p_value(self):
         od = OverfittingDetector()
-        try:
-            p = od.mdd_p_value(0.15, 252)
-            assert 0.0 <= p <= 1.0
-        except AttributeError:
-            pytest.skip("pre-existing bug: scipy.stats.erf should be scipy.special.erf")
+        p = od.mdd_p_value(0.15, 252)
+        assert 0.0 <= p <= 1.0
 
     def test_mdd_p_value_edge_cases(self):
         od = OverfittingDetector()

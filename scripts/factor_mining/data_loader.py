@@ -22,6 +22,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
 from uniquant.brain.factors.financial_bridge import FinancialFactorBridge  # noqa: E402
+from uniquant.data.corporate_action import CorporateActionAdjuster  # noqa: E402
 from uniquant.data.lake.storage_manager import StorageManager  # noqa: E402
 from uniquant.shared.logger_factory import get_logger  # noqa: E402
 
@@ -45,6 +46,7 @@ def load_universe(
     max_workers: int = 32,
     data_dir: str = "./data",
     symbols: list[str] | None = None,
+    adjust: str | None = None,
 ) -> pd.DataFrame:
     """并行加载全市场股票日线并合并为统一长表（净化池）。
 
@@ -54,6 +56,7 @@ def load_universe(
         max_workers: 并行读取 worker 数。
         data_dir: 数据湖根目录。
         symbols: 显式符号列表 (默认走净化 get_symbols)。
+        adjust: 动态复权模式: "qfq" (前复权), "hfq" (后复权), 或 None (不复权)。
 
     Returns:
         DataFrame: [date, code, open, high, low, close, volume, amount]
@@ -62,10 +65,16 @@ def load_universe(
     storage = StorageManager(data_dir)
     all_symbols = symbols if symbols is not None else storage.get_symbols()
 
+    adjuster: CorporateActionAdjuster | None = None
+    if adjust in ("qfq", "hfq"):
+        gbbq_file = Path(data_dir) / "fq" / "gbbq.parquet"
+        adjuster = CorporateActionAdjuster(gbbq_path=gbbq_file)
+        adjuster.load_events()
+
     frames: list[pd.DataFrame] = []
     with ThreadPoolExecutor(max_workers=max_workers) as ex:
         fut_map = {
-            ex.submit(_load_one, storage, s, as_of): s for s in all_symbols
+            ex.submit(_load_one, storage, s, as_of, adjust, adjuster): s for s in all_symbols
         }
         for fut in as_completed(fut_map):
             sym = fut_map[fut]
@@ -90,16 +99,20 @@ def load_universe(
     result["date"] = pd.to_datetime(result["date"])
     logger.info(
         f"净化池加载完成: {result['code'].nunique()} 只 × {result['date'].nunique()} 天 "
-        f"= {len(result):,} 行 "
+        f"= {len(result):,} 行 (adjust={adjust}) "
         f"({result['date'].min().date()} → {result['date'].max().date()})"
     )
     return result
 
 
 def _load_one(
-    storage: StorageManager, symbol: str, as_of: str | None
+    storage: StorageManager,
+    symbol: str,
+    as_of: str | None,
+    adjust: str | None = None,
+    adjuster: CorporateActionAdjuster | None = None,
 ) -> pd.DataFrame | None:
-    """读取单只股票日线，应用 as_of 截断。"""
+    """读取单只股票日线，应用 as_of 截断与可选的动态复权。"""
     df = storage.read_data(symbol, data_type="daily")
     if df is None or df.empty:
         return None
@@ -109,6 +122,8 @@ def _load_one(
     if as_of is not None:
         cutoff = pd.to_datetime(as_of)
         df = df[df["date"] <= cutoff]
+    if adjust and adjuster:
+        df = adjuster.adjust(df, symbol, adjust_type=adjust)
     return df
 
 

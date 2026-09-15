@@ -571,12 +571,21 @@ class UnifiedResearchPipeline:
         decision: Dict[str, Any],
     ) -> Dict[str, Any]:
         """Expose DecisionBrain output to TradingSignalCollector safely."""
+        raw_metadata: Dict[str, Any] = {}
         if isinstance(data_pack, ResearchDataPack):
+            raw_metadata = data_pack.metadata
             data_pack = data_pack.to_dict()
-        if not decision:
-            return data_pack
+        elif isinstance(data_pack, dict):
+            m = data_pack.get("metadata", {})
+            if isinstance(m, dict):
+                raw_metadata = m
 
         collector_pack = dict(data_pack)
+        if raw_metadata:
+            collector_pack.update(raw_metadata)
+
+        if not decision:
+            return collector_pack
         if "final_decision" in decision:
             collector_pack["final_decision"] = decision["final_decision"]
         elif "action" in decision:

@@ -283,6 +283,8 @@ class RegimeAdapter(EngineAdapter):
         default_shares: int = 100,
     ) -> Optional[TradingSignal]:
         regime = raw_output.get("regime", "NORMAL")
+        if hasattr(regime, "regime"):
+            regime = regime.regime
 
         if regime == "FROZEN":
             action = "HOLD"

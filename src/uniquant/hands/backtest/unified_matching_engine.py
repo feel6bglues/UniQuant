@@ -72,12 +72,32 @@ class UnifiedMatchingEngine:
         quantities: np.ndarray | None = None,
         timestamps: np.ndarray | None = None,
     ) -> np.ndarray:
-        vol_ratios = np.where(
-            (avg_daily_volumes > 0) & (volumes > 0),
-            np.minimum(volumes / np.maximum(avg_daily_volumes, 1e-8), 1.0),
-            0.0,
-        )
-        impact = np.minimum(0.001 * np.sqrt(vol_ratios), 0.02)
+        if quantities is not None:
+            # 真实订单参与率: eta = quantities / avg_daily_volumes
+            # 针对散户小单 (eta << 0.01) 不承受虚构的市场日成交活跃度冲击;
+            # 针对大单 (eta > 0.10) 实施非线性加剧惩罚，上限截断为 0.05 (500 bps)
+            eta = np.where(
+                (avg_daily_volumes > 0) & (quantities > 0),
+                quantities / np.maximum(avg_daily_volumes, 1e-8),
+                0.0,
+            )
+            # 分段平方根冲击模型:
+            # 1) eta <= 0.10 (小中单): impact = 0.001 * sqrt(eta / 0.10) (0 ~ 10 bps)
+            # 2) eta > 0.10 (大单流动性承压): impact = 0.001 + 0.01 * (eta - 0.10)
+            impact = np.where(
+                eta <= 0.10,
+                0.001 * np.sqrt(np.maximum(eta / 0.10, 0.0)),
+                0.001 + 0.01 * (eta - 0.10),
+            )
+            impact = np.minimum(impact, 0.05)
+        else:
+            # 向后兼容退化分支: 当调用方未提供委托数量时，基于日成交活跃度估算
+            vol_ratios = np.where(
+                (avg_daily_volumes > 0) & (volumes > 0),
+                np.minimum(volumes / np.maximum(avg_daily_volumes, 1e-8), 1.0),
+                0.0,
+            )
+            impact = np.minimum(0.001 * np.sqrt(vol_ratios), 0.02)
 
         if self.slippage_model is not None and symbols is not None and quantities is not None and timestamps is not None:
             direction_str = "buy" if is_buy else "sell"

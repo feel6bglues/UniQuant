@@ -152,9 +152,14 @@ class StockMetadataManager:
         
         try:
             if isinstance(date_value, str):
-                if len(date_value) == 8:
-                    return pd.to_datetime(date_value, format='%Y%m%d').date()
-                return pd.to_datetime(date_value).date()
+                s = date_value.strip()
+                if not s or s in ("-", "None", "nan", "NaT"):
+                    return None
+                if len(s) == 10 and s[4] == "-" and s[7] == "-":
+                    return date.fromisoformat(s)
+                if len(s) == 8 and s.isdigit():
+                    return date(int(s[:4]), int(s[4:6]), int(s[6:8]))
+                return pd.to_datetime(s).date()
             return pd.to_datetime(date_value).date()
         except (ValueError, TypeError, pd.errors.ParserError):
             return None

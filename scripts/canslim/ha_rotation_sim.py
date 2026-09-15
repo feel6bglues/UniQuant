@@ -67,7 +67,7 @@ ENGINE_PARAMS = {
 class _Slot:
     """单个持久仓位单元: code=None 表示空仓 (现金)。"""
 
-    __slots__ = ("code", "shares", "cash", "buy_date", "cost")
+    __slots__ = ("code", "shares", "cash", "buy_date", "cost", "is_locked", "is_buffer")
 
     def __init__(self, cash: float):
         self.code: str | None = None
@@ -75,6 +75,8 @@ class _Slot:
         self.cash: float = cash
         self.buy_date = None
         self.cost: float = 0.0
+        self.is_locked: bool = False
+        self.is_buffer: bool = False
 
     @property
     def invested(self) -> bool:
@@ -97,8 +99,12 @@ class SlotRotationSim:
     """30 个持久仓位单元的滚动轮换执行 (生产匹配成交)。"""
 
     def __init__(self, n_slots: int = TOP_N, initial_capital: float = 1e7,
-                 engine_params: dict | None = None):
+                 engine_params: dict | None = None,
+                 n_buffer_slots: int = 0,
+                 buffer_cash_pct: float = 0.0):
         self.n_slots = n_slots
+        self.n_buffer_slots = n_buffer_slots
+        self.buffer_cash_pct = buffer_cash_pct
         self._init = initial_capital
         ep = dict(ENGINE_PARAMS)
         if engine_params:
@@ -111,7 +117,11 @@ class SlotRotationSim:
             hmap: dict, calendar: list,
             nav_capture: bool = False) -> dict:
         """closes/pre_closes/volumes/adv: date×code pivot。返回统计 + 诊断。"""
-        slots = [_Slot(self._init / self.n_slots) for _ in range(self.n_slots)]
+        init_buf = self._init * self.buffer_cash_pct
+        buffer_cash = init_buf
+        core_cash = self._init - init_buf
+
+        slots = [_Slot(core_cash / self.n_slots) for _ in range(self.n_slots)]
         by_code: dict[str, _Slot] = {}
         portfolio_cash = 0.0
 
@@ -141,7 +151,12 @@ class SlotRotationSim:
                     # 缺收盘价的退出名无法成交: 按成本清零退出
                     for c in removed:
                         if c not in keep and c in by_code:
-                            _reset_slot(by_code[c])
+                            sl = by_code[c]
+                            if sl.is_buffer:
+                                buffer_cash += sl.cash
+                                slots.remove(sl)
+                            else:
+                                _reset_slot(sl)
                             del by_code[c]
                     if keep:
                         fr = self.matcher.fill_sell(
@@ -161,18 +176,39 @@ class SlotRotationSim:
                         for i, c in enumerate(keep):
                             sl = by_code[c]
                             if fr.rejected_mask[i] or fr.executed_shares[i] <= 0:
+                                sl.is_locked = True
                                 continue
                             proceeds = (fr.executed_shares[i] * fr.exec_prices[i]
                                         - fr.commissions[i] - fr.stamp_duties[i]
                                         - fr.transfer_fees[i])
-                            sl.cash += float(proceeds)
                             d_sold += float(fr.executed_shares[i] * fr.exec_prices[i])
-                            _reset_slot(sl)
-                            del by_code[c]
+                            if sl.is_buffer:
+                                buffer_cash += float(proceeds)
+                                slots.remove(sl)
+                                del by_code[c]
+                            else:
+                                repay = (min(float(proceeds), init_buf - buffer_cash)
+                                         if init_buf > buffer_cash else 0.0)
+                                buffer_cash += repay
+                                sl.cash += (float(proceeds) - repay)
+                                _reset_slot(sl)
+                                del by_code[c]
 
                 # ── 2) 买入新进名: 分配给空置 slot (NAV 复利投入) ──
                 free = [s for s in slots if not s.invested]
                 for c in added:
+                    if (not free and self.n_buffer_slots > 0
+                            and len(slots) < (self.n_slots + self.n_buffer_slots)
+                            and buffer_cash > 0):
+                        target_budget = (self._init - init_buf) / self.n_slots
+                        buf_budget = min(buffer_cash, target_budget)
+                        if buf_budget >= 1000.0:
+                            buffer_cash -= buf_budget
+                            b_slot = _Slot(buf_budget)
+                            b_slot.is_buffer = True
+                            slots.append(b_slot)
+                            free.append(b_slot)
+
                     if not free or c not in closes.columns:
                         continue
                     px_vec = _day_vec(closes, dt, [c])
@@ -211,7 +247,7 @@ class SlotRotationSim:
 
             # ── 每日 NAV 标记 ──
             row = closes.loc[dt] if dt in closes.index else None
-            nav = portfolio_cash
+            nav = portfolio_cash + buffer_cash
             for s in slots:
                 nav += s.cash
                 if s.invested and row is not None:
@@ -254,6 +290,8 @@ def _reset_slot(sl: _Slot) -> None:
     sl.code = None
     sl.buy_date = None
     sl.cost = 0.0
+    sl.is_locked = False
+    sl.is_buffer = False
 
 
 def main(argv=None):
@@ -265,6 +303,10 @@ def main(argv=None):
                     help="诊断: 归零滑点/佣金/印花税 (保留市场冲击), 隔离执行摩擦 (非生产)")
     ap.add_argument("--floor", type=float, default=None,
                     help="成交额地板 (元); 2e7 = P10 F2 地板变体")
+    ap.add_argument("--buffer-slots", type=int, default=0,
+                    help="动态弹性缓冲槽位数 (默认 0=关闭; 3=防跌停饿死)")
+    ap.add_argument("--buffer-pct", type=float, default=0.0,
+                    help="流动性应急储备资金比例 (如 0.05=5% 现金储备)")
     args = ap.parse_args(argv)
     t0 = time.time()
 
@@ -290,8 +332,11 @@ def main(argv=None):
         params = {"commission_rate": 1e-9, "stamp_duty_rate": 1e-9,
                   "slippage_rate": 1e-9, "min_commission": 0.0}
         print("  [诊断] 零成本/零滑点模式 (1e-9)")
-    result = SlotRotationSim(engine_params=params).run(
-        closes, pre, volumes, adv, hmap, list(closes.index))
+    result = SlotRotationSim(
+        engine_params=params,
+        n_buffer_slots=args.buffer_slots,
+        buffer_cash_pct=args.buffer_pct,
+    ).run(closes, pre, volumes, adv, hmap, list(closes.index))
     result["elapsed_sec"] = round(time.time() - t0, 1)
     result["universe"] = "full" if args.full else f"sample{n_sample}"
 

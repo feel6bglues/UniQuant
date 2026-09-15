@@ -4,7 +4,7 @@ from typing import Any, Dict, List, Optional
 
 import numpy as np
 import pandas as pd
-from scipy import stats
+from scipy import special, stats
 
 from ...shared.cost_model import calculate_sharpe_ratio
 from ...shared.logger_factory import get_logger
@@ -93,7 +93,7 @@ class OverfittingDetector:
         if max_drawdown <= 0 or n_observations < 2:
             return 1.0
 
-        p = 0.5 * (1 + stats.erf(max_drawdown / np.sqrt(2 * n_observations)))
+        p = 0.5 * (1 + special.erf(max_drawdown / np.sqrt(2 * n_observations)))
         return float(p)
 
     def num_trials_metric(self, n_parameters: int, n_configs: int) -> float:
