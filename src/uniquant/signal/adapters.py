@@ -68,7 +68,20 @@ class LPPLAdapter(EngineAdapter):
 
     输入 keys: risk_level, confidence, bubble_confidence
     输出: SELL (Danger) / HOLD (Safe/Warning) — 从不产生 BUY
+    支持:
+    - min_oos_r2 / min_r2 样本外拟合质量门：R² 破损时降级为 HOLD 诊断模式，杜绝虚假强平
+    - diagnostic_only 诊断模式：作为遥测特征记录在 metadata，避免一票否决强平
     """
+
+    def __init__(
+        self,
+        diagnostic_only: bool = False,
+        min_r2: Optional[float] = None,
+        min_oos_r2: Optional[float] = None,
+    ) -> None:
+        self.diagnostic_only = diagnostic_only
+        self.min_r2 = min_r2
+        self.min_oos_r2 = min_oos_r2
 
     def adapt(
         self,
@@ -85,16 +98,25 @@ class LPPLAdapter(EngineAdapter):
         if confidence < 0.05:
             return None
 
+        # 检查 R² 质量门与样本外有效性
+        r2 = float(raw_output.get("r_squared", raw_output.get("r2", 1.0)))
+        oos_r2 = float(raw_output.get("out_of_sample_r_squared", raw_output.get("oos_r2", 1.0)))
+
+        is_diagnostic = self.diagnostic_only or bool(raw_output.get("diagnostic_only", False))
+        if (self.min_r2 is not None and r2 < self.min_r2) or (self.min_oos_r2 is not None and oos_r2 < self.min_oos_r2):
+            is_diagnostic = True
+
         if risk == "Danger":
-            action = "SELL"
+            action = "HOLD" if is_diagnostic else "SELL"
         elif risk == "Warning":
             action = "HOLD"
         else:
             action = "HOLD"
 
+        reason_suffix = " (diagnostic)" if is_diagnostic and risk == "Danger" else ""
         return TradingSignal(
             action=action,
-            reason=f"LPPL risk={risk} conf={confidence:.2f}",
+            reason=f"LPPL risk={risk} conf={confidence:.2f}{reason_suffix}",
             confidence=confidence,
             shares=default_shares if action == "SELL" else 0,
             symbol=symbol,
@@ -103,6 +125,7 @@ class LPPLAdapter(EngineAdapter):
             metadata={
                 "r_squared": float(raw_output.get("r_squared", 0.0)),
                 "out_of_sample_r_squared": float(raw_output.get("out_of_sample_r_squared", 0.0)),
+                "diagnostic_only": is_diagnostic,
             },
         )
 

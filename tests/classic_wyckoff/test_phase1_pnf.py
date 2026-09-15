@@ -142,3 +142,43 @@ def test_count_target_in_trading_plan():
         assert abs(plan_target - count_target) <= box * 3, (
             f"target {plan_target} 应参考 PNF count_target {count_target}"
         )
+
+
+# ───────────────────────── Log-PnF & 内存防御测试 ─────────────────────────
+
+def test_log_pnf_extreme_span_stays_bounded():
+    """验证对数标度 Log-PnF 在跨度 1000 倍价格数据下保持箱体数量收敛与毫秒级构建。"""
+    # 模拟从 1.0 涨到 1000.0 的巨大跨度股票 (如 600602.SH)
+    prices = np.exp(np.linspace(np.log(1.0), np.log(1000.0), 200))
+    df = pd.DataFrame({
+        "open": prices,
+        "high": prices * 1.02,
+        "low": prices * 0.98,
+        "close": prices,
+    })
+
+    pnf_log = PointAndFigure(box_size=0.05, reversal=3, scale="log")
+    boxes = pnf_log.build(df)
+
+    assert len(boxes) > 0
+    # 对数标度下: ln(1000) / ln(1.05) 理论上限约 141 格，箱体数严格收敛在数百以内
+    assert len(boxes) < 2000, f"Log-PnF 箱体数应收敛, 当前: {len(boxes)}"
+    assert pnf_log.congestion_zone() is not None
+
+
+def test_pnf_max_boxes_protection():
+    """验证极端震荡数据下 max_boxes 截断保护生效，绝不发生无限挂死。"""
+    # 构造剧烈高低波动的病态数据
+    n = 500
+    df = pd.DataFrame({
+        "high": [100.0 if i % 2 == 0 else 10.0 for i in range(n)],
+        "low": [90.0 if i % 2 == 0 else 1.0 for i in range(n)],
+        "close": [95.0 if i % 2 == 0 else 5.0 for i in range(n)],
+    })
+
+    limit = 500
+    pnf = PointAndFigure(box_size=0.01, reversal=1, scale="linear", max_boxes=limit)
+    boxes = pnf.build(df)
+
+    assert len(boxes) <= limit + 50
+

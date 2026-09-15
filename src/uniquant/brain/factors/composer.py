@@ -264,13 +264,19 @@ class FactorComposer:
         if date_col not in df.columns:
             return self._zscore_frame(factor_df)
 
-        normalized_parts = []
-        for _, indexer in df.groupby(date_col, sort=False).groups.items():
-            group_factors = factor_df.loc[indexer]
-            normalized_parts.append(self._zscore_frame(group_factors))
+        dates = df[date_col]
+        if dates.nunique() <= 1:
+            return self._zscore_frame(factor_df)
 
-        normalized = pd.concat(normalized_parts).loc[factor_df.index]
-        return normalized
+        # 单 Pass 向量化截面 Z-score (Cython 加速，避免 Python 逐日切片 concat)
+        counts = factor_df.groupby(dates).transform("count")
+        means = factor_df.groupby(dates).transform("mean")
+        stds_ddof1 = factor_df.groupby(dates).transform("std")
+        # 转换为 ddof=0 的标准差，保持与 _zscore_frame 数学一致
+        scale_factor = np.sqrt(np.maximum(counts - 1, 0) / np.maximum(counts, 1))
+        stds = (stds_ddof1 * scale_factor).replace(0, np.nan)
+        z_df = (factor_df - means) / stds
+        return z_df.replace([np.inf, -np.inf], np.nan)
 
     def _build_composite_frame(
         self,
@@ -288,7 +294,15 @@ class FactorComposer:
         normalized = self._normalize_factors(df, factor_df, date_col=date_col) if normalize else factor_df.copy()
 
         if orthogonalize and normalized.shape[1] >= 2:
-            normalized = self._symmetric_orthogonalization(normalized)
+            if date_col in df.columns and df[date_col].nunique() > 1:
+                # 逐日截面对称正交化，消除全时段池化未来的信息泄露
+                orth_parts = []
+                for _, indexer in df.groupby(date_col, sort=False).groups.items():
+                    sub_f = normalized.loc[indexer]
+                    orth_parts.append(self._symmetric_orthogonalization(sub_f))
+                normalized = pd.concat(orth_parts).loc[normalized.index]
+            else:
+                normalized = self._symmetric_orthogonalization(normalized)
 
         composite = pd.Series(0.0, index=normalized.index, dtype=float)
 

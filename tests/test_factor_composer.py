@@ -212,3 +212,69 @@ def test_resolve_ic_result_list_defense(caplog):
     composer = FactorComposer()
     result = composer._resolve_ic_result([Mock()])
     assert result is None
+
+
+def test_vectorized_normalize_factors_by_date():
+    """验证单 Pass 向量化按日期标准化与经典单组计算完全一致。"""
+    composer = FactorComposer()
+    df = pd.DataFrame({
+        "date": ["2024-01-01", "2024-01-01", "2024-01-01", "2024-01-02", "2024-01-02"],
+        "code": ["001", "002", "003", "001", "002"],
+    })
+    factor_df = pd.DataFrame({
+        "f1": [1.0, 2.0, 3.0, 10.0, 20.0],
+        "f2": [10.0, 20.0, 30.0, 5.0, 15.0],
+    })
+
+    normalized = composer._normalize_factors(df, factor_df, date_col="date")
+    # Day 1 mean=2, std_ddof0=sqrt((1+0+1)/3) = sqrt(2/3) ~ 0.81649658
+    d1_std = np.std([1.0, 2.0, 3.0], ddof=0)
+    assert np.isclose(normalized.loc[0, "f1"], (1.0 - 2.0) / d1_std)
+    assert np.isclose(normalized.loc[1, "f1"], (2.0 - 2.0) / d1_std)
+    assert np.isclose(normalized.loc[2, "f1"], (3.0 - 2.0) / d1_std)
+
+    # Day 2 mean=15, std_ddof0=5
+    d2_std = np.std([10.0, 20.0], ddof=0)
+    assert np.isclose(normalized.loc[3, "f1"], (10.0 - 15.0) / d2_std)
+    assert np.isclose(normalized.loc[4, "f1"], (20.0 - 15.0) / d2_std)
+
+
+def test_daily_cross_sectional_orthogonalization_no_leakage():
+    """验证逐日截面正交化：未来日期的数据变动不影响历史日期的正交化结果。"""
+    composer = FactorComposer(orthogonalize=True)
+    df_t1 = pd.DataFrame({
+        "date": ["2024-01-01", "2024-01-01", "2024-01-01"],
+        "code": ["001", "002", "003"],
+    })
+    factor_df_t1 = pd.DataFrame({
+        "a": [1.0, 2.0, 3.0],
+        "b": [1.2, 2.1, 2.9],
+    })
+
+    # 仅计算 t1
+    comp_t1 = composer._build_composite_frame(
+        df_t1, factor_df_t1, weights={"a": 0.5, "b": 0.5}, date_col="date", orthogonalize=True,
+    )
+
+    # 构造包含未来极端数据的 t1 + t2 面板
+    df_panel = pd.DataFrame({
+        "date": ["2024-01-01", "2024-01-01", "2024-01-01", "2024-01-02", "2024-01-02", "2024-01-02"],
+        "code": ["001", "002", "003", "001", "002", "003"],
+    })
+    factor_df_panel = pd.DataFrame({
+        "a": [1.0, 2.0, 3.0, 100.0, 500.0, -200.0],
+        "b": [1.2, 2.1, 2.9, -50.0, 30.0, 999.0],
+    })
+
+    comp_panel = composer._build_composite_frame(
+        df_panel, factor_df_panel, weights={"a": 0.5, "b": 0.5}, date_col="date", orthogonalize=True,
+    )
+
+    # 验证 t1 部分的 composite_score 与独立计算精确一致 (无未来信息泄露)
+    np.testing.assert_allclose(
+        comp_t1["composite_score"].values,
+        comp_panel.iloc[:3]["composite_score"].values,
+        rtol=1e-6,
+        atol=1e-6,
+    )
+

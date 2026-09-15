@@ -15,11 +15,23 @@ class PnFBox:
 
 
 class PointAndFigure:
-    """Point & Figure chart engine using the standard 3-box reversal method."""
+    """Point & Figure chart engine using the standard 3-box reversal method.
 
-    def __init__(self, box_size: float = 0.01, reversal: int = 3):
+    Supports both linear fixed step and logarithmic proportional scaling (Log-PnF)
+    with max_boxes bounding to prevent explosive box creation on wide price swings.
+    """
+
+    def __init__(
+        self,
+        box_size: float = 0.01,
+        reversal: int = 3,
+        scale: str = "linear",
+        max_boxes: int = 25000,
+    ):
         self.box_size = box_size
         self.reversal = reversal
+        self.scale = scale
+        self.max_boxes = max_boxes
         self._boxes: List[PnFBox] = []
         self._step: float = 0.0
 
@@ -55,50 +67,104 @@ class PointAndFigure:
             return []
 
         self._boxes = []
-        step = self._fixed_step(ohlc)
-        self._step = step
+        if self.scale == "log":
+            # 对数标度：避免长期宽幅跨度股票产生箱体爆炸 (例如 600602.SH)
+            log_step = float(np.log(1.0 + max(self.box_size, 1e-4)))
+            self._step = float(np.median(ohlc[["high", "low"]].values) * self.box_size)
 
-        has_open = "open" in ohlc.columns
-        if has_open:
-            is_x = ohlc["close"].iloc[0] >= ohlc["open"].iloc[0]
-        else:
-            is_x = high[0] >= low[0]
+            log_high = np.log(np.maximum(high, 1e-6))
+            log_low = np.log(np.maximum(low, 1e-6))
 
-        current = self._round_up(high[0], step) if is_x else self._round_down(low[0], step)
-        col = 0
-        self._boxes.append(PnFBox(current, col, is_x))
-
-        for i in range(1, n):
-            hi, lo = float(high[i]), float(low[i])
-
-            if is_x:
-                if hi >= current + step:
-                    target = self._round_down(hi, step)
-                    while current < target:
-                        current += step
-                        self._boxes.append(PnFBox(current, col, True))
-                elif lo <= current - self.reversal * step:
-                    target = self._round_up(lo, step)
-                    if current - target >= step:
-                        is_x = False
-                        col += 1
-                        while current > target:
-                            current -= step
-                            self._boxes.append(PnFBox(current, col, False))
+            has_open = "open" in ohlc.columns
+            if has_open:
+                is_x = ohlc["close"].iloc[0] >= ohlc["open"].iloc[0]
             else:
-                if lo <= current - step:
-                    target = self._round_up(lo, step)
-                    while current > target:
-                        current -= step
-                        self._boxes.append(PnFBox(current, col, False))
-                elif hi >= current + self.reversal * step:
-                    target = self._round_down(hi, step)
-                    if target - current >= step:
-                        is_x = True
-                        col += 1
-                        while current < target:
+                is_x = high[0] >= low[0]
+
+            current_log = self._round_up(log_high[0], log_step) if is_x else self._round_down(log_low[0], log_step)
+            col = 0
+            self._boxes.append(PnFBox(float(np.exp(current_log)), col, is_x))
+
+            for i in range(1, n):
+                if len(self._boxes) >= self.max_boxes:
+                    break
+                hi_log, lo_log = float(log_high[i]), float(log_low[i])
+
+                if is_x:
+                    if hi_log >= current_log + log_step:
+                        target = self._round_down(hi_log, log_step)
+                        while current_log < target and len(self._boxes) < self.max_boxes:
+                            current_log += log_step
+                            self._boxes.append(PnFBox(float(np.exp(current_log)), col, True))
+                    elif lo_log <= current_log - self.reversal * log_step:
+                        target = self._round_up(lo_log, log_step)
+                        if current_log - target >= log_step:
+                            is_x = False
+                            col += 1
+                            while current_log > target and len(self._boxes) < self.max_boxes:
+                                current_log -= log_step
+                                self._boxes.append(PnFBox(float(np.exp(current_log)), col, False))
+                else:
+                    if lo_log <= current_log - log_step:
+                        target = self._round_up(lo_log, log_step)
+                        while current_log > target and len(self._boxes) < self.max_boxes:
+                            current_log -= log_step
+                            self._boxes.append(PnFBox(float(np.exp(current_log)), col, False))
+                    elif hi_log >= current_log + self.reversal * log_step:
+                        target = self._round_down(hi_log, log_step)
+                        if target - current_log >= log_step:
+                            is_x = True
+                            col += 1
+                            while current_log < target and len(self._boxes) < self.max_boxes:
+                                current_log += log_step
+                                self._boxes.append(PnFBox(float(np.exp(current_log)), col, True))
+        else:
+            step = self._fixed_step(ohlc)
+            self._step = step
+
+            has_open = "open" in ohlc.columns
+            if has_open:
+                is_x = ohlc["close"].iloc[0] >= ohlc["open"].iloc[0]
+            else:
+                is_x = high[0] >= low[0]
+
+            current = self._round_up(high[0], step) if is_x else self._round_down(low[0], step)
+            col = 0
+            self._boxes.append(PnFBox(current, col, is_x))
+
+            for i in range(1, n):
+                if len(self._boxes) >= self.max_boxes:
+                    break
+                hi, lo = float(high[i]), float(low[i])
+
+                if is_x:
+                    if hi >= current + step:
+                        target = self._round_down(hi, step)
+                        while current < target and len(self._boxes) < self.max_boxes:
                             current += step
                             self._boxes.append(PnFBox(current, col, True))
+                    elif lo <= current - self.reversal * step:
+                        target = self._round_up(lo, step)
+                        if current - target >= step:
+                            is_x = False
+                            col += 1
+                            while current > target and len(self._boxes) < self.max_boxes:
+                                current -= step
+                                self._boxes.append(PnFBox(current, col, False))
+                else:
+                    if lo <= current - step:
+                        target = self._round_up(lo, step)
+                        while current > target and len(self._boxes) < self.max_boxes:
+                            current -= step
+                            self._boxes.append(PnFBox(current, col, False))
+                    elif hi >= current + self.reversal * step:
+                        target = self._round_down(hi, step)
+                        if target - current >= step:
+                            is_x = True
+                            col += 1
+                            while current < target and len(self._boxes) < self.max_boxes:
+                                current += step
+                                self._boxes.append(PnFBox(current, col, True))
 
         return self._boxes
 

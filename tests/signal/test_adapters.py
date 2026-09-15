@@ -64,6 +64,44 @@ class TestLPPLAdapter:
         assert sig.metadata["r_squared"] == 0.92
         assert sig.metadata["out_of_sample_r_squared"] == 0.85
 
+    def test_diagnostic_only_downgrades_sell_to_hold(self):
+        adapter = LPPLAdapter(diagnostic_only=True)
+        sig = adapter.adapt(
+            {"risk_level": "Danger", "confidence": 0.85, "price": 10.0},
+            "000001.SZ",
+        )
+        assert sig is not None
+        assert sig.action == "HOLD"
+        assert "(diagnostic)" in sig.reason
+        assert sig.metadata["diagnostic_only"] is True
+
+    def test_min_r2_gate_downgrades_poor_fits(self):
+        adapter = LPPLAdapter(min_r2=0.5, min_oos_r2=0.0)
+        # Poor in-sample R²
+        sig = adapter.adapt(
+            {"risk_level": "Danger", "confidence": 0.85, "price": 10.0, "r_squared": 0.3},
+            "000001.SZ",
+        )
+        assert sig is not None
+        assert sig.action == "HOLD"
+
+        # Poor out-of-sample R²
+        sig2 = adapter.adapt(
+            {"risk_level": "Danger", "confidence": 0.85, "price": 10.0, "r_squared": 0.8, "out_of_sample_r_squared": -0.2},
+            "000001.SZ",
+        )
+        assert sig2 is not None
+        assert sig2.action == "HOLD"
+
+        # High quality fit passes through to SELL
+        sig3 = adapter.adapt(
+            {"risk_level": "Danger", "confidence": 0.85, "price": 10.0, "r_squared": 0.8, "out_of_sample_r_squared": 0.6},
+            "000001.SZ",
+        )
+        assert sig3 is not None
+        assert sig3.action == "SELL"
+
+
     def test_never_returns_buy(self):
         for risk in ("Danger", "Warning", "Safe"):
             sig = self._adapt(risk, 0.7)
