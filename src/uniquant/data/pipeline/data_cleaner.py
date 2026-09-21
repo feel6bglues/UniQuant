@@ -34,6 +34,11 @@ class DataCleaner:
         if {"open", "high", "low", "close"}.issubset(df.columns):
             orig_high = df["high"].copy()
             orig_low = df["low"].copy()
+            mask_swapped = df["high"] < df["low"]
+            if mask_swapped.any():
+                df.loc[mask_swapped, ["high", "low"]] = df.loc[
+                    mask_swapped, ["low", "high"]
+                ].values
             df["high"] = df[["open", "close", "high"]].max(axis=1)
             df["low"] = df[["open", "close", "low"]].min(axis=1)
             n_repaired_high = (orig_high != df["high"]).sum()

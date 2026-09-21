@@ -185,25 +185,60 @@ class TestFinancialFactorBridge:
         assert "pb" in result.columns
 
     def test_calculate_pe_pb_uses_announcement_date_when_available(self, bridge):
-        """测试优先使用公告日期对齐日线"""
+        """测试优先使用公告日期对齐日线，且具备严格 PIT +1d 保护"""
         daily_df = pd.DataFrame({
-            "date": pd.to_datetime(["2024-04-10", "2024-04-30"]),
-            "code": ["000001.SZ", "000001.SZ"],
-            "close": [10.0, 12.0],
+            "date": pd.to_datetime(["2024-04-10", "2024-04-15", "2024-04-30"]),
+            "code": ["000001.SZ"] * 3,
+            "close": [10.0, 11.0, 12.0],
         })
+        # 提供 5 季数据，保证 2023-12-31 和 2024-03-31 均有完整 4 季有效 TTM
         financial_df = pd.DataFrame({
-            "code": ["000001.SZ"],
-            "report_date": pd.to_datetime(["2024-03-31"]),
-            "财报公告日期": [20240415],
-            "基本每股收益": [2.0],
-            "每股净资产": [4.0],
+            "code": ["000001.SZ"] * 5,
+            "report_date": pd.to_datetime([
+                "2023-03-31", "2023-06-30", "2023-09-30", "2023-12-31", "2024-03-31"
+            ]),
+            "财报公告日期": [20230415, 20230815, 20231025, 20240315, 20240415],
+            "基本每股收益": [0.5, 1.0, 1.5, 2.0, 0.5],
+            "每股净资产": [4.0, 4.0, 4.0, 4.0, 4.0],
         })
 
         result = bridge.process(daily_df, financial_df, price_col="close")
 
-        assert pd.isna(result.iloc[0]["pe_ttm"])
-        assert result.iloc[1]["pe_ttm"] == pytest.approx(6.0)
-        assert result.iloc[1]["pb"] == pytest.approx(3.0)
+        # 2024-04-10: 尚未发布 Q1'24 财报，对齐 2023 年报 (TTM=2.0, PE = 10.0 / 2.0 = 5.0)
+        assert result.iloc[0]["pe_ttm"] == pytest.approx(5.0)
+        # 2024-04-15: 公告日当天 (15:30 盘后披露)，严格 PIT 约束下日内不可见，仍对齐 2023 年报 (PE = 11.0 / 2.0 = 5.5)
+        assert result.iloc[1]["pe_ttm"] == pytest.approx(5.5)
+        # 2024-04-30: 公告日次日以后 (+1d 生效)，对齐 Q1'24 (TTM=2.0, PE = 12.0 / 2.0 = 6.0)
+        assert result.iloc[2]["pe_ttm"] == pytest.approx(6.0)
+        assert result.iloc[2]["pb"] == pytest.approx(3.0)
+
+    def test_same_day_dual_announcement_report_date_precedence(self, bridge):
+        """FIX-1 验证: 年报与一季报同日披露时，以会计报告期最新的一季报为准 (双键稳定排序)"""
+        daily_df = pd.DataFrame({
+            "date": pd.to_datetime(["2024-04-24", "2024-04-25", "2024-04-26", "2024-04-30"]),
+            "code": ["000001.SZ"] * 4,
+            "close": [10.0, 10.0, 10.0, 10.0],
+        })
+        # 故意将 2023 年报放在 2024 一季报之后，测试双键排序是否能矫正顺序
+        financial_df = pd.DataFrame({
+            "code": ["000001.SZ"] * 5,
+            "report_date": pd.to_datetime([
+                "2023-03-31", "2023-06-30", "2023-09-30", "2024-03-31", "2023-12-31"
+            ]),
+            "财报公告日期": [20230415, 20230815, 20231025, 20240425, 20240425],
+            "基本每股收益": [0.5, 1.0, 1.5, 0.25, 2.0],  # 2024Q1单季0.25 (TTM=1.75), 2023全年2.0 (TTM=2.0)
+            "每股净资产": [4.0, 4.0, 4.0, 4.5, 4.2],     # 2024Q1 bps=4.5, 2023全年 bps=4.2
+        })
+
+        result = bridge.process(daily_df, financial_df, price_col="close")
+
+        # 2024-04-24: 尚未披露，对齐 2023Q3 (TTM 仅3季为 NaN, PB = 10 / 4.0 = 2.5)
+        assert result.iloc[0]["pb"] == pytest.approx(10.0 / 4.0)
+        # 2024-04-25: 公告日当天 (15:30 盘后披露)，仍不可见新数据
+        assert result.iloc[1]["pb"] == pytest.approx(10.0 / 4.0)
+        # 2024-04-26: 公告次日生效，双键排序保证 2024-03-31 (bps=4.5) 覆盖 2023-12-31 (bps=4.2)
+        assert result.iloc[2]["pb"] == pytest.approx(10.0 / 4.5)
+        assert result.iloc[3]["pb"] == pytest.approx(10.0 / 4.5)
 
 
 class TestScanPipelineFinancialIntegration:
@@ -328,11 +363,13 @@ class TestScanPipelineFinancialIntegration:
         }
         pipeline.financial_data = {
             "000001.SZ": pd.DataFrame({
-                "code": ["000001"],
-                "report_date": pd.to_datetime(["2024-03-31"]),
-                "财报公告日期": [20240415],
-                "基本每股收益": [2.0],
-                "每股净资产": [4.0],
+                "code": ["000001"] * 5,
+                "report_date": pd.to_datetime([
+                    "2023-03-31", "2023-06-30", "2023-09-30", "2023-12-31", "2024-03-31"
+                ]),
+                "财报公告日期": [20230415, 20230815, 20231025, 20240315, 20240415],
+                "基本每股收益": [0.5, 1.0, 1.5, 2.0, 0.5],
+                "每股净资产": [4.0, 4.0, 4.0, 4.0, 4.0],
             })
         }
 
@@ -348,7 +385,9 @@ class TestScanPipelineFinancialIntegration:
 
         assert "pe_ttm" in pipeline.combined_df.columns
         assert "pb" in pipeline.combined_df.columns
-        assert pd.isna(pipeline.combined_df.iloc[0]["pe_ttm"])
+        # 2024-04-10 对齐 2023 年报 (TTM=2.0, PE = 10 / 2.0 = 5.0)
+        assert pipeline.combined_df.iloc[0]["pe_ttm"] == pytest.approx(5.0)
+        # 2024-04-30 对齐 Q1'24 (TTM=2.0, PE = 12 / 2.0 = 6.0)
         assert pipeline.combined_df.iloc[1]["pe_ttm"] == pytest.approx(6.0)
 
 
@@ -380,20 +419,32 @@ class TestCumulativeToTTM:
 
     def test_year_start_resets_cumulative(self, bridge):
         """跨年边界: 新年 Q1 是新累计起点, 不与上年相减。"""
-        rows = [(20221231, 100.0), (20230331, 24.0)]
+        rows = [
+            (20220331, 30.0), (20220630, 60.0), (20220930, 80.0),
+            (20221231, 100.0), (20230331, 24.0),
+        ]
         out = bridge.calculate_eps_ttm(bridge.map_fields(self._cum_df(rows)))
         got = dict(zip(out["report_date"], out["eps_ttm"]))
-        assert got[20230331] == pytest.approx(124.0)  # FY'22单季100 + Q1'23单季24
+        assert got[20221231] == pytest.approx(100.0)
+        # 过去4季: 2022Q2(30) + 2022Q3(20) + 2022Q4(20) + 2023Q1(24) = 94.0
+        assert got[20230331] == pytest.approx(94.0)
 
     def test_codes_isolated(self, bridge):
         """多股票互不污染。"""
-        rows_a = [(20170331, 20.0), (20170630, 45.0)]
-        rows_b = [(20170331, 1.0), (20170630, 3.0)]
+        rows_a = [(20160630, 10.0), (20160930, 20.0), (20161231, 30.0), (20170331, 15.0)]
+        rows_b = [(20160630, 1.0), (20160930, 2.0), (20161231, 3.0), (20170331, 2.0)]
         df = pd.concat([self._cum_df(rows_a, "600519.SH"), self._cum_df(rows_b, "000001.SZ")])
         out = bridge.calculate_eps_ttm(bridge.map_fields(df))
         got = out.set_index(["code", "report_date"])["eps_ttm"]
-        assert got[("000001.SZ", 20170630)] == pytest.approx(3.0)
-        assert got[("600519.SH", 20170630)] == pytest.approx(45.0)
+        # rows_b: 1 + 1 + 1 + 2 = 5.0 (或者单季 1, 1, 1, 2)
+        assert got[("000001.SZ", 20170331)] == pytest.approx(5.0)
+        assert got[("600519.SH", 20170331)] == pytest.approx(45.0)
+
+    def test_insufficient_quarters_yield_nan(self, bridge):
+        """不足4季数据时严格返回 NaN (R07 防御，防止新股/早期数据虚增 PE 4倍)"""
+        rows = [(20240331, 1.0), (20240630, 2.0), (20240930, 3.0)]  # 仅3季
+        out = bridge.calculate_eps_ttm(bridge.map_fields(self._cum_df(rows)))
+        assert out["eps_ttm"].isna().all()
 
     def test_naive_sum_bug_is_fixed(self, bridge):
         """回归锁: 完整窗口下正确 TTM ≠ 累计值朴素求和。

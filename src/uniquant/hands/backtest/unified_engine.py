@@ -314,7 +314,17 @@ class UnifiedBacktestEngine:
                 # 防线 C: 停牌拦截
                 if vol <= 0:
                     logger.debug(f"停牌拒绝: {date_key} volume=0")
-                    pending_order = None
+                    if pending_order["action"] == "SELL" and position > 0:
+                        retry_count = pending_order.get("retry_count", 0) + 1
+                        if retry_count < 30:
+                            pending_order["status"] = "RETRYING"
+                            pending_order["retry_count"] = retry_count
+                            logger.debug(f"停牌结转 (RETRYING {retry_count}/30): {ts} {symbol}")
+                        else:
+                            logger.warning(f"停牌超过30日上限，放弃结转挂单: {ts} {symbol}")
+                            pending_order = None
+                    else:
+                        pending_order = None
                 else:
                     if pending_order["action"] == "BUY":
                         record, cash = self._execute_buy(
@@ -335,11 +345,16 @@ class UnifiedBacktestEngine:
                             position_cost = record.price
                             buy_date = ts
                             max_position = max(max_position, position)
+                        # 买单执行或涨停拒绝后一律作废 (Auto-Cancel, 不结转)
+                        pending_order = None
 
                     elif pending_order["action"] == "SELL":
                         # 防线 A: T+1 检查
                         if buy_date is not None and not self._check_t1(buy_date, ts):
                             logger.debug(f"T+1拒绝: buy={buy_date} sell={ts}")
+                            # T+1 未达，结转至下一交易日
+                            pending_order["status"] = "RETRYING"
+                            pending_order["retry_count"] = pending_order.get("retry_count", 0) + 1
                         else:
                             record, cash = self._execute_sell(
                                 price_raw=exec_price_raw,
@@ -361,8 +376,41 @@ class UnifiedBacktestEngine:
                                     position = 0
                                     position_cost = 0.0
                                     buy_date = None
-
-                    pending_order = None
+                                pending_order = None
+                            else:
+                                # 防线 B: 跌停拒卖强制结转 (Mandatory Rollover, INV-6)
+                                retry_count = pending_order.get("retry_count", 0) + 1
+                                if retry_count < 30 and position > 0:
+                                    pending_order["status"] = "RETRYING"
+                                    pending_order["retry_count"] = retry_count
+                                    pending_order["shares"] = position  # 同步最新持仓
+                                    logger.info(
+                                        f"跌停拒卖强制结转 (RETRYING {retry_count}/30): "
+                                        f"{ts} {symbol} shares={position}"
+                                    )
+                                else:
+                                    logger.warning(
+                                        f"跌停结转达到30日上限，执行终局坏账清退 (0元出清, INV-7): {ts} {symbol} shares={position}"
+                                    )
+                                    if position > 0:
+                                        bad_debt_record = TradeRecord(
+                                            timestamp=ts,
+                                            action="SELL",
+                                            symbol=symbol,
+                                            price=0.0,
+                                            shares=position,
+                                            commission=0.0,
+                                            stamp_duty=0.0,
+                                            transfer_fee=0.0,
+                                            slippage=exec_price_raw,
+                                            pnl=-position_cost * position,
+                                            reason="BAD_DEBT_LIMIT_DOWN_30D_EXPIRED",
+                                        )
+                                        trades.append(bad_debt_record)
+                                        position = 0
+                                        position_cost = 0.0
+                                        buy_date = None
+                                    pending_order = None
 
             # ── Step 2: 更新权益 ──
             equity = cash + position * closes[idx]
@@ -374,56 +422,67 @@ class UnifiedBacktestEngine:
             prev_equity = equity
 
             # ── Step 3: 收集当日信号 → 生成挂单 ──
-            # 规则: LPPL SELL > BUY > 非LPPL SELL
-            # 说明: 当仲裁器输出多个信号同天到达时, 按此顺序尝试执行。
-            #       这是一个执行层调度, 非仲裁层逻辑。
-            #       SignalArbitrator 决定"生成哪些信号",
-            #       此优先级决定"同天多个信号时先执行哪个"。
-            day_signals = signal_map.get(date_key, [])
-            for sig in day_signals:
-                if (sig.action == "SELL" and position > 0 and pending_order is None
-                        and sig.reason and "lppl" in sig.reason.lower()):
-                    pending_order = {
-                        "action": "SELL",
-                        "shares": position,
-                        "reason": sig.reason,
-                    }
-                    break
-            if pending_order is None:
+            # 互斥排队保护 (INV-6): 若存在处于 RETRYING 结转状态的清仓卖单，严禁被 BUY 信号覆写
+            if pending_order is not None and pending_order.get("status") == "RETRYING":
+                day_signals = signal_map.get(date_key, [])
                 for sig in day_signals:
-                    if sig.action == "BUY" and position == 0:
-                        shares = sig.shares if sig.shares > 0 else 100
-                        # 如果提供了 PositionSizer，用它重新计算股数
-                        if self._sizer is not None:
-                            try:
-                                sized = self._sizer.calculate_shares(
-                                    price=closes[idx],
-                                    stop_loss=closes[idx] * 0.95,
-                                    czsc_bottom=None,
-                                    market="CN",
-                                    symbol=symbol,
-                                )
-                                sized_shares = int(sized.get("suggested_shares", shares))
-                                shares = (sized_shares // get_board_rule(symbol).lot_size) * get_board_rule(symbol).lot_size
-                                if shares <= 0:
-                                    shares = 100
-                            except (KeyError, TypeError, ValueError, RuntimeError):
-                                shares = 100
-                        pending_order = {
-                            "action": "BUY",
-                            "shares": shares,
-                            "reason": sig.reason,
-                        }
-                        break
-            if pending_order is None:
+                    if sig.action == "BUY":
+                        logger.warning(
+                            f"标的 {symbol} 存在结转中的清仓卖单 (RETRYING), 拦截买入信号"
+                        )
+                # 保持 pending_order 结转状态不变，次日集合竞价置顶重试
+            else:
+                day_signals = signal_map.get(date_key, [])
                 for sig in day_signals:
-                    if sig.action == "SELL" and position > 0:
+                    if (sig.action == "SELL" and position > 0 and pending_order is None
+                            and sig.reason and "lppl" in sig.reason.lower()):
                         pending_order = {
                             "action": "SELL",
                             "shares": position,
                             "reason": sig.reason,
+                            "status": "PENDING",
+                            "retry_count": 0,
                         }
                         break
+                if pending_order is None:
+                    for sig in day_signals:
+                        if sig.action == "BUY" and position == 0:
+                            shares = sig.shares if sig.shares > 0 else 100
+                            # 如果提供了 PositionSizer，用它重新计算股数
+                            if self._sizer is not None:
+                                try:
+                                    sized = self._sizer.calculate_shares(
+                                        price=closes[idx],
+                                        stop_loss=closes[idx] * 0.95,
+                                        czsc_bottom=None,
+                                        market="CN",
+                                        symbol=symbol,
+                                    )
+                                    sized_shares = int(sized.get("suggested_shares", shares))
+                                    shares = (sized_shares // get_board_rule(symbol).lot_size) * get_board_rule(symbol).lot_size
+                                    if shares <= 0:
+                                        shares = 100
+                                except (KeyError, TypeError, ValueError, RuntimeError):
+                                    shares = 100
+                            pending_order = {
+                                "action": "BUY",
+                                "shares": shares,
+                                "reason": sig.reason,
+                                "status": "PENDING",
+                                "retry_count": 0,
+                            }
+                            break
+                if pending_order is None:
+                    for sig in day_signals:
+                        if sig.action == "SELL" and position > 0:
+                            pending_order = {
+                                "action": "SELL",
+                                "shares": position,
+                                "reason": sig.reason,
+                                "status": "PENDING",
+                                "retry_count": 0,
+                            }
+                            break
 
         # Survivorship bias check (conditional — only if delist data available)
         survivorship_warning = ""

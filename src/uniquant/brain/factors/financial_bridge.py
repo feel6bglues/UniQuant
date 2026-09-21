@@ -226,6 +226,11 @@ class FinancialFactorBridge:
                 effective_col = "__effective_date"
                 financial_df[effective_col] = self._normalize_date_series(financial_df[col])
                 nan_mask = financial_df[effective_col].isna()
+                # 严格 PIT 偏移: 财报多在 15:30 盘后披露，公告日当天不可用于日内交易，次日生效 (+1日历日)
+                valid_ann = ~nan_mask
+                financial_df.loc[valid_ann, effective_col] = (
+                    financial_df.loc[valid_ann, effective_col] + pd.Timedelta(days=1)
+                )
                 financial_df.loc[nan_mask, effective_col] = self._apply_report_date_offset(
                     financial_df.loc[nan_mask, "report_date"]
                 )
@@ -265,19 +270,22 @@ class FinancialFactorBridge:
         
         return df
     
-    def calculate_eps_ttm(self, df: pd.DataFrame) -> pd.DataFrame:
+    def calculate_eps_ttm(self, df: pd.DataFrame, min_periods: int = 4) -> pd.DataFrame:
         """
         计算 TTM EPS (最近4个季度累加)
 
         Args:
             df: 财务数据 DataFrame，需包含 eps, report_date, code
+            min_periods: 最小有效季度数，默认 4 (不足4季严格返回 NaN，杜绝早期/新股 PE 虚增 4 倍漏洞)
 
         Returns:
             添加 eps_ttm 列的 DataFrame
         """
-        return self.calculate_field_ttm(df, "eps")
+        return self.calculate_field_ttm(df, "eps", min_periods=min_periods)
 
-    def calculate_field_ttm(self, df: pd.DataFrame, field: str) -> pd.DataFrame:
+    def calculate_field_ttm(
+        self, df: pd.DataFrame, field: str, min_periods: int = 4
+    ) -> pd.DataFrame:
         """
         按冻结口径计算任意流量字段的 TTM (最近4个季度累加)
 
@@ -288,6 +296,7 @@ class FinancialFactorBridge:
         Args:
             df: 财务数据 DataFrame，需包含 {field}, report_date, code
             field: 标准字段名 (如 "eps" / "revenue" / "ocf_ps")
+            min_periods: 最小有效季度数，默认 4 (不足4季严格返回 NaN)
 
         Returns:
             添加 {field}_ttm 列的 DataFrame; 字段缺失时原样返回
@@ -319,7 +328,7 @@ class FinancialFactorBridge:
             single_quarter = df[field]
 
         df[f"{field}_ttm"] = single_quarter.groupby(df["code"]).transform(
-            lambda x: x.rolling(window=self.EPS_TTM_WINDOW, min_periods=1).sum()
+            lambda x: x.rolling(window=self.EPS_TTM_WINDOW, min_periods=min_periods).sum()
         )
 
         logger.debug(f"Calculated {field}_ttm for {len(df)} records")
@@ -388,7 +397,8 @@ class FinancialFactorBridge:
                 fin_cols.append(field)
         
         fin_subset = financial_df[fin_cols].drop_duplicates(subset=["code", "report_date"])
-        fin_subset = fin_subset.sort_values(effective_date_col)
+        # 双键稳定排序 (FIX-1): 解决年报与一季报同日披露时的时间戳平局，确保会计报告期更新的季报排在后方被 merge_asof 优先对齐
+        fin_subset = fin_subset.sort_values([effective_date_col, "report_date"])
         
         result_frames = []
         
