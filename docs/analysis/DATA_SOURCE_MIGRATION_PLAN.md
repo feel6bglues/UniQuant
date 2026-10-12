@@ -1687,3 +1687,40 @@ flowchart TD
 **考古结论（影响后续步骤）**：① Bug3 自 `eba58cd`（2026-05-27）起从未正确过，非重构断裂；② 旧轨为双重坏死（映射失配 + `smart_factor_calculator:164` 列名二次失配），Bug3 单独修复救不活旧轨——单轨化因此是必要而非可选；③ `scripts/maintenance/sync_local_tdx_day.py`（当前 parquet 生产者 + 正确映射源）是 **untracked 文件**，列 Step3 前置待办；④ 遗留写通道 `calculate_factors_v15.py`/`calculate_factors_single.py`/`adjust_factor_manager.py`/`data_importer._update_gbbq` 列入 Step4 剪枝清单（防 parquet 契约回退）。
 
 **Step 3 前置提醒**：本记录完成不改变 Step3（get_price 重构）与 Step4（删码）的既有顺序；Step4 剪枝前需按 §8 更新受影响测试总账（本次新增 3 个测试文件 + 迁移 16 个既有用例）。
+
+---
+
+## 施工记录（2026-10-13）— Step 4 剪枝完成（baostock 解耦 + 12 死源/死组件全删 -3,609 行）
+
+按 D5 约束 4 + Step4 S4a/S4b 分批执行，S4a/S4b 独立 commit，数据域广域回归 819 passed / 0 failed。
+
+| 阶段 | commit | 删除内容 | 核验 |
+|---|---|---|---|
+| **Step4 WS-E 解耦** | `4ba0556` | `managers/_baostock_client.py` 新建（四能力内联）+ 两 manager 改 import 私有模块；删 `src/uniquant/data/all_stock_codes.csv` 第二副本 | `test_baostock_decouple.py` 9 用例（解耦断言/副本唯一性/缺文件硬失败/绝对路径/合成 CSV 解析） |
+| **Step4 S4a** | `85a7fb5` | src 净删 3,146 行：9 爬虫死源（2,877）+ `data_aligner`（98）+ `data_adjuster` 薄壳（167） | `test_step4_dead_sources_removed.py` 5 守卫用例；两处 chaos 16 用例迁新轨；广域回归 719 passed |
+| **Step4 S4b** | `bf06fac` | `sources/baostock.py`（463 行） | 核验门：生产引用清零/主数据生产者保留/calendar 离线/字段 superset；819 passed |
+
+### 关键技术发现
+
+1. **baostock 生产链解耦是 D5-A 前提**：`BaostockSource` 曾同时服务 DataFetcher（Step3 已删）与两 manager（主数据/日历）。内联私有 `_baostock_client` 后 `sources/baostock.py` 才可删，且**在线生产链不剪**（TDX 字段等价性核验留 Step5 前置门）。
+2. **新轨复权防呆**（`smart_factor_calculator.calculate` :191-198）：事件因子越界（|factor-1| 超出 5% 且实际跌幅 < 预期 30%）→ **跳过事件**。chaos 旧假设"事件在样本中位日→历史价必被调"因此不成立；fixture 修正为**事件日真实除权**（open/close 扣 2.0）才可锁非退化断言——这是新轨相对旧薄壳更严的正确行为（剔除与行情不匹配的假事件）。
+3. **R-5 硬失败冲击面**：`storage_manager._load_all_stock_codes` 缺文件改抛错后，7 个测试文件（chaos/loader/get_price/fetcher×2/macro scan/scan_service/p12）的 tmp 构造全部补最小主数据表——这是预期成本（换掉静默失效）。
+4. **附带修复**：metadata 缓存键原为 CSV 原始值（`sh.600519`），`get_stock_info("000001.SZ")` 永不命中 → 退市守卫静默失效；归一为 `000001.SZ` 后 `unified_engine` survivorship 检查首次真正工作。
+
+### 剪枝后 sources/ 终态
+
+```
+src/uniquant/data/sources/
+├── __init__.py        (base + mootdx_local + mootdx_online)
+├── base.py            (295)
+├── mootdx_local.py    (194)  enabled
+├── mootdx_online.py   (149)  disabled 网络兜底待裁决
+└── tdx.py             (177)  本地通达信解析
+```
+
+### ⚠️ 未收口项（移交 Step5）
+
+1. 原 Step4 剪枝清单列的 **4 个 gbbq 写通道**未处置（parquet 契约回退风险）：`calculate_factors_v15.py` / `calculate_factors_single.py` / `adjust_factor_manager.py` / `data_importer._update_gbbq`；
+2. D5 约束 5：TDX 代码表字段等价性（ipoDate/outDate/type/status）核验 = Step5 前置门；
+3. `sources/tdx.py` 与 `mootdx_online` 的处置待 Step5 排程裁决；
+4. Step5 按 §测试总账核对本次同批修测（新增 3 测试文件 21 用例 + 迁移/改写 22 既有用例 + D5 fixture 修 7 文件）。
