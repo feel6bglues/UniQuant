@@ -25,6 +25,17 @@ def data_dir(tmp_path):
     daily = root / "lake" / "quotes" / "daily"
     daily.mkdir(parents=True, exist_ok=True)
 
+    # Step4 (D5 R-5): 主数据缺文件硬失败 → fixture 提供最小主数据表
+    pd.DataFrame({
+        "code": ["sh.600001", "sz.000001", "sh.000001", "sz.399001", "sz.300001"],
+        "name": ["测试1", "测试2", "上证指数", "深证成指", "测试3"],
+        "代码": ["600001", "000001", "000001", "399001", "300001"],
+        "ipoDate": ["2000-01-01", "2000-01-01", "", "", "2022-01-01"],
+        "outDate": ["", "", "", "", ""],
+        "type": ["1", "1", "2", "2", "1"],
+        "status": ["1", "1", "1", "1", "1"],
+    }).to_csv(root / "all_stock_codes.csv", index=False, encoding="utf-8-sig")
+
     rng = np.random.RandomState(7)
 
     def _write(symbol, n, start="2020-01-02"):
@@ -121,6 +132,17 @@ def data_dir_with_financial(tmp_path):
     daily.mkdir(parents=True, exist_ok=True)
     fin.mkdir(parents=True, exist_ok=True)
 
+    # Step4 (D5 R-5): 主数据缺文件硬失败 → fixture 提供最小主数据表
+    pd.DataFrame({
+        "code": ["sh.600001", "sz.000001"],
+        "name": ["测试1", "测试2"],
+        "代码": ["600001", "000001"],
+        "ipoDate": ["2000-01-01", "2000-01-01"],
+        "outDate": ["", ""],
+        "type": ["1", "1"],
+        "status": ["1", "1"],
+    }).to_csv(root / "all_stock_codes.csv", index=False, encoding="utf-8-sig")
+
     dates = pd.bdate_range("2024-01-02", periods=60)
     for sym in ("600001.SH", "000001.SZ"):
         closes = np.full(60, 10.0)
@@ -182,6 +204,16 @@ def test_merge_financial_metrics_no_financial_dir(tmp_path):
     root = tmp_path
     daily = root / "lake" / "quotes" / "daily"
     daily.mkdir(parents=True)
+    # Step4 (D5 R-5): 主数据缺文件硬失败 → 提供最小主数据表
+    pd.DataFrame({
+        "code": ["sh.600001"],
+        "name": ["测试1"],
+        "代码": ["600001"],
+        "ipoDate": ["2000-01-01"],
+        "outDate": [""],
+        "type": ["1"],
+        "status": ["1"],
+    }).to_csv(root / "all_stock_codes.csv", index=False, encoding="utf-8-sig")
     dates = pd.bdate_range("2024-01-02", periods=30)
     pd.DataFrame({
         "date": dates, "open": 10.0, "high": 10.1, "low": 9.9, "close": 10.0,

@@ -17,6 +17,28 @@ from ...shared.logger_factory import get_logger
 logger = get_logger(__name__)
 
 
+def _normalize_stock_code(code: str) -> str:
+    """将 baostock 格式 (sh.600519) 归一为 XXXXXX.SH/SZ/BJ (对齐 storage_manager._normalize_stock_code)
+
+    D5: 主数据 code 列是 sh./sz. 前缀格式，直接作缓存键会让 get_stock_info("600519.SH")
+    永不命中 → 退市守卫静默失效。归一化后键统一为后缀格式。
+    """
+    if not code or pd.isna(code):
+        return ""
+    code = str(code).strip().upper()
+    clean = code.replace(".", "").replace("SH", "").replace("SZ", "").replace("BJ", "")
+    clean = clean.lstrip("SH").lstrip("SZ").lstrip("BJ")
+    if not clean:
+        return ""
+    if clean.startswith("6"):
+        return f"{clean}.SH"
+    elif clean.startswith(("00", "30")):
+        return f"{clean}.SZ"
+    elif clean.startswith(("83", "87", "43")):
+        return f"{clean}.BJ"
+    return f"{clean}.SH"
+
+
 @dataclass
 class StockMetadata:
     """股票元数据"""
@@ -38,13 +60,18 @@ class StockMetadataManager:
     负责加载和管理股票的基本信息
     """
     
-    def __init__(self, data_dir: str = "./data"):
+    def __init__(self, data_dir: Optional[str] = None):
         """
         初始化元数据管理器
         
         Args:
-            data_dir: 数据存储根目录
+            data_dir: 数据存储根目录；默认指向项目 data/（绝对路径，D5 裁决，
+                      修复相对 CWD 导致的静默失效）
         """
+        from ...shared.constants.path import DATA_DIR
+
+        if data_dir is None:
+            data_dir = str(DATA_DIR)
         self.data_dir = Path(data_dir)
         self._stock_list_path = self.data_dir / "all_stock_codes.csv"
         self._all_codes_path = self.data_dir / "all_stock_codes.csv"
@@ -69,16 +96,26 @@ class StockMetadataManager:
             return False
     
     def _load_all_codes(self) -> None:
-        """加载全量股票代码数据"""
+        """加载全量股票代码数据
+
+        R-5 (D5 裁决 A): 主数据文件缺失 → 硬失败，禁止 warning 降级为空
+        （空元数据会让退市守卫静默失效，回测带幸存者偏差）。
+        """
         if not self._all_codes_path.exists():
-            logger.warning(f"全量代码文件不存在: {self._all_codes_path}")
-            return
+            raise FileNotFoundError(
+                f"全量代码文件不存在: {self._all_codes_path} (R-5 硬失败)。"
+                f"请执行 resync: python -c \"from uniquant.data.managers.baostock_cache_manager "
+                f"import create_baostock_cache; create_baostock_cache()\""
+            )
         
         df = pd.read_csv(self._all_codes_path, encoding='utf-8-sig')
         df = self._normalize_columns(df)
         
         for row in df.itertuples(index=False):
-            code = str(row.code)
+            raw_code = str(row.code)
+            if not raw_code:
+                continue
+            code = _normalize_stock_code(raw_code)
             if not code:
                 continue
             

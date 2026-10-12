@@ -203,11 +203,18 @@ class StorageManager:
         return file_path_obj.exists()
 
     def _load_all_stock_codes(self) -> set:
-        """加载全量股票代码并统一格式为 XXXXXX.SH/SZ/BJ"""
+        """加载全量股票代码并统一格式为 XXXXXX.SH/SZ/BJ
+
+        R-5 (D5 裁决 A): 主数据文件缺失 → 硬失败，禁止 warning 降级为空集
+        （空集会让 get_symbols 静默失效，横截面研究带幸存者偏差）。
+        """
         stock_codes_file = self.data_dir / "all_stock_codes.csv"
         if not stock_codes_file.exists():
-            logger.warning(f"全量股票代码文件不存在: {stock_codes_file}")
-            return set()
+            raise FileNotFoundError(
+                f"全量股票代码文件不存在: {stock_codes_file} (R-5 硬失败)。"
+                f"请执行 resync: python -c \"from uniquant.data.managers.baostock_cache_manager "
+                f"import create_baostock_cache; create_baostock_cache()\""
+            )
         
         try:
             df = pd.read_csv(stock_codes_file, encoding='utf-8-sig')

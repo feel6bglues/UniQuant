@@ -5,7 +5,7 @@
 
 
 from ...shared.time_provider import get_time_provider
-from ...data.sources.baostock import BaostockSource
+from ...data.managers import _baostock_client as baostock
 from ...shared.logger_factory import get_logger
 
 logger = get_logger("BaostockCacheManager")
@@ -17,13 +17,10 @@ def create_baostock_cache():
     """
     logger.info("开始使用 Baostock 获取全量股票代码")
     
-    # 创建 BaostockSource 实例
-    baostock = BaostockSource()
-    
     try:
         # 1. 登录 Baostock
         logger.info("1. 登录 Baostock...")
-        if not baostock._login():
+        if not baostock.login():
             logger.error("登录 Baostock 失败")
             return
         logger.info("登录 Baostock 成功")
@@ -114,7 +111,7 @@ def create_baostock_cache():
     finally:
         # 登出 Baostock
         logger.info("\n7. 登出 Baostock...")
-        baostock._logout()
+        baostock.logout()
     
     # 验证文件是否创建成功
     logger.info("\n8. 验证文件...")

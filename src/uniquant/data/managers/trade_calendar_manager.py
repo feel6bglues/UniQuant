@@ -5,7 +5,7 @@ from typing import Optional, Set
 import pandas as pd
 
 from ...shared.time_provider import get_time_provider
-from ...data.sources.baostock import BaostockSource
+from ...data.managers import _baostock_client as baostock
 from ...shared.constants import DateConstants
 from ...shared.logger_factory import get_logger
 
@@ -121,11 +121,10 @@ class TradeCalendarManager:
         使用 Baostock 获取完整的交易日历并保存到本地
         """
         logger.info("开始使用 Baostock 获取完整的交易日历")
-        baostock = BaostockSource()
         
         try:
             logger.info("1. 登录 Baostock...")
-            if not baostock._login():
+            if not baostock.login():
                 logger.error("登录 Baostock 失败")
                 return
             
@@ -151,7 +150,7 @@ class TradeCalendarManager:
         except Exception as e:
             logger.error(f"操作失败: {e}", exc_info=True)
         finally:
-            baostock._logout()
+            baostock.logout()
 
     def generate_trade_calendar(self, year: int, force_update: bool = False) -> pd.DataFrame:
         calendar_file = os.path.join(self.data_dir, f"trade_calendar_{year}.csv")

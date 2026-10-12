@@ -51,6 +51,18 @@ def _lake_frame(symbol: str = SYMBOL, dates: pd.DatetimeIndex | None = None) -> 
 def _make_fetcher(
     tmp_path, df: pd.DataFrame | None = None, symbol: str = SYMBOL
 ) -> DataFetcher:
+    # Step4 (D5 R-5): 主数据缺文件硬失败 → 测试提供最小主数据表
+    pd.DataFrame(
+        {
+            "code": ["sh.600000"],
+            "name": ["浦发银行"],
+            "代码": ["600000"],
+            "ipoDate": ["1999-11-10"],
+            "outDate": [""],
+            "type": ["1"],
+            "status": ["1"],
+        }
+    ).to_csv(tmp_path / "all_stock_codes.csv", index=False, encoding="utf-8-sig")
     fetcher = DataFetcher(data_dir=str(tmp_path))
     if df is not None:
         fetcher.storage_manager.write_data(symbol, df, data_type="daily")

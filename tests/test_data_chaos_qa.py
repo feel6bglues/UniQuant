@@ -33,6 +33,16 @@ def validator():
 @pytest.fixture
 def storage(tmp_data_dir):
     tmp_data_dir.mkdir(parents=True, exist_ok=True)
+    # Step4 (D5 R-5): 主数据缺文件硬失败 → 测试 fixture 提供最小主数据表
+    pd.DataFrame({
+        "code": ["sh.600519", "sz.000001"],
+        "name": ["贵州茅台", "平安银行"],
+        "代码": ["600519", "000001"],
+        "ipoDate": ["2001-08-27", "1991-04-03"],
+        "outDate": ["", ""],
+        "type": ["1", "1"],
+        "status": ["1", "1"],
+    }).to_csv(tmp_data_dir / "all_stock_codes.csv", index=False, encoding="utf-8-sig")
     return StorageManager(str(tmp_data_dir))
 
 
@@ -455,6 +465,15 @@ class TestStorageManagerChaos:
 
     def test_initialization_creates_dirs(self, tmp_data_dir):
         tmp_data_dir.mkdir(parents=True, exist_ok=True)
+        pd.DataFrame({
+            "code": ["sh.600519"],
+            "name": ["贵州茅台"],
+            "代码": ["600519"],
+            "ipoDate": ["2001-08-27"],
+            "outDate": [""],
+            "type": ["1"],
+            "status": ["1"],
+        }).to_csv(tmp_data_dir / "all_stock_codes.csv", index=False, encoding="utf-8-sig")
         sm = StorageManager(str(tmp_data_dir))
         assert sm.daily_dir.exists()
         assert sm.weekly_dir.exists()
