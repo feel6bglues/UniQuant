@@ -62,10 +62,21 @@ class DataAccessService:
         cache_key: str,
         use_cache: bool,
     ) -> Optional[pd.DataFrame]:
+        """从数据源取数并按日期过滤, 命中后回填缓存.
+
+        语义 (Step3: adjust 显式化（预注册§8 #13）): 显式 ``adjust=""`` —— 湖是
+        不复权 raw SSOT, 研究/展示统一原始价; ``fetch_stock_daily`` 默认
+        ``adjust="qfq"`` 不得在此被隐式继承 (否则"缓存=前复权 / 湖=原始价"分叉)。
+        健康探针 ``health_service._check_data_service_health`` 依赖本链 (§8 #13),
+        其断言仅为"取数非 None", 显式 raw 不改变探针语义。
+        """
         try:
             df = None
             if hasattr(self.service.fetcher, "fetch_stock_daily"):
-                df = self.service.fetcher.fetch_stock_daily(symbol, start_date, end_date)
+                # Step3: adjust 显式化（预注册§8 #13）— 显式原始价, 禁止继承 qfq 默认
+                df = self.service.fetcher.fetch_stock_daily(
+                    symbol, start_date, end_date, adjust=""
+                )
 
             if df is None or df.empty:
                 df = self._fetch_and_filter_price(symbol, start_date, end_date)
@@ -102,9 +113,17 @@ class DataAccessService:
         *,
         data_type: str,
     ) -> Optional[pd.DataFrame]:
+        """取数 → 清洗 → 写湖 → 回读 (迁移表 #14 标记的最危险回写入口).
+
+        语义 (Step3: adjust 显式化（预注册§8 #14）): 取数一律显式 ``adjust=""``
+        (湖为不复权 raw SSOT), 写湖前必须先过 ``_assert_unadjusted_for_lake``。
+        """
         try:
             if data_type == "stock" and hasattr(self.service.fetcher, "fetch_stock_daily"):
-                df = self.service.fetcher.fetch_stock_daily(symbol, start_date, end_date)
+                # Step3: adjust 显式化（预注册§8 #14）— 显式原始价, 禁止继承 qfq 默认
+                df = self.service.fetcher.fetch_stock_daily(
+                    symbol, start_date, end_date, adjust=""
+                )
                 if df is None or df.empty:
                     df = self._fetch_and_filter_price(symbol, start_date, end_date)
             elif data_type == "index" and hasattr(self.service.fetcher, "fetch_index_daily"):
@@ -124,8 +143,9 @@ class DataAccessService:
             return None
 
         cleaned_df = self.service.cleaner.clean_stock_daily(df)
-        # 显式 raw 语义声明: 该路径仅取不复权数据 (fetch_stock_daily /
-        # get_price 默认 adjust="") → 护栏放行; 若上游悄悄改成复权则被拦。
+        # Step3: adjust 显式化（预注册§8 #14）+ 写湖断言 — 该路径取数显式
+        # adjust="" (见上), 故此处以 adjust="" 过 R2 护栏并放行; **写入前必须已过
+        # _assert_unadjusted_for_lake** (禁止绕过), 上游若悄悄改成复权则被拦。
         if self._assert_unadjusted_for_lake(cleaned_df, adjust="", symbol=symbol):
             self.service.lake.write_data(
                 symbol, cleaned_df, data_type=data_type, market="cn", overwrite=True
@@ -212,6 +232,9 @@ class DataAccessService:
                         return self.service._clone_dataframe(data)
 
             logger.warning("No %s in data lake, falling back to data source", description)
+            # Step3: adjust 显式化（预注册§8 #9）— 湖 miss → 源取数: stock 显式走
+            # qfq (研究/展示口径), index 显式原始价; qfq 结果**只返回不写湖**
+            # (湖为不复权 raw SSOT, 复权数据落湖 = R2 污染通道)。
             adjust = "" if data_type == "index" else "qfq"
             data = self.service.fetcher.get_price(symbol, adjust=adjust)
             if data is None or data.empty:
@@ -223,6 +246,8 @@ class DataAccessService:
                 logger.warning("Cleaned %s is empty", description)
                 return pd.DataFrame()
 
+            # 写湖必须过 R2 护栏 (保留现有接线): qfq → R-a 拦截且只返回不写湖;
+            # raw 且通过 cleaner 校验 → 放行写入。
             if self._assert_unadjusted_for_lake(cleaned_data, adjust, symbol):
                 self.service.lake.write_data(
                     symbol,
@@ -232,6 +257,13 @@ class DataAccessService:
                     overwrite=True,
                 )
                 logger.info("Fetched and saved %s from data source", description)
+            elif adjust:
+                # Step3: adjust 显式化（预注册§8 #9）— qfq 分支只返回不写湖
+                logger.info(
+                    "Skip lake write for %s (adjust=%r): qfq 只返回不写湖",
+                    description,
+                    adjust,
+                )
             else:
                 logger.warning(
                     "Skip lake write for %s (unadjusted-data guard)", description
@@ -250,7 +282,9 @@ class DataAccessService:
                     return self.service._clone_dataframe(etf_data)
 
             logger.warning("No ETF data (510300) in data lake, falling back to data source")
-            etf_data = self.service.fetcher.get_price("510300")
+            # Step3: adjust 显式化（预注册§8 #10）— ETF 读湖原始价, 源兜底同样显式
+            # adjust="" (湖是不复权 raw SSOT, 禁止继承任何复权默认值)。
+            etf_data = self.service.fetcher.get_price("510300", adjust="")
             if etf_data is None or etf_data.empty:
                 logger.warning("Failed to fetch ETF data from data source")
                 return pd.DataFrame()
@@ -260,8 +294,8 @@ class DataAccessService:
                 logger.warning("Cleaned ETF data is empty")
                 return pd.DataFrame()
 
-            # 显式 raw 语义声明: get_price("510300") 默认 adjust="" → 放行;
-            # 若返回带复权因子列的 df 则被拦, 读数行为不变。
+            # Step3: adjust 显式化（预注册§8 #10）— 写湖过 R2 护栏: 显式 raw → 放行;
+            # 若上游返回带复权因子列的 df 则被拦, 读数行为不变。
             if self._assert_unadjusted_for_lake(
                 cleaned_data, adjust="", symbol="510300"
             ):
@@ -285,7 +319,14 @@ class DataAccessService:
     def _fetch_and_filter_price(
         self, symbol: str, start_date: str, end_date: str
     ) -> Optional[pd.DataFrame]:
-        df = self.service.fetcher.get_price(symbol)
+        """个股取数并按日期过滤 (Step3: adjust 显式化（预注册§8 #11）).
+
+        语义: 显式 ``adjust=""`` —— 湖是不复权的, 研究/展示统一原始价; 此前
+        ``get_price(symbol)`` 未传 adjust, 会继承 qfq 默认 (断链期从未真正生效,
+        Step3 打通后会把前复权价混入 raw 口径)。
+        """
+        # Step3: adjust 显式化（预注册§8 #11）— 个股路径 = 原始价
+        df = self.service.fetcher.get_price(symbol, adjust="")
         if df is None or df.empty:
             return None
         return self._filter_by_date(df, start_date, end_date)
@@ -293,6 +334,8 @@ class DataAccessService:
     def _fetch_and_filter_index(
         self, symbol: str, start_date: str, end_date: str
     ) -> Optional[pd.DataFrame]:
+        """指数取数并按日期过滤 (Step3: adjust 显式化（预注册§8 #12）— 保持显式 raw)."""
+        # Step3: adjust 显式化（预注册§8 #12）— 指数不复权, 保持 adjust=""
         df = self.service.fetcher.get_price(symbol, adjust="")
         if df is None or df.empty:
             return None

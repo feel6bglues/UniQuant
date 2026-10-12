@@ -11,6 +11,7 @@ import sys
 import numpy as np
 import pandas as pd
 import psutil
+import pytest
 
 # Ensure project root is on sys.path
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
@@ -148,11 +149,13 @@ class TestDataCleanerChaos:
         result = self.cleaner.clean(df)
         assert result.empty
 
-    # --- 1h. Missing columns (no amount) ---
+    # --- 1h. Missing columns (no amount) — C2 红线: 缺 amount 必须硬失败 ---
     def test_missing_amount_column(self):
         df = _make_daily_df(10).drop(columns=["amount"])
-        result = self.cleaner.clean(df)
-        assert "amount" in result.columns, "amount column should be created"
+        with pytest.raises(ValueError, match="amount 缺失禁止 close\\*volume 兜底"):
+            self.cleaner.clean(df)
+        # 输入帧不被原地补列 (禁止静默造列)
+        assert "amount" not in df.columns
 
     # --- 1i. All-None DataFrame ---
     def test_all_none_data(self):
@@ -164,6 +167,7 @@ class TestDataCleanerChaos:
                 "high": [None] * 5,
                 "low": [None] * 5,
                 "volume": [None] * 5,
+                "amount": [None] * 5,
             }
         )
         result = self.cleaner.clean(df)

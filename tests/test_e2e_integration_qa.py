@@ -4,7 +4,6 @@ UniQuant 全链路 E2E 集成验收测试
 """
 
 import warnings
-from typing import Any, Dict
 
 import numpy as np
 import pandas as pd
@@ -58,6 +57,8 @@ def _make_dirty_kline_df(n_days: int = 200, seed: int = 99) -> pd.DataFrame:
         "Low": low.round(2),
         "Close": close.round(2),
         "Volume": volume,
+        # Step3 语义: cleaner 禁止 amount=close*volume 兜底(C2 红线), fixture 必须自带真实 amount
+        "Amount": (close * volume).round(2),
         "code": "000001",
     })
     df.loc[5, "Close"] = np.nan

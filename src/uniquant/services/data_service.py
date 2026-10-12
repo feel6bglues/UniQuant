@@ -202,25 +202,70 @@ class DataService:
     def check_cache_consistency(
         self, symbol: str, data_type: str = "stock", market: str = "cn"
     ) -> bool:
-        """检查缓存与数据源的一致性"""
+        """检查缓存与数据湖的一致性 (Step3: adjust 显式化（预注册§8 #15）).
+
+        原实现用 ``fetcher.get_price(symbol)`` (未传 adjust) 校验缓存, 断链期恒
+        返回空表 → 一致性检查恒失效; 现改为 **湖 vs 缓存** (湖为不复权 raw SSOT),
+        不再依赖源取数。
+        """
         cache_key = self._get_cache_key(data_type, symbol, market, namespace="datalake")
         cached_data = self._get_cached(cache_key)
-        
-        source_data = self.fetcher.get_price(symbol)
-        if source_data is not None and not source_data.empty:
-            source_data = self.cleaner.clean_stock_daily(source_data)
-        
-        return self._cache_coordinator.check_consistency(symbol, cached_data, source_data)
+
+        # Step3: adjust 显式化（预注册§8 #15）— 一致性基准改为湖 (storage.read_data)
+        lake_data = self.lake.read_data(symbol, data_type=data_type, market=market)
+        if lake_data is None or lake_data.empty:
+            lake_data = None
+        # 湖数据已是过 cleaner 的 SSOT, 不再二次清洗 (避免 amount 兜底/bfill 改写);
+        # 两侧统一归一为 DatetimeIndex, 供 check_consistency 比较最新交易日。
+        cached_data = self._as_datetime_indexed(cached_data)
+        lake_data = self._as_datetime_indexed(lake_data)
+
+        return self._cache_coordinator.check_consistency(symbol, cached_data, lake_data)
+
+    @staticmethod
+    def _as_datetime_indexed(df: Optional[pd.DataFrame]) -> Optional[pd.DataFrame]:
+        """把 ``date`` 归一为 DatetimeIndex (check_consistency 只比较最新交易日).
+
+        非 DataFrame (磁盘缓存可能残留历史序列化对象) → None, 交由
+        ``check_consistency`` 按"无数据"处理, 不抛 AttributeError。
+        """
+        if df is None:
+            return None
+        if not isinstance(df, pd.DataFrame):
+            # 缓存未命中时 CacheCoordinator 返回 object 哨兵 → 按"无缓存"处理
+            logger.debug(
+                "缓存/湖返回非 DataFrame (%s), 一致性检查按无数据处理",
+                type(df).__name__,
+            )
+            return None
+        if df.empty:
+            return df
+        if isinstance(df.index, pd.DatetimeIndex):
+            return df
+        if "date" not in df.columns:
+            return df
+        normalized = df.copy(deep=True)
+        normalized.index = pd.to_datetime(normalized["date"])
+        return normalized
 
     def rebuild_cache(
         self, symbol: str, data_type: str = "stock", market: str = "cn"
     ) -> bool:
-        """重建缓存"""
+        """重建缓存 (湖为不复权 raw SSOT).
+
+        Step3: adjust 显式化（预注册§8 #16/#17）— stock/etf 直读湖, index 分支
+        保持显式 ``adjust=""``; 写湖回填必须先过 R2 护栏。
+        """
         self._clear_fetcher_price_cache(symbol)
 
         if data_type in ["stock", "etf"]:
-            source_data = self.fetcher.get_price(symbol)
+            # Step3: adjust 显式化（预注册§8 #16）— 直读湖 (湖是不复权 raw SSOT),
+            # 不再走源取数 (get_price 断链期恒空 → rebuild 恒 False);
+            # ETF 与个股同存 quotes/daily, 故 lake data_type 归一为 "stock"。
+            lake_type = "stock" if data_type == "etf" else data_type
+            source_data = self.lake.read_data(symbol, data_type=lake_type, market=market)
         elif data_type == "index":
+            # Step3: adjust 显式化（预注册§8 #17）— 保持显式 adjust="" (指数不复权)
             source_data = self.fetcher.get_price(symbol, adjust="")
         else:
             logger.error("Unsupported data type for cache rebuild: %s", data_type)
@@ -234,6 +279,17 @@ class DataService:
 
         if cleaned_data.empty:
             logger.warning("Cleaned data is empty for cache rebuild")
+            return False
+
+        # Step3: 写湖护栏接线（预注册§8 #16）— 侵入最小方案: 复用 data_access_service
+        # 的 R2 护栏 (本文件不新建断言实现), 未过护栏则不写湖也不重建缓存。
+        if not self._get_access_service()._assert_unadjusted_for_lake(
+            cleaned_data, adjust="", symbol=symbol
+        ):
+            logger.warning(
+                "Skip lake write for %s during cache rebuild (unadjusted-data guard)",
+                symbol,
+            )
             return False
 
         self.lake.write_data(symbol, cleaned_data, data_type, market=market, overwrite=True)

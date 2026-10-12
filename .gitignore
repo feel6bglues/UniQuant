@@ -90,3 +90,6 @@ tests/archive/
 # 生成物输出（2026-10-12 数据源迁移清理）
 data/backtest/
 data/manifests/
+
+# 服务缓存运行产物（2026-10-12 Step3 清理）
+data/service_cache/

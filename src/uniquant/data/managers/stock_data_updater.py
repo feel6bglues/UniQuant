@@ -129,21 +129,51 @@ class StockDataUpdater:
             logger.error(f"更新股票数据失败: {e}", exc_info=True)
             return df_old
 
-    def update_all(self, symbols: list):
-        """
-        多线程批量更新
+    def update_all(self, symbols: list) -> list:
+        """多线程批量刷价 (Step3: adjust 显式化（预注册§8 #6）— 刷价=原始价).
+
+        ``get_price`` 显式传 ``adjust=""`` (与湖的不复权 raw 口径一致); Step3 打通
+        ``get_price`` 后它可能**真返回空表**, 故空数据跳过该 symbol 并计入失败清单,
+        不再把空 df 往下传。
+
+        Returns:
+            失败清单: 取数为空 (None/空表) 的 symbol 列表。
         """
         logger.info(f"开始批量更新 {len(symbols)} 只股票")
 
-        with ThreadPoolExecutor(max_workers=8) as executor:
-            list(executor.map(lambda s: self.data_fetcher.get_price(s), symbols))
+        failed: list = []
 
-        logger.info(f"批量更新完成，共 {len(symbols)} 只股票")
+        def _refresh(symbol: str):
+            # Step3: adjust 显式化（预注册§8 #6）— 批量刷价走原始价
+            df = self.data_fetcher.get_price(symbol, adjust="")
+            if df is None or df.empty:
+                return symbol
+            return None
+
+        with ThreadPoolExecutor(max_workers=8) as executor:
+            for outcome in executor.map(_refresh, symbols):
+                if outcome is not None:
+                    failed.append(outcome)
+
+        if failed:
+            logger.error(
+                f"批量更新完成, 空数据失败清单 {len(failed)}/{len(symbols)}: {failed}"
+            )
+        else:
+            logger.info(f"批量更新完成，共 {len(symbols)} 只股票")
+        return failed
 
     def clean_data(self, symbol):
-        """
-        清理并重建数据
+        """清理并重建数据 (Step3: adjust 显式化（预注册§8 #7）— 重建=原始价).
+
+        ``get_price`` 显式传 ``adjust=""``; 空数据只返回规范化空表, 不把 None/
+        异常形态的空 df 往下传。
         """
         logger.info(f"清理并重建 {symbol} 的数据")
         self.storage_manager.clean_data(symbol)
-        return self.data_fetcher.get_price(symbol)
+        # Step3: adjust 显式化（预注册§8 #7）— 重建走原始价
+        df = self.data_fetcher.get_price(symbol, adjust="")
+        if df is None or df.empty:
+            logger.warning(f"重建 {symbol} 未取到数据, 返回规范化空表")
+            return pd.DataFrame()
+        return df

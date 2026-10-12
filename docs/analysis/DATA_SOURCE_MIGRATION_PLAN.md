@@ -1368,6 +1368,27 @@ Step 1–4 全部通过。
 
 > **决策纪律**：上表 25 行**每行独立 PR 评审**；不允许用 `sed` 批量改 `adjust=`。特别禁止：把 `adjust="qfq"` 一律改成 `adjust=""`（会静默把前复权降为原始价，污染 LPPL/回测）。
 
+#### B-1a WS-D 实施登记（Step3 调用点 adjust 显式化，2026-10-12）
+
+B-1 表 #6–#18 共 13 个生产文件行 / 18 个调用点已按预注册逐条处置（TDD：先红 10 失败 → 绿 15 用例）。所有改动点均带注释 `# Step3: adjust 显式化（预注册§8 #N）` 可 rg 审计。
+
+| §8 # | 调用点 | 最终处置 |
+|---|---|---|
+| #6/#7 | `stock_data_updater.py` 两处 `get_price(s)` | 显式 `adjust=""`（刷价=原始价）；`update_all` 聚合空数据标的为失败清单（log error），`clean_data` 空表归一 `pd.DataFrame()` |
+| #8 | `market_data_coordinator.py` | 原本已显式 `adjust=""`，仅补审计注释 |
+| #9 | `load_data_with_fallback` | **保留** `adjust = "" if index else "qfq"`；qfq 分支不写湖（经 `_assert_unadjusted_for_lake` 拦截，R2 护栏保持接线）并新增 `logger.info("qfq 只返回不写湖")`；raw 分支写湖仅在护栏放行时执行 |
+| #10 | `load_etf_data` | 同 #9 语义（湖优先，护栏后写湖） |
+| #11 | `_fetch_and_filter_price` | 显式 `adjust=""`（个股=原始价；湖不复权，研究/展示统一原始价，qfq 仅 LPPL） |
+| #12 | `_fetch_and_filter_index` | 保持 `adjust=""` + 注释 |
+| #13 | `fetch_from_source → fetch_stock_daily` | 显式 `adjust=""`（禁止继承默认 `qfq`）+ docstring；探针 `health_service:177` 调用链不断 |
+| #14 | `fetch_and_save_dataset → fetch_stock_daily` | 显式 `adjust=""` + docstring；护栏前置接线保留（`guard:` 先于 `write:`，顺序由测试锁定） |
+| #15 | `check_cache_consistency` | 改为"湖 vs 缓存"对比（`lake.read_data` + 新 `_as_datetime_indexed` 归一，cache sentinel/非 DataFrame 容忍为 None + debug log），不再依赖源 |
+| #16 | `rebuild_cache` stock/etf 分支 | 直读湖；回写前接线 `_assert_unadjusted_for_lake`（护栏拦截 → skip 写缓存并 return False） |
+| #17 | `rebuild_cache` index 分支 | 保持 `get_price(symbol, adjust="")` + 注释 |
+| #18 | `brain/lppl/data_manager.py` | **保留 qfq**（Step3 起 `get_price` 真正透传 adjust，历史上该调用因断链恒拿空表——已在 docstring 如实记录）；空表防御返回 None 不崩 |
+
+新增 `tests/test_step3_caller_semantics.py`（15 用例）；改写 `tests/test_p1_cache_invalidation.py`（lake-read 断言 + index 显式 `adjust=""` 断言）、`tests/test_data_and_stock_query_regressions.py`（DummyFetcher 签名对齐 `adjust=""`）。
+
 ---
 
 ### §5(c) UI 现状：湖查询页事实已坏

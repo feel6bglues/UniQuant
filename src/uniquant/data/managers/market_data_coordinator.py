@@ -50,6 +50,8 @@ class MarketDataCoordinator:
         多源ETF数据获取策略
         """
         logger.info(f"获取ETF数据: {symbol}")
+        # Step3: adjust 显式化（预注册§8 #8）— 保持显式 adjust="" (指数/ETF 不复权),
+        # 读湖同口径, 禁止继承 fetch_stock_daily 的 qfq 默认值。
         return self.data_fetcher.fetch_stock_daily(symbol, start_date, end_date, adjust="")
 
     def fetch_industry_concept_data(self) -> Tuple[pd.DataFrame, pd.DataFrame]:

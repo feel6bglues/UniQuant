@@ -81,6 +81,10 @@ class LPPLDataManager:
                 "%Y-%m-%d"
             )
 
+            # Step3: adjust 显式化（预注册§8 #18）— 研究侧唯一 qfq 显式消费者, 保留
+            # adjust="qfq"; 历史断链期 fetch_stock_daily 实为空表, Step3 后此处首次
+            # 真正拿到前复权数据 (迁移报告须如实记录该历史事实)。
+            # 空表路径既有防御: 下方 new_df.empty → logger.warning + return None。
             new_df = fetcher.fetch_stock_daily(
                 symbol, start_date, end_date, adjust="qfq"
             )

@@ -26,6 +26,7 @@ class _DummyFetcher:
     def __init__(self) -> None:
         self.cleared_before_fetch = False
         self.clear_calls = []
+        self.get_price_calls = []
 
     def clear_price_cache(self, symbol=None, adjust=None):
         self.clear_calls.append((symbol, adjust))
@@ -34,6 +35,7 @@ class _DummyFetcher:
 
     def get_price(self, symbol: str, adjust: str = ""):
         assert self.cleared_before_fetch, "stale price cache was not invalidated before fetch"
+        self.get_price_calls.append((symbol, adjust))
         return _sample_df()
 
 
@@ -42,6 +44,12 @@ class _DummyStorage:
 
     def __init__(self) -> None:
         self.writes = []
+        self.reads = []
+
+    def read_data(self, symbol, data_type="stock", market="cn"):
+        # Step3 (§8 #16): rebuild_cache stock 分支直读湖, 不再走源取数
+        self.reads.append((symbol, data_type, market))
+        return _sample_df()
 
     def write_data(self, symbol, df, data_type, market="cn", overwrite=False):
         self.writes.append((symbol, data_type, market, overwrite, df.copy()))
@@ -81,7 +89,10 @@ def test_rebuild_cache_invalidates_fetcher_cache_before_fetch():
 
     assert service.rebuild_cache("600000.SH", data_type="stock") is True
 
+    # Step3 (§8 #16): 写湖回填前先失效 fetcher 缓存, 再直读湖 (不走源取数)
     assert fetcher.clear_calls[0] == ("600000.SH", None)
+    assert storage.reads == [("600000.SH", "stock", "cn")]
+    assert fetcher.get_price_calls == []
     assert storage.writes[0][0] == "600000.SH"
 
 
@@ -106,3 +117,6 @@ def test_rebuild_index_cache_clears_market_level_cache():
     assert status["has_regime"] is False
     assert status["has_ntf"] is False
     assert status["has_benchmark"] is False
+
+    # Step3 (§8 #17): index 分支保持显式 adjust=""
+    assert fetcher.get_price_calls == [("000300.SH", "")]

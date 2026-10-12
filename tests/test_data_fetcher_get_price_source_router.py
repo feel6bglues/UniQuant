@@ -1,68 +1,98 @@
-from unittest.mock import MagicMock
+"""get_price 湖优先契约 (Step3 WS-A).
+
+旧语义 (作废): get_price 走 source_router.fetch_with_fallback — 该调用位置参数
+误传恒 TypeError, 被 except 吞掉后恒返回空表 (预注册裁决 D1)。
+
+新语义: 湖优先单源 — StorageManager.read_data -> MootdxLocalSource 本地兜底 ->
+仍缺失返回空表 (不 raise)。
+"""
+
+from unittest.mock import MagicMock, patch
+
 import pandas as pd
 
+from uniquant.data.data_fetcher import GET_PRICE_LAKE_COLUMNS, DataFetcher
 
-class TestDataFetcherGetPriceUsesOwnSourceRouter:
-    def test_get_price_works_when_ingestion_is_broken(self):
-        from uniquant.data.data_fetcher import DataFetcher
+SYMBOL = "000001.SZ"
 
-        fetcher = DataFetcher(data_dir="/tmp/test_df_get_price")
 
-        mock_df = pd.DataFrame({
+def _raw_df() -> pd.DataFrame:
+    return pd.DataFrame(
+        {
             "date": pd.to_datetime(["2024-01-01", "2024-01-02"]),
             "open": [10.0, 11.0],
             "high": [12.0, 13.0],
             "low": [9.0, 10.0],
             "close": [11.0, 12.0],
+            "amount": [11000.0, 12000.0],
             "volume": [1000, 2000],
-        })
-        fetcher.source_router.fetch_with_fallback = MagicMock(return_value=mock_df)
+            "reserved": [0, 0],
+            "code": [SYMBOL, SYMBOL],
+        }
+    )
 
-        result = fetcher.get_price("000001.SZ")
+
+class TestDataFetcherGetPriceLakeFirstRouter:
+    def test_get_price_reads_from_lake(self, tmp_path):
+        fetcher = DataFetcher(data_dir=str(tmp_path))
+        fetcher.storage_manager.write_data(SYMBOL, _raw_df(), data_type="daily")
+        fetcher.clear_price_cache()
+
+        spy_read_data = MagicMock(wraps=fetcher.storage_manager.read_data)
+        fetcher.storage_manager.read_data = spy_read_data
+        spy_fallback = MagicMock()
+        fetcher.source_router.fetch_with_fallback = spy_fallback
+
+        result = fetcher.get_price(SYMBOL)
 
         assert not result.empty
         assert len(result) == 2
-        fetcher.source_router.fetch_with_fallback.assert_called_once_with("000001.SZ", "fetch")
+        assert list(result.columns) == GET_PRICE_LAKE_COLUMNS
+        spy_read_data.assert_called_with(SYMBOL, "daily")
+        spy_fallback.assert_not_called()
 
-    def test_get_price_returns_same_data_as_ingestion_path(self):
-        from uniquant.data.data_fetcher import DataFetcher
+    def test_get_price_falls_back_to_local_source_on_lake_miss(self, tmp_path):
+        with patch("uniquant.data.data_fetcher.MootdxLocalSource") as local_cls:
+            local_cls.return_value.fetch_daily.return_value = _raw_df()
+            # 构造须在 patch 内: DataFetcher __init__ 即挂载本地源
+            fetcher = DataFetcher(data_dir=str(tmp_path))
+            result = fetcher.get_price(SYMBOL)
 
-        fetcher = DataFetcher(data_dir="/tmp/test_df_get_price_same")
+        local_cls.return_value.fetch_daily.assert_called_once()
+        assert local_cls.return_value.fetch_daily.call_args[0][0] == SYMBOL
+        assert not result.empty
+        assert len(result) == 2
 
-        raw_df = pd.DataFrame({
-            "date": pd.to_datetime(["2024-01-01", "2024-01-02"]),
-            "open": [10.0, 11.0],
-            "high": [12.0, 13.0],
-            "low": [9.0, 10.0],
-            "close": [11.0, 12.0],
-            "volume": [1000, 2000],
-        })
-        fetcher.source_router.fetch_with_fallback = MagicMock(return_value=raw_df.copy())
+    def test_get_price_returns_empty_without_router_on_double_miss(self, tmp_path):
+        with patch("uniquant.data.data_fetcher.MootdxLocalSource") as local_cls:
+            local_cls.return_value.fetch_daily.return_value = pd.DataFrame()
+            fetcher = DataFetcher(data_dir=str(tmp_path))
+            spy_fallback = MagicMock(
+                side_effect=AssertionError("get_price 不得走 source_router 爬虫链")
+            )
+            fetcher.source_router.fetch_with_fallback = spy_fallback
+            fetcher.source_router.fetch_data = spy_fallback
 
-        result = fetcher.get_price("000001.SZ", adjust="qfq")
+            result = fetcher.get_price(SYMBOL)
 
+        assert result.empty
+        assert list(result.columns) == GET_PRICE_LAKE_COLUMNS
+        spy_fallback.assert_not_called()
+
+    def test_get_price_returns_raw_prices_when_adjust_empty(self, tmp_path):
+        """adjust="" 返回湖原始价 (等价于旧 "same data as ingestion path" 语义)。"""
+        fetcher = DataFetcher(data_dir=str(tmp_path))
+        raw = _raw_df()
+        fetcher.storage_manager.write_data(SYMBOL, raw, data_type="daily")
+        fetcher.clear_price_cache()
+
+        with patch(
+            "uniquant.data.data_fetcher.get_corporate_action_adjuster"
+        ) as factory:
+            result = fetcher.get_price(SYMBOL, adjust="")
+
+        factory.assert_not_called()
         assert not result.empty
         assert result["close"].iloc[0] == 11.0
         assert result["close"].iloc[1] == 12.0
-
-    def test_get_price_returns_empty_when_no_data(self):
-        from uniquant.data.data_fetcher import DataFetcher
-
-        fetcher = DataFetcher(data_dir="/tmp/test_df_get_price_empty")
-
-        fetcher.source_router.fetch_with_fallback = MagicMock(return_value=pd.DataFrame())
-
-        result = fetcher.get_price("000001.SZ")
-
-        assert result.empty
-
-    def test_get_price_returns_empty_when_exception(self):
-        from uniquant.data.data_fetcher import DataFetcher
-
-        fetcher = DataFetcher(data_dir="/tmp/test_df_get_price_exc")
-
-        fetcher.source_router.fetch_with_fallback = MagicMock(side_effect=RuntimeError("network failure"))
-
-        result = fetcher.get_price("000001.SZ")
-
-        assert result.empty
+        assert "adj_factor" not in result.columns

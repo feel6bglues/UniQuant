@@ -58,7 +58,8 @@ def test_data_service_load_etf_data_returns_empty_on_fetch_error():
             raise AssertionError("should not write on failure")
 
     class DummyFetcher:
-        def get_price(self, symbol):
+        def get_price(self, symbol, adjust=""):
+            # Step3 (§8 #10): 调用点显式传 adjust, 桩件保留形参以走真实路径
             raise ValueError("fetch failed")
 
     service.lake = DummyLake()
