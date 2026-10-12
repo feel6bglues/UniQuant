@@ -103,7 +103,9 @@ def main(argv=None):
     ap.add_argument("--as-of", type=str, default=None)
     args = ap.parse_args(argv)
 
-    idx_path = PROJECT_ROOT / "data/lake/quotes/daily/000300.SH.parquet"
+    idx_path = PROJECT_ROOT / "data/lake/quotes/index/000300.SH.parquet"
+    if not idx_path.exists():
+        idx_path = PROJECT_ROOT / "data/lake/quotes/daily/000300.SH.parquet"
     state = compute_state(pd.read_parquet(idx_path), args.as_of)
     out = {"generated_at": _dt.now().isoformat(timespec="seconds"),
            "strategy": "H-A conditional illiquidity (P7/P8/D+10)",

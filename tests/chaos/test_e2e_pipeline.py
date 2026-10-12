@@ -224,42 +224,46 @@ def _step3_factors():
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def _step4_backtest():
-    from uniquant.hands.backtest.engine import BacktestEngine
-    from uniquant.hands.backtest.result import BacktestResult
-    from unittest.mock import MagicMock
+    from uniquant.hands.backtest.unified_engine import UnifiedBacktestEngine, BacktestResult
+    from uniquant.shared.interfaces import TradingSignal
 
     df = SYNTHETIC_DF.copy()
 
     # Add MA20 for strategy
     df["ma20"] = df["close"].rolling(20).mean()
     df = df.dropna().reset_index(drop=True)
+    df["pre_close"] = df["close"].shift(1).fillna(df["open"])
+    df["avg_daily_volume"] = df["volume"].rolling(20, min_periods=1).mean()
 
-    def ma_crossover_signal(df, idx, context):
-        """
-        Buy when close > MA20 (and not in position).
-        Sell when close < MA20 (and in position).
-        This generates multiple round-trips on mean-reverting data.
-        """
-        if idx < 1:
-            return {"action": "HOLD", "reason": "warmup"}
-        close_now = df.iloc[idx]["close"]
-        ma_now = df.iloc[idx]["ma20"]
+    signals = []
+    in_pos = False
+    for i in range(1, len(df)):
+        c = df.iloc[i]["close"]
+        m = df.iloc[i]["ma20"]
+        t = pd.Timestamp(df.iloc[i]["date"])
+        if not in_pos and c > m:
+            signals.append(TradingSignal(
+                action="BUY",
+                reason="close > MA20",
+                confidence=0.8,
+                shares=100,
+                symbol="TEST.SZ",
+                timestamp=t,
+            ))
+            in_pos = True
+        elif in_pos and c < m:
+            signals.append(TradingSignal(
+                action="SELL",
+                reason="close < MA20",
+                confidence=0.8,
+                shares=100,
+                symbol="TEST.SZ",
+                timestamp=t,
+            ))
+            in_pos = False
 
-        if context["position"] == 0 and close_now > ma_now:
-            return {"action": "BUY", "reason": "close > MA20"}
-        elif context["position"] > 0 and close_now < ma_now:
-            return {"action": "SELL", "reason": "close < MA20"}
-        return {"action": "HOLD", "reason": ""}
-
-    # Use a mock trade calendar that always returns True for is_trading_day
-    # and returns the date range for get_trade_calendar (bypasses missing local files)
-    mock_tc = MagicMock()
-    mock_tc.is_trading_day.return_value = True
-    dates_series = pd.DataFrame({"trade_date": pd.to_datetime(df["date"])})
-    mock_tc.get_trade_calendar.return_value = dates_series
-
-    engine = BacktestEngine(initial_capital=100000.0, trade_calendar=mock_tc)
-    result = engine.run_backtest(df, ma_crossover_signal, symbol="TEST.SZ", position_size=100)
+    engine = UnifiedBacktestEngine(initial_capital=100000.0)
+    result = engine.run(df=df, signals=signals, symbol="TEST.SZ")
 
     assert isinstance(result, BacktestResult), f"Expected BacktestResult, got {type(result)}"
 

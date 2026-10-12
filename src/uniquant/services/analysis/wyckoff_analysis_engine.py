@@ -20,6 +20,8 @@ class WyckoffAnalysisEngine:
         self.orchestrator = orchestrator
 
     _INDEX_PATHS = (
+        "data/lake/quotes/index/000300.SH.parquet",
+        "data/lake/index/000300.SH.parquet",
         "data/lake/quotes/daily/000300.SH.parquet",
         "data/csi300_index.parquet",
     )

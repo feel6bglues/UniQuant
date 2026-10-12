@@ -75,7 +75,17 @@ def build_panel(n_sample: int | None = None) -> pd.DataFrame:
 
 
 def load_hot_days(dates_index: pd.DatetimeIndex) -> pd.Series:
-    idx_path = PROJECT_ROOT / "data/lake/quotes/daily/000300.SH.parquet"
+    idx_path = None
+    for candidate in [
+        PROJECT_ROOT / "data/lake/quotes/index/000300.SH.parquet",
+        PROJECT_ROOT / "data/lake/index/000300.SH.parquet",
+        PROJECT_ROOT / "data/lake/quotes/daily/000300.SH.parquet",
+    ]:
+        if candidate.exists():
+            idx_path = candidate
+            break
+    if idx_path is None:
+        idx_path = PROJECT_ROOT / "data/lake/quotes/index/000300.SH.parquet"
     idx = pd.read_parquet(idx_path)
     idx["date"] = pd.to_datetime(idx["date"])
     vs = pit_vol_states(idx)

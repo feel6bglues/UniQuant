@@ -92,6 +92,20 @@ class BacktestResult:
         return calculate_sharpe_ratio(self.daily_returns, period_days=1)
 
     @property
+    def sharpe_ratio(self) -> float:
+        return self.sharpe
+
+    @property
+    def annualized_return(self) -> float:
+        if not self.equity_curve or self.initial_capital <= 0 or len(self.daily_returns) == 0:
+            return 0.0
+        n_days = len(self.daily_returns)
+        tr = (self.equity_curve[-1] - self.initial_capital) / self.initial_capital
+        if tr <= -1.0:
+            return -1.0
+        return float((1.0 + tr) ** (252.0 / max(1, n_days)) - 1.0)
+
+    @property
     def max_drawdown(self) -> float:
         if not self.equity_curve:
             return 0.0
@@ -146,6 +160,33 @@ class BacktestResult:
             "profit_factor_diff": _safe_sub(self.profit_factor, other.profit_factor),
         }
 
+    def to_dict(self) -> Dict[str, Any]:
+        """将回测指标转换为字典"""
+        return {
+            "initial_capital": self.initial_capital,
+            "final_cash": self.final_cash,
+            "total_return": self.total_return,
+            "annualized_return": self.annualized_return,
+            "max_drawdown": self.max_drawdown,
+            "sharpe_ratio": self.sharpe,
+            "win_rate": self.win_rate,
+            "total_trades": self.total_trades,
+            "trades": [
+                {
+                    "timestamp": t.timestamp.isoformat() if hasattr(t.timestamp, "isoformat") else str(t.timestamp),
+                    "action": t.action,
+                    "price": t.price,
+                    "shares": t.shares,
+                    "commission": t.commission,
+                    "stamp_duty": getattr(t, "stamp_duty", 0.0),
+                    "slippage": getattr(t, "slippage", 0.0),
+                    "pnl": getattr(t, "pnl", 0.0),
+                }
+                for t in self.trades
+            ],
+            "metadata": self.metadata,
+        }
+
 
 # ══════════════════════════════════════════════════════════════
 # 统一回测引擎
@@ -178,6 +219,15 @@ class UnifiedBacktestEngine:
         self.min_commission = min_commission
         self.trade_calendar = trade_calendar or TradeCalendarManager()
         self._sizer = sizer
+        self.cash = initial_capital
+        self.positions: Dict[str, int] = {}
+        self.trades: List[TradeRecord] = []
+
+    def reset(self):
+        """重置引擎状态"""
+        self.cash = self.initial_capital
+        self.positions = {}
+        self.trades = []
 
     # ──────────────────────────────────────────────────────────
     # 公共接口
@@ -523,6 +573,10 @@ class UnifiedBacktestEngine:
             bench_return = bench_total / float(benchmark_returns.iloc[0]) if float(benchmark_returns.iloc[0]) != 0 else 0.0
             portfolio_return = (equity_curve[-1] - self.initial_capital) / self.initial_capital if self.initial_capital > 0 else 0.0
             benchmark_return = portfolio_return - bench_return
+
+        self.cash = cash
+        self.positions = {symbol: position} if position > 0 else {}
+        self.trades = trades
 
         return BacktestResult(
             trades=trades,

@@ -9,7 +9,9 @@ Tests the feasibility report's 4 key claims on 52K obs:
 
 Run: python3 scripts/wyckoff_multitf/v9_feasibility_validation.py
 """
-import sys, json, collections
+import sys
+import json
+import collections
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
@@ -128,7 +130,7 @@ def main():
         return cnt
 
     cnt_chain = show_distribution("Chain-only", chain_phases)
-    cnt_pnf = show_distribution("P&F-only", pnf_hints)
+    show_distribution("P&F-only", pnf_hints)
     cnt_voted = show_distribution("Chain+P&F voted", voted_phases_pf)
 
     # Directionality
@@ -158,8 +160,8 @@ def main():
         for i in range(n)
     ])
 
-    cnt_normal = show_distribution("Normal resonance", normal_resonance)
-    cnt_reverse = show_distribution("Reverse resonance", reverse_resonance)
+    show_distribution("Normal resonance", normal_resonance)
+    show_distribution("Reverse resonance", reverse_resonance)
 
     print(f"\n  {'Phase':<12} {'Chain':<10} {'Normal':<10} {'Reverse':<10}")
     for p in PHASES:
@@ -276,7 +278,7 @@ def main():
     print("=" * 70)
 
     # Direction check
-    print(f"\n  Directionality comparison:")
+    print("\n  Directionality comparison:")
     for label, phases in [("Chain-only", chain_phases), ("P&F voted", voted_phases_pf),
                           ("Normal resonance", normal_resonance),
                           ("Reverse resonance", reverse_resonance),
@@ -289,7 +291,7 @@ def main():
         print(f"  {label:22} mup={markup_fwd:+7.2f} mdn={markdown_fwd:+7.2f} "
               f"acc={accum_fwd:+7.2f} dist={dist_fwd:+7.2f}  {correct}/4 correct")
 
-    print(f"\n  Feasibility report claims:")
+    print("\n  Feasibility report claims:")
     # P&F voting: does it reduce accumulation bias?
     accum_reduction = cnt_chain.get('accumulation', 0) > cnt_voted.get('accumulation', 0)
     print(f"  P&F voting: {'✅ reduces accum bias' if accum_reduction else '⚠️ mixed'}")

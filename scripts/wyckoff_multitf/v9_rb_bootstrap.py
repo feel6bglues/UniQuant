@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Monte Carlo bootstrap validation — vectorized, fast."""
-import sys, json, collections
+import sys
+import json
+import collections
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 

@@ -131,6 +131,10 @@ def data_dir_with_financial(tmp_path):
             "code": sym,
         }).to_parquet(daily / f"{sym}.parquet")
 
+    pd.DataFrame({"code": ["600001.SH", "000001.SZ"]}).to_csv(
+        root / "all_stock_codes.csv", index=False
+    )
+
     qdates = pd.date_range("2023-03-31", periods=6, freq="QE")
     cum = [1.0, 2.0, 3.0, 4.0, 1.0, 2.0]
     pd.DataFrame({
@@ -187,3 +191,56 @@ def test_merge_financial_metrics_no_financial_dir(tmp_path):
     df = load_universe(data_dir=str(root), min_days=10)
     out = merge_financial_metrics(df, data_dir=str(root))
     assert len(out) == len(df)
+
+
+def test_merge_financial_metrics_forensic_fields(tmp_path):
+    """验证 merge_financial_metrics 能够原生透传 5 个排雷关键科目。"""
+    from scripts.factor_mining.data_loader import (
+        FORENSIC_FINANCIAL_FIELDS,
+        load_universe,
+        merge_financial_metrics,
+    )
+
+    root = tmp_path
+    daily = root / "lake" / "quotes" / "daily"
+    fin = root / "lake" / "financial"
+    daily.mkdir(parents=True, exist_ok=True)
+    fin.mkdir(parents=True, exist_ok=True)
+
+    dates = pd.bdate_range("2024-04-01", periods=10)
+    closes = np.full(10, 100.0)
+    pd.DataFrame({
+        "date": dates, "open": closes, "high": closes, "low": closes, "close": closes,
+        "volume": np.full(10, 1000), "amount": np.full(10, 100000), "code": "600519.SH",
+    }).to_parquet(daily / "600519.SH.parquet")
+
+    pd.DataFrame({"code": ["600519.SH"]}).to_csv(root / "all_stock_codes.csv", index=False)
+
+    pd.DataFrame({
+        "code": ["600519.SH"],
+        "report_date": [pd.Timestamp("2024-03-31")],
+        "财报公告日期": [pd.Timestamp("2024-03-31")],
+        "基本每股收益": [10.0],
+        "每股净资产": [100.0],
+        "应收账款": [2500000.0],
+        "短期借款": [1000000.0],
+        "其中:利息收入(利润表-财务费用)": [500000.0],
+        "固定资产": [22000000.0],
+        "在建工程": [2400000.0],
+    }).to_parquet(fin / "600519.SH.parquet")
+
+    df = load_universe(data_dir=str(root), min_days=5, max_workers=2)
+    out = merge_financial_metrics(
+        df, extra_fields=FORENSIC_FINANCIAL_FIELDS,
+        data_dir=str(root), max_workers=2,
+    )
+    assert len(out) == len(df)
+    for f in FORENSIC_FINANCIAL_FIELDS:
+        assert f in out.columns, f"Missing {f} in out columns"
+        assert not out[f].isna().any(), f"Unexpected NaN in {f}"
+    assert np.isclose(out["accounts_rec"].iloc[0], 2500000.0)
+    assert np.isclose(out["short_term_borrowing"].iloc[0], 1000000.0)
+    assert np.isclose(out["interest_income"].iloc[0], 500000.0)
+    assert np.isclose(out["ppe"].iloc[0], 22000000.0)
+    assert np.isclose(out["cip"].iloc[0], 2400000.0)
+

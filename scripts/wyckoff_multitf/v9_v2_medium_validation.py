@@ -11,9 +11,11 @@ For each stock × cutoff:
 
 Run:  python3 scripts/wyckoff_multitf/v9_v2_medium_validation.py --max-stocks 1000
 """
-import sys, time, json, collections
+import sys
+import time
+import json
+import collections
 from pathlib import Path
-from unittest import mock
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 import numpy as np
@@ -89,8 +91,10 @@ def calibrated_hint(pnf, accum_key="A1", dist_key="D1"):
     dist = (falling > r2 and (contr > c2 or recent > early*ar2) and down > dr2)
     if rl2 is not None:
         dist = dist and (rising < rl2)
-    if accum: return "accumulation"
-    if dist: return "distribution"
+    if accum:
+        return "accumulation"
+    if dist:
+        return "distribution"
     return "unknown"
 
 

@@ -87,7 +87,7 @@ class TestImportChain:
         ("uniquant.data.pipeline.data_validator", "uniquant.data.pipeline.data_validator"),
         ("uniquant.brain", "uniquant.brain"),
         ("uniquant.hands", "uniquant.hands"),
-        ("uniquant.hands.backtest.engine", "uniquant.hands.backtest.engine"),
+        ("uniquant.hands.backtest.unified_engine", "uniquant.hands.backtest.unified_engine"),
         ("uniquant.hands.backtest.result", "uniquant.hands.backtest.result"),
         ("uniquant.risk", "uniquant.risk"),
         ("uniquant.risk.drawdown_analyzer", "uniquant.risk.drawdown_analyzer"),
@@ -209,32 +209,37 @@ class TestAnalysisEngineFactory:
 # 测试4: 最小可行策略 E2E 测试
 # ═══════════════════════════════════════════════════════════════
 
-class TestBacktestEngineE2E:
-    @staticmethod
-    def ma_cross_signal(df: pd.DataFrame, idx: int, ctx: Dict[str, Any]) -> Dict[str, Any]:
-        if idx < 20:
-            return {"action": "HOLD", "reason": "数据不足"}
-        ma5 = df["close"].iloc[max(0, idx - 4):idx + 1].mean()
-        ma20 = df["close"].iloc[max(0, idx - 19):idx + 1].mean()
-        position = ctx.get("position", 0)
-        if position == 0 and ma5 > ma20:
-            return {"action": "BUY", "reason": "MA5上穿MA20"}
-        elif position > 0 and ma5 < ma20:
-            return {"action": "SELL", "reason": "MA5下穿MA20"}
-        return {"action": "HOLD", "reason": "无信号"}
-
+class TestUnifiedBacktestEngineQuickE2E:
     def test_run_backtest_basic(self):
-        from uniquant.hands.backtest.engine import BacktestEngine
-        from uniquant.hands.backtest.result import BacktestResult
+        import datetime
+        from uniquant.hands.backtest.unified_engine import UnifiedBacktestEngine, BacktestResult
+        from uniquant.shared.interfaces import TradingSignal
 
         df = _make_kline_df(200)
-        engine = BacktestEngine(initial_capital=100_000)
-        result = engine.run_backtest(
-            df=df,
-            signal_generator=self.ma_cross_signal,
-            symbol="000001",
-            position_size=100,
-        )
+        df["pre_close"] = df["close"].shift(1).fillna(df["open"])
+        df["avg_daily_volume"] = df["volume"].rolling(20, min_periods=1).mean()
+
+        signals = [
+            TradingSignal(
+                action="BUY",
+                reason="MA5上穿MA20",
+                confidence=0.8,
+                shares=100,
+                symbol="000001.SZ",
+                timestamp=datetime.datetime(2024, 1, 22),
+            ),
+            TradingSignal(
+                action="SELL",
+                reason="MA5下穿MA20",
+                confidence=0.8,
+                shares=100,
+                symbol="000001.SZ",
+                timestamp=datetime.datetime(2024, 2, 15),
+            ),
+        ]
+
+        engine = UnifiedBacktestEngine(initial_capital=100_000)
+        result = engine.run(df=df, signals=signals, symbol="000001.SZ")
 
         assert isinstance(result, BacktestResult), f"返回类型错误: {type(result)}"
         assert len(result.equity_curve) > 0, "equity_curve 为空"
@@ -244,48 +249,72 @@ class TestBacktestEngineE2E:
         assert result.initial_capital == 100_000
 
     def test_backtest_result_metrics(self):
-        from uniquant.hands.backtest.engine import BacktestEngine
+        import datetime
+        from uniquant.hands.backtest.unified_engine import UnifiedBacktestEngine
+        from uniquant.shared.interfaces import TradingSignal
 
         df = _make_kline_df(200)
-        engine = BacktestEngine(initial_capital=100_000)
-        result = engine.run_backtest(
-            df=df,
-            signal_generator=self.ma_cross_signal,
-            symbol="000001",
-            position_size=100,
-        )
+        df["pre_close"] = df["close"].shift(1).fillna(df["open"])
+        df["avg_daily_volume"] = df["volume"].rolling(20, min_periods=1).mean()
+
+        signals = [
+            TradingSignal(
+                action="BUY",
+                reason="MA5上穿MA20",
+                confidence=0.8,
+                shares=100,
+                symbol="000001.SZ",
+                timestamp=datetime.datetime(2024, 1, 22),
+            )
+        ]
+
+        engine = UnifiedBacktestEngine(initial_capital=100_000)
+        result = engine.run(df=df, signals=signals, symbol="000001.SZ")
 
         assert isinstance(result.total_return, float)
         assert isinstance(result.max_drawdown, float)
         assert result.max_drawdown >= 0
 
     def test_backtest_result_to_dict(self):
-        from uniquant.hands.backtest.engine import BacktestEngine
+        import datetime
+        from uniquant.hands.backtest.unified_engine import UnifiedBacktestEngine
+        from uniquant.shared.interfaces import TradingSignal
 
         df = _make_kline_df(200)
-        engine = BacktestEngine(initial_capital=100_000)
-        result = engine.run_backtest(
-            df=df,
-            signal_generator=self.ma_cross_signal,
-            symbol="000001",
-            position_size=100,
-        )
+        df["pre_close"] = df["close"].shift(1).fillna(df["open"])
+        df["avg_daily_volume"] = df["volume"].rolling(20, min_periods=1).mean()
+
+        signals = [
+            TradingSignal(
+                action="BUY",
+                reason="MA5上穿MA20",
+                confidence=0.8,
+                shares=100,
+                symbol="000001.SZ",
+                timestamp=datetime.datetime(2024, 1, 22),
+            )
+        ]
+
+        engine = UnifiedBacktestEngine(initial_capital=100_000)
+        result = engine.run(df=df, signals=signals, symbol="000001.SZ")
         d = result.to_dict()
         assert "initial_capital" in d
         assert "total_return" in d
         assert "trades" in d
 
     def test_backtest_reset(self):
-        from uniquant.hands.backtest.engine import BacktestEngine
+        from uniquant.hands.backtest.unified_engine import UnifiedBacktestEngine
 
         df = _make_kline_df(200)
-        engine = BacktestEngine(initial_capital=100_000)
-        engine.run_backtest(df=df, signal_generator=self.ma_cross_signal, symbol="000001")
+        df["pre_close"] = df["close"].shift(1).fillna(df["open"])
+        df["avg_daily_volume"] = df["volume"].rolling(20, min_periods=1).mean()
+
+        engine = UnifiedBacktestEngine(initial_capital=100_000)
+        engine.run(df=df, signals=[], symbol="000001.SZ")
         engine.reset()
         assert engine.cash == 100_000
-        assert engine.position == 0
+        assert engine.positions.get("000001.SZ", 0) == 0
         assert len(engine.trades) == 0
-        assert len(engine.equity_curve) == 0
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -634,7 +663,9 @@ class TestDataPipelineE2E:
     def test_cleaner_then_validator_then_backtest(self):
         from uniquant.data.pipeline.data_cleaner import DataCleaner
         from uniquant.data.pipeline.data_validator import DataValidator
-        from uniquant.hands.backtest.engine import BacktestEngine
+        from uniquant.hands.backtest.unified_engine import UnifiedBacktestEngine
+        from uniquant.shared.interfaces import TradingSignal
+        import datetime
 
         dirty_df = _make_dirty_kline_df(200)
 
@@ -656,12 +687,23 @@ class TestDataPipelineE2E:
         is_valid = validator.validate(for_validation)
         assert is_valid, "数据验证失败"
 
-        engine = BacktestEngine(initial_capital=100_000)
-        result = engine.run_backtest(
+        clean_df["pre_close"] = clean_df["close"].shift(1).fillna(clean_df["open"])
+        clean_df["avg_daily_volume"] = clean_df["volume"].rolling(20, min_periods=1).mean()
+        signals = [
+            TradingSignal(
+                action="BUY",
+                reason="MA5上穿MA20",
+                confidence=0.8,
+                shares=100,
+                symbol="000001.SZ",
+                timestamp=datetime.datetime(2024, 1, 22),
+            )
+        ]
+        engine = UnifiedBacktestEngine(initial_capital=100_000)
+        result = engine.run(
             df=clean_df,
-            signal_generator=self.ma_cross_signal,
-            symbol="000001",
-            position_size=100,
+            signals=signals,
+            symbol="000001.SZ",
         )
 
         assert len(result.equity_curve) > 0, "回测 equity_curve 为空"
@@ -714,17 +756,15 @@ class TestParameterAlignment:
         assert clean_df.index.equals(expected_index), f"清洗后 index 漂移: {clean_df.index[:5].tolist()}"
 
     def test_backtest_df_date_column_type(self):
-        from uniquant.hands.backtest.engine import BacktestEngine
+        from uniquant.hands.backtest.unified_engine import UnifiedBacktestEngine
 
         df = _make_kline_df(200)
         assert pd.api.types.is_datetime64_any_dtype(df["date"])
+        df["pre_close"] = df["close"].shift(1).fillna(df["open"])
+        df["avg_daily_volume"] = df["volume"].rolling(20, min_periods=1).mean()
 
-        engine = BacktestEngine(initial_capital=100_000)
-
-        def hold_signal(df, idx, ctx):
-            return {"action": "HOLD", "reason": "test"}
-
-        result = engine.run_backtest(df=df, signal_generator=hold_signal, symbol="000001")
+        engine = UnifiedBacktestEngine(initial_capital=100_000)
+        result = engine.run(df=df, signals=[], symbol="000001.SZ")
         assert len(result.equity_curve) == 200
 
     def test_drawdown_analyzer_input_alignment(self):

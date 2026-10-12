@@ -75,7 +75,9 @@ def build_wide(df: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFra
 def load_hot_days(dates_index: pd.DatetimeIndex) -> pd.Series:
     from scripts.factor_mining.conditional_stats import pit_vol_states
 
-    idx_path = PROJECT_ROOT / "data/lake/quotes/daily/000300.SH.parquet"
+    idx_path = PROJECT_ROOT / "data/lake/quotes/index/000300.SH.parquet"
+    if not idx_path.exists():
+        idx_path = PROJECT_ROOT / "data/lake/quotes/daily/000300.SH.parquet"
     idx = pd.read_parquet(idx_path)
     idx["date"] = pd.to_datetime(idx["date"])
     vol_st = pit_vol_states(idx)

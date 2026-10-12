@@ -69,7 +69,9 @@ def build_panel(n_sample: int) -> pd.DataFrame:
 
 
 def load_states() -> pd.DataFrame:
-    idx_path = PROJECT_ROOT / "data/lake/quotes/daily/000300.SH.parquet"
+    idx_path = PROJECT_ROOT / "data/lake/quotes/index/000300.SH.parquet"
+    if not idx_path.exists():
+        idx_path = PROJECT_ROOT / "data/lake/quotes/daily/000300.SH.parquet"
     idx = pd.read_parquet(idx_path)
     idx["date"] = pd.to_datetime(idx["date"])
     vol_st = pit_vol_states(idx)

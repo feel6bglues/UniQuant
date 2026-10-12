@@ -12,7 +12,9 @@ Simulates:
 
 Run: python3 scripts/wyckoff_multitf/v9_v3_validation.py
 """
-import sys, json, collections
+import sys
+import json
+import collections
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
@@ -21,7 +23,11 @@ import pandas as pd
 from scipy import stats
 
 DATA_PATH = Path("scripts/wyckoff_multitf/output_v2_validation/v2_medium_rows.json")
-CSI300_PATH = Path("data/lake/quotes/daily/000300.SH.parquet")
+CSI300_PATH = (
+    Path("data/lake/quotes/index/000300.SH.parquet")
+    if Path("data/lake/quotes/index/000300.SH.parquet").exists()
+    else Path("data/lake/quotes/daily/000300.SH.parquet")
+)
 N_BOOT = 1000
 PHASES = ["accumulation", "markup", "distribution", "markdown", "unknown"]
 RNG = np.random.RandomState(42)
@@ -93,7 +99,7 @@ def main():
     chain_phases = np.array([r["chain_phase"] for r in rows])
     fwd3 = np.array([r["fwd3"] for r in rows], dtype=float)
     rp = np.array([r["relative_position"] for r in rows], dtype=float)
-    st = np.array([r["short_trend"] for r in rows], dtype=float)
+    np.array([r["short_trend"] for r in rows], dtype=float)
     ms = np.array([r["market_state"] for r in rows])
 
     # ═══════════════════════════════════════════════════════════════

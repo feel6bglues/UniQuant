@@ -459,3 +459,58 @@ class TestCumulativeToTTM:
         got = dict(zip(out["report_date"], out["eps_ttm"]))
         assert got[20260331] == pytest.approx(67.90)
         assert got[20260331] != pytest.approx(174.38)
+
+    def test_forensic_risk_fields_mapping_and_aliases(self, bridge):
+        """排雷关键科目映射与别名实证 (accounts_rec, short_term_borrowing, interest_income, ppe, cip)"""
+        df_raw = pd.DataFrame({
+            "code": ["600519.SH"],
+            "report_date": [20240331],
+            "应收账款": [2500000.0],
+            "短期借款": [1000000.0],
+            "其中:利息收入(利润表-财务费用)": [500000.0],
+            "固定资产": [22000000.0],
+            "在建工程": [2400000.0],
+        })
+        mapped = bridge.map_fields(df_raw)
+        assert "accounts_rec" in mapped.columns
+        assert "short_term_borrowing" in mapped.columns
+        assert "interest_income" in mapped.columns
+        assert "ppe" in mapped.columns
+        assert "cip" in mapped.columns
+        assert mapped["accounts_rec"].iloc[0] == 2500000.0
+        assert mapped["short_term_borrowing"].iloc[0] == 1000000.0
+        assert mapped["interest_income"].iloc[0] == 500000.0
+        assert mapped["ppe"].iloc[0] == 22000000.0
+        assert mapped["cip"].iloc[0] == 2400000.0
+
+    def test_forensic_risk_fields_process_passthrough(self, bridge):
+        """验证 bridge.process 能够将 extra_fields 原生透传到日线表"""
+        daily_df = pd.DataFrame({
+            "date": pd.to_datetime(["2024-04-01", "2024-04-02"]),
+            "code": ["600519.SH", "600519.SH"],
+            "close": [1600.0, 1610.0],
+            "qfq_close": [1600.0, 1610.0],
+        })
+        fin_df = pd.DataFrame({
+            "code": ["600519.SH"],
+            "report_date": [pd.Timestamp("2024-03-31")],
+            "财报公告日期": [pd.Timestamp("2024-03-31")],
+            "基本每股收益": [10.0],
+            "每股净资产": [100.0],
+            "应收账款": [2500000.0],
+            "短期借款": [1000000.0],
+            "其中:利息收入(利润表-财务费用)": [500000.0],
+            "固定资产": [22000000.0],
+            "在建工程": [2400000.0],
+        })
+        extra = ["accounts_rec", "short_term_borrowing", "interest_income", "ppe", "cip"]
+        res = bridge.process(daily_df, fin_df, price_col="close", extra_fields=extra)
+        for col in extra:
+            assert col in res.columns, f"Missing {col} in merged result"
+            assert not res[col].isna().any(), f"NaN in {col}"
+        assert res["accounts_rec"].iloc[0] == 2500000.0
+        assert res["short_term_borrowing"].iloc[0] == 1000000.0
+        assert res["interest_income"].iloc[0] == 500000.0
+        assert res["ppe"].iloc[0] == 22000000.0
+        assert res["cip"].iloc[0] == 2400000.0
+

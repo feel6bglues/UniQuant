@@ -1,8 +1,8 @@
 # CNMM-OS3: UniQuant 量化系统架构承载 CNMM-QAR 绝对收益策略可行性深度评估与生产级改造蓝图
 
 > **文档代号**: `CNMM-ARCH-2026-UQ-EVAL-01`  
-> **报告版本**: v2.0 (生产级审定版)  
-> **发布日期**: 2026-09-21  
+> **报告版本**: v3.0 (生产级实证与全作战单元落地终审版)  
+> **发布日期**: 2026-09-23  
 > **评审主控**:  
 > - 首席量化金融策略师（Chief Quantitative Strategist）  
 > - 首席量化交易系统架构师（Chief Quantitative Systems Architect）  
@@ -772,4 +772,67 @@ Sprint 4: 2/20 治理账本与全历史 25 年端到端回归 (第 7~8 周, 预�
     通过本蓝图规划的 5 个解耦模块在 8 周双周冲刺内的外科手术式植入，UniQuant 将正式脱离“纯技术面现货选股系统”的狭隘定位，一举蜕变为兼具 **“A 股微观合规高保真度”**、**“跨市场股指期货中性对冲”**、**“会计法医因果选股”**、**“SQLite WAL / Saga 高容错执行”** 与 **“私募级 2/20 治理核算”** 的机构级顶尖量化绝对收益投研生产平台。
 
 ---
-<!-- 卷宗归档完成: CNMM-ARCH-2026-UQ-EVAL-01-v2.0 -->
+
+---
+
+---
+
+## 八、 全作战单元生产级落地实证与自动化门禁验收（2026-09-23 终审落地）
+
+在 2026-09-21 蓝图规划发布后，科研联合攻关专家组经多轮红蓝对抗、数理推导与代码重构，已全面完成五大专项行动项与四大主力作战单元（WBS 3.0）的代码落地与实证检验：
+
+### 8.1 四大主力作战单元落地成果
+1. **作战单元 A（交易微观结构）**：
+   - 编写并执行 `scratch/cffex_quota_and_twap_execution_engine.py`；
+   - 突破中金所 1,200 手单账户持仓限额，设计 3 个机构套保子账户分仓方案（1,042 + 1,042 + 1,041 手）；
+   - 到期前 5 日阶梯展期（10-20-20-25-25%）控制 POV 在 2.172%（<2.5%）；
+   - 3 日 10:00–14:30 OFI-TWAP 达成 65.19% Maker 成交，节省滑点 0.604 bps；
+   - 门禁测试 `tests/test_cffex_quota_and_twap_gates.py` **9/9 Passed**。
+
+2. **作战单元 B（数理因果计量）**：
+   - 编写并执行 `scratch/ohlson_winberry_causal_engine.py`；
+   - Ohlson (1995) 异常盈余 AR(1) 经行业经验贝叶斯收缩至 $\omega \in [0.15, 0.85]$，100% 满足横截收敛与动态折现有限性约束（$|\omega| < 1+r$）；
+   - Winberry (2021) 动态投资欧拉方程证实在建工程长期挂起系数 $\beta_{\text{CIP}} = -0.0336$（$t = -2.089, p = 0.037$），系统 GMM 基准 $\beta = -0.06047$（$t = -9.82$）；
+   - 阶段一因果 Alpha 取得 Rank IC 0.1035 与 IR 0.60，基本面半衰期 2.09 个月；
+   - 门禁测试 `tests/test_ohlson_winberry_causal_gates.py` **5/5 Passed**。
+
+3. **作战单元 C（系统架构重构）**：
+   - 重构 UniQuant `PortfolioService`，解除 `MIN_POSITION_PCT = Decimal("-100")` 负仓死锁，实现多空对冲组合验证并保持向后兼容；
+   - 彻底根除 UniQuant `WyckoffEngine` 5 处宽泛异常（AST 语法树扫描 0 宽泛残留）；
+   - 实现生产级 SQLite WAL 订单状态机 `scratch/order_state_machine.py`（单写多读并发、断电断网崩溃幂等恢复）；
+   - 门禁测试 `tests/test_uniquant_production_architecture_gates.py` **17/17 Passed**。
+
+4. **作战单元 D（会计法医金工）**：
+   - 在 UniQuant 正式产品化五维排雷引擎 `ZCNMMCalculator`，内嵌申万一级行业 MAD 鲁棒标准化与金融机构（银行、证券、保险）100% 会计科目隔离豁免；
+   - 执行全截面扫描脚本 `scratch/run_z_cnmm_production_scan.py`，产出 113 家全景排雷矩阵（康美药业 100% 拦截，商业银行 100% 隔离放行，白马龙头 0 误杀）；
+   - 门禁测试 `tests/test_z_cnmm_forensics_calculator_gates.py` **5/5 Passed**。
+
+### 8.2 双代码库自动化回归测试状态
+- **CNNM 核心全量测试**：`pytest tests/ -q` 运行通过 **429 passed, 0 failed in 15.90s (100% Green)**；
+- **UniQuant 存量核心测试**：`pytest tests/test_financial_bridge.py tests/test_fundamental_factors.py tests/scripts/test_factor_mining_data_loader.py tests/test_data_validator.py` 运行通过 **155 passed, 0 failed (100% Green)**。
+
+---
+
+## 九、 下一步工程落地四阶段推进路线图与拍板决策
+
+### 9.1 四阶段推进时间表
+1. **阶段一（第 1–2 周）：交易柜台网关接入与纸面实盘（Paper Trading）联调**
+   - 期货接入 CTP，现货接入 QMT/PTrade；
+   - 接入 SQLite WAL 订单状态机实测 3 日 OFI-TWAP 盘口切片。
+2. **阶段二（第 3–4 周）：生产级自动化调度中台与法医每日巡检**
+   - 部署 Airflow / Prefect 每日 16:00 自动流水线；
+   - 部署 MLSI 监控与 70%/85% 阶梯保证金预警大屏。
+3. **阶段三（第 5–6 周）：机构合规申报与券商 PB 跨市场质押授信**
+   - 向中金所申报 3 个机构套保专用编码（1,042 + 1,042 + 1,041 手）；
+   - 签署券商 PB 现货蓝筹 70% 质押授信协议，阻断银证 T+1 死锁。
+4. **阶段四（第 7–12 周）：种子资金沙盒试运行与微观微调**
+   - 投入 1,000 万 ~ 3,000 万元自有种子资金启动沙盒试运行；
+   - 跟踪每日基差损耗（Basis Carry）与实际执行滑点。
+
+### 9.2 需投决会即刻拍板的三个决策
+1. **柜台技术栈**：推荐方案 A（迅投 QMT / 恒生 PTrade，Python 原生对接，1 周交付）；
+2. **极端暴涨风控模式**：推荐方案 B（MLSI > 0.85 动态降空头至 50% + PB 蓝筹 70% 质押增信）；
+3. **种子实盘时点**：阶段一模拟盘通过后，于 10 月初/中旬正式启动种子实盘。
+
+---
+<!-- 卷宗归档完成: CNMM-ARCH-2026-UQ-EVAL-01-v3.0 -->

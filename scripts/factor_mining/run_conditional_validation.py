@@ -139,7 +139,9 @@ def main(argv=None):
     df["date"] = pd.to_datetime(df["date"])
     print(f"[1/3] 面板 {df['code'].nunique()} 只 × {df['date'].nunique()} 天")
 
-    idx_path = PROJECT_ROOT / "data/lake/quotes/daily/000300.SH.parquet"
+    idx_path = PROJECT_ROOT / "data/lake/quotes/index/000300.SH.parquet"
+    if not idx_path.exists():
+        idx_path = PROJECT_ROOT / "data/lake/quotes/daily/000300.SH.parquet"
     pit_states, full_states = build_states(pd.read_parquet(idx_path))
     print(f"[2/3] PIT 状态天数={len(pit_states)} 全样本状态天数={len(full_states)}")
 

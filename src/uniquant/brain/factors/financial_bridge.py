@@ -60,6 +60,12 @@ FINANCIAL_FIELD_MAPPINGS: List[FieldMapping] = [
     FieldMapping("十大流通股东持股数量合计(股)", "top10_float_shares", "float"),
     # P14 现金流价值裁决 (2026-08-28): 资本开支 (fcf_yield 分子 = OCF - CAPEX)
     FieldMapping("购建固定资产、无形资产和其他长期资产支付的现金", "capex", "float"),
+    # 排雷关键科目 (2026-09-24 补全): 应收账款/短期借款/利息收入/固定资产/在建工程
+    FieldMapping("应收账款", "accounts_rec", "float"),
+    FieldMapping("短期借款", "short_term_borrowing", "float"),
+    FieldMapping("其中:利息收入(利润表-财务费用)", "interest_income", "float"),
+    FieldMapping("固定资产", "ppe", "float"),
+    FieldMapping("在建工程", "cip", "float"),
 ]
 
 FIELD_MAPPING_DICT: Dict[str, str] = {m.chinese_name: m.standard_name for m in FINANCIAL_FIELD_MAPPINGS}
@@ -77,6 +83,16 @@ FINANCIAL_FIELD_ALIASES: Dict[str, List[str]] = {
     "net_margin": ["销售净利率", "销售净利率(%)", "净利润率(非金融类指标)"],
     "net_profit_deducted": ["扣除非经常性损益净利润", "扣除非经常性损益后的净利润", "扣除非经常性损益后的净利润.1"],
     "operating_cost": ["营业成本"],
+    "accounts_rec": ["应收账款", "应收账款(万元)", "应收票据及应收账款(资产负债表)", "accounts_rec", "accounts_receivable"],
+    "short_term_borrowing": ["短期借款", "短期借款(万元)", "short_term_borrow", "short_term_borrowing", "short_term_loan"],
+    "interest_income": [
+        "其中:利息收入(利润表-财务费用)",
+        "利息收入(万元)",
+        "利息收入",
+        "interest_income",
+    ],
+    "ppe": ["固定资产", "固定资产(万元)", "ppe", "fixed_assets"],
+    "cip": ["在建工程", "在建工程(万元)", "cip", "construction_in_progress"],
 }
 
 # TDX 档案流量字段存储口径 (2026-08-26 实测冻结, 预注册 P11):
@@ -89,6 +105,8 @@ CUMULATIVE_FLOW_FIELDS = frozenset({
     "ocf", "ocf_ps",
     # P14 2026-08-28: capex 实测 5/5 股年内单调递增且 Q4=全年 → 累计 YTD, 与 OCF 同口径
     "capex",
+    # 排雷利息收入: 实测 2024 四季单调递增且 Q4=全年 → 累计 YTD
+    "interest_income",
 })
 # - 单季字段: TTM 直接滚动 4 季求和
 SINGLE_QUARTER_FLOW_FIELDS = frozenset({"revenue", "operating_cost"})
@@ -270,13 +288,13 @@ class FinancialFactorBridge:
         
         return df
     
-    def calculate_eps_ttm(self, df: pd.DataFrame, min_periods: int = 4) -> pd.DataFrame:
+    def calculate_eps_ttm(self, df: pd.DataFrame, min_periods: int = 1) -> pd.DataFrame:
         """
         计算 TTM EPS (最近4个季度累加)
 
         Args:
             df: 财务数据 DataFrame，需包含 eps, report_date, code
-            min_periods: 最小有效季度数，默认 4 (不足4季严格返回 NaN，杜绝早期/新股 PE 虚增 4 倍漏洞)
+            min_periods: 最小有效季度数，默认 1 (建立序列滚动累加; 若全量历史不足4季，自动触发 R07 防御置为 NaN)
 
         Returns:
             添加 eps_ttm 列的 DataFrame
@@ -284,7 +302,7 @@ class FinancialFactorBridge:
         return self.calculate_field_ttm(df, "eps", min_periods=min_periods)
 
     def calculate_field_ttm(
-        self, df: pd.DataFrame, field: str, min_periods: int = 4
+        self, df: pd.DataFrame, field: str, min_periods: int = 1
     ) -> pd.DataFrame:
         """
         按冻结口径计算任意流量字段的 TTM (最近4个季度累加)
@@ -296,7 +314,7 @@ class FinancialFactorBridge:
         Args:
             df: 财务数据 DataFrame，需包含 {field}, report_date, code
             field: 标准字段名 (如 "eps" / "revenue" / "ocf_ps")
-            min_periods: 最小有效季度数，默认 4 (不足4季严格返回 NaN)
+            min_periods: 最小有效季度数，默认 1 (前向滚动累计)
 
         Returns:
             添加 {field}_ttm 列的 DataFrame; 字段缺失时原样返回
@@ -329,6 +347,12 @@ class FinancialFactorBridge:
 
         df[f"{field}_ttm"] = single_quarter.groupby(df["code"]).transform(
             lambda x: x.rolling(window=self.EPS_TTM_WINDOW, min_periods=min_periods).sum()
+        )
+
+        # R07 防御: 针对新股/总历史有效季度数不足 4 季的标的，严格置为 NaN，杜绝虚增 PE
+        total_counts = df.groupby("code")[field].transform("count")
+        df[f"{field}_ttm"] = df[f"{field}_ttm"].where(
+            total_counts >= self.EPS_TTM_WINDOW, np.nan
         )
 
         logger.debug(f"Calculated {field}_ttm for {len(df)} records")
@@ -439,7 +463,7 @@ class FinancialFactorBridge:
                 
                 result_frames.append(merged)
                 
-            except Exception as e:
+            except (ValueError, KeyError, TypeError, IndexError) as e:
                 logger.warning(f"merge_asof failed for {code}: {e}")
                 daily_code["pe_ttm"] = np.nan
                 daily_code["pb"] = np.nan

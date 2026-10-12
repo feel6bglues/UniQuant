@@ -35,7 +35,7 @@ class PortfolioService:
     """
 
     # 仓位边界限制
-    MIN_POSITION_PCT = Decimal("0")  # 最小仓位0%
+    MIN_POSITION_PCT = Decimal("-100")  # 放宽至-100%（支持多空对冲与期货做空）
     MAX_POSITION_PCT = Decimal("100")  # 最大仓位100%
     # 金额精度
     DECIMAL_PLACES = Decimal("0.0001")  # 4位小数精度
@@ -66,57 +66,286 @@ class PortfolioService:
                 return False
 
         if position_pct < self.MIN_POSITION_PCT:
-            logger.error(f"仓位不能为负数: {position_pct}%")
+            logger.error(f"仓位不能低于{self.MIN_POSITION_PCT}%: {position_pct}%")
             return False
 
         if position_pct > self.MAX_POSITION_PCT:
-            logger.error(f"仓位不能超过100%: {position_pct}%")
+            logger.error(f"仓位不能超过{self.MAX_POSITION_PCT}%: {position_pct}%")
             return False
 
         return True
 
-    def _validate_weights(self, weights: Dict[str, Any]) -> bool:
+    def _validate_weights(
+        self,
+        weights: Dict[str, Any],
+        allow_short: bool = True,
+        max_gross_leverage: Optional[Decimal] = None,
+    ) -> bool:
         """
         验证权重是否有效
 
+        支持两种模式：
+        1. 经典单边做多存量模式：
+           所有权重 >= 0，且权重总和严格为 1 (比例制) 或 100 (百分比制)。
+        2. 多空对冲模式 (Long-Short Hedging)：
+           允许负权重（做空/衍生品空头对冲，如 75% 股票 + (-75%) 期货 + 25% 现金，Gross 175%，Net ≈ 0%）。
+           单资产仓位处于 [MIN_POSITION_PCT, MAX_POSITION_PCT] 范围内；
+           总敞口 Gross Leverage <= max_gross_leverage (默认 300% 或 3.0)。
+
         Args:
             weights: 权重字典
+            allow_short: 是否允许空头仓位（默认 True）
+            max_gross_leverage: 最大允许杠杆总敞口（默认为 300% 或 3.0）
 
         Returns:
             bool: 是否有效
         """
-        if not weights:
-            logger.error("权重字典不能为空")
+        if not weights or not isinstance(weights, dict):
+            logger.error("权重字典不能为空且必须为字典")
             return False
 
-        # 将所有权重转换为Decimal后再求和
-        total = Decimal("0")
-        for weight in weights.values():
-            if isinstance(weight, float):
-                total += Decimal(str(weight))
-            else:
-                total += weight
-
-        # 允许0.01%的误差
         tolerance = Decimal("0.0001")
+        decimal_weights: Dict[str, Decimal] = {}
 
-        if (
-            abs(total - Decimal("1")) > tolerance
-            and abs(total - Decimal("100")) > tolerance
-        ):
-            logger.error(f"权重总和必须为1或100: {total}")
-            return False
-
-        # 验证每个权重
+        # 1. 转换所有权重为 Decimal
         for symbol, weight in weights.items():
-            weight_decimal = (
-                Decimal(str(weight)) if isinstance(weight, float) else weight
-            )
-            if weight_decimal < Decimal("0"):
-                logger.error(f"权重不能为负数: {symbol}={weight_decimal}")
+            if not symbol or not isinstance(symbol, str):
+                logger.error(f"证券代码非法: {symbol}")
+                return False
+            try:
+                if isinstance(weight, float):
+                    decimal_weights[symbol] = Decimal(str(weight))
+                elif isinstance(weight, Decimal):
+                    decimal_weights[symbol] = weight
+                else:
+                    decimal_weights[symbol] = Decimal(str(weight))
+            except (ValueError, TypeError, ArithmeticError) as e:
+                logger.error(f"权重值无法转换为Decimal: {symbol}={weight}, error={e}")
                 return False
 
+        has_short = any(w < Decimal("0") for w in decimal_weights.values())
+        if has_short and not allow_short:
+            logger.error("当前策略配置禁止空头/负权重")
+            return False
+
+        # 2. 判断量纲：比率制 (Base 1.0) 还是 百分比制 (Base 100)
+        gross_raw = sum(abs(w) for w in decimal_weights.values())
+        is_percentage = (
+            any(abs(w) > Decimal("1.0001") for w in decimal_weights.values())
+            or gross_raw > Decimal("3.0")
+        )
+
+        # 3. 边界约束检查
+        min_bound = (
+            self.MIN_POSITION_PCT
+            if is_percentage
+            else (self.MIN_POSITION_PCT / Decimal("100"))
+        )
+        max_bound = (
+            self.MAX_POSITION_PCT
+            if is_percentage
+            else (self.MAX_POSITION_PCT / Decimal("100"))
+        )
+
+        if not allow_short:
+            min_bound = Decimal("0")
+
+        for symbol, w in decimal_weights.items():
+            if w < min_bound - tolerance:
+                logger.error(f"权重低于下限({min_bound}): {symbol}={w}")
+                return False
+            if w > max_bound + tolerance:
+                logger.error(f"权重超过上限({max_bound}): {symbol}={w}")
+                return False
+
+        # 4. 单边做多存量策略模式（所有权重非负）
+        if not has_short:
+            total = sum(decimal_weights.values())
+            if (
+                abs(total - Decimal("1")) > tolerance
+                and abs(total - Decimal("100")) > tolerance
+            ):
+                logger.error(f"单边做多策略权重总和必须为1或100: {total}")
+                return False
+            return True
+
+        # 5. 多空对冲模式 (Long-Short Hedging Mode)
+        gross = sum(abs(w) for w in decimal_weights.values())
+        net_total = sum(decimal_weights.values())
+
+        if max_gross_leverage is not None:
+            max_gross = (
+                max_gross_leverage
+                if is_percentage
+                else (
+                    max_gross_leverage / Decimal("100")
+                    if max_gross_leverage > Decimal("10")
+                    else max_gross_leverage
+                )
+            )
+        else:
+            max_gross = Decimal("300") if is_percentage else Decimal("3.0")
+
+        if gross > max_gross + tolerance:
+            logger.error(
+                f"多空组合总杠杆敞口(Gross={gross})超出最大允许限制({max_gross})"
+            )
+            return False
+
+        if gross <= tolerance:
+            logger.error(f"多空组合总敞口必须为正: Gross={gross}")
+            return False
+
+        if abs(net_total) > gross + tolerance:
+            logger.error(f"多空组合净敞口异常: Net={net_total}, Gross={gross}")
+            return False
+
+        logger.info(
+            f"多空对冲权重验证通过: 标的数={len(decimal_weights)}, Gross={gross}{'%' if is_percentage else ''}, "
+            f"Net={net_total}{'%' if is_percentage else ''}"
+        )
         return True
+
+    def validate_hedged_portfolio(
+        self,
+        stock_weights: Dict[str, Any],
+        futures_weights: Dict[str, Any],
+        cash_weight: Any,
+        industry_map: Optional[Dict[str, str]] = None,
+        max_stock_weight: Optional[Any] = None,
+        max_industry_weight: Optional[Any] = None,
+        max_industry_stocks: int = 4,
+    ) -> bool:
+        """
+        CNMM-QAR 专用生产级多空治理中台合法性穿透校验。
+
+        校验三元配置约束：
+          1. 现货多头：股票总权重 75% (或 0.75)；
+             单票权重上限 <= 2.5% (或 0.025)；
+             单申万一级行业集中度 <= 10.0% (或 0.10) 且持股数 <= 4 只；
+          2. 衍生品空头：股指期货总权重 -75% (或 -0.75)；
+          3. 现金缓冲池：预留流动性 25% (或 0.25)；
+          4. 杠杆与敞口约束：
+             总杠杆 Gross Leverage = |75%| + |-75%| + |25%| = 175% (或 1.75)；
+             多空净敞口 Net Exposure = 75% + (-75%) = 0% (或 0.0)。
+        """
+        if not stock_weights or not isinstance(stock_weights, dict):
+            logger.error("股票多头权重字典不能为空且必须为字典")
+            return False
+        if not futures_weights or not isinstance(futures_weights, dict):
+            logger.error("股指期货空头权重字典不能为空且必须为字典")
+            return False
+
+        def _conv_dec(v: Any, name: str) -> Optional[Decimal]:
+            try:
+                return Decimal(str(v))
+            except (ValueError, TypeError, ArithmeticError) as e:
+                logger.error(f"权重值无法转换为Decimal: {name}={v}, error={e}")
+                return None
+
+        dec_stocks: Dict[str, Decimal] = {}
+        for s, w in stock_weights.items():
+            dw = _conv_dec(w, s)
+            if dw is None:
+                return False
+            if dw <= Decimal("0"):
+                logger.error(f"现货多头股票权重必须为正: {s}={dw}")
+                return False
+            dec_stocks[s] = dw
+
+        dec_futures: Dict[str, Decimal] = {}
+        for f_sym, w in futures_weights.items():
+            dw = _conv_dec(w, f_sym)
+            if dw is None:
+                return False
+            if dw >= Decimal("0"):
+                logger.error(f"衍生品对冲期货权重必须为负(做空): {f_sym}={dw}")
+                return False
+            dec_futures[f_sym] = dw
+
+        dec_cash = _conv_dec(cash_weight, "CASH")
+        if dec_cash is None:
+            return False
+        if dec_cash <= Decimal("0"):
+            logger.error(f"现金缓冲池权重必须为正: CASH={dec_cash}")
+            return False
+
+        # 判断量纲：百分比制 (Base 100) 还是 比率制 (Base 1.0)
+        total_stock = sum(dec_stocks.values())
+        is_percentage = (
+            total_stock > Decimal("1.5")
+            or any(w > Decimal("1.0") for w in dec_stocks.values())
+            or abs(dec_cash) > Decimal("1.5")
+        )
+
+        target_stock = Decimal("75") if is_percentage else Decimal("0.75")
+        target_futures = Decimal("-75") if is_percentage else Decimal("-0.75")
+        target_cash = Decimal("25") if is_percentage else Decimal("0.25")
+        def_max_stock = Decimal("2.5") if is_percentage else Decimal("0.025")
+        def_max_ind_w = Decimal("10.0") if is_percentage else Decimal("0.10")
+        target_gross = Decimal("175") if is_percentage else Decimal("1.75")
+        target_net = Decimal("0")
+
+        tol = Decimal("0.5") if is_percentage else Decimal("0.005")
+        spec_tol = Decimal("0.0001")
+
+        # 1. 资产大类三元配置比例校验
+        if abs(total_stock - target_stock) > tol:
+            logger.error(f"股票多头总仓位偏离 75%: 实际={total_stock}, 目标={target_stock}")
+            return False
+
+        total_futures = sum(dec_futures.values())
+        if abs(total_futures - target_futures) > tol:
+            logger.error(f"期指空头总仓位偏离 -75%: 实际={total_futures}, 目标={target_futures}")
+            return False
+
+        if abs(dec_cash - target_cash) > tol:
+            logger.error(f"流动性现金缓冲池偏离 25%: 实际={dec_cash}, 目标={target_cash}")
+            return False
+
+        # 总杠杆与净敞口严格核算
+        gross = total_stock + abs(total_futures) + dec_cash
+        if abs(gross - target_gross) > tol:
+            logger.error(f"多空总杠杆偏离 175%: 实际={gross}, 目标={target_gross}")
+            return False
+
+        net_exposure = total_stock + total_futures
+        if abs(net_exposure - target_net) > tol:
+            logger.error(f"多空净敞口偏离 0%: 实际={net_exposure}, 目标={target_net}")
+            return False
+
+        # 2. 单票权重硬拦截 (<= 2.5%)
+        limit_stock = _conv_dec(max_stock_weight, "max_stock_weight") if max_stock_weight is not None else def_max_stock
+        for s, w in dec_stocks.items():
+            if w > limit_stock + spec_tol:
+                logger.error(f"单票超标硬拦截: {s} 权重 {w} > 上限 {limit_stock}")
+                return False
+
+        # 3. 申万一级行业集中度硬拦截 (<= 10% 且 <= 4 只)
+        if industry_map is not None:
+            limit_ind_w = _conv_dec(max_industry_weight, "max_industry_weight") if max_industry_weight is not None else def_max_ind_w
+            ind_weights: Dict[str, Decimal] = {}
+            ind_counts: Dict[str, int] = {}
+            for s, w in dec_stocks.items():
+                ind = industry_map.get(s, "UNKNOWN")
+                ind_weights[ind] = ind_weights.get(ind, Decimal("0")) + w
+                ind_counts[ind] = ind_counts.get(ind, 0) + 1
+
+            for ind, w in ind_weights.items():
+                if w > limit_ind_w + spec_tol:
+                    logger.error(f"申万一级行业权重超标硬拦截: {ind} 权重 {w} > 上限 {limit_ind_w}")
+                    return False
+                if ind_counts[ind] > max_industry_stocks:
+                    logger.error(f"申万一级行业持股只数超标硬拦截: {ind} 持有 {ind_counts[ind]} 只 > 上限 {max_industry_stocks} 只")
+                    return False
+
+        logger.info(
+            f"CNMM-QAR 生产级多空治理三元配置验证通过: 股票={total_stock}, 期货={total_futures}, "
+            f"现金={dec_cash}, Gross={gross}, Net={net_exposure}"
+        )
+        return True
+
+    _validate_hedged_portfolio = validate_hedged_portfolio
 
     def _to_decimal(self, value: Any) -> Decimal:
         """

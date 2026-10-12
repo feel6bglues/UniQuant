@@ -39,6 +39,11 @@ EXTRA_FINANCIAL_FIELDS = [
     "total_assets", "total_shares", "free_float_shares",
 ]
 
+# 排雷关键科目 (2026-09-24): 应收账款/短期借款/利息收入/固定资产/在建工程
+FORENSIC_FINANCIAL_FIELDS = [
+    "accounts_rec", "short_term_borrowing", "interest_income", "ppe", "cip",
+]
+
 
 def load_universe(
     as_of: str | None = None,

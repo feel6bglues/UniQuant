@@ -11,7 +11,7 @@ BacktestEngine (旧版) 保留兼容性但已弃用。
 __all__ = [  # pylint: disable=undefined-all-variable
     "Reporter",
     "ResultsManager",
-    "BacktestEngine",
+    "UnifiedBacktestEngine",
     "BacktestResult",
     "TradeRecord",
     "backtest",
@@ -35,31 +35,25 @@ def __getattr__(name):
         from uniquant.hands.results_manager import ResultsManager
 
         return ResultsManager
+    elif name == "UnifiedBacktestEngine":
+        from uniquant.hands.backtest.unified_engine import UnifiedBacktestEngine
+
+        return UnifiedBacktestEngine
     elif name == "BacktestEngine":
         warnings.warn(
-            "BacktestEngine is deprecated, use UnifiedBacktestEngine",
+            "BacktestEngine has been retired, use UnifiedBacktestEngine instead",
             DeprecationWarning,
             stacklevel=2,
         )
-        from uniquant.hands.backtest.engine import BacktestEngine
+        from uniquant.hands.backtest.unified_engine import UnifiedBacktestEngine
 
-        return BacktestEngine
+        return UnifiedBacktestEngine
     elif name == "BacktestResult":
-        warnings.warn(
-            "BacktestResult (legacy) is deprecated, use unified_engine.BacktestResult",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        from uniquant.hands.backtest.result import BacktestResult
+        from uniquant.hands.backtest.unified_engine import BacktestResult
 
         return BacktestResult
     elif name == "TradeRecord":
-        warnings.warn(
-            "TradeRecord (legacy) is deprecated, use unified_engine.TradeRecord",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        from uniquant.hands.backtest.result import TradeRecord
+        from uniquant.hands.backtest.unified_engine import TradeRecord
 
         return TradeRecord
     elif name == "backtest":

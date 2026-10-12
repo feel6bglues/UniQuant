@@ -255,17 +255,18 @@ class TestRotationSimArithmetic:
                               engine_params=z).run(
             closes, pre, vol, adv, hmap, list(idx), nav_capture=True)
         got = [float(x) for x in res["_nav"].to_numpy()]
-        # 手算 (冲击 impact=0.001, vol/adv=1):
-        # slot0 budget=10万, 买价=10*1.001=10.01 → shares=int(10万/10.01/100)*100=9900,
-        #   成本=9900*10.01=99099, 结余=901
-        # slot1 budget=10万, 买价=20*1.001=20.02 → shares=int(10万/20.02/100)*100=4900,
-        #   成本=4900*20.02=98098, 结余=1902
-        day0 = 9900 * 10.0 + 901.0 + 4900 * 20.0 + 1902.0       # 199802
-        day1 = 9900 * 11.0 + 901.0 + 4900 * 21.0 + 1902.0       # 214602
-        # day2 全卖: 卖价 A=10.5*0.999=10.4895, B=22*0.999=21.978 → 各扣印花税(万5)
-        sellA = 9900 * (10.5 * 0.999) - 9900 * (10.5 * 0.999) * 0.0005
-        sellB = 4900 * (22.0 * 0.999) - 4900 * (22.0 * 0.999) * 0.0005
-        day2 = sellA + sellB + 901.0 + 1902.0
-        assert np.isclose(got[0], day0, atol=1.0), got
-        assert np.isclose(got[1], day1, atol=1.0), got
-        assert np.isclose(got[2], day2, atol=1.0), got
+        # 生产 UnifiedMatchingEngine 分段平方根冲击模型:
+        # eta = q / ADV, impact = 0.001 * sqrt(eta / 0.10)
+        # slot0: budget=10万, 申请10000股因冲击后超预算缩减为 9900 股,
+        #   exec_px=10.003162, 成本+费用=99032.30, 结余现金=967.70
+        # slot1: budget=10万, 申请5000股因冲击后超预算缩减为 4900 股,
+        #   exec_px=20.004472, 成本+费用=98021.91, 结余现金=1978.09
+        # day0 NAV = 9900*10 + 967.70 + 4900*20 + 1978.09 ≈ 199945.79
+        # day1 NAV = 9900*11 + 967.70 + 4900*21 + 1978.09 ≈ 214745.79
+        # day2 全卖: 含平方根卖出冲击与万5印花税，全额变现回款 ≈ 214532.33
+        expect_day0 = 199945.79
+        expect_day1 = 214745.79
+        expect_day2 = 214532.33
+        assert np.isclose(got[0], expect_day0, atol=1.0), got
+        assert np.isclose(got[1], expect_day1, atol=1.0), got
+        assert np.isclose(got[2], expect_day2, atol=1.0), got

@@ -252,8 +252,13 @@ class WyckoffEngine:
                         "after generating phase2_event_results.json to populate it.",
                         wss_path,
                     )
-        except Exception:
-            logger.warning("WSS initialization failed, falling back to WSO-only", exc_info=True)
+        except (ValueError, KeyError, AttributeError, OSError, TypeError) as e:
+            logger.warning(
+                "WSS initialization failed (%s: %s), falling back to WSO-only",
+                type(e).__name__,
+                e,
+                exc_info=True,
+            )
 
         # 红蓝对抗 (2026-08-07): ACCUMULATION 蓄势超额为负 → 多头方向降 1 档。
         # config wyckoff.accumulation_downgrade (默认 false 向后兼容; config.yaml 已开 true)。
@@ -263,8 +268,13 @@ class WyckoffEngine:
             self._accumulation_downgrade = bool(
                 cfg.get("wyckoff.accumulation_downgrade", False)
             )
-        except Exception:
-            logger.warning("accumulation_downgrade config read failed", exc_info=True)
+        except (ValueError, KeyError, AttributeError, TypeError) as e:
+            logger.warning(
+                "accumulation_downgrade config read failed (%s: %s)",
+                type(e).__name__,
+                e,
+                exc_info=True,
+            )
 
         # P0-5 (2026-08-12 深入再研究定稿): 结构分置信度加权默认关闭。
         # config wyckoff.structural_adjust_enabled (默认 false) —
@@ -276,8 +286,13 @@ class WyckoffEngine:
             self._structural_adjust_enabled = bool(
                 cfg.get("wyckoff.structural_adjust_enabled", False)
             )
-        except Exception:
-            logger.warning("structural_adjust_enabled config read failed", exc_info=True)
+        except (ValueError, KeyError, AttributeError, TypeError) as e:
+            logger.warning(
+                "structural_adjust_enabled config read failed (%s: %s)",
+                type(e).__name__,
+                e,
+                exc_info=True,
+            )
 
         # Load calibration thresholds from config
         self.calibration: dict = {}
@@ -286,7 +301,13 @@ class WyckoffEngine:
             calib = cfg.get("wyckoff.calibration", {})
             if calib and isinstance(calib, dict):
                 self.calibration = calib
-        except Exception:
+        except (ValueError, KeyError, AttributeError, TypeError) as e:
+            logger.warning(
+                "Wyckoff calibration config read failed (%s: %s)",
+                type(e).__name__,
+                e,
+                exc_info=True,
+            )
             self.calibration = {}
 
     def _normalize_input_frame(self, df: pd.DataFrame) -> pd.DataFrame:
@@ -2150,7 +2171,13 @@ class WyckoffEngine:
         """P0-4: BUY 门槛 (config wyckoff.confidence_gate, 默认 0.40)。"""
         try:
             return float(get_config().get("wyckoff.confidence_gate", 0.40) or 0.40)
-        except Exception:
+        except (ValueError, KeyError, AttributeError, TypeError, ZeroDivisionError) as e:
+            logger.warning(
+                "Failed to read wyckoff.confidence_gate config (%s: %s), using default 0.40",
+                type(e).__name__,
+                e,
+                exc_info=True,
+            )
             return 0.40
 
     def scan_signal(

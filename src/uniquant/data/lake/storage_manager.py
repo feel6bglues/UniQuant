@@ -69,6 +69,7 @@ class StorageManager:
         self.monthly_dir = self.quotes_dir / "monthly"
         self.min1_dir = self.quotes_dir / "1mins"
         self.min5_dir = self.quotes_dir / "5mins"
+        self.index_dir = self.quotes_dir / "index"
         self.factor_dir = self.data_dir / "factors"
         
         self.daily_dir.mkdir(parents=True, exist_ok=True)
@@ -76,6 +77,7 @@ class StorageManager:
         self.monthly_dir.mkdir(parents=True, exist_ok=True)
         self.min1_dir.mkdir(parents=True, exist_ok=True)
         self.min5_dir.mkdir(parents=True, exist_ok=True)
+        self.index_dir.mkdir(parents=True, exist_ok=True)
         self.factor_dir.mkdir(parents=True, exist_ok=True)
 
         self.all_stock_codes = self._load_all_stock_codes()
@@ -318,6 +320,8 @@ class StorageManager:
             seen.add(test_symbol)
             
             file_path = self.daily_dir / f"{test_symbol}.parquet"
+            if not file_path.exists() and is_index_symbol(test_symbol):
+                file_path = self.index_dir / f"{test_symbol}.parquet"
             df = self.read_parquet(str(file_path))
             if not df.empty:
                 logger.info(f"成功读取数据: {test_symbol}")
@@ -402,7 +406,11 @@ class StorageManager:
 
     def has_data(self, symbol: str) -> bool:
         file_path = self.daily_dir / f"{symbol}.parquet"
-        return file_path.exists()
+        if file_path.exists():
+            return True
+        if is_index_symbol(symbol) and (self.index_dir / f"{symbol}.parquet").exists():
+            return True
+        return False
 
     def get_symbols(self, exclude_indices: bool = True):
         """获取所有已存储的股票代码
@@ -417,6 +425,11 @@ class StorageManager:
             symbols.append(file.stem)
         if exclude_indices:
             symbols = [s for s in symbols if not is_index_symbol(s)]
+        else:
+            if hasattr(self, "index_dir") and self.index_dir.exists():
+                for file in self.index_dir.glob("*.parquet"):
+                    if file.stem not in symbols:
+                        symbols.append(file.stem)
         logger.info(f"获取到 {len(symbols)} 个已存储的股票代码")
         return symbols
 
@@ -578,7 +591,9 @@ class StorageManager:
         elif data_type == "factor":
             return self.factor_dir / f"{symbol}.parquet"
         elif data_type == "index":
-            index_dir = self.lake_dir / "index"
+            index_dir = self.quotes_dir / "index"
+            if not index_dir.exists() and (self.lake_dir / "index").exists():
+                index_dir = self.lake_dir / "index"
             self.ensure_directory(str(index_dir))
             return index_dir / f"{symbol}.parquet"
         elif data_type == "1mins" or data_type == "min1":
@@ -594,6 +609,10 @@ class StorageManager:
         """从对应目录读取数据"""
         file_path = self._get_file_path(symbol, data_type)
         if not file_path.exists():
+            if data_type == "daily" and is_index_symbol(symbol):
+                idx_path = self.index_dir / f"{symbol}.parquet"
+                if idx_path.exists():
+                    return self.read_parquet(str(idx_path))
             logger.warning(f"数据文件不存在: {file_path}")
             return pd.DataFrame()
         return self.read_parquet(str(file_path))

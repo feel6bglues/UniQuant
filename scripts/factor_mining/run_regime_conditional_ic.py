@@ -170,7 +170,9 @@ def main(argv=None):
     # 4. 前向收益 + 状态标注
     for h in HORIZONS:
         df[f"fwd{h}"] = df.groupby("code")["close"].shift(-h) / df["close"] - 1
-    idx_path = PROJECT_ROOT / "data/lake/quotes/daily/000300.SH.parquet"
+    idx_path = PROJECT_ROOT / "data/lake/quotes/index/000300.SH.parquet"
+    if not idx_path.exists():
+        idx_path = PROJECT_ROOT / "data/lake/quotes/daily/000300.SH.parquet"
     states = index_states(pd.read_parquet(idx_path)) if idx_path.exists() else None
     if states is None:
         print("TERMINATE: 无指数数据")

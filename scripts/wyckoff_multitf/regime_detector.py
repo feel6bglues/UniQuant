@@ -22,6 +22,8 @@ import pandas as pd
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 INDEX_PATHS = [
+    PROJECT_ROOT / "data" / "lake" / "quotes" / "index" / "000300.SH.parquet",
+    PROJECT_ROOT / "data" / "lake" / "index" / "000300.SH.parquet",
     PROJECT_ROOT / "data" / "lake" / "quotes" / "daily" / "000300.SH.parquet",
     PROJECT_ROOT / "data" / "csi300_index.parquet",
     PROJECT_ROOT / "data" / "lake" / "index" / "sh000300.parquet",

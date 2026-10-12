@@ -8,7 +8,9 @@ Tests the v2.0 plan's key claims:
   4. Transition detection: does previous_phase help predict direction?
   5. Bootstrap validation of all findings.
 """
-import sys, json, collections
+import sys
+import json
+import collections
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
@@ -37,7 +39,7 @@ def main():
 
     fwd3 = np.array([r["fwd3"] for r in rows], dtype=float)
     chain_phases = np.array([r["chain_phase"] for r in rows])
-    engine_phases = np.array([r["engine_phase"] for r in rows])
+    np.array([r["engine_phase"] for r in rows])
     short_trend = np.array([r["short_trend"] for r in rows], dtype=float)
     relative_pos = np.array([r["relative_position"] for r in rows], dtype=float)
     prior_trend = np.array([r["prior_trend"] for r in rows], dtype=float)
@@ -48,7 +50,7 @@ def main():
     print("=" * 70)
     print("TEST 1: Direction reversal — structural analysis")
     print("=" * 70)
-    cutoffs = sorted(set(r["cutoff"] for r in rows))
+    sorted(set(r["cutoff"] for r in rows))
     regimes = [
         ("2020-2021 (bull)", "2020-01-31", "2021-12-31"),
         ("2022-2023 (bear)", "2022-01-31", "2023-12-31"),
@@ -154,7 +156,6 @@ def main():
                 for ar in test_ar[:2]:
                     for dr in test_dr[:2]:
                         # Count how many observations would match
-                        from scripts.wyckoff_multitf.v9_v2_medium_validation import calibrated_hint
                         # We need to recompute hints from PnF data, but we don't have it.
                         # Instead, approximate: compute the conditions from the saved data
                         # We can't do this without PnF column stats. Skip.

@@ -12,7 +12,10 @@ Measures on real 120-bar monthly frames:
 Run:
     python3 scripts/wyckoff_multitf/v9_rb_validation.py --max-stocks 500
 """
-import sys, time, json, collections
+import sys
+import time
+import json
+import collections
 from pathlib import Path
 from unittest import mock
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
