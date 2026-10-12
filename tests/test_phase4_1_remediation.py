@@ -7,51 +7,17 @@ import pandas as pd
 import pytest
 
 from uniquant.brain.factors.registry import FactorRegistry
-from uniquant.data.pipeline.data_aligner import DataAligner
 from uniquant.hands.backtest.monte_carlo import MonteCarloSimulator
 from uniquant.services.analysis.macro_analysis_engine import MacroAnalysisEngine
 from uniquant.services.analysis.macro_service import MacroAnalysisService
 
 
-class _DummyCalendar:
-    def get_trade_calendar(self, start_date: str, end_date: str) -> pd.DataFrame:
-        return pd.DataFrame(
-            {"trade_date": pd.to_datetime(["2024-01-02", "2024-01-03"])}
-        )
+def test_data_aligner_removed_leading_suspension_no_backfill():
+    """Step4 S4a: DataAligner 已删除 — 原“前导停牌日不 bfill 价格”契约随之移除,
+    数据不齐改由 DataCleaner/DataValidator fail-fast 处理。"""
+    import importlib.util
 
-
-class _DummyMetadata:
-    def get_stock_info(self, symbol: str):
-        return None
-
-
-def test_data_aligner_does_not_backfill_leading_suspension_prices():
-    aligner = object.__new__(DataAligner)
-    aligner.calendar_manager = _DummyCalendar()
-    aligner.metadata_manager = _DummyMetadata()
-
-    raw = pd.DataFrame(
-        {
-            "date": pd.to_datetime(["2024-01-03"]),
-            "code": ["600000"],
-            "open": [10.0],
-            "high": [10.5],
-            "low": [9.8],
-            "close": [10.2],
-            "volume": [1000.0],
-            "amount": [10200.0],
-        }
-    )
-
-    result = aligner.align_stock_data("600000.SH", raw)
-
-    first = result.loc[result["date"] == pd.Timestamp("2024-01-02")].iloc[0]
-    assert pd.isna(first["open"])
-    assert pd.isna(first["high"])
-    assert pd.isna(first["low"])
-    assert pd.isna(first["close"])
-    assert first["volume"] == 0.0
-    assert first["amount"] == 0.0
+    assert importlib.util.find_spec("uniquant.data.pipeline.data_aligner") is None
 
 
 def test_factor_registry_config_loader_failure_is_not_silent(monkeypatch):

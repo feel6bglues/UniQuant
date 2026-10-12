@@ -21,7 +21,7 @@ class StockDataUpdater:
         self.source_router = data_fetcher.source_router
         self.data_cleaner = data_fetcher.data_cleaner
         self.data_validator = data_fetcher.data_validator
-        self.data_adjuster = data_fetcher.data_adjuster
+        # Step4 S4a: data_adjuster 薄壳已删 (复权单轨 CorporateActionAdjuster)，update_factors 调用已移除
 
     def needs_update(self, df: pd.DataFrame) -> bool:
         """
@@ -84,10 +84,8 @@ class StockDataUpdater:
                 logger.warning(f"未抓取到 {symbol} 的新数据")
                 return df_old
 
-            try:
-                self.data_adjuster.update_factors(symbol)
-            except Exception as e:
-                logger.warning(f"更新复权因子失败: {e}")
+            # Step4 S4a: data_adjuster 薄壳已删，复权单轨 CorporateActionAdjuster，
+            # update_factors(废弃直通) 不再需要调用
 
             df_new = self.data_cleaner.clean(df_new)
             

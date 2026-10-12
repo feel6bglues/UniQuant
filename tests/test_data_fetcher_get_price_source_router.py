@@ -11,7 +11,21 @@ from unittest.mock import MagicMock, patch
 
 import pandas as pd
 
-from uniquant.data.data_fetcher import GET_PRICE_LAKE_COLUMNS, DataFetcher
+
+def _write_min_all_stock_codes(data_dir) -> None:
+    """Step4 (D5 R-5): DataFetcher 构造触发 StorageManager 主数据硬失败 → 提供最小主数据表。"""
+    from pathlib import Path
+    import pandas as pd
+
+    path = Path(data_dir) / "all_stock_codes.csv"
+    if not path.exists():
+        pd.DataFrame({
+            "code": ["sh.600000"], "name": ["浦发银行"], "代码": ["600000"],
+            "ipoDate": ["1999-11-10"], "outDate": [""], "type": ["1"], "status": ["1"],
+        }).to_csv(path, index=False, encoding="utf-8-sig")
+
+
+from uniquant.data.data_fetcher import GET_PRICE_LAKE_COLUMNS, DataFetcher  # noqa: E402
 
 SYMBOL = "000001.SZ"
 
@@ -34,6 +48,7 @@ def _raw_df() -> pd.DataFrame:
 
 class TestDataFetcherGetPriceLakeFirstRouter:
     def test_get_price_reads_from_lake(self, tmp_path):
+        _write_min_all_stock_codes(tmp_path)
         fetcher = DataFetcher(data_dir=str(tmp_path))
         fetcher.storage_manager.write_data(SYMBOL, _raw_df(), data_type="daily")
         fetcher.clear_price_cache()
@@ -55,6 +70,7 @@ class TestDataFetcherGetPriceLakeFirstRouter:
         with patch("uniquant.data.data_fetcher.MootdxLocalSource") as local_cls:
             local_cls.return_value.fetch_daily.return_value = _raw_df()
             # 构造须在 patch 内: DataFetcher __init__ 即挂载本地源
+            _write_min_all_stock_codes(tmp_path)
             fetcher = DataFetcher(data_dir=str(tmp_path))
             result = fetcher.get_price(SYMBOL)
 
@@ -66,6 +82,7 @@ class TestDataFetcherGetPriceLakeFirstRouter:
     def test_get_price_returns_empty_without_router_on_double_miss(self, tmp_path):
         with patch("uniquant.data.data_fetcher.MootdxLocalSource") as local_cls:
             local_cls.return_value.fetch_daily.return_value = pd.DataFrame()
+            _write_min_all_stock_codes(tmp_path)
             fetcher = DataFetcher(data_dir=str(tmp_path))
             spy_fallback = MagicMock(
                 side_effect=AssertionError("get_price 不得走 source_router 爬虫链")
@@ -81,6 +98,7 @@ class TestDataFetcherGetPriceLakeFirstRouter:
 
     def test_get_price_returns_raw_prices_when_adjust_empty(self, tmp_path):
         """adjust="" 返回湖原始价 (等价于旧 "same data as ingestion path" 语义)。"""
+        _write_min_all_stock_codes(tmp_path)
         fetcher = DataFetcher(data_dir=str(tmp_path))
         raw = _raw_df()
         fetcher.storage_manager.write_data(SYMBOL, raw, data_type="daily")

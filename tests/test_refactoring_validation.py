@@ -7,7 +7,6 @@ from uniquant.brain.lppl.numba_optimizer import (
     _de_solve_numba,
     _solve_linear_parameters_numba,
 )
-from uniquant.data.pipeline.data_aligner import DataAligner
 from uniquant.brain.factors.analyzer import (
     check_lookahead_leakage,
     LookaheadBiasError,
@@ -64,49 +63,15 @@ def test_de_numba_solver():
 
 
 # ============================================================================
-# 2. Test DataAligner suspensions & delist logic
+# 2. Test DataAligner removed (S4a: dead component deleted, fail-fast on misaligned data)
 # ============================================================================
 
-def test_data_aligner():
-    """Verify that DataAligner correctly aligns calendar and ffills suspensions."""
-    # Setup DataAligner
-    aligner = DataAligner(data_dir="./data")
-    
-    # Mock trade calendar
-    from unittest.mock import MagicMock
-    aligner.calendar_manager.get_trade_calendar = MagicMock(return_value=pd.DataFrame({
-        "trade_date": ["2026-05-04", "2026-05-05", "2026-05-06", "2026-05-07", "2026-05-08"]
-    }))
-    
-    # Create fake stock dataframe with suspended gaps
-    data = {
-        "date": ["2026-05-04", "2026-05-05", "2026-05-08"], # Note: 2026-05-06, 07 are missing (suspension)
-        "code": ["000001.SZ"] * 3,
-        "open": [10.0, 10.5, 11.0],
-        "high": [10.2, 10.7, 11.2],
-        "low": [9.9, 10.3, 10.8],
-        "close": [10.1, 10.6, 10.9],
-        "volume": [1000, 1500, 1200],
-        "amount": [10100, 15900, 13080]
-    }
-    df = pd.DataFrame(data)
-    
-    # Align
-    aligned = aligner.align_stock_data("000001.SZ", df)
-    
-    assert not aligned.empty
-    # The gaps on trade calendar should be filled
-    dates_list = aligned["date"].dt.strftime("%Y-%m-%d").tolist()
-    
-    # Assert suspension gap dates exist in calendar alignment
-    assert "2026-05-06" in dates_list
-    
-    # The suspension row should have price ffilled from 2026-05-05 (close = 10.6)
-    row_susp = aligned[aligned["date"] == "2026-05-06"].iloc[0]
-    assert row_susp["close"] == 10.6
-    # Volume and amount should be zero
-    assert row_susp["volume"] == 0.0
-    assert row_susp["amount"] == 0.0
+def test_data_aligner_removed():
+    """Step4 S4a: DataAligner 随死源删除 — 数据不齐由 DataCleaner/DataValidator fail-fast 兜底,
+    不再有日历对齐 + ffill 的停牌补行能力。"""
+    import importlib.util
+
+    assert importlib.util.find_spec("uniquant.data.pipeline.data_aligner") is None
 
 
 # ============================================================================

@@ -166,6 +166,11 @@ class TestLoaderFinancialFramesOverride:
 
         daily_dir = tmp_path / "lake" / "quotes" / "daily"
         daily_dir.mkdir(parents=True)
+        # Step4 (D5 R-5): 主数据硬失败 → fixture 提供最小主数据表
+        pd.DataFrame({
+            "code": ["sh.600001"], "name": ["测试1"], "代码": ["600001"],
+            "ipoDate": ["2000-01-01"], "outDate": [""], "type": ["1"], "status": ["1"],
+        }).to_csv(tmp_path / "all_stock_codes.csv", index=False, encoding="utf-8-sig")
         dates = pd.bdate_range("2024-01-02", periods=30)
         pd.DataFrame({
             "date": dates, "open": 10.0, "high": 10.1, "low": 9.9, "close": 10.0,

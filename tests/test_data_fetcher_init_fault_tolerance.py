@@ -15,16 +15,25 @@ import pandas as pd
 from uniquant.shared.exceptions import DataFetchError
 
 
+def _write_min_all_stock_codes(data_dir) -> None:
+    """Step4 (D5 R-5): DataFetcher 构造触发 StorageManager 主数据硬失败 → 提供最小主数据表。"""
+    from pathlib import Path
+    import pandas as pd
+
+    path = Path(data_dir) / "all_stock_codes.csv"
+    if not path.exists():
+        pd.DataFrame({
+            "code": ["sh.600000"], "name": ["浦发银行"], "代码": ["600000"],
+            "ipoDate": ["1999-11-10"], "outDate": [""], "type": ["1"], "status": ["1"],
+        }).to_csv(path, index=False, encoding="utf-8-sig")
+
+
+from uniquant.data.data_fetcher import DataFetcher  # noqa: E402
+
+
 class TestDataFetcherInitFaultTolerance:
-    """DataFetcher 初始化容错测试 (单源 + 湖优先)"""
-
-    # ------------------------------------------------------------------ #
-    #  测试 1：正常初始化 — 单一本地源
-    # ------------------------------------------------------------------ #
     def test_normal_init_single_local_source(self):
-        """正常初始化时，仅挂 MootdxLocalSource 一个源（爬虫源已下线）。"""
-        from uniquant.data.data_fetcher import DataFetcher
-
+        _write_min_all_stock_codes("/tmp/test_data_fetcher_single")
         fetcher = DataFetcher(data_dir="/tmp/test_data_fetcher_single")
 
         assert fetcher is not None
@@ -45,6 +54,7 @@ class TestDataFetcherInitFaultTolerance:
             "uniquant.data.data_fetcher.MootdxLocalSource",
             side_effect=ImportError("mootdx dependency missing"),
         ):
+            _write_min_all_stock_codes("/tmp/test_data_fetcher_local_fail")
             fetcher = DataFetcher(data_dir="/tmp/test_data_fetcher_local_fail")
 
         assert fetcher is not None
@@ -87,6 +97,7 @@ class TestDataFetcherInitFaultTolerance:
         good_source = MagicMock()
         good_source.fetch_market_cap.return_value = 123.45
 
+        _write_min_all_stock_codes("/tmp/test_market_cap")
         fetcher = DataFetcher(data_dir="/tmp/test_market_cap")
         fetcher.data_sources = [failing_source, good_source]
 
@@ -99,6 +110,7 @@ class TestDataFetcherInitFaultTolerance:
         """get_price 应读湖 + 调用本地兜底，绝不触碰 source_router 抓取链。"""
         from uniquant.data.data_fetcher import DataFetcher
 
+        _write_min_all_stock_codes("/tmp/test_df_lake_first")
         fetcher = DataFetcher(data_dir="/tmp/test_df_lake_first")
         lake_df = pd.DataFrame(
             {

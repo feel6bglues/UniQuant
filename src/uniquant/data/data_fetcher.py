@@ -17,7 +17,6 @@ from ..shared.time_provider import get_time_provider
 from .lake.storage_manager import StorageManager
 from .managers.standard_adapter import StandardAdapter
 from .managers.source_router import SourceRouter
-from .pipeline.data_adjuster import DataAdjuster
 from .pipeline.data_cleaner import DataCleaner
 from .pipeline.data_validator import DataValidator
 
@@ -182,7 +181,6 @@ class DataFetcher:
 
         self.data_cleaner = DataCleaner()
         self.data_validator = DataValidator()
-        self.data_adjuster = DataAdjuster(self.storage_manager)
 
         # 初始化独立的专门管理器
         self.metadata_manager = StockMetadataManager(data_dir=data_dir)

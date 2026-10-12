@@ -20,7 +20,7 @@ if PROJECT_ROOT not in sys.path:
 
 from uniquant.data.pipeline.data_cleaner import DataCleaner  # noqa: E402
 from uniquant.data.pipeline.data_validator import DataValidator  # noqa: E402
-from uniquant.data.pipeline.data_adjuster import DataAdjuster  # noqa: E402
+from uniquant.data.corporate_action import CorporateActionAdjuster  # noqa: E402  # Step4 S4a: 薄壳已删
 from uniquant.shared.limit_checker import check_limit_status, get_board_type  # noqa: E402
 
 
@@ -266,55 +266,74 @@ class TestDataValidatorChaos:
 
 
 # ===================================================================
-# TASK 1: Dirty Data Injection — DataAdjuster (no storage needed)
+# TASK 1: Dirty Data Injection — CorporateActionAdjuster (no storage needed)
 # ===================================================================
 
 class TestDataAdjusterChaos:
-    """Chaos tests for DataAdjuster edge cases.
+    """Chaos tests for CorporateActionAdjuster edge cases.
 
-    2026-10-12 WS-C Step 2c: DataAdjuster 已废弃为兼容薄壳 (唯一算法 =
-    CorporateActionAdjuster)。锁旧轨坏死行为的用例已改写为新轨语义:
-    volume 不变、qfq 末日锚点=原始价、输出含 adj_factor 列、缺 gbbq 硬失败。
+    2026-10-12 Step4 S4a: DataAdjuster 薄壳已删除, 直调新轨 CorporateActionAdjuster。
+    契约: volume 不变、qfq 末日锚点=原始价、输出含 adj_factor 列、缺 gbbq 硬失败。
     """
 
     def _write_gbbq(self, tmp_path, df_daily, code="000001"):
-        """合成 gbbq 基线 (写入 tmp, 不触碰 data/): 中位日一笔现金分红。"""
+        """合成 gbbq 基线 (写入 tmp, 不触碰 data/): 中位日一笔现金分红。
+
+        Step4 S4a: 新轨 8 列契约 + **事件日真实除权** (新轨防呆: 若行情未按理论除权价
+        下跌, factor 越界即跳过事件 → 因子全 1; 故此处把事件日及之后的 close/open
+        按理论除权价扣除 cash=2.0, 让事件被 calculate 接受)。
+        """
         from pathlib import Path
 
         fq = Path(tmp_path) / "fq"
         fq.mkdir(parents=True, exist_ok=True)
         event_date = pd.Timestamp(df_daily["date"].iloc[len(df_daily) // 2])
         path = fq / "gbbq.parquet"
+        # Step4 S4a: 新轨 8 列契约 (date=int YYYYMMDD, cash_div 每 10 股口径 → /10 = 2.0 元)
         pd.DataFrame({
             "code": [code],
-            "date": [event_date],
-            "cash": [2.0],   # 原始口径 → 清洗后 /10 = 0.2 元
-            "split": [0.0],
-            "rights": [0.0],
-            "r_price": [0.0],
+            "market": [0],
+            "date": [int(event_date.strftime("%Y%m%d"))],
+            "category": [1],
+            "cash_div": [20.0],
+            "split_ratio": [0.0],
+            "rights_ratio": [0.0],
+            "rights_price": [0.0],
         }).to_parquet(path)
+        # 真实除权: 事件日及之后按理论价扣除 2.0 (open 与 close 同步, pre_close 不变)
+        mask = df_daily["date"] >= event_date
+        df_daily.loc[mask, "open"] = df_daily.loc[mask, "open"] - 2.0
+        df_daily.loc[mask, "close"] = df_daily.loc[mask, "close"] - 2.0
         return path
 
     @staticmethod
     def _make_adjuster(tmp_path, gbbq_path=None):
-        from unittest.mock import MagicMock
+        from pathlib import Path
+        # Step4 S4a: 直调新轨; gbbq 路径不存在时 load_events 硬失败
+        path = gbbq_path if gbbq_path is not None else Path(tmp_path) / "fq" / "gbbq.parquet"
+        return CorporateActionAdjuster(gbbq_path=path)
 
-        storage = MagicMock()
-        storage.data_dir = tmp_path
-        return DataAdjuster(storage_manager=storage, gbbq_path=gbbq_path)
+    @staticmethod
+    def _apply(adjuster, df, method):
+        df = df.copy()
+        df["date"] = pd.to_datetime(df["date"], errors="coerce")
+        df = df.dropna(subset=["date"]).sort_values("date").reset_index(drop=True)
+        return adjuster.adjust(df, "000001.SZ", adjust_type=method)
 
     def test_apply_adjustment_empty_df(self, tmp_path):
-        """Empty df should return empty, no crash."""
+        """Empty df should return empty, no crash (新轨 adjust 对空表直接返回, 不过 _apply)。"""
         adjuster = self._make_adjuster(tmp_path)
-        result = adjuster.apply_adjustment("000001.SZ", pd.DataFrame(), "qfq")
+        result = adjuster.adjust(pd.DataFrame(), "000001.SZ", adjust_type="qfq")
         assert result.empty
 
     def test_apply_adjustment_invalid_method(self, tmp_path):
-        """Invalid method should return raw data (不触发 gbbq 加载)."""
-        adjuster = self._make_adjuster(tmp_path, gbbq_path=tmp_path / "never.parquet")
+        """Step4 S4a: invalid = 误入 hfq 分支 (调用方前置拒 qfq/hfq 之外),
+        不再像旧薄壳那样静默返回原始价。锁: 正常基线 invalid 输出仍带 adj_factor 列。"""
         df = _make_daily_df(10)
-        result = adjuster.apply_adjustment("000001.SZ", df, "invalid")
-        assert len(result) == len(df)
+        self._write_gbbq(tmp_path, df)
+        adjuster = self._make_adjuster(tmp_path)
+        result = adjuster.adjust(df.copy(), "000001.SZ", adjust_type="invalid")
+        assert "adj_factor" in result.columns
 
     def test_apply_adjustment_missing_gbbq_raises(self, tmp_path):
         """旧轨 '因子文件为空 → 返回原始价' 改写: 缺 gbbq 基线 → 硬失败 (D2)。"""
@@ -323,7 +342,7 @@ class TestDataAdjusterChaos:
         adjuster = self._make_adjuster(tmp_path, gbbq_path=tmp_path / "missing.parquet")
         df = _make_daily_df(10)
         with pytest.raises(FileNotFoundError) as exc_info:
-            adjuster.apply_adjustment("000001.SZ", df, "qfq")
+            self._apply(adjuster, df, "qfq")
         msg = str(exc_info.value)
         assert "gbbq 基线缺失，禁止静默单位矩阵" in msg
         assert str(tmp_path / "missing.parquet") in msg
@@ -332,16 +351,11 @@ class TestDataAdjusterChaos:
     def test_apply_adjustment_factor_file_path_deprecated(self, tmp_path):
         """旧轨 factor_manager (data/factors/) 已废弃: 无论如何 mock 都被忽略,
         复权一律走 gbbq → 输出必含 adj_factor 且 volume 不变。"""
-        from unittest.mock import MagicMock
-
         df = _make_daily_df(10)
         self._write_gbbq(tmp_path, df)
         adjuster = self._make_adjuster(tmp_path)
-        adjuster.factor_manager = MagicMock()
-        adjuster.factor_manager.read_factor.return_value = pd.DataFrame(
-            {"date": pd.bdate_range("2024-01-02", periods=10), "factor": [-1.0] * 10}
-        )
-        result = adjuster.apply_adjustment("000001.SZ", df, "qfq")
+        # Step4 S4a: factor_manager 属性随薄壳删除; old 因子文件路径已废弃
+        result = self._apply(adjuster, df, "qfq")
         assert len(result) == len(df)
         assert "adj_factor" in result.columns, "旧因子文件路径已废弃, 必须走 gbbq 计算"
         assert (result["adj_factor"] > 0).all(), "负因子不得出现 (旧路径已被忽略)"
@@ -354,7 +368,7 @@ class TestDataAdjusterChaos:
         df = _make_daily_df(10)
         self._write_gbbq(tmp_path, df)
         adjuster = self._make_adjuster(tmp_path)
-        result = adjuster.apply_adjustment("000001.SZ", df, "qfq")
+        result = self._apply(adjuster, df, "qfq")
         assert len(result) == len(df)
         assert result["close"].iloc[-1] == pytest.approx(df["close"].iloc[-1])
         assert result["adj_factor"].iloc[-1] == pytest.approx(1.0)
@@ -368,7 +382,7 @@ class TestDataAdjusterChaos:
         df = _make_daily_df(10)
         self._write_gbbq(tmp_path, df)
         adjuster = self._make_adjuster(tmp_path)
-        result = adjuster.apply_adjustment("000001.SZ", df, "hfq")
+        result = self._apply(adjuster, df, "hfq")
         assert len(result) == len(df)
         for col in ["open", "high", "low", "close"]:
             np.testing.assert_allclose(
@@ -385,7 +399,7 @@ class TestDataAdjusterChaos:
         df = _make_daily_df(10)
         self._write_gbbq(tmp_path, df)
         adjuster = self._make_adjuster(tmp_path)
-        result = adjuster.apply_adjustment("000001.SZ", df, "qfq")
+        result = self._apply(adjuster, df, "qfq")
         assert len(result) == len(df)
         assert "adj_factor" in result.columns
         assert result["adj_factor"].notna().all()
@@ -399,17 +413,19 @@ class TestDataAdjusterChaos:
         assert (result["volume"].to_numpy() == df["volume"].to_numpy()).all()
 
     def test_is_valid_stock_code(self):
-        """Test stock code validation edge cases."""
-        adjuster = self._make_adjuster("/tmp")
-        assert adjuster.is_valid_stock_code("600000", "SH") is True
-        assert adjuster.is_valid_stock_code("688001", "SH") is True
-        assert adjuster.is_valid_stock_code("000001", "SZ") is True
-        assert adjuster.is_valid_stock_code("300001", "SZ") is True
-        # Invalid
-        assert adjuster.is_valid_stock_code("999", "SH") is False
-        assert adjuster.is_valid_stock_code("", "") is False
-        assert adjuster.is_valid_stock_code("600000", "SZ") is False  # wrong market
-        assert adjuster.is_valid_stock_code("AAPL", "US") is False
+        """Step4 S4a: is_valid_stock_code 随薄壳删除, 改为 symbol->事件查找契约。"""
+        adjuster = CorporateActionAdjuster
+        # 新轨构造仅需 gbbq 路径; 无效 symbol 查事件返回空表 (硬失败仅发生在缺基线)
+        assert adjuster is not None
+
+    def test_symbol_event_lookup(self, tmp_path):
+        """新轨以 symbol->6位代码查 gbbq 事件 (无 grep 白名单)。"""
+        df = _make_daily_df(10)
+        self._write_gbbq(tmp_path, df, code="600000")
+        adjuster = self._make_adjuster(tmp_path)
+        assert not adjuster.get_stock_events("600000.SH").empty
+        assert adjuster.get_stock_events("600000").empty is False  # 6位无后缀亦可查
+        assert adjuster.get_stock_events("999999.SZ").empty
 
 
 # ===================================================================

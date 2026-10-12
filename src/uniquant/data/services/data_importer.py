@@ -13,7 +13,6 @@ from concurrent.futures import ThreadPoolExecutor
 from typing import Optional, Dict, Any
 
 from ...data.lake.storage_manager import StorageManager
-from ...data.pipeline.data_adjuster import DataAdjuster
 from ...data.parsers.tdx_parser import TDXParser
 from ...data.managers.factor_manager import FactorManager
 from ...shared.logger_factory import get_logger
@@ -39,7 +38,6 @@ class DataImporter:
         
         self.data_dir = Path(data_dir)
         self.storage_manager = StorageManager(data_dir)
-        self.data_adjuster = DataAdjuster(self.storage_manager)
         self.tdx_path = Path(tdx_path) if tdx_path else None
         # 初始化TDXParser，传递vipdoc_path参数
         vipdoc_path = None

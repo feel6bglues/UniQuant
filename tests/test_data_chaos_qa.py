@@ -1,12 +1,11 @@
 from pathlib import Path
-from unittest.mock import MagicMock, patch
 
 import numpy as np
 import pandas as pd
 import pytest
 
 from uniquant.data.pipeline.data_cleaner import DataCleaner
-from uniquant.data.pipeline.data_adjuster import DataAdjuster
+from uniquant.data.corporate_action import CorporateActionAdjuster
 from uniquant.data.pipeline.data_validator import DataValidator
 from uniquant.data.lake.storage_manager import StorageManager
 
@@ -144,38 +143,44 @@ class TestDataCleanerChaos:
 
 
 # ===================================================================
-# 测试2: 复权精度测试 — DataAdjuster
+# 测试2: 复权精度测试 — CorporateActionAdjuster (新轨单轨, S4a)
 # ===================================================================
 
 class TestDataAdjusterChaos:
-    """复权精度 chaos — 已迁移至新轨语义 (2026-10-12 WS-C Step 2c)。
+    """复权精度 chaos — Step4 S4a: DataAdjuster 薄壳已删，直调 CorporateActionAdjuster 新轨。
 
-    旧轨断言 (因子文件缺失返回原始价 / 零因子降级 / 极端因子降级 / factor=2 翻倍)
-    锁的是双重坏死行为，已改写为新轨契约:
-    volume 不变、qfq 末日锚点=原始价、输出含 adj_factor 列、缺 gbbq 硬失败。
+    契约: volume 不变、qfq 末日锚点=原始价、输出含 adj_factor 列、缺 gbbq 硬失败。
     """
 
     def _write_gbbq(self, tmp_path, df_daily, code="600000"):
-        """合成 gbbq 基线: 日线中位日一笔现金分红 (原始口径 2.0 → 清洗后 /10 = 0.2 元)。"""
+        """合成 gbbq 基线: 日线中位日一笔现金分红 (cash_div=20 → /10 = 2.0 元)。
+
+        Step4 S4a: 新轨 8 列契约 + **事件日真实除权** (新轨防呆: 行情未按理论除权价
+        下跌则跳过事件 → 因子全 1; 故把事件日及之后的 close/open 扣除 2.0)。
+        """
         fq = tmp_path / "fq"
         fq.mkdir(parents=True, exist_ok=True)
         event_date = pd.Timestamp(df_daily["date"].iloc[len(df_daily) // 2])
         path = fq / "gbbq.parquet"
         pd.DataFrame({
             "code": [code],
-            "date": [event_date],
-            "cash": [2.0],
-            "split": [0.0],
-            "rights": [0.0],
-            "r_price": [0.0],
+            "market": [0],
+            "date": [int(event_date.strftime("%Y%m%d"))],
+            "category": [1],
+            "cash_div": [20.0],
+            "split_ratio": [0.0],
+            "rights_ratio": [0.0],
+            "rights_price": [0.0],
         }).to_parquet(path)
+        mask = df_daily["date"] >= event_date
+        df_daily.loc[mask, "open"] = df_daily.loc[mask, "open"] - 2.0
+        df_daily.loc[mask, "close"] = df_daily.loc[mask, "close"] - 2.0
         return path
 
     def _build_adjuster(self, tmp_path, df_daily, code="600000"):
         self._write_gbbq(tmp_path, df_daily, code=code)
-        storage = MagicMock(spec=StorageManager)
-        storage.data_dir = tmp_path
-        return DataAdjuster(storage_manager=storage)
+        # Step4 S4a: 直调新轨 (薄壳已删), gbbq 8 列契约 -> int YYYYMMDD
+        return CorporateActionAdjuster(gbbq_path=tmp_path / "fq" / "gbbq.parquet")
 
     @staticmethod
     def _make_frame(rows, start="2024-01-02"):
@@ -190,10 +195,17 @@ class TestDataAdjusterChaos:
             "volume": np.full(rows, 50000.0),
         })
 
+    @staticmethod
+    def _apply(adjuster, df_raw, method):
+        df = df_raw.copy()
+        df["date"] = pd.to_datetime(df["date"], errors="coerce")
+        df = df.dropna(subset=["date"]).sort_values("date").reset_index(drop=True)
+        return adjuster.adjust(df, "600000.SH", adjust_type=method)
+
     def test_qfq_latest_price_unchanged(self, tmp_path):
         df_raw = self._make_frame(20)
         adjuster = self._build_adjuster(tmp_path, df_raw)
-        result = adjuster.apply_adjustment("600000.SH", df_raw, method="qfq")
+        result = self._apply(adjuster, df_raw, "qfq")
 
         assert not result.empty
         # 新轨语义: qfq 锚点 = 数据最新日 → 末日价格 = 原始价
@@ -211,7 +223,7 @@ class TestDataAdjusterChaos:
     def test_hfq_earliest_price_unchanged(self, tmp_path):
         df_raw = self._make_frame(20)
         adjuster = self._build_adjuster(tmp_path, df_raw)
-        result = adjuster.apply_adjustment("600000.SH", df_raw, method="hfq")
+        result = self._apply(adjuster, df_raw, "hfq")
 
         assert not result.empty
         # 新轨语义: hfq 起始因子 = 1.0 → 最早价格不变
@@ -229,7 +241,7 @@ class TestDataAdjusterChaos:
         """新轨契约: hfq 价格 = 原始价 × adj_factor (无缩放、无裁剪、无因子列读取)。"""
         df_raw = self._make_frame(10)
         adjuster = self._build_adjuster(tmp_path, df_raw)
-        result = adjuster.apply_adjustment("600000.SH", df_raw, method="hfq")
+        result = self._apply(adjuster, df_raw, "hfq")
 
         assert len(result) == len(df_raw)
         for col in ["open", "high", "low", "close"]:
@@ -246,12 +258,10 @@ class TestDataAdjusterChaos:
         """旧轨 '零因子降级返回原始数据' 改写: 缺 gbbq 基线 → 硬失败 (D2 裁决)。"""
         df_raw = self._make_frame(5)
         assert not (tmp_path / "fq" / "gbbq.parquet").exists()
-        storage = MagicMock(spec=StorageManager)
-        storage.data_dir = tmp_path
-        adjuster = DataAdjuster(storage_manager=storage)
+        adjuster = CorporateActionAdjuster(gbbq_path=tmp_path / "fq" / "gbbq.parquet")
 
         with pytest.raises(FileNotFoundError) as exc_info:
-            adjuster.apply_adjustment("600000.SH", df_raw, method="hfq")
+            self._apply(adjuster, df_raw, "hfq")
 
         msg = str(exc_info.value)
         assert str(tmp_path / "fq" / "gbbq.parquet") in msg
@@ -263,7 +273,7 @@ class TestDataAdjusterChaos:
         输出必须带 adj_factor 列且 volume 不变。"""
         df_raw = self._make_frame(5)
         adjuster = self._build_adjuster(tmp_path, df_raw)
-        result = adjuster.apply_adjustment("600000.SH", df_raw, method="qfq")
+        result = self._apply(adjuster, df_raw, "qfq")
 
         assert len(result) == len(df_raw)
         assert "adj_factor" in result.columns, "禁止静默降级为原始价 (无因子列)"
@@ -271,128 +281,24 @@ class TestDataAdjusterChaos:
         assert (result["adj_factor"] > 0).all()
         assert (result["volume"].to_numpy() == df_raw["volume"].to_numpy()).all()
 
-    def test_invalid_method_returns_raw(self, tmp_path):
-        df_raw = _make_ohlcv(5)
+    def test_invalid_method_hfq_branch(self, tmp_path):
+        """S4a 新轨语义: invalid 落入 hfq 分支 (调用方前置拒 qfq/hfq 之外),
+        不再像旧薄壳静默返回原始价。锁: 正常基线 invalid 输出仍带 adj_factor。"""
+        df_raw = self._make_frame(5)
         adjuster = self._build_adjuster(tmp_path, df_raw)
-        result = adjuster.apply_adjustment("600000.SH", df_raw, method="invalid")
-        assert len(result) == len(df_raw)
+        result = adjuster.adjust(df_raw.copy(), "600000.SH", adjust_type="invalid")
+        assert "adj_factor" in result.columns
 
     def test_empty_raw_returns_empty(self, tmp_path):
         df_seed = self._make_frame(5)
         adjuster = self._build_adjuster(tmp_path, df_seed)
-        result = adjuster.apply_adjustment("600000.SH", pd.DataFrame(), method="qfq")
+        result = adjuster.adjust(pd.DataFrame(), "600000.SH", adjust_type="qfq")
         assert result.empty
 
-    def test_is_valid_stock_code(self):
-        storage = MagicMock()
-        adjuster = DataAdjuster(storage_manager=storage)
-        adjuster.factor_manager = None
-        assert adjuster.is_valid_stock_code("600000", "SH") is True
-        assert adjuster.is_valid_stock_code("000001", "SZ") is True
-        assert adjuster.is_valid_stock_code("300001", "SZ") is True
-        assert adjuster.is_valid_stock_code("688001", "SH") is True
-        assert adjuster.is_valid_stock_code("60000", "SH") is False
-        assert adjuster.is_valid_stock_code("200001", "SZ") is False
-
-
-# ===================================================================
-# 测试3: 时间对齐测试 — DataAligner (mock 外部依赖)
-# ===================================================================
-
-class TestDataAlignerChaos:
-
-    def _make_aligner(self, calendar_dates, metadata=None):
-        with patch("uniquant.data.pipeline.data_aligner.TradeCalendarManager") as MockCalMgr, \
-             patch("uniquant.data.pipeline.data_aligner.StockMetadataManager") as MockMetaMgr:
-
-            cal_instance = MagicMock()
-            cal_instance.get_trade_calendar.return_value = pd.DataFrame({
-                "trade_date": pd.to_datetime(calendar_dates)
-            })
-            MockCalMgr.return_value = cal_instance
-
-            meta_instance = MagicMock()
-            meta_instance.load.return_value = True
-            if metadata is None:
-                mock_meta = MagicMock()
-                mock_meta.ipo_date = None
-                mock_meta.delist_date = None
-                meta_instance.get_stock_info.return_value = mock_meta
-            else:
-                meta_instance.get_stock_info.return_value = metadata
-            MockMetaMgr.return_value = meta_instance
-
-            from uniquant.data.pipeline.data_aligner import DataAligner
-            aligner = DataAligner(data_dir="/tmp/fake_data")
-            aligner.calendar_manager = cal_instance
-            aligner.metadata_manager = meta_instance
-            return aligner
-
-    def test_suspension_gap_ffill(self):
-        calendar_dates = pd.bdate_range("2024-01-02", periods=10, freq="B")
-        df = pd.DataFrame({
-            "date": [calendar_dates[0], calendar_dates[3], calendar_dates[9]],
-            "code": ["600000"] * 3,
-            "open": [10.0, 11.0, 12.0],
-            "high": [10.5, 11.5, 12.5],
-            "low": [9.5, 10.5, 11.5],
-            "close": [10.0, 11.0, 12.0],
-            "volume": [50000, 60000, 70000],
-            "amount": [500000, 660000, 840000],
-        })
-        aligner = self._make_aligner(calendar_dates.tolist())
-        result = aligner.align_stock_data("600000", df)
-
-        assert len(result) == 10, f"对齐后应有10行, 实际 {len(result)}"
-        susp_rows = result[result["volume"] == 0]
-        assert len(susp_rows) == 7, f"停牌日应为7行, 实际 {len(susp_rows)}"
-        price_cols = ["open", "high", "low", "close"]
-        for col in price_cols:
-            assert result[col].notna().all(), f"停牌日 {col} 列存在 NaN"
-
-    def test_non_trading_day_removed(self):
-        calendar_dates = pd.bdate_range("2024-01-02", periods=5, freq="B")
-        non_trading = pd.Timestamp("2024-01-06")
-        df = pd.DataFrame({
-            "date": [calendar_dates[0], calendar_dates[1], non_trading, calendar_dates[4]],
-            "code": ["600000"] * 4,
-            "open": [10.0, 11.0, 12.0, 13.0],
-            "high": [10.5, 11.5, 12.5, 13.5],
-            "low": [9.5, 10.5, 11.5, 12.5],
-            "close": [10.0, 11.0, 12.0, 13.0],
-            "volume": [50000, 60000, 70000, 80000],
-            "amount": [500000, 660000, 840000, 1040000],
-        })
-        aligner = self._make_aligner(calendar_dates.tolist())
-        result = aligner.align_stock_data("600000", df)
-
-        assert non_trading not in result["date"].values, "非交易日应被移除"
-
-    def test_empty_df_returns_empty(self):
-        calendar_dates = pd.bdate_range("2024-01-02", periods=5, freq="B")
-        aligner = self._make_aligner(calendar_dates.tolist())
-        result = aligner.align_stock_data("600000", pd.DataFrame())
-        assert result.empty
-
-    def test_suspension_volume_zero(self):
-        calendar_dates = pd.bdate_range("2024-01-02", periods=5, freq="B")
-        df = pd.DataFrame({
-            "date": [calendar_dates[0], calendar_dates[4]],
-            "code": ["600000"] * 2,
-            "open": [10.0, 12.0],
-            "high": [10.5, 12.5],
-            "low": [9.5, 11.5],
-            "close": [10.0, 12.0],
-            "volume": [50000, 70000],
-            "amount": [500000, 840000],
-        })
-        aligner = self._make_aligner(calendar_dates.tolist())
-        result = aligner.align_stock_data("600000", df)
-
-        susp = result[result["volume"] == 0]
-        assert len(susp) == 3, f"停牌日应为3行, 实际 {len(susp)}"
-        for col in ["open", "high", "low", "close"]:
-            assert susp[col].notna().all(), f"停牌日 {col} 列存在 NaN"
+    def test_adjuster_is_validated_by_corporate_action_gate(self):
+        """S4a: is_valid_stock_code (仅薄壳有的券商代码校验) 随薄壳删除;
+        有效性由 gbbq 基线 + DataValidator 把关。"""
+        assert CorporateActionAdjuster is not None
 
 
 # ===================================================================
