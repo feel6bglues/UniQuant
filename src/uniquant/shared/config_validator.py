@@ -72,19 +72,47 @@ class ConfigValidator:
     def _validate_data_source_classes(self) -> List[str]:
         errors: List[str] = []
         sources = self._config.get("data_sources.sources", [])
-        if not isinstance(sources, list):
-            return ["data_sources.sources must be a list"]
+        if isinstance(sources, dict):
+            # config.yaml 采用 源名 -> 配置体 的 dict 形态 (D1/Step3 收缩后同)
+            entries = list(sources.values())
+        elif isinstance(sources, list):
+            entries = sources
+        else:
+            return ["data_sources.sources must be a list or dict"]
 
-        for source in sources:
+        for source in entries:
             class_path = source.get("class") if isinstance(source, dict) else None
             if class_path:
-                try:
-                    importlib.import_module(class_path)
-                except ImportError:
-                    errors.append(
-                        f"Data source class cannot be imported: {class_path}"
-                    )
+                errors.extend(self._check_source_class_path(class_path))
         return errors
+
+    @staticmethod
+    def _check_source_class_path(class_path: str) -> List[str]:
+        """Import-check one source `class` entry.
+
+        支持两种写法: `pkg.mod.Class` (类路径, D1/Step3 收缩后配置) 与
+        `pkg.mod` / `pkg.mod.Class` 兼容的纯模块路径 (历史写法)。
+        """
+        module_name, sep, attr_name = class_path.rpartition(".")
+        candidates = (
+            [(module_name, attr_name)] if sep and module_name else []
+        ) + [(class_path, None)]
+
+        last_error: ImportError | None = None
+        for candidate_module, candidate_attr in candidates:
+            try:
+                module = importlib.import_module(candidate_module)
+            except ImportError as e:
+                last_error = e
+                continue
+            if candidate_attr is None or hasattr(module, candidate_attr):
+                return []
+            last_error = ImportError(
+                f"module {candidate_module} has no attribute {candidate_attr}"
+            )
+        return [
+            f"Data source class cannot be imported: {class_path} ({last_error})"
+        ]
 
     def _validate_refactoring_config(self) -> List[str]:
         errors: List[str] = []

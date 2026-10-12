@@ -157,151 +157,33 @@ multi_period:
       note: "TDX stores 5min K-line under export/ directory; use tdx.get_security_bars(5, ...)"
 
 # 数据源配置
+# D1/Step3 收缩: 终态数据源收敛为本地 TDX 单源 (mootdx_local)。
+# 原 9 个配置体 (3 个 NOT YET IMPLEMENTED 占位源 + 6 个网络爬虫行情源) 已删除,
+# 网络爬虫源文件剪除见 Step4 (本组只做 config 收缩, 便于单独 revert)。
+# 同步删除零消费方的死配置子段 data_types / industry_concept
+# (rg 全仓无 supported_sources/default_source/cache_ttl 消费方)。
 data_sources:
-  # 数据源配置
+  # 数据源配置 (终态: 本地单源启用 + 网络兜底占位)
   sources:
-    # 新合并数据源 - NOT YET IMPLEMENTED (no files under data/sources/)
-    StockDataSource:
-      class: data.sources.stock_sources.StockDataSource
+    mootdx_local:
+      class: uniquant.data.sources.mootdx_local.MootdxLocalSource
       priority: 1
       timeout: 10
-      enabled: false  # NOT YET IMPLEMENTED
+      enabled: true  # 终态唯一启用源: 本地 TDX 解包引擎 (mootdx reader)
       config:
         retry_times: 3
         retry_delay: 1.0
-      note: "stock_sources.py does not exist — placeholder for future refactor"
+      note: "本地 TDX 单源 — D1/Step3 收缩后唯一 enabled 数据源"
 
-    IndexDataSource:
-      class: data.sources.index_sources.IndexDataSource
-      priority: 2
-      timeout: 10
-      enabled: false  # NOT YET IMPLEMENTED
-      config:
-        retry_times: 3
-        retry_delay: 1.0
-      note: "index_sources.py does not exist — placeholder for future refactor"
-
-    EtfDataSource:
-      class: data.sources.etf_sources.EtfDataSource
-      priority: 3
-      timeout: 10
-      enabled: false  # NOT YET IMPLEMENTED
-      config:
-        retry_times: 3
-        retry_delay: 1.0
-      note: "etf_sources.py does not exist — placeholder for future refactor"
-    
-    # 传统数据源 - 已禁用
-    BaoStockSource:
-      class: data.sources.baostock.BaostockSource
-      priority: 10
-      timeout: 10
-      enabled: false
-      config:
-        retry_times: 3
-        retry_delay: 1.0
-    
-    SinaSource:
-      class: data.sources.sina.SinaSource
+    mootdx_online:
+      class: uniquant.data.sources.mootdx_online.MootdxOnlineSource
       priority: 11
       timeout: 5
-      enabled: false
+      enabled: false  # 网络兜底待裁决
       config:
         retry_times: 3
         retry_delay: 0.5
-    
-    TencentSource:
-      class: data.sources.tencent.TencentSource
-      priority: 12
-      timeout: 5
-      enabled: false
-      config:
-        retry_times: 3
-        retry_delay: 0.5
-    
-    EastmoneySource:
-      class: data.sources.eastmoney.EastmoneySource
-      priority: 13
-      timeout: 10
-      enabled: false
-      config:
-        retry_times: 3
-        retry_delay: 1.0
-    
-    EfinanceSource:
-      class: data.sources.efinance.EfinanceSource
-      priority: 14
-      timeout: 10
-      enabled: false
-      config:
-        retry_times: 3
-        retry_delay: 1.0
-      note: "efinance.py does not exist — placeholder for future refactor"
-    
-    ThsSource:
-      class: data.sources.ths.ThsSource
-      priority: 15
-      timeout: 8
-      enabled: false
-      config:
-        retry_times: 2
-        retry_delay: 1.0
-  
-  # 数据类型配置
-  data_types:
-    stock:
-      daily:
-        supported_sources:
-          - StockDataSource
-        default_source: StockDataSource
-        cache_ttl: 3600  # 缓存时间（秒）
-      
-      realtime:
-        supported_sources:
-          - StockDataSource
-        default_source: StockDataSource
-        cache_ttl: 60
-      
-      market_cap:
-        supported_sources:
-          - StockDataSource
-        default_source: StockDataSource
-        cache_ttl: 3600
-    
-    index:
-      daily:
-        supported_sources:
-          - IndexDataSource
-        default_source: IndexDataSource
-        cache_ttl: 3600
-    
-    sector:
-      daily:
-        supported_sources:
-          - StockDataSource
-        default_source: StockDataSource
-        cache_ttl: 86400  # 行业数据更新频率较低
-    
-    etf:
-      daily:
-        supported_sources:
-          - EtfDataSource
-        default_source: EtfDataSource
-        cache_ttl: 3600
-  
-  # 行业概念数据配置
-  industry_concept:
-    industry:
-      supported_sources:
-        - StockDataSource
-      default_source: StockDataSource
-      cache_ttl: 86400
-    
-    concept:
-      supported_sources:
-        - StockDataSource
-      default_source: StockDataSource
-      cache_ttl: 86400
+      note: "网络兜底待裁决 — 保留配置体但不启用 (D1/Step3)"
 
 # 技术指标配置
 indicators:
