@@ -1,4 +1,5 @@
 import json
+from pathlib import Path
 import unittest.mock as mock
 
 import pandas as pd
@@ -19,8 +20,21 @@ def test_max_workers_config():
     assert config.max_workers == 8
 
 
+
+def _write_min_all_stock_codes(data_dir) -> None:
+    """Step4 (D5 R-5): ScanPipeline 构造触发 StorageManager 主数据硬失败 → 提供最小主数据表。"""
+    path = Path(data_dir) / "all_stock_codes.csv"
+    if not path.exists():
+        path.parent.mkdir(parents=True, exist_ok=True)
+        pd.DataFrame({
+            "code": ["sz.000001"], "name": ["平安银行"], "代码": ["000001"],
+            "ipoDate": ["1991-04-03"], "outDate": [""], "type": ["1"], "status": ["1"],
+        }).to_csv(path, index=False, encoding="utf-8-sig")
+
+
 def test_parallel_financial_loading_empty_dir(tmp_path):
     """无财务 parquet 文件时返回空，不报错"""
+    _write_min_all_stock_codes(tmp_path)
     pipeline = ScanPipeline(data_dir=str(tmp_path), config=ScanConfig())
     pipeline.storage.batch_read_data = lambda symbols, data_type="daily": {}
     pipeline.load_data(symbols=["000001.SZ"])
@@ -30,6 +44,7 @@ def test_parallel_financial_loading_empty_dir(tmp_path):
 def test_parallel_financial_loading_success(tmp_path):
     """并行加载财务数据成功"""
     data_dir = tmp_path / "data"
+    _write_min_all_stock_codes(data_dir)
     financial_dir = data_dir / "lake" / "financial"
     financial_dir.mkdir(parents=True, exist_ok=True)
 
@@ -48,6 +63,7 @@ def test_parallel_financial_loading_success(tmp_path):
 def test_parallel_financial_loading_partial_failures(tmp_path, monkeypatch):
     """部分 parquet 损坏时跳过错误，不影响其他"""
     data_dir = tmp_path / "data"
+    _write_min_all_stock_codes(data_dir)
     financial_dir = data_dir / "lake" / "financial"
     financial_dir.mkdir(parents=True, exist_ok=True)
 
@@ -70,6 +86,7 @@ def test_parallel_financial_loading_partial_failures(tmp_path, monkeypatch):
 def test_checkpoint_save_and_load(tmp_path):
     """checkpoint 方法正常读写 JSON 文件"""
     data_dir = tmp_path / "data"
+    _write_min_all_stock_codes(data_dir)
     pipeline = ScanPipeline(data_dir=str(data_dir), config=ScanConfig(checkpoint_enabled=True))
     pipeline._save_checkpoint("test_checkpoint", {"symbols": ["A", "B"]})
 
@@ -84,6 +101,7 @@ def test_checkpoint_save_and_load(tmp_path):
 def test_checkpoint_disabled_does_not_create_files(tmp_path):
     """checkpoint_enabled=False 时不会创建 checkpoint 文件"""
     data_dir = tmp_path / "data"
+    _write_min_all_stock_codes(data_dir)
     pipeline = ScanPipeline(data_dir=str(data_dir))
     pipeline._save_checkpoint("test", {"x": 1})
 
@@ -94,6 +112,7 @@ def test_checkpoint_disabled_does_not_create_files(tmp_path):
 def test_clear_checkpoints_removes_all_json(tmp_path):
     """_clear_checkpoints 删除所有 JSON checkpoint 文件"""
     data_dir = tmp_path / "data"
+    _write_min_all_stock_codes(data_dir)
     pipeline = ScanPipeline(data_dir=str(data_dir), config=ScanConfig(checkpoint_enabled=True))
     pipeline._save_checkpoint("a", {})
     pipeline._save_checkpoint("b", {})
@@ -104,6 +123,7 @@ def test_clear_checkpoints_removes_all_json(tmp_path):
 def test_financial_loading_checkpoint_skips_loaded(tmp_path):
     """已加载的财务数据在 checkpoint 中标记，重新 load_data 时跳过"""
     data_dir = tmp_path / "data"
+    _write_min_all_stock_codes(data_dir)
     financial_dir = data_dir / "lake" / "financial"
     financial_dir.mkdir(parents=True, exist_ok=True)
 
@@ -136,6 +156,7 @@ def test_financial_loading_checkpoint_skips_loaded(tmp_path):
 def test_lightweight_skips_financial_loading(tmp_path):
     """lightweight=True 跳过财务数据加载"""
     data_dir = tmp_path / "data"
+    _write_min_all_stock_codes(data_dir)
     financial_dir = data_dir / "lake" / "financial"
     financial_dir.mkdir(parents=True, exist_ok=True)
 
@@ -151,6 +172,7 @@ def test_lightweight_skips_financial_loading(tmp_path):
 def test_merge_financial_metrics_checkpoint_skips_merged(tmp_path):
     """合并财务指标时 checkpoint 跳过已合并的 symbol"""
     data_dir = tmp_path / "data"
+    _write_min_all_stock_codes(data_dir)
     financial_dir = data_dir / "lake" / "financial"
     financial_dir.mkdir(parents=True, exist_ok=True)
 
@@ -176,6 +198,7 @@ def test_merge_financial_metrics_checkpoint_skips_merged(tmp_path):
 def test_concurrent_load_and_merge_backward_compatible(tmp_path):
     """并行加载+合并与旧版行为一致（结果结构不变）"""
     data_dir = tmp_path / "data"
+    _write_min_all_stock_codes(data_dir)
     financial_dir = data_dir / "lake" / "financial"
     financial_dir.mkdir(parents=True, exist_ok=True)
 
@@ -215,6 +238,7 @@ def test_concurrent_load_and_merge_backward_compatible(tmp_path):
 def test_parallel_financial_loading_no_files_no_crash(tmp_path):
     """没有财务文件时并行加载不报错"""
     data_dir = tmp_path / "data"
+    _write_min_all_stock_codes(data_dir)
     pipeline = ScanPipeline(data_dir=str(data_dir), config=ScanConfig(max_workers=2))
     pipeline.storage.batch_read_data = lambda symbols, data_type="daily": {
         "000001.SZ": pd.DataFrame({"date": pd.to_datetime(["2024-01-01"]), "close": [10.0]})
