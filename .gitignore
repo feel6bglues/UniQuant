@@ -86,3 +86,7 @@ src/uniquant/hands/backtest/archive/
 src/uniquant/services/archive/
 src/uniquant/shared/archive/
 tests/archive/
+
+# 生成物输出（2026-10-12 数据源迁移清理）
+data/backtest/
+data/manifests/

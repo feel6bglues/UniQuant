@@ -20,9 +20,30 @@ from ...data.lake.storage_manager import StorageManager
 from ...data.pipeline.data_cleaner import DataCleaner
 from ...data.pipeline.data_validator import DataValidator
 from .baostock_cache_manager import create_baostock_cache
-from pytdx.reader import GbbqReader
 
 logger = get_logger("TdxUpdater")
+
+_PYTDX_INSTALL_HINT = 'pip install pytdx 或 pip install -e ".[tdx]"'
+
+
+def _import_gbbq_reader():
+    """延迟导入 pytdx 的 GbbqReader（pytdx 为可选依赖，顶层不得裸导）。
+
+    仅在真正解析 GBBQ 文件时调用。
+
+    Returns:
+        type: pytdx.reader.GbbqReader 类
+
+    Raises:
+        ImportError: pytdx 未安装时抛出，消息含安装指引。
+    """
+    try:
+        from pytdx.reader import GbbqReader
+    except ImportError as exc:
+        raise ImportError(
+            f"pytdx 未安装，GBBQ 数据更新功能不可用。请执行: {_PYTDX_INSTALL_HINT}"
+        ) from exc
+    return GbbqReader
 
 
 class TdxUpdater:
@@ -449,6 +470,7 @@ class TdxUpdater:
 
         try:
             logger.info("使用 pytdx 解析 GBBQ 文件...")
+            GbbqReader = _import_gbbq_reader()
             reader = GbbqReader()
             df_gbbq = reader.get_df(gbbq_path)
 
@@ -534,6 +556,7 @@ class TdxUpdater:
 
         try:
             logger.info("使用 pytdx 解析 GBBQ 文件...")
+            GbbqReader = _import_gbbq_reader()
             reader = GbbqReader()
             df_new = reader.get_df(gbbq_path)
 

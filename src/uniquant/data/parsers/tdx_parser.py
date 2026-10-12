@@ -16,6 +16,130 @@ from ...shared.logger_factory import get_logger
 logger = get_logger("TDXParser")
 
 
+# ---------------------------------------------------------------------------
+# GBBQ 列契约（Step 2b / WS-B，2026-10-12 冻结）
+#
+# 考古结论（已实测，勿重复调查）：本文件原 `column_mapping` 为全中文 key
+# （代码/证券代码/日期/除权除息日/分红/派息/送股/送转股/配股/配股价），
+# 而 pytdx `GbbqReader.get_df` 输出恒为 8 拼音列
+# （market, code, datetime, category, hongli_panqianliutong,
+#  peigujia_qianzongguben, songgu_qianzongguben, peigu_houzongguben）
+# → 0/10 命中、rename 恒 no-op、`if 'date' in df.columns` 恒 False 跳过日期转换。
+# **中文表从未匹配过 pytdx 输出。**
+#
+# 冻结对照组 = scripts/maintenance/sync_local_tdx_day.py:106-112（5/5 命中），
+# 下面 _GBBQ_PYDX_COLUMN_MAPPING 与该表逐字同口径，不得单方面改动。
+# ---------------------------------------------------------------------------
+
+# 拼音表（主映射，冻结来源: sync_local_tdx_day.py:106-112）
+_GBBQ_PYDX_COLUMN_MAPPING = {
+    "datetime": "date",
+    "hongli_panqianliutong": "cash_div",
+    "peigujia_qianzongguben": "rights_price",
+    "songgu_qianzongguben": "split_ratio",
+    "peigu_houzongguben": "rights_ratio",
+}
+
+# 中文表保留为兼容别名（历史/第三方中文表头来源），宽进容错，
+# 两种来源经合并表收敛到同一 8 列英文契约。
+_GBBQ_CN_COLUMN_ALIASES = {
+    "代码": "code",
+    "证券代码": "code",
+    "日期": "date",
+    "除权除息日": "date",
+    "分红": "cash_div",
+    "派息": "cash_div",
+    "送股": "split_ratio",
+    "送转股": "split_ratio",
+    "配股": "rights_ratio",
+    "配股价": "rights_price",
+}
+
+_GBBQ_COLUMN_MAPPING = {**_GBBQ_PYDX_COLUMN_MAPPING, **_GBBQ_CN_COLUMN_ALIASES}
+
+# 输出契约（= data/fq/gbbq.parquet 现列），列序一并冻结
+_GBBQ_TARGET_COLS = [
+    "code",
+    "market",
+    "date",
+    "category",
+    "cash_div",
+    "split_ratio",
+    "rights_ratio",
+    "rights_price",
+]
+
+# 缺失 market/category 时的 unknown 占位（真实 category 取值为正整数，-1 不可混淆）
+_GBBQ_UNKNOWN_INT = -1
+
+
+def _normalize_gbbq_date(series: pd.Series) -> pd.Series:
+    """
+    任意来源 date 列 → YYYYMMDD 数值（非法值为 NaN）。
+
+    语义与 sync_local_tdx_day.py:125 `df_clean["date"].astype(int)` 一致：
+    输出为 **int YYYYMMDD**，不是 datetime64。
+    """
+    if pd.api.types.is_datetime64_any_dtype(series):
+        converted = pd.to_datetime(series, errors="coerce").dt.strftime("%Y%m%d")
+        return pd.to_numeric(converted, errors="coerce")
+
+    numeric = pd.to_numeric(series, errors="coerce")
+    if numeric.isna().any():
+        # '1990-03-01' / Timestamp 混合对象等 → 先转 datetime 再归一
+        as_dt = pd.to_datetime(series, errors="coerce")
+        numeric = numeric.fillna(pd.to_numeric(as_dt.dt.strftime("%Y%m%d"), errors="coerce"))
+    return numeric
+
+
+def _enforce_gbbq_contract(df: pd.DataFrame) -> pd.DataFrame:
+    """断言契约列齐全并按冻结列序重排（函数尾统一出口）。"""
+    missing = [col for col in _GBBQ_TARGET_COLS if col not in df.columns]
+    if missing:
+        raise ValueError(f"gbbq 数据缺少契约列 {missing}，实际列: {list(df.columns)}")
+    return df.loc[:, _GBBQ_TARGET_COLS].reset_index(drop=True)
+
+
+def _normalize_gbbq_frame(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    把任意来源（pytdx 拼音列 / 中文表头 / 手动解密）的 gbbq DataFrame
+    收敛到冻结 8 列契约: code, market, date, category,
+    cash_div, split_ratio, rights_ratio, rights_price。
+
+    - rename 用 `_GBBQ_COLUMN_MAPPING`（拼音主表 + 中文兼容别名合并）；
+    - date 归一为 int YYYYMMDD（与 sync 脚本同口径）；
+    - code 补零到 6 位（与 sync 脚本 `str.zfill(6)` 同口径）；
+    - 缺失的 market/category 以 -1 占位（宽进容错，保证 8 列契约）。
+    """
+    if df is None:
+        return pd.DataFrame(columns=_GBBQ_TARGET_COLS)
+    if df.empty:
+        return df.reindex(columns=_GBBQ_TARGET_COLS)
+
+    out = df.rename(columns=_GBBQ_COLUMN_MAPPING)
+    # 同一目标列被多个别名同时命中时去重（保留最后，与 smart_factor_calculator 同策略）
+    out = out.loc[:, ~out.columns.duplicated(keep="last")]
+
+    if "code" in out.columns:
+        out["code"] = out["code"].astype(str).str.zfill(6)
+
+    if "date" in out.columns:
+        date_num = _normalize_gbbq_date(out["date"])
+        invalid = date_num.isna()
+        if invalid.any():
+            logger.warning(f"剔除 {int(invalid.sum())} 条非法 gbbq 日期记录")
+            out = out.loc[~invalid].copy()
+            date_num = date_num.loc[~invalid]
+        out["date"] = date_num.astype("int64")
+
+    for col in ("market", "category"):
+        if col not in out.columns:
+            logger.warning(f"gbbq 数据缺少 {col} 列，以 {_GBBQ_UNKNOWN_INT} (unknown) 占位")
+            out[col] = _GBBQ_UNKNOWN_INT
+
+    return _enforce_gbbq_contract(out)
+
+
 class TDXParser:
     """
     通达信文件解析器
@@ -129,21 +253,9 @@ class TDXParser:
             logger.info(f"pytdx 解析成功，共 {len(df)} 条记录")
             logger.info(f"解析结果列名: {list(df.columns)}")
             
-            column_mapping = {
-                '代码': 'code',
-                '证券代码': 'code',
-                '日期': 'date',
-                '除权除息日': 'date',
-                '分红': 'cash_div',
-                '派息': 'cash_div',
-                '送股': 'split_ratio',
-                '送转股': 'split_ratio',
-                '配股': 'rights_ratio',
-                '配股价': 'rights_price'
-            }
-            
-            df = df.rename(columns=column_mapping)
-            logger.info(f"重命名后列名: {list(df.columns)}")
+            # Step 2b: 拼音冻结表(+中文兼容别名) rename + datetime(int YYYYMMDD)→date 归一
+            df = _normalize_gbbq_frame(df)
+            logger.info(f"归一后列名: {list(df.columns)}")
             
             if 'code' in df.columns:
                 df = df[df['code'].astype(str).str.match(r'^\d{6}$')]
@@ -152,10 +264,10 @@ class TDXParser:
             if not df.empty:
                 logger.info(f"前5条记录:\n{df.head()}")
             
+            # 函数尾: 断言并按冻结契约重排列序（date 已在归一化中转为 int YYYYMMDD）
+            df = _enforce_gbbq_contract(df)
             if 'date' in df.columns:
-                df['date'] = pd.to_datetime(df['date'], format='%Y%m%d', errors='coerce')
-                df.dropna(subset=['date'], inplace=True)
-                logger.info(f"日期格式化后剩余 {len(df)} 条有效记录")
+                logger.info(f"date 已归一为 int YYYYMMDD（与 sync_local_tdx_day 同口径）: dtype={df['date'].dtype}")
             
             return df
             
@@ -262,7 +374,8 @@ class TDXParser:
         if not df.empty:
             logger.info(f"解析结果列名: {list(df.columns)}")
             logger.info(f"前5条记录:\n{df.head()}")
-        return df
+        # Step 2b: 手动解密输出（date 原为 str YYYYMMDD、列序不同）归一到同一 8 列契约
+        return _normalize_gbbq_frame(df)
 
 
 
@@ -303,6 +416,9 @@ class TDXParser:
             if df.empty:
                 logger.error("GBBQ数据解析失败，返回空数据")
                 return False
+            
+            # Step 2b: 写盘前强制归一到冻结 8 列契约（date = int YYYYMMDD）
+            df = _enforce_gbbq_contract(_normalize_gbbq_frame(df))
             
             output_dir = Path(output_path).parent
             output_dir.mkdir(parents=True, exist_ok=True)

@@ -73,6 +73,9 @@ class MootdxLocalSource(DataSource):
             # 标准化列名
             df = self._normalize_columns(df)
 
+            # mootdx reader 返回 DatetimeIndex（列中无 'date'），须先重置为列再过滤
+            df = self._ensure_date_column(df)
+
             # 筛选日期范围
             if 'date' in df.columns:
                 df['date'] = pd.to_datetime(df['date'])
@@ -102,13 +105,15 @@ class MootdxLocalSource(DataSource):
         try:
             reader = self._get_reader()
             code = symbol.split('.')[0]
-            df = reader.minute(symbol=code, freq=freq)
+            df = reader.minute(symbol=code, suffix=freq)
 
             if df is None or df.empty:
                 logger.warning(f"未获取到 {symbol} 的 {freq} 分钟数据")
                 return pd.DataFrame()
 
             df = self._normalize_columns(df)
+            # mootdx reader 返回 DatetimeIndex，统一重置出 date 列
+            df = self._ensure_date_column(df)
             df['code'] = symbol
             logger.info(f"成功获取 {symbol} {freq}分钟数据，共 {len(df)} 条")
             return df
@@ -146,6 +151,29 @@ class MootdxLocalSource(DataSource):
             'realtime': False,
             'financial': False,
         }
+
+    @staticmethod
+    def _ensure_date_column(df: pd.DataFrame) -> pd.DataFrame:
+        """确保 DataFrame 含有 'date' 列。
+
+        mootdx reader.daily()/minute() 返回的 DataFrame 以 DatetimeIndex 为索引
+        （index.name 为 'date' 或 'datetime'），列中无 'date' -> 重置为普通列并
+        统一命名为 'date'。已含 'date' 列的输入原样返回（不重复 reset）。
+        """
+        if 'date' in df.columns:
+            return df
+
+        idx = df.index
+        is_named_time_index = idx.name in ('date', 'datetime')
+        is_datetime_index = isinstance(idx, pd.DatetimeIndex)
+        if not (is_named_time_index or is_datetime_index):
+            return df
+
+        df = df.reset_index()
+        # index 列名可能是 'date'/'datetime'，统一重命名为 'date'
+        if 'date' not in df.columns and 'datetime' in df.columns:
+            df = df.rename(columns={'datetime': 'date'})
+        return df
 
     @staticmethod
     def _normalize_columns(df: pd.DataFrame) -> pd.DataFrame:

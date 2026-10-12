@@ -46,12 +46,18 @@ def _make_ohlcv(rows, start="2024-01-02", freq="B", extra_cols=None):
     base = 10.0
     closes = base + np.cumsum(np.random.randn(rows) * 0.3)
     closes = np.maximum(closes, 0.5)
+    opens = closes + np.random.randn(rows) * 0.1
+    highs = closes + np.abs(np.random.randn(rows)) * 0.2
+    lows = closes - np.abs(np.random.randn(rows)) * 0.2
+    # Enforce OHLC invariants: high >= max(open, close), low <= min(open, close)
+    highs = np.maximum(highs, np.maximum(opens, closes))
+    lows = np.minimum(lows, np.minimum(opens, closes))
     df = pd.DataFrame({
         "date": dates,
         "code": "600000",
-        "open": closes + np.random.randn(rows) * 0.1,
-        "high": closes + abs(np.random.randn(rows)) * 0.2,
-        "low": closes - abs(np.random.randn(rows)) * 0.2,
+        "open": opens,
+        "high": highs,
+        "low": lows,
         "close": closes,
         "volume": np.random.randint(1000, 100000, size=rows).astype(float),
         "amount": closes * np.random.randint(1000, 100000, size=rows).astype(float),
@@ -132,22 +138,40 @@ class TestDataCleanerChaos:
 # ===================================================================
 
 class TestDataAdjusterChaos:
+    """复权精度 chaos — 已迁移至新轨语义 (2026-10-12 WS-C Step 2c)。
 
-    def _build_adjuster_with_factor(self, tmp_path, factor_df):
+    旧轨断言 (因子文件缺失返回原始价 / 零因子降级 / 极端因子降级 / factor=2 翻倍)
+    锁的是双重坏死行为，已改写为新轨契约:
+    volume 不变、qfq 末日锚点=原始价、输出含 adj_factor 列、缺 gbbq 硬失败。
+    """
+
+    def _write_gbbq(self, tmp_path, df_daily, code="600000"):
+        """合成 gbbq 基线: 日线中位日一笔现金分红 (原始口径 2.0 → 清洗后 /10 = 0.2 元)。"""
+        fq = tmp_path / "fq"
+        fq.mkdir(parents=True, exist_ok=True)
+        event_date = pd.Timestamp(df_daily["date"].iloc[len(df_daily) // 2])
+        path = fq / "gbbq.parquet"
+        pd.DataFrame({
+            "code": [code],
+            "date": [event_date],
+            "cash": [2.0],
+            "split": [0.0],
+            "rights": [0.0],
+            "r_price": [0.0],
+        }).to_parquet(path)
+        return path
+
+    def _build_adjuster(self, tmp_path, df_daily, code="600000"):
+        self._write_gbbq(tmp_path, df_daily, code=code)
         storage = MagicMock(spec=StorageManager)
         storage.data_dir = tmp_path
-        storage.read_local_factor.return_value = factor_df
-        storage.read_local_raw.return_value = pd.DataFrame()
-        adjuster = DataAdjuster(storage_manager=storage)
-        adjuster.factor_manager = MagicMock()
-        adjuster.factor_manager.read_factor.return_value = factor_df
-        return adjuster
+        return DataAdjuster(storage_manager=storage)
 
-    def test_qfq_latest_price_unchanged(self, tmp_path):
-        rows = 20
-        dates = pd.bdate_range("2024-01-02", periods=rows, freq="B")
-        closes = np.linspace(10, 20, rows)
-        df_raw = pd.DataFrame({
+    @staticmethod
+    def _make_frame(rows, start="2024-01-02"):
+        dates = pd.bdate_range(start, periods=rows, freq="B")
+        closes = np.linspace(10, 20, rows) if rows > 1 else np.array([10.0])
+        return pd.DataFrame({
             "date": dates,
             "open": closes - 0.1,
             "high": closes + 0.2,
@@ -155,109 +179,97 @@ class TestDataAdjusterChaos:
             "close": closes,
             "volume": np.full(rows, 50000.0),
         })
-        factor_vals = np.ones(rows)
-        factor_vals[10:] = 2.0
-        df_factor = pd.DataFrame({"date": dates, "factor": factor_vals})
 
-        adjuster = self._build_adjuster_with_factor(tmp_path, df_factor)
+    def test_qfq_latest_price_unchanged(self, tmp_path):
+        df_raw = self._make_frame(20)
+        adjuster = self._build_adjuster(tmp_path, df_raw)
         result = adjuster.apply_adjustment("600000.SH", df_raw, method="qfq")
 
         assert not result.empty
+        # 新轨语义: qfq 锚点 = 数据最新日 → 末日价格 = 原始价
         last_close = result.iloc[-1]["close"]
         raw_last_close = df_raw.iloc[-1]["close"]
-        assert abs(last_close - raw_last_close) < 0.01, (
-            f"前复权最新价格应不变: got {last_close}, expected {raw_last_close}"
+        assert last_close == pytest.approx(raw_last_close), (
+            f"前复权末日锚点价格应不变: got {last_close}, expected {raw_last_close}"
         )
+        assert result.iloc[-1]["adj_factor"] == pytest.approx(1.0)
+        # 非退化: 分红事件在样本中位日 → 早期价格必须被真实调整 (非名义复权)
+        assert result.iloc[0]["close"] < df_raw.iloc[0]["close"]
+        assert "adj_factor" in result.columns
+        assert (result["volume"].to_numpy() == df_raw["volume"].to_numpy()).all()
 
     def test_hfq_earliest_price_unchanged(self, tmp_path):
-        rows = 20
-        dates = pd.bdate_range("2024-01-02", periods=rows, freq="B")
-        closes = np.linspace(10, 20, rows)
-        df_raw = pd.DataFrame({
-            "date": dates,
-            "open": closes - 0.1,
-            "high": closes + 0.2,
-            "low": closes - 0.2,
-            "close": closes,
-            "volume": np.full(rows, 50000.0),
-        })
-        factor_vals = np.ones(rows)
-        factor_vals[10:] = 2.0
-        df_factor = pd.DataFrame({"date": dates, "factor": factor_vals})
-
-        adjuster = self._build_adjuster_with_factor(tmp_path, df_factor)
+        df_raw = self._make_frame(20)
+        adjuster = self._build_adjuster(tmp_path, df_raw)
         result = adjuster.apply_adjustment("600000.SH", df_raw, method="hfq")
 
         assert not result.empty
+        # 新轨语义: hfq 起始因子 = 1.0 → 最早价格不变
         first_close = result.iloc[0]["close"]
         raw_first_close = df_raw.iloc[0]["close"]
-        assert abs(first_close - raw_first_close) < 0.01, (
+        assert first_close == pytest.approx(raw_first_close), (
             f"后复权最早价格应不变: got {first_close}, expected {raw_first_close}"
         )
+        assert result.iloc[0]["adj_factor"] == pytest.approx(1.0)
+        # 非退化: 分红后累积因子 > 1 → 末日价格被放大
+        assert result.iloc[-1]["close"] > df_raw.iloc[-1]["close"]
+        assert (result["volume"].to_numpy() == df_raw["volume"].to_numpy()).all()
 
-    def test_hfq_price_multiplied_by_factor(self, tmp_path):
-        rows = 10
-        dates = pd.bdate_range("2024-01-02", periods=rows, freq="B")
-        closes = np.full(rows, 10.0)
-        df_raw = pd.DataFrame({
-            "date": dates,
-            "open": closes,
-            "high": closes,
-            "low": closes,
-            "close": closes,
-            "volume": np.full(rows, 50000.0),
-        })
-        factor_vals = np.ones(rows)
-        factor_vals[5:] = 2.0
-        df_factor = pd.DataFrame({"date": dates, "factor": factor_vals})
-
-        adjuster = self._build_adjuster_with_factor(tmp_path, df_factor)
+    def test_hfq_price_equals_raw_times_adj_factor(self, tmp_path):
+        """新轨契约: hfq 价格 = 原始价 × adj_factor (无缩放、无裁剪、无因子列读取)。"""
+        df_raw = self._make_frame(10)
+        adjuster = self._build_adjuster(tmp_path, df_raw)
         result = adjuster.apply_adjustment("600000.SH", df_raw, method="hfq")
 
-        assert not result.empty
-        hfq_close_after = result.iloc[7]["close"]
-        assert abs(hfq_close_after - 20.0) < 0.01, (
-            f"后复权 factor=2.0 后价格应翻倍: got {hfq_close_after}"
-        )
+        assert len(result) == len(df_raw)
+        for col in ["open", "high", "low", "close"]:
+            np.testing.assert_allclose(
+                result[col].to_numpy(),
+                df_raw[col].to_numpy() * result["adj_factor"].to_numpy(),
+                rtol=1e-12,
+                err_msg=f"{col} 应等于原始价 × adj_factor",
+            )
+        assert (result["adj_factor"] > 0).all(), "adj_factor 必须为正"
+        assert (result["volume"].to_numpy() == df_raw["volume"].to_numpy()).all()
 
-    def test_zero_factor_returns_raw(self, tmp_path):
-        rows = 5
-        dates = pd.bdate_range("2024-01-02", periods=rows, freq="B")
-        df_raw = pd.DataFrame({
-            "date": dates,
-            "open": [10]*5, "high": [10]*5, "low": [10]*5, "close": [10]*5,
-            "volume": [50000]*5,
-        })
-        df_factor = pd.DataFrame({"date": dates, "factor": [0.0]*5})
+    def test_missing_gbbq_raises(self, tmp_path):
+        """旧轨 '零因子降级返回原始数据' 改写: 缺 gbbq 基线 → 硬失败 (D2 裁决)。"""
+        df_raw = self._make_frame(5)
+        assert not (tmp_path / "fq" / "gbbq.parquet").exists()
+        storage = MagicMock(spec=StorageManager)
+        storage.data_dir = tmp_path
+        adjuster = DataAdjuster(storage_manager=storage)
 
-        adjuster = self._build_adjuster_with_factor(tmp_path, df_factor)
-        result = adjuster.apply_adjustment("600000.SH", df_raw, method="hfq")
+        with pytest.raises(FileNotFoundError) as exc_info:
+            adjuster.apply_adjustment("600000.SH", df_raw, method="hfq")
 
-        assert len(result) == len(df_raw), "零因子应降级返回原始数据"
+        msg = str(exc_info.value)
+        assert str(tmp_path / "fq" / "gbbq.parquet") in msg
+        assert "gbbq 基线缺失，禁止静默单位矩阵" in msg
+        assert "sync_local_tdx_day.py" in msg
 
-    def test_extreme_factor_returns_raw(self, tmp_path):
-        rows = 5
-        dates = pd.bdate_range("2024-01-02", periods=rows, freq="B")
-        df_raw = pd.DataFrame({
-            "date": dates,
-            "open": [10]*5, "high": [10]*5, "low": [10]*5, "close": [10]*5,
-            "volume": [50000]*5,
-        })
-        df_factor = pd.DataFrame({"date": dates, "factor": [1e9]*5})
+    def test_no_silent_raw_fallback_output_has_adj_factor(self, tmp_path):
+        """旧轨 '极端因子降级返回原始数据' 改写: 薄壳不得静默返回原始价,
+        输出必须带 adj_factor 列且 volume 不变。"""
+        df_raw = self._make_frame(5)
+        adjuster = self._build_adjuster(tmp_path, df_raw)
+        result = adjuster.apply_adjustment("600000.SH", df_raw, method="qfq")
 
-        adjuster = self._build_adjuster_with_factor(tmp_path, df_factor)
-        result = adjuster.apply_adjustment("600000.SH", df_raw, method="hfq")
-
-        assert len(result) == len(df_raw), "极端因子应降级返回原始数据"
+        assert len(result) == len(df_raw)
+        assert "adj_factor" in result.columns, "禁止静默降级为原始价 (无因子列)"
+        assert result["adj_factor"].notna().all()
+        assert (result["adj_factor"] > 0).all()
+        assert (result["volume"].to_numpy() == df_raw["volume"].to_numpy()).all()
 
     def test_invalid_method_returns_raw(self, tmp_path):
         df_raw = _make_ohlcv(5)
-        adjuster = self._build_adjuster_with_factor(tmp_path, pd.DataFrame())
+        adjuster = self._build_adjuster(tmp_path, df_raw)
         result = adjuster.apply_adjustment("600000.SH", df_raw, method="invalid")
         assert len(result) == len(df_raw)
 
     def test_empty_raw_returns_empty(self, tmp_path):
-        adjuster = self._build_adjuster_with_factor(tmp_path, pd.DataFrame())
+        df_seed = self._make_frame(5)
+        adjuster = self._build_adjuster(tmp_path, df_seed)
         result = adjuster.apply_adjustment("600000.SH", pd.DataFrame(), method="qfq")
         assert result.empty
 
@@ -388,7 +400,7 @@ class TestDataValidatorChaos:
         df = pd.DataFrame({"date": ["2024-01-02"], "close": [10.0]})
         assert v.validate(df) is False
 
-    def test_high_lt_low_auto_fix(self):
+    def test_high_lt_low_rejected(self):
         v = DataValidator()
         df = _make_ohlcv(5)
         df.loc[2, "high"] = 5.0
@@ -396,18 +408,21 @@ class TestDataValidatorChaos:
         orig_high = df.loc[2, "high"]
         orig_low = df.loc[2, "low"]
         result = v.validate(df)
-        assert result is True
-        assert df.loc[2, "high"] == orig_high, "Original must not be mutated (fix applied to internal copy)"
-        assert df.loc[2, "low"] == orig_low, "Original must not be mutated (fix applied to internal copy)"
+        assert result is False, "Read-only validator must reject High < Low"
+        assert df.loc[2, "high"] == orig_high, "Original must not be mutated"
+        assert df.loc[2, "low"] == orig_low, "Original must not be mutated"
 
     def test_extreme_drop_over_99_pct(self):
         v = DataValidator()
         df = _make_ohlcv(5)
         df.loc[3, "close"] = df.loc[2, "close"] * 0.001
+        # Keep OHLC invariants so the 99% drop itself is only a warning
+        df.loc[3, "high"] = max(df.loc[3, "open"], df.loc[3, "close"]) + 0.01
+        df.loc[3, "low"] = min(df.loc[3, "open"], df.loc[3, "close"]) - 0.01
         result = v.validate(df)
         assert result is True  # 验证通过但应有 warning
 
-    def test_high_lt_open_close_auto_fix(self):
+    def test_high_lt_open_close_rejected(self):
         v = DataValidator()
         df = _make_ohlcv(3)
         df.loc[1, "high"] = df.loc[1, "open"] - 1.0
@@ -415,7 +430,7 @@ class TestDataValidatorChaos:
         orig_high = df.loc[1, "high"]
         orig_low = df.loc[1, "low"]
         result = v.validate(df)
-        assert result is True
+        assert result is False, "Read-only validator must reject High < Open / Low > Close"
         assert df.loc[1, "high"] == orig_high, "Original must not be mutated"
         assert df.loc[1, "low"] == orig_low, "Original must not be mutated"
 

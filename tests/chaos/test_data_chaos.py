@@ -205,7 +205,8 @@ class TestDataValidatorChaos:
             df.loc[i, "high"], df.loc[i, "low"] = df.loc[i, "low"], df.loc[i, "high"]
         orig = df.copy()
         result = self.validator.validate(df)
-        assert result is True, "Validator should fix High < Low and return True"
+        # Read-only gate: broken frames must be rejected (DataCleaner owns the fix)
+        assert result is False, "Validator must reject High < Low without mutating"
         assert (df["high"] == orig["high"]).all().all(), "Original DataFrame must not be mutated"
 
     # --- 1b. High < Open/Close fix ---
@@ -214,8 +215,8 @@ class TestDataValidatorChaos:
         df.copy()
         df.loc[5, "high"] = df.loc[5, "open"] - 2.0  # high < open
         result = self.validator.validate(df)
-        assert result is True
-        assert df.loc[5, "high"] < df.loc[5, "open"], "Original must not be mutated (fix applied to copy)"
+        assert result is False, "Validator must reject High < Open"
+        assert df.loc[5, "high"] < df.loc[5, "open"], "Original must not be mutated (read-only gate)"
 
     # --- 1c. Low > Open/Close fix ---
     def test_low_greater_than_open_close(self):
@@ -223,8 +224,8 @@ class TestDataValidatorChaos:
         df.copy()
         df.loc[8, "low"] = df.loc[8, "close"] + 5.0  # low > close
         result = self.validator.validate(df)
-        assert result is True
-        assert df.loc[8, "low"] > df.loc[8, "close"], "Original must not be mutated (fix applied to copy)"
+        assert result is False, "Validator must reject Low > Close"
+        assert df.loc[8, "low"] > df.loc[8, "close"], "Original must not be mutated (read-only gate)"
 
     # --- 1d. Missing required columns ---
     def test_missing_required_columns(self):
@@ -236,8 +237,11 @@ class TestDataValidatorChaos:
     def test_99_percent_drop(self):
         df = _make_daily_df(20, start_price=100.0)
         df.loc[15, "close"] = 0.50  # ~99.5% drop from ~100
+        # Keep OHLC consistent so only the 99% warning fires (not Low > Close)
+        df.loc[15, "high"] = max(df.loc[15, "high"], df.loc[15, "open"], 0.50)
+        df.loc[15, "low"] = min(df.loc[15, "low"], df.loc[15, "open"], 0.50)
         result = self.validator.validate(df)
-        # Should still pass (just warns), but the validator doesn't reject
+        # Extreme drop is warning-only; frame remains valid
         assert result is True
 
     # --- 1f. Empty DataFrame ---
@@ -262,99 +266,137 @@ class TestDataValidatorChaos:
 # ===================================================================
 
 class TestDataAdjusterChaos:
-    """Chaos tests for DataAdjuster edge cases."""
+    """Chaos tests for DataAdjuster edge cases.
 
-    def test_apply_adjustment_empty_df(self):
-        """Empty df should return empty, no crash."""
+    2026-10-12 WS-C Step 2c: DataAdjuster 已废弃为兼容薄壳 (唯一算法 =
+    CorporateActionAdjuster)。锁旧轨坏死行为的用例已改写为新轨语义:
+    volume 不变、qfq 末日锚点=原始价、输出含 adj_factor 列、缺 gbbq 硬失败。
+    """
+
+    def _write_gbbq(self, tmp_path, df_daily, code="000001"):
+        """合成 gbbq 基线 (写入 tmp, 不触碰 data/): 中位日一笔现金分红。"""
+        from pathlib import Path
+
+        fq = Path(tmp_path) / "fq"
+        fq.mkdir(parents=True, exist_ok=True)
+        event_date = pd.Timestamp(df_daily["date"].iloc[len(df_daily) // 2])
+        path = fq / "gbbq.parquet"
+        pd.DataFrame({
+            "code": [code],
+            "date": [event_date],
+            "cash": [2.0],   # 原始口径 → 清洗后 /10 = 0.2 元
+            "split": [0.0],
+            "rights": [0.0],
+            "r_price": [0.0],
+        }).to_parquet(path)
+        return path
+
+    @staticmethod
+    def _make_adjuster(tmp_path, gbbq_path=None):
         from unittest.mock import MagicMock
-        adjuster = DataAdjuster(storage_manager=MagicMock())
+
+        storage = MagicMock()
+        storage.data_dir = tmp_path
+        return DataAdjuster(storage_manager=storage, gbbq_path=gbbq_path)
+
+    def test_apply_adjustment_empty_df(self, tmp_path):
+        """Empty df should return empty, no crash."""
+        adjuster = self._make_adjuster(tmp_path)
         result = adjuster.apply_adjustment("000001.SZ", pd.DataFrame(), "qfq")
         assert result.empty
 
-    def test_apply_adjustment_invalid_method(self):
-        """Invalid method should return raw data."""
-        from unittest.mock import MagicMock
-        adjuster = DataAdjuster(storage_manager=MagicMock())
+    def test_apply_adjustment_invalid_method(self, tmp_path):
+        """Invalid method should return raw data (不触发 gbbq 加载)."""
+        adjuster = self._make_adjuster(tmp_path, gbbq_path=tmp_path / "never.parquet")
         df = _make_daily_df(10)
         result = adjuster.apply_adjustment("000001.SZ", df, "invalid")
         assert len(result) == len(df)
 
-    def test_apply_adjustment_no_factor_data(self):
-        """When factor_manager returns empty, should return raw data unchanged."""
-        from unittest.mock import MagicMock
-        mock_sm = MagicMock()
-        mock_sm.data_dir = "/tmp/test_data"
-        adjuster = DataAdjuster(storage_manager=mock_sm)
-        # Mock factor_manager to return empty
-        adjuster.factor_manager = MagicMock()
-        adjuster.factor_manager.read_factor.return_value = pd.DataFrame()
-        df = _make_daily_df(10)
-        result = adjuster.apply_adjustment("000001.SZ", df, "qfq")
-        assert len(result) == len(df), "Should return raw data when no factors"
+    def test_apply_adjustment_missing_gbbq_raises(self, tmp_path):
+        """旧轨 '因子文件为空 → 返回原始价' 改写: 缺 gbbq 基线 → 硬失败 (D2)。"""
+        import pytest
 
-    def test_apply_adjustment_negative_factor(self):
-        """Negative factor values should trigger safety check and return raw."""
+        adjuster = self._make_adjuster(tmp_path, gbbq_path=tmp_path / "missing.parquet")
+        df = _make_daily_df(10)
+        with pytest.raises(FileNotFoundError) as exc_info:
+            adjuster.apply_adjustment("000001.SZ", df, "qfq")
+        msg = str(exc_info.value)
+        assert "gbbq 基线缺失，禁止静默单位矩阵" in msg
+        assert str(tmp_path / "missing.parquet") in msg
+        assert "sync_local_tdx_day.py" in msg
+
+    def test_apply_adjustment_factor_file_path_deprecated(self, tmp_path):
+        """旧轨 factor_manager (data/factors/) 已废弃: 无论如何 mock 都被忽略,
+        复权一律走 gbbq → 输出必含 adj_factor 且 volume 不变。"""
         from unittest.mock import MagicMock
-        adjuster = DataAdjuster(storage_manager=MagicMock())
+
+        df = _make_daily_df(10)
+        self._write_gbbq(tmp_path, df)
+        adjuster = self._make_adjuster(tmp_path)
         adjuster.factor_manager = MagicMock()
-        df_factors = pd.DataFrame(
+        adjuster.factor_manager.read_factor.return_value = pd.DataFrame(
             {"date": pd.bdate_range("2024-01-02", periods=10), "factor": [-1.0] * 10}
         )
-        adjuster.factor_manager.read_factor.return_value = df_factors
+        result = adjuster.apply_adjustment("000001.SZ", df, "qfq")
+        assert len(result) == len(df)
+        assert "adj_factor" in result.columns, "旧因子文件路径已废弃, 必须走 gbbq 计算"
+        assert (result["adj_factor"] > 0).all(), "负因子不得出现 (旧路径已被忽略)"
+        assert (result["volume"].to_numpy() == df["volume"].to_numpy()).all()
+
+    def test_apply_adjustment_qfq_last_day_anchor(self, tmp_path):
+        """旧轨 '巨大因子降级返回原始价' 改写: qfq 末日锚点 = 原始价 (adj_factor=1.0)。"""
+        import pytest
+
         df = _make_daily_df(10)
+        self._write_gbbq(tmp_path, df)
+        adjuster = self._make_adjuster(tmp_path)
         result = adjuster.apply_adjustment("000001.SZ", df, "qfq")
-        # Should return raw because factor <= 0
         assert len(result) == len(df)
+        assert result["close"].iloc[-1] == pytest.approx(df["close"].iloc[-1])
+        assert result["adj_factor"].iloc[-1] == pytest.approx(1.0)
+        # 非退化: 事件在样本中位日 → 历史价格必须被真实调整
+        assert result["close"].iloc[0] < df["close"].iloc[0]
 
-    def test_apply_adjustment_huge_factor(self):
-        """Huge factor values should trigger safety check and return raw."""
-        from unittest.mock import MagicMock
-        adjuster = DataAdjuster(storage_manager=MagicMock())
-        adjuster.factor_manager = MagicMock()
-        df_factors = pd.DataFrame(
-            {"date": pd.bdate_range("2024-01-02", periods=10), "factor": [1e8] * 10}
-        )
-        adjuster.factor_manager.read_factor.return_value = df_factors
-        df = _make_daily_df(10, start_price=10.0)
-        result = adjuster.apply_adjustment("000001.SZ", df, "hfq")
-        # factor > 1_000_000 triggers safety return raw
-        assert len(result) == len(df)
+    def test_apply_adjustment_valid_hfq(self, tmp_path):
+        """HFQ: 价格 = 原始价 × adj_factor, 起始因子 = 1.0, volume 不变。"""
+        import pytest
 
-    def test_apply_adjustment_valid_hfq(self):
-        """Valid HFQ adjustment should multiply prices by factor, clip, and not go negative."""
-        from unittest.mock import MagicMock
-        adjuster = DataAdjuster(storage_manager=MagicMock())
-        adjuster.factor_manager = MagicMock()
-        df_factors = pd.DataFrame(
-            {"date": pd.bdate_range("2024-01-02", periods=10), "factor": [1.5] * 10}
-        )
-        adjuster.factor_manager.read_factor.return_value = df_factors
-        df = _make_daily_df(10, start_price=10.0)
+        df = _make_daily_df(10)
+        self._write_gbbq(tmp_path, df)
+        adjuster = self._make_adjuster(tmp_path)
         result = adjuster.apply_adjustment("000001.SZ", df, "hfq")
         assert len(result) == len(df)
         for col in ["open", "high", "low", "close"]:
-            assert (result[col] >= 0.001).all(), f"{col} has negative values after HFQ"
-            assert (result[col] <= 100000).all(), f"{col} exceeds upper bound after HFQ"
+            np.testing.assert_allclose(
+                result[col].to_numpy(),
+                df[col].to_numpy() * result["adj_factor"].to_numpy(),
+                rtol=1e-12,
+                err_msg=f"{col} 应等于原始价 × adj_factor",
+            )
+        assert result["adj_factor"].iloc[0] == pytest.approx(1.0)
+        assert (result["volume"].to_numpy() == df["volume"].to_numpy()).all()
 
-    def test_apply_adjustment_valid_qfq(self):
-        """Valid QFQ adjustment should produce non-negative prices."""
-        from unittest.mock import MagicMock
-        adjuster = DataAdjuster(storage_manager=MagicMock())
-        adjuster.factor_manager = MagicMock()
-        df_factors = pd.DataFrame(
-            {"date": pd.bdate_range("2024-01-02", periods=10), "factor": [2.0] * 10}
-        )
-        adjuster.factor_manager.read_factor.return_value = df_factors
-        df = _make_daily_df(10, start_price=20.0)
+    def test_apply_adjustment_valid_qfq(self, tmp_path):
+        """QFQ: 输出含 adj_factor 列、行数不变、volume 不变、价格 = 原始价 × adj_factor。"""
+        df = _make_daily_df(10)
+        self._write_gbbq(tmp_path, df)
+        adjuster = self._make_adjuster(tmp_path)
         result = adjuster.apply_adjustment("000001.SZ", df, "qfq")
         assert len(result) == len(df)
+        assert "adj_factor" in result.columns
+        assert result["adj_factor"].notna().all()
         for col in ["open", "high", "low", "close"]:
-            assert (result[col] >= 0.001).all(), f"{col} has negative values after QFQ"
+            np.testing.assert_allclose(
+                result[col].to_numpy(),
+                df[col].to_numpy() * result["adj_factor"].to_numpy(),
+                rtol=1e-12,
+                err_msg=f"{col} 应等于原始价 × adj_factor",
+            )
+        assert (result["volume"].to_numpy() == df["volume"].to_numpy()).all()
 
     def test_is_valid_stock_code(self):
         """Test stock code validation edge cases."""
-        from unittest.mock import MagicMock
-        adjuster = DataAdjuster(storage_manager=MagicMock())
+        adjuster = self._make_adjuster("/tmp")
         assert adjuster.is_valid_stock_code("600000", "SH") is True
         assert adjuster.is_valid_stock_code("688001", "SH") is True
         assert adjuster.is_valid_stock_code("000001", "SZ") is True

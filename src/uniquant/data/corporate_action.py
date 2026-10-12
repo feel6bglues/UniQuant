@@ -22,6 +22,22 @@ logger = get_logger(__name__)
 
 AdjustType = Literal["qfq", "hfq", "none"]
 
+RESYNC_HINT = "python scripts/maintenance/sync_local_tdx_day.py"
+
+
+class GbbqBaselineMissingError(FileNotFoundError):
+    """gbbq 基线缺失或清洗后为空 — D2 裁决: 硬失败, 禁止静默单位矩阵。
+
+    继承 FileNotFoundError 以兼容旧调用方的 ``except OSError`` 捕获面。
+    """
+
+
+def _gbbq_baseline_error(path: Path, reason: str) -> GbbqBaselineMissingError:
+    return GbbqBaselineMissingError(
+        f"gbbq 基线缺失，禁止静默单位矩阵 ({reason}): {path}。"
+        f"请先重新同步股本变迁数据: {RESYNC_HINT}"
+    )
+
 
 class CorporateActionAdjuster:
     """企业行为动态复权调整器。
@@ -40,19 +56,20 @@ class CorporateActionAdjuster:
         self._is_loaded = False
 
     def load_events(self) -> None:
-        """预加载并清洗 GBBQ 数据库，按 6 位代码建立索引。"""
+        """预加载并清洗 GBBQ 数据库，按 6 位代码建立索引。
+
+        D2 裁决 (2026-10-12): 基线缺失/清洗后为空一律硬失败, 不得静默回退
+        单位矩阵 (那会让 qfq 名义复权实为不复权)。
+        """
         if self._is_loaded:
             return
 
         if not self.gbbq_path.exists():
-            logger.warning(f"GBBQ 文件不存在: {self.gbbq_path}，复权引擎将回退为单位矩阵。")
-            self._is_loaded = True
-            return
+            raise _gbbq_baseline_error(self.gbbq_path, "文件不存在")
 
         df_clean = GBBQProcessorV15.load_and_clean(str(self.gbbq_path))
         if df_clean.empty:
-            self._is_loaded = True
-            return
+            raise _gbbq_baseline_error(self.gbbq_path, "文件存在但清洗后无有效事件")
 
         # 向量化单次聚合所有股票与除权日期 (0.05s 极速处理)
         agg_rules = {"cash": "sum", "split": "sum", "rights": "sum", "r_price": "max"}
@@ -101,7 +118,18 @@ class CorporateActionAdjuster:
             factors = calc_res["factor"].to_numpy(dtype=np.float64)
             dates = calc_res["date"]
 
-        latest_factor = factors[-1] if len(factors) > 0 and factors[-1] > 0 else 1.0
+        # D2 同源裁决 (2026-10-12): 因子非正/非有限 → 显式拒绝,
+        # 不再静默回退 1.0 (那会产生名义复权实为不复权的单位矩阵)。
+        if len(factors) == 0 or not np.isfinite(factors).all() or (factors <= 0).any():
+            logger.error(
+                f"复权因子含非正或非有限值，显式拒绝: symbol={symbol} "
+                f"n={len(factors)} last={factors[-1] if len(factors) else 'NA'}"
+            )
+            raise ValueError(
+                f"复权因子非法 (非正或非有限)，拒绝静默回退单位矩阵: {symbol}"
+            )
+
+        latest_factor = factors[-1]
         qfq_ratio = factors / latest_factor
         hfq_ratio = factors
 
@@ -136,8 +164,11 @@ class CorporateActionAdjuster:
         adj_df = df.copy()
         factors_df = self.compute_factors(adj_df, symbol)
         if factors_df.empty:
-            adj_df["adj_factor"] = 1.0
-            return adj_df
+            # compute_factors 仅在 df 为空时返回空表 (adjust 已在上方拦截)。
+            # 不可达分支同样禁止静默单位矩阵 (D2)。
+            raise ValueError(
+                f"复权因子计算返回空表，拒绝静默单位矩阵: {symbol} (rows={len(adj_df)})"
+            )
 
         ratio_col = "qfq_ratio" if adjust_type == "qfq" else "hfq_ratio"
         ratio = factors_df[ratio_col].to_numpy()

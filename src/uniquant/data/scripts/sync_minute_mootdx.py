@@ -92,6 +92,9 @@ def sync_minute(
 
     freq_key = FREQUENCY_MAP.get(frequency, "5mins")
     data_type = freq_key
+    # reader.minute 的形参是 suffix（freq=/frequency= 会被 **kwargs 吞并静默降级 1min），
+    # 且必须与写湖的 data_type 目录保持一致：1mins<->suffix=1, 5mins<->suffix=5
+    reader_suffix = 1 if freq_key == "1mins" else 5
 
     if symbols is None:
         symbols = get_all_symbols(reader)
@@ -112,8 +115,7 @@ def sync_minute(
 
         try:
             code = symbol.split(".")[0]
-            freq_int = 1 if "1" in frequency else 5
-            df = reader.minute(symbol=code, frequency=freq_int)
+            df = reader.minute(symbol=code, suffix=reader_suffix)
 
             if df is None or df.empty:
                 logger.warning(f"{symbol} 无 {frequency} 数据")

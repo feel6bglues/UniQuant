@@ -7,6 +7,16 @@ from ..shared.logger_factory import get_logger
 
 logger = get_logger(__name__)
 
+# R2 污染通道护栏 (DATA_SOURCE_MIGRATION_PLAN §5 Step 0): 湖为不复权 raw SSOT,
+# 复权结果 (adjust="qfq"/"hfq") 或带复权因子列的数据禁止写入 data/lake/**。
+# 本文件全部 write_data 调用点 (fetch_and_save_dataset / load_data_with_fallback /
+# load_etf_data) 均须先过 _assert_unadjusted_for_lake, raw 语义显式传 adjust=""。
+_ADJUSTED_FACTOR_COLUMNS = ("adj_factor", "qfq_factor", "hfq_factor")
+
+#: 模块级护栏事件记录, 供测试/验收断言: blocked_count=累计拦截次数,
+#: last_blocked=最近一次拦截 {symbol, adjust, columns}。
+LAKE_WRITE_GUARD_STATS: dict[str, Any] = {"blocked_count": 0, "last_blocked": None}
+
 
 class DataAccessService:
     """Coordinates cache/source/lake reads and persistence for DataService."""
@@ -114,9 +124,16 @@ class DataAccessService:
             return None
 
         cleaned_df = self.service.cleaner.clean_stock_daily(df)
-        self.service.lake.write_data(
-            symbol, cleaned_df, data_type=data_type, market="cn", overwrite=True
-        )
+        # 显式 raw 语义声明: 该路径仅取不复权数据 (fetch_stock_daily /
+        # get_price 默认 adjust="") → 护栏放行; 若上游悄悄改成复权则被拦。
+        if self._assert_unadjusted_for_lake(cleaned_df, adjust="", symbol=symbol):
+            self.service.lake.write_data(
+                symbol, cleaned_df, data_type=data_type, market="cn", overwrite=True
+            )
+        else:
+            logger.warning(
+                "Skip lake write for %s %s (unadjusted-data guard)", data_type, symbol
+            )
         return self.service.lake.read_data(symbol, data_type=data_type, market="cn")
 
     def get_from_lake(self, symbol: str, data_type: str) -> Optional[pd.DataFrame]:
@@ -126,6 +143,49 @@ class DataAccessService:
             return self.service._clone_dataframe(df)
         logger.warning("No data for %s %s in data lake", data_type, symbol)
         return None
+
+    def _assert_unadjusted_for_lake(
+        self, df: pd.DataFrame, adjust: str, symbol: str
+    ) -> bool:
+        """写湖前硬断言: 仅不复权数据允许写入 data/lake/** (R2 污染通道护栏)。
+
+        规则:
+            R-a ``adjust`` 非空 (qfq/hfq/任意复权语义) → 拦截, 即便 df 无因子列;
+            R-b df 含 ``adj_factor``/``qfq_factor``/``hfq_factor`` 任一列 → 拦截;
+            R-c 走"复权语义"的写入必须带 ``adj_factor`` 列 (供事后对账),
+                缺列即拦 — 报文明确提示"复权输出必须带 adj_factor 列且禁止写湖"。
+                旧轨 qfq 会改 volume 却不留因子列 (列白名单盲区), 无法从 df 验证
+                volume 是否为 raw, 故凡 ``adjust`` 非空一律按 R-a/R-c 拦截。
+
+        Returns:
+            True=允许写湖; False=复权数据, logger.error + 记录模块级事件并跳过写入。
+        """
+        offending = [c for c in df.columns if c in _ADJUSTED_FACTOR_COLUMNS]
+        adjust_declared = bool((adjust or "").strip())
+        if not adjust_declared and not offending:
+            return True
+
+        rules = [rule for rule, hit in (
+            ("R-a", adjust_declared),
+            ("R-b", bool(offending)),
+            ("R-c", adjust_declared),
+        ) if hit]
+        LAKE_WRITE_GUARD_STATS["blocked_count"] += 1
+        LAKE_WRITE_GUARD_STATS["last_blocked"] = {
+            "symbol": symbol,
+            "adjust": adjust,
+            "columns": offending,
+            "rules": rules,
+        }
+        logger.error(
+            "复权数据禁写湖 (R2 护栏 %s): symbol=%s adjust=%r factor_columns=%s — "
+            "复权输出必须带 adj_factor 列且禁止写湖",
+            "+".join(rules),
+            symbol,
+            adjust,
+            offending,
+        )
+        return False
 
     def load_data_with_fallback(
         self, symbol: str, data_type: str, description: str
@@ -163,14 +223,19 @@ class DataAccessService:
                 logger.warning("Cleaned %s is empty", description)
                 return pd.DataFrame()
 
-            self.service.lake.write_data(
-                symbol,
-                cleaned_data,
-                data_type=data_type,
-                market="cn",
-                overwrite=True,
-            )
-            logger.info("Fetched and saved %s from data source", description)
+            if self._assert_unadjusted_for_lake(cleaned_data, adjust, symbol):
+                self.service.lake.write_data(
+                    symbol,
+                    cleaned_data,
+                    data_type=data_type,
+                    market="cn",
+                    overwrite=True,
+                )
+                logger.info("Fetched and saved %s from data source", description)
+            else:
+                logger.warning(
+                    "Skip lake write for %s (unadjusted-data guard)", description
+                )
             return self.service._clone_dataframe(cleaned_data)
         except Exception as exc:
             logger.error("Error loading %s: %s", description, exc)
@@ -195,14 +260,23 @@ class DataAccessService:
                 logger.warning("Cleaned ETF data is empty")
                 return pd.DataFrame()
 
-            self.service.lake.write_data(
-                "510300",
-                cleaned_data,
-                data_type="stock",
-                market="cn",
-                overwrite=True,
-            )
-            logger.info("Fetched and saved ETF data (510300) from data source")
+            # 显式 raw 语义声明: get_price("510300") 默认 adjust="" → 放行;
+            # 若返回带复权因子列的 df 则被拦, 读数行为不变。
+            if self._assert_unadjusted_for_lake(
+                cleaned_data, adjust="", symbol="510300"
+            ):
+                self.service.lake.write_data(
+                    "510300",
+                    cleaned_data,
+                    data_type="stock",
+                    market="cn",
+                    overwrite=True,
+                )
+                logger.info("Fetched and saved ETF data (510300) from data source")
+            else:
+                logger.warning(
+                    "Skip lake write for ETF 510300 (unadjusted-data guard)"
+                )
             return self.service._clone_dataframe(cleaned_data)
         except Exception as exc:
             logger.error("Error loading ETF data: %s", exc)
