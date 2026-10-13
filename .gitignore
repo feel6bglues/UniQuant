@@ -93,3 +93,6 @@ data/manifests/
 
 # 服务缓存运行产物（2026-10-12 Step3 清理）
 data/service_cache/
+
+# 临时验证与实验目录
+scratch/

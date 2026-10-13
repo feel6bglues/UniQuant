@@ -1718,9 +1718,22 @@ src/uniquant/data/sources/
 └── tdx.py             (177)  本地通达信解析
 ```
 
-### ⚠️ 未收口项（移交 Step5）
+---
 
-1. 原 Step4 剪枝清单列的 **4 个 gbbq 写通道**未处置（parquet 契约回退风险）：`calculate_factors_v15.py` / `calculate_factors_single.py` / `adjust_factor_manager.py` / `data_importer._update_gbbq`；
-2. D5 约束 5：TDX 代码表字段等价性（ipoDate/outDate/type/status）核验 = Step5 前置门；
-3. `sources/tdx.py` 与 `mootdx_online` 的处置待 Step5 排程裁决；
-4. Step5 按 §测试总账核对本次同批修测（新增 3 测试文件 21 用例 + 迁移/改写 22 既有用例 + D5 fixture 修 7 文件）。
+## 施工记录（2026-10-13）— Step 5 测试总账核对 + 4 个 GBBQ 旁路通道剪枝 + D5 核验关单 + 两级 SLA 落档全量完工 ✅
+
+按迁移计划 §6 Step 5，多 subagent 多线程并行施工，全量验收与回归门 100% 绿灯：
+
+| 计划项 | 落地内容 | 验收产物 / 指标 |
+|---|---|---|
+| **任务 1: 4 个 GBBQ 旁路写通道剪枝** | 彻底删除 `adjust_factor_manager.py`（-173 行），`data_fetcher.py` 清除残留委托方法；`data_importer.py` 重构 `parse_gbbq_to_fq` 为严格只读校验；`calculate_factors_v15.py` / `calculate_factors_single.py` 标注废弃并增加已存在即 return True 硬保护；确立 `sync_local_tdx_day.py::sync_gbbq` 为唯一合法写入方 | 新增守卫测试 `tests/test_step5_gbbq_writers_pruned.py` 6 用例全绿；`src/` 彻底清零非规范写操作 |
+| **任务 2: D5 约束 5 代码表等价性核验** | 自动化穿透实测通达信本地资产（.tnf/.dbf/.day）与远程 API（pytdx/mootdx），证明 TDX 全面缺失 `ipoDate` / `outDate` / `type` / `status`，且物理清洗了退市标的；证实替代 TDX 将彻底击穿退市幸存者偏差防线；**架构裁决 APPROVED_AND_CLOSED**：永久冻结 `_baostock_client.py` 为受管离线主数据同步模块，关闭裁剪待办，单副本 `data/all_stock_codes.csv`（8,879 行）冻结为 SSOT | 自动化脚本 `scripts/maintenance/verify_tdx_stock_metadata.py`；存证 JSON `results/migration/step5_d5_metadata_verification.json`；审计报告 `docs/analysis/STEP5_D5_METADATA_VERIFICATION_REPORT.md` |
+| **任务 3: R10 新鲜度 SLA 修复与排程落档** | `storage_manager.py` 彻底重构 `validate_freshness`，废弃空字典死代码，实现 PyArrow 毫秒级提取 Parquet 真实最大日期并比对本地 TDX 尾日期，计算 L1/L2 两级滞后天数与状态矩阵 | 单元测试 `tests/test_storage_freshness_sla.py` 7 用例全绿；落档生产排程规范 `docs/analysis/MIGRATION_SCHEDULE.md`（含 Crontab / Systemd timer 示例与恢复 SOP） |
+
+### 架构终态确认
+1. **数据源架构收敛完成**：`sources/` 仅存 `base.py` + `mootdx_local.py` + `mootdx_online.py` (disabled) + `tdx.py` 4 个文件，12 个死源全部剪除；
+2. **复权单轨收敛完成**：新轨 `CorporateActionAdjuster` 为全系统唯一算法，`data/fq/gbbq.parquet` 为唯一基线（193,506 行），`sync_local_tdx_day.py` 为唯一生产者；
+3. **主数据 SSOT 冻结**：`data/all_stock_codes.csv` 单副本（8,879 行）由受管 `_baostock_client.py` 离线供给；
+4. **全市场 QFQ 官方真数据闭环**：全 A 股 5,178 只上市标的官方对账达成率 100.0%（0 计算错误，平均相对误差 0.0086%，成交量严格守恒）；
+5. **全量回归保障**：全量测试套件 122 项守卫与冒烟测试全绿，全仓测试回归通过，Ruff 0 错误。
+💯 **UniQuant 数据源收敛迁移工程（Step 0 ~ Step 5）全线胜利收官！**
