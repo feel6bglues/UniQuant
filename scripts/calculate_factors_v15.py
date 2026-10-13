@@ -1,3 +1,10 @@
+"""
+[已废弃 / 仅供参考]
+复权因子计算脚本 (V15 算法)。
+项目已全面收敛至 CorporateActionAdjuster 单轨复权模型。
+生产环境中 data/fq/gbbq.parquet 的唯一权威生产者为 scripts/maintenance/sync_local_tdx_day.py::sync_gbbq。
+本脚本严禁覆写生产环境中的 gbbq.parquet。
+"""
 import os
 import sys
 import logging
@@ -58,21 +65,29 @@ def _resolve_gbbq_raw_path() -> str:
     return ""
 
 
-def convert_gbbq_to_parquet():
-    """将通达信 GBBQ 转换为 parquet 格式"""
-    from uniquant.data.parsers.tdx_parser import TDXParser
-
+def convert_gbbq_to_parquet() -> bool:
+    """
+    将通达信 GBBQ 转换为 parquet 格式（已废弃）。
+    生产环境唯一权威生产者为 scripts/maintenance/sync_local_tdx_day.py::sync_gbbq。
+    增加硬保护：禁止覆写既有 data/fq/gbbq.parquet，若已存在直接 return True。
+    """
     if os.path.exists(GBBQ_PARQUET_PATH):
-        logger.info(f"GBBQ parquet 已存在: {GBBQ_PARQUET_PATH}")
+        logger.info(f"GBBQ parquet 已存在，跳过转换（硬保护：禁止覆写）: {GBBQ_PARQUET_PATH}")
         return True
 
     gbbq_raw_path = _resolve_gbbq_raw_path()
     if not gbbq_raw_path or not os.path.exists(gbbq_raw_path):
-        logger.error("未找到 GBBQ 原始文件。请设置 GBBQ_TDX_PATH 环境变量或在配置中指定 tdx.path。")
-        logger.error(f"尝试的路径: {gbbq_raw_path}")
+        logger.error(
+            "GBBQ parquet 不存在且未找到原始 GBBQ 文件。\n"
+            "请使用 scripts/maintenance/sync_local_tdx_day.py 进行权威同步: \n"
+            "  python scripts/maintenance/sync_local_tdx_day.py --sync-gbbq"
+        )
         return False
 
-    logger.info(f"开始转换 GBBQ: {gbbq_raw_path} -> {GBBQ_PARQUET_PATH}")
+    logger.warning(
+        f"检测到 {GBBQ_PARQUET_PATH} 缺失，正在进行备用转换 (建议使用 sync_local_tdx_day.py)..."
+    )
+    from uniquant.data.parsers.tdx_parser import TDXParser
 
     parser = TDXParser()
     success = parser.save_gbbq_to_fq(gbbq_raw_path, GBBQ_PARQUET_PATH)
@@ -83,6 +98,10 @@ def convert_gbbq_to_parquet():
         logger.error("GBBQ 转换失败")
 
     return success
+
+
+# 兼容别名
+convert_gbbq_to_fq = convert_gbbq_to_parquet
 
 
 def verify_single_stock(local_factor: float, baostock_factor: float, tolerance: float = 0.01) -> dict:

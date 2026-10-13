@@ -1,5 +1,7 @@
 """
-单进程计算复权因子（用于调试）
+[已废弃 / 仅供参考]
+单进程计算复权因子（用于历史调试与算法比对，生产环境已由 CorporateActionAdjuster 单轨复权替代）
+只读/历史参考脚本，确保零写 gbbq.parquet 操作。
 """
 import os
 import sys

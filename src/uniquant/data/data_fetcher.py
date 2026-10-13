@@ -30,7 +30,6 @@ from .data_pipeline_service import DataPipelineService
 # 新增的 Managers
 from .managers.stock_metadata_manager import StockMetadataManager
 from .managers.trade_calendar_manager import TradeCalendarManager
-from .managers.adjust_factor_manager import AdjustFactorManager
 from .managers.market_data_coordinator import MarketDataCoordinator
 from .managers.stock_data_updater import StockDataUpdater
 
@@ -185,7 +184,6 @@ class DataFetcher:
         # 初始化独立的专门管理器
         self.metadata_manager = StockMetadataManager(data_dir=data_dir)
         self.calendar_manager = TradeCalendarManager(data_dir=data_dir)
-        self.adjust_factor_manager = AdjustFactorManager(self.storage_manager)
         self.market_coordinator = MarketDataCoordinator(self)
         self.stock_updater = StockDataUpdater(self)
 
@@ -527,12 +525,6 @@ class DataFetcher:
     def get_trade_calendar(self, start_date: str, end_date: str) -> pd.DataFrame:
         return self.calendar_manager.get_trade_calendar(start_date, end_date)
 
-    # ---- 委托给 AdjustFactorManager 的方法 ----
-    def get_adjust_factors(self, symbol: str, gbbq_path: Optional[str] = None) -> Optional[pd.DataFrame]:
-        return self.adjust_factor_manager.get_adjust_factors(symbol, gbbq_path)
-
-    def convert_gbbq_to_fq(self, gbbq_path: Optional[str] = None) -> bool:
-        return self.adjust_factor_manager.convert_gbbq_to_fq(gbbq_path)
 
 class LegacyDataFetcher(DataFetcher):
     """

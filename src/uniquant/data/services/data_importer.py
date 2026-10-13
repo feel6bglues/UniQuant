@@ -451,57 +451,32 @@ class DataImporter:
 
     def parse_gbbq_to_fq(self) -> bool:
         """
-        解析gbbq文件到data/fq目录
+        校验并加载 data/fq/gbbq.parquet 数据（只读校验，禁止覆写）。
+
+        GBBQ 数据唯一权威生产者为 scripts/maintenance/sync_local_tdx_day.py::sync_gbbq。
+        本方法只做只读校验与加载，若文件不存在则报错提示同步命令，禁止自身覆写。
 
         Returns:
-            是否成功
+            bool: 校验与加载是否成功
         """
-        if not self.tdx_path:
-            logger.error("通达信路径未设置")
+        fq_output = self.fq_dir / "gbbq.parquet"
+        if not fq_output.exists():
+            logger.error(
+                f"GBBQ parquet 文件不存在: {fq_output}。\n"
+                "请使用 scripts/maintenance/sync_local_tdx_day.py 同步 gbbq 数据：\n"
+                "  python scripts/maintenance/sync_local_tdx_day.py --sync-gbbq"
+            )
             return False
 
-        gbbq_path = self.tdx_path / "T0002" / "hq_cache" / "gbbq"
-        if not gbbq_path.exists():
-            logger.error(f"gbbq 文件不存在: {gbbq_path}")
-            return False
-
-        logger.info(f"开始解析 gbbq 文件: {gbbq_path}")
-        
-        if not self._needs_update(gbbq_path):
-            logger.info("gbbq 文件无变化，跳过更新")
-            fq_output = self.fq_dir / "gbbq.parquet"
-            if fq_output.exists():
-                try:
-                    self.gbbq_data = pd.read_parquet(str(fq_output))
-                    logger.info(f"加载现有gbbq数据，共 {len(self.gbbq_data)} 条记录")
-                    return True
-                except Exception as e:
-                    logger.warning(f"加载现有gbbq数据失败，将重新解析: {e}")
-            else:
-                logger.warning("gbbq文件无变化但本地数据不存在，将重新解析")
-        
         try:
-            df_gbbq = self.tdx_parser.parse_gbbq_file(str(gbbq_path))
-            
-            if df_gbbq.empty:
-                logger.error("解析gbbq文件失败，返回空数据")
-                return False
-            
-            fq_output = self.fq_dir / "gbbq.parquet"
-            df_gbbq.to_parquet(str(fq_output), compression="snappy")
-            logger.info(f"成功保存gbbq数据到: {fq_output}")
-            logger.info(f"gbbq数据共 {len(df_gbbq)} 条记录")
-            
-            self._update_fingerprint(gbbq_path)
-            logger.info("已更新gbbq文件指纹")
-            
-            self.gbbq_data = df_gbbq
-            
+            self.gbbq_data = pd.read_parquet(str(fq_output))
+            logger.info(f"成功加载现有 GBBQ 数据: {fq_output}，共 {len(self.gbbq_data)} 条记录")
             return True
         except Exception as e:
-            logger.error(f"解析gbbq文件失败: {e}")
-            import traceback
-            logger.error(f"错误堆栈: {traceback.format_exc()}")
+            logger.error(
+                f"加载 GBBQ parquet 失败: {e}。\n"
+                "请使用 scripts/maintenance/sync_local_tdx_day.py 重新同步。"
+            )
             return False
 
     def import_daily_data(self, max_workers: int = 4) -> int:
@@ -576,9 +551,9 @@ class DataImporter:
         """
         logger.info("开始分步处理TDX数据...")
         
-        logger.info("步骤1: 解析gbbq文件到data/fq目录")
+        logger.info("步骤1: 检查并加载gbbq数据 (data/fq/gbbq.parquet)")
         if not self.parse_gbbq_to_fq():
-            logger.error("解析gbbq文件失败，终止导入")
+            logger.error("gbbq数据校验失败，终止导入")
             return 0
         
         logger.info("步骤2: 导入日线数据到data/daily目录")
@@ -610,7 +585,7 @@ def main():
     parser.add_argument('--tdx-path', help='通达信安装目录路径')
     parser.add_argument('--tdx', action='store_true', help='导入通达信所有数据')
     parser.add_argument('--tdx-directory', help='指定通达信 .day 文件目录')
-    parser.add_argument('--parse-gbbq', action='store_true', help='仅解析gbbq文件到data/fq目录')
+    parser.add_argument('--parse-gbbq', action='store_true', help='仅校验并加载data/fq/gbbq.parquet数据')
     parser.add_argument('--import-daily', action='store_true', help='仅导入日线数据到data/daily目录')
     parser.add_argument('--calculate-factors', action='store_true', help='仅计算复权因子到factors目录')
 
@@ -623,9 +598,9 @@ def main():
         logger.info("数据导入器初始化成功")
 
         if args.parse_gbbq:
-            logger.info("开始解析gbbq文件到data/fq目录...")
+            logger.info("开始校验并加载data/fq/gbbq.parquet数据...")
             success = importer.parse_gbbq_to_fq()
-            logger.info(f"解析gbbq文件结果: {success}")
+            logger.info(f"校验gbbq数据结果: {success}")
         elif args.import_daily:
             logger.info("开始导入日线数据到data/daily目录...")
             success_count = importer.import_daily_data(args.max_workers)
