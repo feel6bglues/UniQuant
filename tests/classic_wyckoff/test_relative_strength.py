@@ -173,10 +173,13 @@ def test_csi300_fixture_alignment():
     """data/lake/index/000300.SH.parquet 可读且能与合成股票对齐。"""
     from pathlib import Path
 
-    p = Path("data/lake/index/000300.SH.parquet")
-    if not p.exists():
-        p = Path("data/csi300_index.parquet")
-    if not p.exists():
+    candidates = [
+        Path("data/lake/quotes/index/000300.SH.parquet"),  # 真实物理存储路径
+        Path("data/lake/index/000300.SH.parquet"),         # 软链接路径
+        Path("data/csi300_index.parquet"),                 # 历史兼容路径
+    ]
+    p = next((c for c in candidates if c.exists()), None)
+    if p is None:
         pytest.skip("000300.SH.parquet 指数数据不存在")
     index = pd.read_parquet(p)
     assert {"date", "close", "volume"}.issubset(index.columns)

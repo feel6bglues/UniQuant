@@ -163,8 +163,8 @@ PYTHON_EXEC=/home/james/Documents/Project/UniQuant/.venv/bin/python
 # 2. [L2 同步] 交易日 17:30 自动执行通达信 .day 到 Parquet 增量同步
 30 17 * * 1-5 cd $PROJECT_ROOT && $PYTHON_EXEC scripts/maintenance/sync_local_tdx_day.py >> logs/sync_local_tdx_day.log 2>&1
 
-# 3. [L2 SLA 校验] 交易日 18:00 执行数据湖健康度巡检，落盘 SLA 报告
-00 18 * * 1-5 cd $PROJECT_ROOT && $PYTHON_EXEC -c "import json; from uniquant.data.lake.storage_manager import StorageManager; r = StorageManager().validate_freshness(); print(json.dumps(r, indent=2)); exit(0 if r['is_fresh'] else 2)" >> logs/sla_daily_report.log 2>&1
+# 3. [L2 SLA 校验与多级告警] 交易日 18:00 执行数据湖健康度巡检与告警通道触发 (桌面/syslog/日志)
+00 18 * * 1-5 cd $PROJECT_ROOT && $PYTHON_EXEC scripts/maintenance/check_freshness_sla.py >> logs/sla_daily_report.log 2>&1
 ```
 
 ### 4.2 方案 B: Systemd User Timer 配置 (企业级可靠性部署)

@@ -65,17 +65,26 @@ def serialize_result(result: PipelineResult) -> Dict[str, Any]:
     trades_data = []
     if result.backtest.trades:
         for t in result.backtest.trades:
+            ts_str = ""
+            if hasattr(t, "timestamp") and t.timestamp:
+                ts_str = str(t.timestamp)
+            elif hasattr(t, "date") and t.date:
+                ts_str = str(t.date)
+            stamp_val = getattr(t, "stamp_duty", getattr(t, "stamp_tax", 0.0))
             trades_data.append({
-                "date": str(t.date) if hasattr(t, "date") else "",
-                "action": t.action if hasattr(t, "action") else "",
-                "symbol": t.symbol if hasattr(t, "symbol") else result.symbol,
-                "shares": t.shares if hasattr(t, "shares") else 0,
-                "price": t.price if hasattr(t, "price") else 0.0,
-                "reason": t.reason if hasattr(t, "reason") else "",
-                "commission": t.commission if hasattr(t, "commission") else 0.0,
-                "stamp_tax": t.stamp_tax if hasattr(t, "stamp_tax") else 0.0,
-                "transfer_fee": t.transfer_fee if hasattr(t, "transfer_fee") else 0.0,
-                "slippage": t.slippage if hasattr(t, "slippage") else 0.0,
+                "timestamp": ts_str,
+                "date": ts_str,
+                "action": getattr(t, "action", ""),
+                "symbol": getattr(t, "symbol", result.symbol),
+                "shares": getattr(t, "shares", 0),
+                "price": getattr(t, "price", 0.0),
+                "reason": getattr(t, "reason", ""),
+                "commission": getattr(t, "commission", 0.0),
+                "stamp_duty": stamp_val,
+                "stamp_tax": stamp_val,
+                "transfer_fee": getattr(t, "transfer_fee", 0.0),
+                "slippage": getattr(t, "slippage", 0.0),
+                "pnl": getattr(t, "pnl", 0.0),
             })
 
     signals_data = []
@@ -186,6 +195,125 @@ def _save_intermediate(records: List[Dict], version: str):
     print(f"  → 中间结果已保存 ({len(records)} 只)")
 
 
+def capture_execution_baseline(
+    stock_list: Optional[List[str]] = None,
+    version: str = BASELINE_VERSION,
+    verify_only: bool = False,
+) -> pd.DataFrame:
+    """捕获撮合执行层含真实成交的 Golden 基准。"""
+    from uniquant.hands.backtest.unified_engine import UnifiedBacktestEngine, TradingSignal
+
+    out_path = BASELINE_DIR / f"baseline_execution_{version}.parquet"
+    if verify_only:
+        if not out_path.exists():
+            print(f"执行基线文件不存在: {out_path}")
+            sys.exit(1)
+        existing = pd.read_parquet(out_path)
+        print(f"执行基线文件存在: {out_path}")
+        print(f"  股票数: {len(existing)}")
+        print(f"  总成交笔数: {existing['total_trades'].sum()}")
+        return existing
+
+    if stock_list is None:
+        exec_list_path = BASELINE_DIR / "golden_execution.txt"
+        stock_list = load_stock_list(exec_list_path)
+
+    print(f"捕获撮合执行基线 v{version} — {len(stock_list)} 只股票")
+    print("=" * 60)
+
+    engine = UnifiedBacktestEngine(initial_capital=500_000.0)
+    records = []
+
+    for i, symbol in enumerate(stock_list, 1):
+        t0 = time.time()
+        file_path = SRC_DIR / "data" / "lake" / "quotes" / "daily" / f"{symbol}.parquet"
+        if not file_path.exists():
+            print(f"  [{i:02d}/{len(stock_list)}] ✗ 缺少日线文件: {file_path}")
+            continue
+
+        df = pd.read_parquet(file_path)
+        df["date_dt"] = pd.to_datetime(df["date"])
+        sub_df = df[(df["date_dt"] >= "2023-01-01") & (df["date_dt"] <= "2023-12-31")].reset_index(drop=True)
+        sub_df["ma5"] = sub_df["close"].rolling(5).mean()
+        sub_df["ma20"] = sub_df["close"].rolling(20).mean()
+
+        signals = []
+        holding = False
+        shares = 100 if symbol == "600519.SH" else 500
+        for idx in range(20, len(sub_df) - 1):
+            row = sub_df.iloc[idx]
+            date = row["date"]
+            if row["ma5"] > row["ma20"] and not holding:
+                signals.append(TradingSignal(action="BUY", symbol=symbol, shares=shares, timestamp=date, reason="MA_CROSS_BUY"))
+                holding = True
+            elif row["ma5"] < row["ma20"] and holding:
+                signals.append(TradingSignal(action="SELL", symbol=symbol, shares=shares, timestamp=date, reason="MA_CROSS_SELL"))
+                holding = False
+
+        res = engine.run(df=sub_df, signals=signals, symbol=symbol)
+        duration = time.time() - t0
+
+        trades_data = []
+        for t in res.trades:
+            ts_str = str(t.timestamp) if hasattr(t, "timestamp") and t.timestamp else ""
+            stamp_val = getattr(t, "stamp_duty", getattr(t, "stamp_tax", 0.0))
+            trades_data.append({
+                "timestamp": ts_str,
+                "date": ts_str,
+                "action": getattr(t, "action", ""),
+                "symbol": getattr(t, "symbol", symbol),
+                "shares": getattr(t, "shares", 0),
+                "price": getattr(t, "price", 0.0),
+                "reason": getattr(t, "reason", ""),
+                "commission": getattr(t, "commission", 0.0),
+                "stamp_duty": stamp_val,
+                "stamp_tax": stamp_val,
+                "transfer_fee": getattr(t, "transfer_fee", 0.0),
+                "slippage": getattr(t, "slippage", 0.0),
+                "pnl": getattr(t, "pnl", 0.0),
+            })
+
+        signals_data = [
+            {
+                "action": s.action,
+                "reason": s.reason,
+                "confidence": s.confidence,
+                "shares": s.shares,
+                "symbol": s.symbol,
+                "price": s.price,
+                "timestamp": str(s.timestamp) if s.timestamp else "",
+            }
+            for s in signals
+        ]
+
+        record = {
+            "symbol": symbol,
+            "success": True,
+            "error": None,
+            "total_signals": len(signals),
+            "total_trades": res.total_trades,
+            "total_return": res.total_return,
+            "final_cash": res.final_cash,
+            "initial_capital": res.initial_capital,
+            "equity_curve": res.equity_curve,
+            "daily_returns": res.daily_returns,
+            "equity_curve_len": len(res.equity_curve),
+            "trades": trades_data,
+            "signals": signals_data,
+            "trace_id": f"exec_baseline_{symbol}",
+            "duration_sec": round(duration, 2),
+        }
+        records.append(record)
+        print(f"  [{i:02d}/{len(stock_list)}] ✓ {symbol} 信号={len(signals)} "
+              f"成交={res.total_trades} 收益={res.total_return:.4%} ({duration:.2f}s)")
+
+    df_res = pd.DataFrame(records)
+    df_res.to_parquet(out_path, index=False)
+    print(f"\n执行基线已保存: {out_path}")
+    print(f"  总成交笔数: {df_res['total_trades'].sum()}")
+    return df_res
+
+
 def main():
     parser = argparse.ArgumentParser(description="基线捕获脚本")
     parser.add_argument(
@@ -197,11 +325,27 @@ def main():
         help=f"基线版本号 (默认: {BASELINE_VERSION})",
     )
     parser.add_argument(
+        "--execution", action="store_true",
+        help="捕获撮合执行层含真实成交基线 (默认股票池: golden_execution.txt)",
+    )
+    parser.add_argument(
         "--verify-only", action="store_true",
         help="仅验证基线文件是否存在",
     )
 
     args = parser.parse_args()
+
+    if args.execution:
+        list_file = "golden_execution.txt" if args.stock_list == "golden_20.txt" else args.stock_list
+        list_path = BASELINE_DIR / list_file
+        stock_list = load_stock_list(list_path) if list_path.exists() else None
+        capture_execution_baseline(
+            stock_list=stock_list,
+            version=args.version,
+            verify_only=args.verify_only,
+        )
+        return
+
     list_path = BASELINE_DIR / args.stock_list
 
     if not list_path.exists():

@@ -149,8 +149,6 @@ class HealthService:
         Check system health (including configuration and core components).
         """
         try:
-            from datetime import datetime, timezone
-
             # Check config validation
             validation_result = self.config.validate_config()
 
@@ -166,7 +164,7 @@ class HealthService:
             return {
                 "status": status_val,
                 "overall_status": status_val,
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": get_time_provider().now().isoformat(),
                 "details": {
                     "validation_passed": validation_result,
                     "brain_config_loaded": brain_config is not None,
