@@ -146,26 +146,50 @@ class HealthService:
 
     def get_system_health(self) -> Dict[str, Any]:
         """
-        Check configuration health
+        Check system health (including configuration and core components).
         """
         try:
+            from datetime import datetime, timezone
+
             # Check config validation
             validation_result = self.config.validate_config()
 
             # Check brain config
             brain_config = self.config.get("brain")
+            status_val = "healthy" if validation_result else "unhealthy"
+
+            lake_dir = getattr(self.config, "LAKE_DIR", None)
+            lake_exists = lake_dir.exists() if lake_dir is not None else False
+            cache_dir = getattr(self.config, "CACHE_DIR", None)
+            cache_exists = cache_dir.exists() if cache_dir is not None else False
 
             return {
-                "status": "healthy" if validation_result else "unhealthy",
+                "status": status_val,
+                "overall_status": status_val,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
                 "details": {
                     "validation_passed": validation_result,
                     "brain_config_loaded": brain_config is not None,
-                    "config_sections": list(self.config._config.keys()),
+                    "config_sections": list(self.config._config.keys()) if hasattr(self.config, "_config") else [],
                 },
+                "components": {
+                    "config": {"status": status_val},
+                    "lake": {"status": "healthy" if lake_exists else "warning"},
+                    "cache": {"status": "healthy" if cache_exists else "warning"},
+                },
+                "metrics": {
+                    "cache_hit_ratio": self._cache_hit_ratio(),
+                },
+                "recommendations": self._get_health_recommendations() if hasattr(self, "_get_health_recommendations") else [],
             }
         except RECOVERABLE_ERRORS as e:
             logger.error(f"Error checking config health: {e}")
-            return {"status": "unhealthy", "error": str(e)}
+            return {
+                "status": "unhealthy",
+                "overall_status": "unhealthy",
+                "error": str(e),
+                "components": {"config": {"status": "unhealthy", "error": str(e)}},
+            }
 
     def _check_data_service_health(self) -> Dict[str, Any]:
         """

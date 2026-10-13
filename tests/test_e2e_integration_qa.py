@@ -622,25 +622,24 @@ class TestHealthService:
             pytest.skip(f"HealthService 初始化失败 (预期行为，依赖缺失): {type(e).__name__}: {e}")
 
     def test_health_service_get_system_health(self):
-        try:
-            from uniquant.services.health_service import HealthService
-            hs = HealthService()
-            health = hs.get_system_health()
-            assert isinstance(health, dict)
-            assert "overall_status" in health
-            assert "components" in health
-        except Exception as e:
-            pytest.skip(f"HealthService 依赖缺失: {type(e).__name__}: {e}")
+        from uniquant.services.health_service import HealthService
+
+        hs = HealthService()
+        health = hs.get_system_health()
+        assert isinstance(health, dict)
+        assert "overall_status" in health
+        assert "components" in health
+        assert health["overall_status"] in ("healthy", "unhealthy")
+        assert "config" in health["components"]
 
     def test_health_service_export(self):
-        try:
-            from uniquant.services.health_service import HealthService
-            hs = HealthService()
-            report = hs.export_health_report(format="json")
-            assert isinstance(report, str)
-            assert len(report) > 0
-        except Exception as e:
-            pytest.skip(f"HealthService 依赖缺失: {type(e).__name__}: {e}")
+        from uniquant.services.health_service import HealthService
+
+        hs = HealthService()
+        report = hs.export_health_report(format="json")
+        assert isinstance(report, str)
+        assert len(report) > 0
+
 
 
 # ═══════════════════════════════════════════════════════════════

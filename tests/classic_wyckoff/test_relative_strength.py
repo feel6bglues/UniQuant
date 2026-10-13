@@ -170,12 +170,14 @@ def test_output_dict_roundtrip_relative_strength():
 # ─────────────────── 真实基准数据对齐 (不依赖具体分类) ───────────────────
 
 def test_csi300_fixture_alignment():
-    """data/csi300_index.parquet 可读且能与合成股票对齐。"""
+    """data/lake/index/000300.SH.parquet 可读且能与合成股票对齐。"""
     from pathlib import Path
 
-    p = Path("data/csi300_index.parquet")
+    p = Path("data/lake/index/000300.SH.parquet")
     if not p.exists():
-        pytest.skip("csi300_index.parquet 不存在")
+        p = Path("data/csi300_index.parquet")
+    if not p.exists():
+        pytest.skip("000300.SH.parquet 指数数据不存在")
     index = pd.read_parquet(p)
     assert {"date", "close", "volume"}.issubset(index.columns)
     assert len(index) > 100

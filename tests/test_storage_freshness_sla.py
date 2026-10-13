@@ -288,7 +288,7 @@ class TestStorageFreshnessSLA:
 
         assert isinstance(res["is_fresh"], bool)
         assert isinstance(res["lake_max_date"], str)
-        assert res["lake_max_date"] == "2026-09-23"  # 真实湖基线冻结日期
+        assert res["lake_max_date"] >= "2026-09-23"  # 真实湖基线或增量同步后日期
         assert isinstance(res["l2_lag_days"], int)
         assert res["l2_lag_days"] >= 0
         assert res["details"]["lake_empty"] is False

@@ -190,11 +190,15 @@ def parse_incremental_day_file(
     return records
 
 
-def sync_single_file(args: Tuple[Path, Path, bool]) -> Dict[str, Any]:
+def sync_single_file(args: Tuple) -> Dict[str, Any]:
     """
     单个 .day 文件的增量同步任务函数（供多进程池调用）。
     """
-    day_file, data_dir, force = args
+    if len(args) == 4:
+        day_file, data_dir, force, dry_run = args
+    else:
+        day_file, data_dir, force = args
+        dry_run = False
     try:
         code, market, symbol = symbol_from_day_filename(day_file)
         is_idx = is_index_symbol(symbol)
@@ -237,10 +241,11 @@ def sync_single_file(args: Tuple[Path, Path, bool]) -> Dict[str, Any]:
         else:
             combined_df = new_df.sort_values("date").reset_index(drop=True)
 
-        target_dir.mkdir(parents=True, exist_ok=True)
-        tmp_target = target_path.with_suffix(f".parquet.tmp.{os.getpid()}")
-        combined_df.to_parquet(tmp_target, index=False, compression="snappy")
-        os.replace(tmp_target, target_path)
+        if not dry_run:
+            target_dir.mkdir(parents=True, exist_ok=True)
+            tmp_target = target_path.with_suffix(f".parquet.tmp.{os.getpid()}")
+            combined_df.to_parquet(tmp_target, index=False, compression="snappy")
+            os.replace(tmp_target, target_path)
 
         return {
             "symbol": symbol,
@@ -302,7 +307,7 @@ def run_sync(
 
     stats = SyncStats(total_scanned=len(day_files))
 
-    tasks = [(f, data_dir, force) for f in day_files]
+    tasks = [(f, data_dir, force, dry_run) for f in day_files]
 
     with ProcessPoolExecutor(max_workers=max_workers) as executor:
         futures = {executor.submit(sync_single_file, task): task for task in tasks}
