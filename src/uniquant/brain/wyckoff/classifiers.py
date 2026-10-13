@@ -8,7 +8,7 @@ from typing import List
 import pandas as pd
 
 from uniquant.shared.constants import SPRING_LOW_FACTOR
-from uniquant.shared.limits import is_limit_down, is_limit_up
+from uniquant.shared.limit_checker import is_limit_down, is_limit_up
 from uniquant.brain.wyckoff.models import (
     LimitMove,
     LimitMoveType,
