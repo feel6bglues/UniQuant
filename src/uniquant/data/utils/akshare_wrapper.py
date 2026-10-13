@@ -12,7 +12,6 @@ from ...shared.exceptions import DataFetchError, DataValidationError
 from ...shared.logger_factory import get_logger
 from ...shared.retry_decorator import retry
 from .akshare_market_service import AkshareMarketService
-from .akshare_reference_service import AkshareReferenceService
 
 logger = get_logger(__name__)
 
@@ -37,7 +36,6 @@ class AkShareWrapper:
         self._method_stats: Dict[str, Dict[str, Any]] = {}  # 方法调用统计
         self._request_headers = self._generate_request_headers()
         self.market_service = AkshareMarketService(self.call)
-        self.reference_service = AkshareReferenceService(self.call)
 
     def _generate_request_headers(self) -> Dict[str, str]:
         """
@@ -254,55 +252,6 @@ class AkShareWrapper:
     ) -> Optional[pd.DataFrame]:
         return self.market_service.fetch_etf_hist(symbol, start_date, end_date)
 
-    def fetch_industry_list(self) -> Optional[pd.DataFrame]:
-        return self.reference_service.fetch_industry_list()
-
-    def fetch_concept_list(self) -> Optional[pd.DataFrame]:
-        return self.reference_service.fetch_concept_list()
-
-    def fetch_concept_relation(self, symbol: str) -> Optional[pd.DataFrame]:
-        return self.reference_service.fetch_concept_relation(symbol)
-
-    def fetch_financial_breakfast(self) -> Optional[pd.DataFrame]:
-        return self.reference_service.fetch_financial_breakfast()
-
-    def fetch_stock_zt_pool_dtgc(self, date: str) -> Optional[pd.DataFrame]:
-        return self.reference_service.fetch_stock_zt_pool_dtgc(date)
-
-    def fetch_stock_zt_pool_previous(self, date: str) -> Optional[pd.DataFrame]:
-        return self.reference_service.fetch_stock_zt_pool_previous(date)
-
-    def fetch_stock_lhb_jgmmtj(
-        self, start_date: str, end_date: str
-    ) -> Optional[pd.DataFrame]:
-        return self.reference_service.fetch_stock_lhb_jgmmtj(start_date, end_date)
-
-    def fetch_fund_hold_detail(self, symbol: str, date: str) -> Optional[pd.DataFrame]:
-        return self.reference_service.fetch_fund_hold_detail(symbol, date)
-
-    def fetch_hsgt_board_rank(
-        self, symbol: str, indicator: str = "今日"
-    ) -> Optional[pd.DataFrame]:
-        return self.reference_service.fetch_hsgt_board_rank(symbol, indicator)
-
-    def fetch_ipo_tutor(self) -> Optional[pd.DataFrame]:
-        return self.reference_service.fetch_ipo_tutor()
-
-    def fetch_dzjy_hyyybtj(self, symbol: str = "近3日") -> Optional[pd.DataFrame]:
-        return self.reference_service.fetch_dzjy_hyyybtj(symbol)
-
-    def fetch_global_news(self, source: str = "em") -> Optional[pd.DataFrame]:
-        return self.reference_service.fetch_global_news(source)
-
-    def fetch_stock_news(self, symbol: str) -> Optional[pd.DataFrame]:
-        return self.reference_service.fetch_stock_news(symbol)
-
-    def fetch_stock_yjyg(self) -> Optional[pd.DataFrame]:
-        return self.reference_service.fetch_stock_yjyg()
-
-    def fetch_stock_yysj(self) -> Optional[pd.DataFrame]:
-        return self.reference_service.fetch_stock_yysj()
-
     def fetch_index_daily(self, symbol: str) -> Optional[pd.DataFrame]:
         return self.market_service.fetch_index_daily(symbol)
 
@@ -328,9 +277,6 @@ class AkShareWrapper:
 
     def fetch_tick_data(self, symbol: str) -> Optional[pd.DataFrame]:
         return self.market_service.fetch_tick_data(symbol)
-
-    def fetch_concept_list_ths(self) -> Optional[pd.DataFrame]:
-        return self.reference_service.fetch_concept_list_ths()
 
 
 # 全局AkShare包装器实例

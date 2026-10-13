@@ -15,7 +15,6 @@ import pytest
 import pandas as pd
 
 from uniquant.data.data_fetcher import DataFetcher
-from uniquant.data.services.data_importer import DataImporter
 import uniquant.data.managers as managers_pkg
 
 
@@ -65,53 +64,14 @@ def test_data_fetcher_has_no_adjust_factor_manager_or_delegations(clean_data_dir
     assert not hasattr(fetcher, "get_adjust_factors")
 
 
-def test_data_importer_parse_gbbq_to_fq_readonly_existing(clean_data_dir):
-    """验证 DataImporter.parse_gbbq_to_fq 读取现有 gbbq.parquet 时只读加载且绝对不覆写"""
-    fq_dir = clean_data_dir / "fq"
-    fq_dir.mkdir(parents=True, exist_ok=True)
-    gbbq_file = fq_dir / "gbbq.parquet"
+def test_data_importer_module_deleted_and_unimportable():
+    """验证 data_importer.py 已从磁盘彻底删除且无法被 import (彻底根除 GBBQ 旁路通道)"""
+    project_root = Path(__file__).resolve().parent.parent
+    importer_file = project_root / "src" / "uniquant" / "data" / "services" / "data_importer.py"
+    assert not importer_file.exists(), f"文件仍残留: {importer_file}"
 
-    # 构造测试 parquet
-    sample_df = pd.DataFrame({
-        "code": ["600519"],
-        "market": [1],
-        "date": [20240101],
-        "category": [1],
-        "cash_div": [0.0],
-        "split_ratio": [0.0],
-        "rights_ratio": [0.0],
-        "rights_price": [0.0],
-    })
-    sample_df.to_parquet(gbbq_file, index=False)
-
-    orig_mtime = gbbq_file.stat().st_mtime_ns
-    orig_bytes = gbbq_file.read_bytes()
-
-    importer = DataImporter(data_dir=str(clean_data_dir))
-    success = importer.parse_gbbq_to_fq()
-
-    assert success is True
-    assert importer.gbbq_data is not None
-    assert len(importer.gbbq_data) == 1
-    assert list(importer.gbbq_data["code"]) == ["600519"]
-
-    # 确保文件未被修改、覆写或 touch
-    assert gbbq_file.stat().st_mtime_ns == orig_mtime
-    assert gbbq_file.read_bytes() == orig_bytes
-
-
-def test_data_importer_parse_gbbq_to_fq_readonly_missing(clean_data_dir):
-    """验证 DataImporter.parse_gbbq_to_fq 当 gbbq.parquet 不存在时硬失败返回 False 且不创建文件"""
-    fq_dir = clean_data_dir / "fq"
-    fq_dir.mkdir(parents=True, exist_ok=True)
-    gbbq_file = fq_dir / "gbbq.parquet"
-    assert not gbbq_file.exists()
-
-    importer = DataImporter(data_dir=str(clean_data_dir))
-    success = importer.parse_gbbq_to_fq()
-
-    assert success is False
-    assert not gbbq_file.exists(), "不应产生或覆写 gbbq.parquet 文件"
+    with pytest.raises(ModuleNotFoundError):
+        importlib.import_module("uniquant.data.services.data_importer")
 
 
 def test_calculate_factors_v15_hard_protection_against_overwrite(tmp_path, monkeypatch):

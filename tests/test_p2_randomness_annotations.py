@@ -6,14 +6,10 @@ NON_RESEARCH_MARKER = "NON_RESEARCH_RANDOMNESS"
 
 
 def test_runtime_network_and_mock_randomness_is_annotated():
-    # Step4 S4a: eastmoney/sina/tencent/realtime_bridge 4 个死源已随爬虫链删除
+    # Step4 S4a & Step5+ 死源/死脚本已随爬虫链彻底清理
     files = [
         "src/uniquant/shared/error_handling.py",
-        "src/uniquant/data/utils/request_utils.py",
         "src/uniquant/data/utils/akshare_wrapper.py",
-        "src/uniquant/data/scripts/update_daily_data_akshare.py",
-        "src/uniquant/data/scripts/update_daily_incremental.py",
-        "src/uniquant/data/utils/js_executor.py",
     ]
 
     missing = [
