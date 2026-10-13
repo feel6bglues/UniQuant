@@ -20,7 +20,6 @@ import pytest
 
 from uniquant.brain.lppl import data_manager as lppl_data_manager
 from uniquant.data.managers.market_data_coordinator import MarketDataCoordinator
-from uniquant.data.managers.stock_data_updater import StockDataUpdater
 from uniquant.services import data_access_service as das
 from uniquant.services.cache_coordinator import CacheCoordinator
 from uniquant.services.data_access_service import DataAccessService
@@ -268,53 +267,6 @@ def test_load_etf_data_requests_explicit_raw_adjust():
     assert fetcher.calls == [{"symbol": "510300", "adjust": ""}]
     assert len(lake.writes) == 1
     assert not result.empty
-
-
-# ─────────────── ⑤ stock_data_updater 空数据防御 (§8 #6/#7)
-
-
-def _updater(get_price) -> StockDataUpdater:
-    fetcher = SimpleNamespace(
-        storage_manager=SimpleNamespace(clean_data=lambda symbol: None),
-        source_router=None,
-        data_cleaner=None,
-        data_validator=None,
-        data_adjuster=None,
-        get_price=get_price,
-    )
-    return StockDataUpdater(fetcher)
-
-
-def test_update_all_uses_raw_and_reports_empty_symbols_as_failures():
-    frames = {"600000.SH": _frame(), "000001.SZ": pd.DataFrame()}
-    calls: list[dict] = []
-
-    def _get_price(symbol, **kwargs):
-        calls.append({"symbol": symbol, **kwargs})
-        return frames[symbol]
-
-    updater = _updater(_get_price)
-
-    failed = updater.update_all(["600000.SH", "000001.SZ"])
-
-    # 刷价 = 原始价, 显式 adjust=""
-    assert [c.get("adjust") for c in calls] == ["", ""]
-    assert {c["symbol"] for c in calls} == {"600000.SH", "000001.SZ"}
-    # 空数据跳过该 symbol 并计入失败清单 (不再把空 df 往下传)
-    assert failed == ["000001.SZ"]
-
-
-def test_clean_data_uses_raw_and_normalizes_empty_result():
-    def _get_price(symbol, **kwargs):
-        assert kwargs.get("adjust") == "", "刷价/重建必须显式原始价"
-        return pd.DataFrame()
-
-    updater = _updater(_get_price)
-
-    result = updater.clean_data("600000.SH")
-
-    assert isinstance(result, pd.DataFrame)
-    assert result.empty
 
 
 # ─────────────── ⑥ rebuild_cache / check_cache_consistency (§8 #15/#16/#17)

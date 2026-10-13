@@ -53,10 +53,9 @@ class TestDataFetcherGetPriceLakeFirstRouter:
         fetcher.storage_manager.write_data(SYMBOL, _raw_df(), data_type="daily")
         fetcher.clear_price_cache()
 
+        assert not hasattr(fetcher, "source_router")
         spy_read_data = MagicMock(wraps=fetcher.storage_manager.read_data)
         fetcher.storage_manager.read_data = spy_read_data
-        spy_fallback = MagicMock()
-        fetcher.source_router.fetch_with_fallback = spy_fallback
 
         result = fetcher.get_price(SYMBOL)
 
@@ -64,7 +63,6 @@ class TestDataFetcherGetPriceLakeFirstRouter:
         assert len(result) == 2
         assert list(result.columns) == GET_PRICE_LAKE_COLUMNS
         spy_read_data.assert_called_with(SYMBOL, "daily")
-        spy_fallback.assert_not_called()
 
     def test_get_price_falls_back_to_local_source_on_lake_miss(self, tmp_path):
         with patch("uniquant.data.data_fetcher.MootdxLocalSource") as local_cls:
@@ -84,17 +82,12 @@ class TestDataFetcherGetPriceLakeFirstRouter:
             local_cls.return_value.fetch_daily.return_value = pd.DataFrame()
             _write_min_all_stock_codes(tmp_path)
             fetcher = DataFetcher(data_dir=str(tmp_path))
-            spy_fallback = MagicMock(
-                side_effect=AssertionError("get_price 不得走 source_router 爬虫链")
-            )
-            fetcher.source_router.fetch_with_fallback = spy_fallback
-            fetcher.source_router.fetch_data = spy_fallback
 
+            assert not hasattr(fetcher, "source_router")
             result = fetcher.get_price(SYMBOL)
 
         assert result.empty
         assert list(result.columns) == GET_PRICE_LAKE_COLUMNS
-        spy_fallback.assert_not_called()
 
     def test_get_price_returns_raw_prices_when_adjust_empty(self, tmp_path):
         """adjust="" 返回湖原始价 (等价于旧 "same data as ingestion path" 语义)。"""

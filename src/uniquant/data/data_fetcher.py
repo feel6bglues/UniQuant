@@ -15,8 +15,6 @@ from ..shared.logger_factory import get_logger
 from ..shared.time_provider import get_time_provider
 
 from .lake.storage_manager import StorageManager
-from .managers.standard_adapter import StandardAdapter
-from .managers.source_router import SourceRouter
 from .pipeline.data_cleaner import DataCleaner
 from .pipeline.data_validator import DataValidator
 
@@ -31,7 +29,6 @@ from .data_pipeline_service import DataPipelineService
 from .managers.stock_metadata_manager import StockMetadataManager
 from .managers.trade_calendar_manager import TradeCalendarManager
 from .managers.market_data_coordinator import MarketDataCoordinator
-from .managers.stock_data_updater import StockDataUpdater
 
 logger = get_logger("DataFetcher")
 
@@ -175,9 +172,6 @@ class DataFetcher:
         except FETCHER_INIT_RECOVERABLE_ERRORS as e:
             logger.warning(f"本地数据源 MootdxLocalSource 初始化失败，跳过: {e}")
 
-        self.adapters = [StandardAdapter(source) for source in self.data_sources]
-        self.source_router = SourceRouter(self.adapters)
-
         self.data_cleaner = DataCleaner()
         self.data_validator = DataValidator()
 
@@ -185,7 +179,6 @@ class DataFetcher:
         self.metadata_manager = StockMetadataManager(data_dir=data_dir)
         self.calendar_manager = TradeCalendarManager(data_dir=data_dir)
         self.market_coordinator = MarketDataCoordinator(self)
-        self.stock_updater = StockDataUpdater(self)
 
         self.pipeline = (
             pipeline
@@ -390,15 +383,6 @@ class DataFetcher:
             del self._price_cache[key]
         return len(keys_to_delete)
 
-    def _needs_update(self, df: pd.DataFrame) -> bool:
-        return self.stock_updater.needs_update(df)
-
-    def _update_stock(self, symbol: str, df_old: pd.DataFrame) -> pd.DataFrame:
-        return self.stock_updater.update_stock(symbol, df_old)
-
-    def update_all(self, symbols: list):
-        self.stock_updater.update_all(symbols)
-
     def fetch_stock_daily(self, symbol: str, start_date: str, end_date: str, adjust: str = "qfq") -> pd.DataFrame:
         logger.info(f"获取个股日线数据: {symbol}, {start_date} 到 {end_date}")
         # 湖优先读取 + 起止切片直接委托 get_price (默认 qfq 保持不变)
@@ -462,15 +446,6 @@ class DataFetcher:
 
     def get_symbols(self):
         return self.storage_manager.get_symbols()
-
-    def clean_data(self, symbol):
-        return self.stock_updater.clean_data(symbol)
-
-    def get_source_health_report(self):
-        return self.source_router.get_source_health_report()
-
-    def print_source_health_report(self):
-        self.source_router.print_source_health_report()
 
     def fetch_for_brain(self, symbol: str) -> Dict:
         logger.info(f"为大脑获取 {symbol} 数据")

@@ -40,8 +40,7 @@ class TestDataFetcherInitFaultTolerance:
         assert len(fetcher.data_sources) == 1
         assert type(fetcher.data_sources[0]).__name__ == "MootdxLocalSource"
         assert fetcher.mootdx_local_source is fetcher.data_sources[0]
-        # SourceRouter 只剩本地源适配器 (保留给 stock_data_updater 兼容路径)
-        assert len(fetcher.source_router.adapters) == 1
+        assert not hasattr(fetcher, "source_router")
 
     # ------------------------------------------------------------------ #
     #  测试 2：本地源初始化失败 — DataFetcher 仍可创建
@@ -60,8 +59,7 @@ class TestDataFetcherInitFaultTolerance:
         assert fetcher is not None
         assert fetcher.data_sources == []
         assert fetcher.mootdx_local_source is None
-        assert isinstance(fetcher.source_router.adapters, list)
-        assert fetcher.source_router.adapters == []
+        assert not hasattr(fetcher, "source_router")
 
     # ------------------------------------------------------------------ #
     #  测试 3：爬虫源已从模块移除
@@ -104,10 +102,10 @@ class TestDataFetcherInitFaultTolerance:
         assert fetcher.fetch_stock_market_cap("000001.SZ") == 123.45
 
     # ------------------------------------------------------------------ #
-    #  测试 5：get_price 湖优先 — 不经 source_router，只读湖
+    #  测试 5：get_price 湖优先 — 纯只读湖，无 source_router 旁路
     # ------------------------------------------------------------------ #
     def test_get_price_reads_lake_and_bypasses_source_router(self):
-        """get_price 应读湖 + 调用本地兜底，绝不触碰 source_router 抓取链。"""
+        """get_price 应读湖 + 调用本地兜底，无 source_router 抓取链。"""
         from uniquant.data.data_fetcher import DataFetcher
 
         _write_min_all_stock_codes("/tmp/test_df_lake_first")
@@ -128,10 +126,7 @@ class TestDataFetcherInitFaultTolerance:
         fetcher.storage_manager.write_data("000001.SZ", lake_df, data_type="daily")
         fetcher.clear_price_cache()
 
-        spy_router_fetch = MagicMock()
-        spy_router_fallback = MagicMock()
-        fetcher.source_router.fetch_data = spy_router_fetch
-        fetcher.source_router.fetch_with_fallback = spy_router_fallback
+        assert not hasattr(fetcher, "source_router")
         spy_read_data = MagicMock(wraps=fetcher.storage_manager.read_data)
         fetcher.storage_manager.read_data = spy_read_data
 
@@ -139,8 +134,6 @@ class TestDataFetcherInitFaultTolerance:
 
         assert not result.empty
         spy_read_data.assert_called_with("000001.SZ", "daily")
-        spy_router_fetch.assert_not_called()
-        spy_router_fallback.assert_not_called()
 
         # 只读契约: get_price 不回写数据湖
         spy_write = MagicMock()
