@@ -250,7 +250,8 @@ def capture_execution_baseline(
                 signals.append(TradingSignal(action="SELL", symbol=symbol, shares=shares, timestamp=date, reason="MA_CROSS_SELL"))
                 holding = False
 
-        res = engine.run(df=sub_df, signals=signals, symbol=symbol)
+        name = "ST金花" if symbol == "600080.SH" else None
+        res = engine.run(df=sub_df, signals=signals, symbol=symbol, name=name)
         duration = time.time() - t0
 
         trades_data = []

@@ -13,7 +13,6 @@ from __future__ import annotations
 from pathlib import Path
 import numpy as np
 import pandas as pd
-import pytest
 
 from uniquant.hands.backtest.unified_engine import (
     UnifiedBacktestEngine,
@@ -26,7 +25,7 @@ GOLDEN_LIST_FILE = Path("tests/benchmark/golden_execution.txt")
 
 def load_golden_execution_symbols() -> list[str]:
     if not GOLDEN_LIST_FILE.exists():
-        return ["000001.SZ", "600519.SH", "601318.SH", "000858.SZ", "300750.SZ"]
+        return ["000001.SZ", "600519.SH", "601318.SH", "000858.SZ", "300750.SZ", "688981.SH", "600080.SH"]
     symbols = []
     with open(GOLDEN_LIST_FILE) as f:
         for line in f:
@@ -40,14 +39,14 @@ class TestExecutionBenchmark:
     """撮合与执行基准测试套件"""
 
     def test_execution_baseline_file_integrity(self):
-        """基线文件完整性：存在、5 只股票、每只成交笔数 > 0"""
+        """基线文件完整性：存在、7 只股票、每只成交笔数 > 0"""
         assert BASELINE_FILE.exists(), f"执行基线文件缺失: {BASELINE_FILE}"
         df = pd.read_parquet(BASELINE_FILE)
 
-        assert len(df) == 5
+        assert len(df) == 7
         assert set(df["symbol"]) == set(load_golden_execution_symbols())
         assert (df["total_trades"] > 0).all(), "基线必须全量包含真实成交记录，严禁 0 成交"
-        assert df["total_trades"].sum() >= 50, "基线总成交样本数应 >= 50"
+        assert df["total_trades"].sum() >= 80, "基线总成交样本数应 >= 80 (当前 95)"
 
         for _, row in df.iterrows():
             assert len(row["trades"]) == row["total_trades"]
@@ -72,8 +71,7 @@ class TestExecutionBenchmark:
 
         for symbol in load_golden_execution_symbols():
             quote_path = Path(f"data/lake/quotes/daily/{symbol}.parquet")
-            if not quote_path.exists():
-                pytest.skip(f"缺少日线数据: {quote_path}")
+            assert quote_path.exists(), f"执行基线标的数据文件缺失 (严禁静默 skip 掩盖): {quote_path}"
 
             df = pd.read_parquet(quote_path)
             df["date_dt"] = pd.to_datetime(df["date"])
@@ -94,7 +92,8 @@ class TestExecutionBenchmark:
                     signals.append(TradingSignal(action="SELL", symbol=symbol, shares=shares, timestamp=date, reason="MA_CROSS_SELL"))
                     holding = False
 
-            current_res = engine.run(df=sub_df, signals=signals, symbol=symbol)
+            name = "ST金花" if symbol == "600080.SH" else None
+            current_res = engine.run(df=sub_df, signals=signals, symbol=symbol, name=name)
             base_row = baseline_df.loc[symbol]
 
             # 1. 标量完全一致

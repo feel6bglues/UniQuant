@@ -21,7 +21,6 @@ import shutil
 import subprocess
 import sys
 import syslog
-from datetime import datetime, timezone
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
@@ -62,12 +61,15 @@ def _send_desktop_notification(title: str, message: str) -> None:
 
 def _log_critical_alert(alert_type: str, details: dict, log_dir: Path) -> None:
     """记录结构化高危告警到专门文件与系统 syslog。"""
+    from uniquant.shared.time_provider import get_time_provider
+
     log_dir.mkdir(parents=True, exist_ok=True)
     alert_file = log_dir / "sla_alerts.log"
-    now_str = datetime.now(timezone.utc).astimezone().strftime("%Y-%m-%d %H:%M:%S %z")
+    now_dt = get_time_provider().now()
+    now_str = now_dt.strftime("%Y-%m-%d %H:%M:%S")
 
     alert_entry = {
-        "timestamp": now_str,
+        "timestamp": now_dt.isoformat(),
         "alert_type": alert_type,
         "is_fresh": details.get("is_fresh"),
         "lake_max_date": details.get("lake_max_date"),
