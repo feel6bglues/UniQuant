@@ -1,0 +1,21 @@
+{
+ "ann_return": 0.0764,
+ "sharpe": 0.6811,
+ "max_drawdown": -0.1281,
+ "total_return": 0.62,
+ "in_market_frac": 0.1706,
+ "n_rebalances": 258,
+ "total_turnover_onesided": 18.598,
+ "peak_nav": 17497535.29,
+ "end_nav": 16199991.07,
+ "n_rejected_fills": 4,
+ "n_slots": 30,
+ "engine_params": {
+  "commission_rate": 0.0003,
+  "stamp_duty_rate": 0.0005,
+  "slippage_rate": 0.001,
+  "min_commission": 5.0
+ },
+ "elapsed_sec": 59.1,
+ "universe": "sample100"
+}

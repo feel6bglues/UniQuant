@@ -1,0 +1,62 @@
+{
+  "_meta": {
+    "prereg": "docs/analysis/P15_BP_HA_PORTFOLIO_PREREGISTRATION.md (2026-08-28)",
+    "top_n": 30,
+    "cost_one_side_bp": 15.0,
+    "rebalance_every": 5,
+    "elapsed_sec": 65.4
+  },
+  "episodes": {
+    "count": 19,
+    "avg_days": 14.2
+  },
+  "strategies": {
+    "STRAT_A_cond_bp": {
+      "ann_return": 0.0891,
+      "ann_vol": 0.1047,
+      "sharpe": 0.867,
+      "max_drawdown": -0.1133,
+      "total_return": 0.7501,
+      "in_market_frac": 0.169,
+      "avg_daily_turnover_onesided": 0.0726,
+      "n_rebalances": 77
+    },
+    "CTRL_B_uncond_bp": {
+      "ann_return": 0.027,
+      "ann_vol": 0.2211,
+      "sharpe": 0.232,
+      "max_drawdown": -0.3833,
+      "total_return": 0.1907,
+      "in_market_frac": 0.999,
+      "avg_daily_turnover_onesided": 0.0107,
+      "n_rebalances": 278
+    },
+    "CTRL_C_random_in_state": {
+      "ann_return": 0.0625,
+      "ann_vol": 0.1224,
+      "sharpe": 0.556,
+      "max_drawdown": -0.1257,
+      "total_return": 0.4882,
+      "in_market_frac": 0.169,
+      "avg_daily_turnover_onesided": 0.1612,
+      "n_rebalances": 81
+    }
+  },
+  "ha_illiq_reference": {
+    "ann_return": 0.1582,
+    "sharpe": 1.33,
+    "max_drawdown": -0.129,
+    "note": "P8 STRAT_A 条件 illiq, 理想口径 500 只"
+  },
+  "verdict": {
+    "Q1_net_positive": true,
+    "Q2_timing_value_sharpe": 0.635,
+    "Q2_timing_value_ann": 0.0621,
+    "Q2_timing_dd_improvement": 0.27,
+    "Q3_selection_value_sharpe": 0.311,
+    "Q4_vs_ha_illiq_sharpe_diff": -0.463,
+    "Q4_vs_ha_illiq_ann_diff": -0.0691,
+    "Q4_vs_ha_illiq_dd_diff": 0.0157,
+    "Q5_avg_daily_turnover": 0.0726
+  }
+}

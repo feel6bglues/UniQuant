@@ -1,0 +1,408 @@
+{
+  "pre_registered": true,
+  "windows": {
+    "W1": {
+      "n_pool": 5174,
+      "n_trim": 2441,
+      "types": {
+        "distribution": {
+          "n": 177,
+          "mean_trim_exc": -3.0872,
+          "mwu_p": 0.5053
+        },
+        "markdown": {
+          "n": 38,
+          "mean_trim_exc": -4.0887,
+          "mwu_p": 0.08
+        },
+        "leader": {
+          "n": 201,
+          "mean_trim_exc": -0.9516,
+          "mwu_p": 0.0
+        },
+        "accumulation": {
+          "n": 126,
+          "mean_trim_exc": -4.1111,
+          "mwu_p": 0.0057
+        },
+        "markup": {
+          "n": 64,
+          "mean_trim_exc": -1.8837,
+          "mwu_p": 0.1116
+        },
+        "spring": {
+          "n": 67,
+          "mean_trim_exc": -2.9701,
+          "mwu_p": 0.787
+        }
+      }
+    },
+    "W2": {
+      "n_pool": 5185,
+      "n_trim": 3432,
+      "types": {
+        "distribution": {
+          "n": 276,
+          "mean_trim_exc": 0.877,
+          "mwu_p": 0.6088
+        },
+        "markdown": {
+          "n": 126,
+          "mean_trim_exc": 1.4371,
+          "mwu_p": 0.128
+        },
+        "leader": {
+          "n": 288,
+          "mean_trim_exc": 0.0035,
+          "mwu_p": 0.01
+        },
+        "accumulation": {
+          "n": 125,
+          "mean_trim_exc": 1.7531,
+          "mwu_p": 0.0148
+        },
+        "markup": {
+          "n": 37,
+          "mean_trim_exc": 0.3303,
+          "mwu_p": 0.618
+        },
+        "spring": {
+          "n": 76,
+          "mean_trim_exc": -0.5809,
+          "mwu_p": 0.015
+        }
+      }
+    },
+    "W3": {
+      "n_pool": 5178,
+      "n_trim": 1594,
+      "types": {
+        "distribution": {
+          "n": 161,
+          "mean_trim_exc": -3.1383,
+          "mwu_p": 0.78
+        },
+        "markdown": {
+          "n": 40,
+          "mean_trim_exc": -3.8039,
+          "mwu_p": 0.334
+        },
+        "leader": {
+          "n": 136,
+          "mean_trim_exc": -1.3345,
+          "mwu_p": 0.0001
+        },
+        "accumulation": {
+          "n": 56,
+          "mean_trim_exc": -2.314,
+          "mwu_p": 0.3475
+        },
+        "markup": {
+          "n": 21,
+          "mean_trim_exc": -1.3461,
+          "mwu_p": 0.2436
+        },
+        "spring": {
+          "n": 45,
+          "mean_trim_exc": -3.8682,
+          "mwu_p": 0.2784
+        }
+      }
+    },
+    "X4": {
+      "n_pool": 5133,
+      "n_trim": 3843,
+      "types": {
+        "distribution": {
+          "n": 425,
+          "mean_trim_exc": 2.9574,
+          "mwu_p": 0.0221
+        },
+        "markdown": {
+          "n": 35,
+          "mean_trim_exc": 3.4272,
+          "mwu_p": 0.244
+        },
+        "leader": {
+          "n": 720,
+          "mean_trim_exc": 2.4289,
+          "mwu_p": 0.6465
+        },
+        "accumulation": {
+          "n": 139,
+          "mean_trim_exc": 3.6489,
+          "mwu_p": 0.0025
+        },
+        "markup": {
+          "n": 234,
+          "mean_trim_exc": 2.6986,
+          "mwu_p": 0.2689
+        },
+        "spring": {
+          "n": 204,
+          "mean_trim_exc": 2.6673,
+          "mwu_p": 0.8939
+        }
+      }
+    },
+    "X5": {
+      "n_pool": 5084,
+      "n_trim": 3961,
+      "types": {
+        "distribution": {
+          "n": 381,
+          "mean_trim_exc": 0.1294,
+          "mwu_p": 0.1188
+        },
+        "markdown": {
+          "n": 93,
+          "mean_trim_exc": 1.1425,
+          "mwu_p": 0.0017
+        },
+        "leader": {
+          "n": 344,
+          "mean_trim_exc": -1.575,
+          "mwu_p": 0.0
+        },
+        "accumulation": {
+          "n": 315,
+          "mean_trim_exc": -0.3057,
+          "mwu_p": 0.9
+        },
+        "markup": {
+          "n": 67,
+          "mean_trim_exc": -1.4864,
+          "mwu_p": 0.0338
+        },
+        "spring": {
+          "n": 430,
+          "mean_trim_exc": -0.7328,
+          "mwu_p": 0.032
+        }
+      }
+    }
+  },
+  "verdicts": {
+    "distribution": {
+      "significant_windows": [
+        [
+          "X4",
+          2.9574,
+          0.0221
+        ]
+      ],
+      "n_same_sign_significant": 1,
+      "upgrade_bar_n_same_sign": 4,
+      "verdict": "PASS",
+      "reference_mismatch_info": [
+        [
+          "W1",
+          -3.0872,
+          0.3
+        ],
+        [
+          "W2",
+          0.877,
+          0.13
+        ],
+        [
+          "W3",
+          -3.1383,
+          0.11
+        ]
+      ]
+    },
+    "markdown": {
+      "significant_windows": [
+        [
+          "X5",
+          1.1425,
+          0.0017
+        ]
+      ],
+      "n_same_sign_significant": 1,
+      "upgrade_bar_n_same_sign": 4,
+      "verdict": "PASS",
+      "reference_mismatch_info": [
+        [
+          "W1",
+          -4.0887,
+          -0.94
+        ],
+        [
+          "W2",
+          1.4371,
+          0.0
+        ],
+        [
+          "W3",
+          -3.8039,
+          -0.93
+        ],
+        [
+          "X4",
+          3.4272,
+          3.18
+        ],
+        [
+          "X5",
+          1.1425,
+          1.28
+        ]
+      ]
+    },
+    "leader": {
+      "significant_windows": [
+        [
+          "W1",
+          -0.9516,
+          0.0
+        ],
+        [
+          "W2",
+          0.0035,
+          0.01
+        ],
+        [
+          "W3",
+          -1.3345,
+          0.0001
+        ],
+        [
+          "X5",
+          -1.575,
+          0.0
+        ]
+      ],
+      "n_same_sign_significant": 3,
+      "upgrade_bar_n_same_sign": 4,
+      "verdict": "PASS",
+      "reference_mismatch_info": [
+        [
+          "W1",
+          -0.9516,
+          1.64
+        ],
+        [
+          "W2",
+          0.0035,
+          -0.68
+        ],
+        [
+          "W3",
+          -1.3345,
+          1.59
+        ]
+      ]
+    },
+    "accumulation": {
+      "significant_windows": [
+        [
+          "W1",
+          -4.1111,
+          0.0057
+        ],
+        [
+          "W2",
+          1.7531,
+          0.0148
+        ],
+        [
+          "X4",
+          3.6489,
+          0.0025
+        ]
+      ],
+      "n_same_sign_significant": 2,
+      "upgrade_bar_n_same_sign": 4,
+      "verdict": "PASS",
+      "reference_mismatch_info": [
+        [
+          "W1",
+          -4.1111,
+          -0.15
+        ],
+        [
+          "W2",
+          1.7531,
+          -0.79
+        ],
+        [
+          "W3",
+          -2.314,
+          0.05
+        ]
+      ]
+    },
+    "markup": {
+      "significant_windows": [
+        [
+          "X5",
+          -1.4864,
+          0.0338
+        ]
+      ],
+      "n_same_sign_significant": 1,
+      "upgrade_bar_n_same_sign": 4,
+      "verdict": "PASS",
+      "reference_mismatch_info": [
+        [
+          "W1",
+          -1.8837,
+          2.13
+        ],
+        [
+          "W2",
+          0.3303,
+          -0.56
+        ],
+        [
+          "W3",
+          -1.3461,
+          1.33
+        ],
+        [
+          "X5",
+          -1.4864,
+          -1.66
+        ]
+      ]
+    },
+    "spring": {
+      "significant_windows": [
+        [
+          "W2",
+          -0.5809,
+          0.015
+        ],
+        [
+          "X5",
+          -0.7328,
+          0.032
+        ]
+      ],
+      "n_same_sign_significant": 2,
+      "upgrade_bar_n_same_sign": 4,
+      "verdict": "PASS",
+      "reference_mismatch_info": [
+        [
+          "W1",
+          -2.9701,
+          -0.85
+        ],
+        [
+          "W3",
+          -3.8682,
+          0.24
+        ],
+        [
+          "X5",
+          -0.7328,
+          -0.51
+        ]
+      ]
+    }
+  },
+  "overall": "PASS",
+  "overall_note": "PASS=无信号类达到升级线 (同号 p<0.05 ≥4/5 窗)。注意: 定稿 F7 表 W1-W3 数字为指数中性超额口径 (源自早前 3 窗分析), X4/X5 为原始 fwd_20d 口径, 文档内混用;本复现对 5 窗统一用原始 fwd_20d 剔尾口径 (与 f7_x4/x5 脚本一致)。X4/X5 与定稿完全吻合。leader 同号负显著达 3/5 窗 (未达 4/5 升级线) —— '全无跨窗同号'表述在一致口径下需修正为'无 2/3 多数同号'; 叙事层裁决不变。"
+}

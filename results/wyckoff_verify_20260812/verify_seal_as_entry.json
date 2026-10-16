@@ -1,0 +1,32 @@
+{
+  "pre_registered": true,
+  "C1": {
+    "adapter_no_seLL_across_all_directions": true,
+    "sell_hit_directions": [],
+    "normalizer_no_seLL_direction": true,
+    "scan_signal_no_seLL": true,
+    "scan_actions_sample": [
+      "HOLD",
+      "HOLD"
+    ],
+    "unified_engine_seLL_is_flat_close": true,
+    "verdict": "PASS"
+  },
+  "C2": {
+    "sos_candidate_signal_type_in_engine": true,
+    "independent_bool_field_implemented": true,
+    "config_sos_candidate_annotation": true,
+    "seal_check_sos_not_entry": true,
+    "verdict": "INCONCLUSIVE",
+    "note": "P1-3 (sos 独立布尔标注字段) 按定稿 §8 顺序在 P2 验收后实施; 当前 sos_candidate 仅作 signal_type 标注, 不进方向链, 无泄漏"
+  },
+  "C3": {
+    "config_stoploss_guard_enabled": false,
+    "config_depth_pct": 15,
+    "config_grace_days": 3,
+    "config_default_off": true,
+    "verdict": "PASS",
+    "note": "P1-11 功能代码按定稿 §8 在 P1 阶段实施; 本次仅验证 P0 config 段默认关声明"
+  },
+  "overall": "PASS"
+}

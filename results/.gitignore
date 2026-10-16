@@ -1,0 +1,36 @@
+# Evidence allow-list for results/
+#
+# The bulk of results/ is large, regenerable research output (full-market
+# Wyckoff scans ~1.7 MB each, dated per-symbol analysis dumps) and stays out of
+# the repository. What IS tracked is the *structured evidence chain* that backs
+# the conclusions published in AGENTS.md / docs/analysis/ — the P-series factor
+# studies, the H-A reconciliation, the gate rejections and the data-source
+# migration verification.
+#
+# Every tracked file below is content-hashed in results/EVIDENCE_MANIFEST.json
+# and verified in CI by scripts/maintenance/evidence_manifest.py. After an
+# intentional evidence change, regenerate the manifest:
+#
+#     python scripts/maintenance/evidence_manifest.py build
+#
+# Note: an allow-list here only works because the root .gitignore uses
+# `results/*` (not `results/`) — a fully excluded directory cannot re-include.
+
+# 1. Ignore everything directly under results/...
+/*
+!/.gitignore
+!/EVIDENCE_MANIFEST.json
+
+# 2. ...then re-include the curated evidence directories.
+!canslim/
+!factor_mining/
+!h_a_reconcile/
+!h_a_signals/
+!migration/
+!wyckoff_deep_verify/
+!wyckoff_experiments/
+!wyckoff_verify_20260812/
+
+# 3. ...but keep the multi-megabyte single-run verification dumps out of the
+#    repo (regenerable; see scripts/maintenance/ + scripts/factor_mining/).
+migration/ashare_all_5000_qfq_verification.json

@@ -1,17 +1,24 @@
 # AGENTS.md - UniQuant Project Control Context
 
-> ⚠️ **MUST READ FIRST** — Read `CLAUDE.md` in the project root before any other file. It contains the 10 coding rules that govern all code generation in this project. Every edit, test, and commit must follow those rules. Treat them as non-negotiable.
+> ⚠️ **MUST READ FIRST** — Read `CLAUDE.md` in the project root before any other file. It contains the 10 coding rules that govern all code generation in this project (note: the originally-referenced file was never committed; the current `CLAUDE.md` is an honest, source-cited consolidation of the rules that do exist — see its header). Every edit, test, and commit must follow those rules. Treat them as non-negotiable.
 >
 > UniQuant: A-share quantitative research and trading platform.
 >
-> **Updated 2026-10-16 (简化后全栈评估落地：四阶门禁诚实化 + CI 归零 + 过户费全市场统一 + LPPL 降为遥测 + H-A ADV 地板对齐)**: 依据只读实测报告 `docs/analysis/POST_SIMPLIFICATION_ARCHITECTURE_TRADING_EVALUATION_20261016.md`（用户核验与物理代码库 100% 吻合）与用户认可的优先级（P0-1 → P0-2 → P2）落地五项，全部以当前工作树实测验证：
+> **Updated 2026-10-16 (第二轮 P1 落地：科研控制平面接入生产因子链 + 文档漂移根治 + CI 覆盖率门 + 证据链可复现)**: 在第一轮 P0/P2 之后，按用户"继续"推进 P1 三项与 P2-3 剩余，全部以当前工作树实测验证：
+> **(1) P1-1 科研控制平面接入生产因子链**（`services/scan_service.py` + 新增 `research/ledger/bridge.py`/`ledger_store.py` + `research/ledger/degrees_of_freedom.py` + `brain/factors/walk_forward_pipeline.py`）：`ScanConfig` 增 `ledger_enabled=True`/`ledger_path=None`/`ledger_family_id="factor_scan"`；`analyze_factors` 把每 `(因子, 持有期)` 的真实 IC/t 登记入 `DegreesOfFreedomLedger`（结果进 `report["research_ledger"]`，`generate_report` 渲染小节，`_register_factor_trials` 幂等）；`bridge.ic_t_stat_to_p_value`（双侧 student-t）→ Bonferroni/BH-FDR/BY-FDR/Alpha-Wealth；`ledger_store` 原子 JSON（mkstemp + `os.replace`，损坏/缺失降级为空账本，`PermissionError` 不炸扫描）；`to_state/from_state` **直接还原 Alpha-Wealth、按原始 p 重算族系校正、不二次计息**；walk-forward 增可选 `ledger` 钩子（默认 `None`）登记**跨窗 t 中位数**避开单窗尖峰。**诚实边界**：analyzer 的 `t = ic_mean/(ic_std/√n)` 是**朴素 t（无自相关修正）**→ 以 `STUDENT_T` + `autocorr_adjusted=False` 登记，**不冒充** `IC_NEWEY_WEST_T`；`factor_correlation_matrix=None` → `M_eff = m`（不做乐观折扣）。
+> **(2) P1-2 文档漂移根治**：新建根 `CLAUDE.md`（10 条规则，**逐条标注出处**，不虚构"原始 10 条"）；**根因定位**——该文件并非从未创建，而是被根 `.gitignore` 的 `/*.md` **静默忽略**，故始终无法提交，已补 `!/CLAUDE.md`；`AGENTS.md` 首行注记来源；`docs/index.md` 头部实测口径 + 真源表降级历史 live map + 删悬空链接 + 增 `research` 行 + 新增「Evidence & Reproducibility」节；`README.md` 整体重写（删 v0.3/28%/12.6K LOC 与**已删除**数据源）；AGENTS 分层表/高风险表/控制文档表按实测修正（`data 67→33`、`brain 54→62`、`shared 44→42`、`risk 6→8`、`services 31→29`、新增 `research 12`；`sources/tdx.py` → `mootdx_local.py`；`factor_governance`/`price_collar`/`portfolio_engine`/`analysis_service_legacy` 引用全部改指向现存真源）。
+> **(3) P2-3 剩余（CI 覆盖率门 + 证据链可复现）**：CI 增独立 `coverage` 作业（`pytest --cov -n auto --timeout=900 --cov-fail-under=68`，与快速 `test` 作业并行）；`.coveragerc` 明确 `source=src/uniquant`/omit `ui/*`；`results/` 由"整目录忽略"改为"**白名单 + SHA-256 内容哈希账本**"（根 `.gitignore` `results/`→`results/*`，因为目录级排除无法再白名单）——50 个结构化证据文件（≈920 KB）纳入版本库，`scripts/maintenance/evidence_manifest.py build|verify` 由 CI 每 push 校验；`results/migration/lake_baseline.json` 即数据湖基线存证（本身在账本内）。
+> **验证**：全量 `pytest tests/` **2596 passed / 2 skipped / 0 failed**（收集 2598 = 第一轮 2575 + 新增 23）；`-n 8 --cov` **同上且逐位一致**，耗时 **3 分 37 秒**，**实测全包覆盖率 70.55%**（26,412 statements / 7,779 missed；`research` 94.3% / `signal` 91.1% / `shared` 87.0% / `risk` 73.1% / `brain` 71.9% / `hands` 64.2% / `services` 63.8% / **`data` 53.9% 最弱**）；`ruff` **All checks passed!**；`evidence_manifest.py verify` **no drift**。新增 `tests/test_research_ledger_bridge.py`（22）+ `tests/scripts/test_evidence_manifest.py`（23）。
+> **⚠️ 口径更正**：`AGENTS.md` 历史自称 coverage **57.88%**、2026-09 审计又称 **21.91% 且 `--cov` 会挂起**——**两者均不成立**：全包 `--cov` 可正常跑完，真实覆盖率 **70.55%**（历史 21.91% 系 `--cov` 未跑完的残缺值）。门限 **68%** 定位为**回归地板**（留 ~2.5 点环境余量），**非**达成 80% 目标。**⚠️ 仍开放**：`data/` 层覆盖率 53.9%、历史零覆盖文件；`docs/archive/`+`docs/reanalysis/` 历史口径未全量清理；策略容量 ≈2850 万元（H-A 固有属性）。
+>
+> **Updated 2026-10-16 (第一轮：简化后全栈评估落地：四阶门禁诚实化 + CI 归零 + 过户费全市场统一 + LPPL 降为遥测 + H-A ADV 地板对齐)**: 依据只读实测报告 `docs/analysis/POST_SIMPLIFICATION_ARCHITECTURE_TRADING_EVALUATION_20261016.md`（用户核验与物理代码库 100% 吻合）与用户认可的优先级（P0-1 → P0-2 → P2）落地五项，全部以当前工作树实测验证：
 > **(1) P0-1 四阶门禁诚实化**（`research/gates/alpha_tier_engine.py` + `research/sandboxes/base_sandbox.py`）：`evaluate_candidate` 删除"捷径伪造"——缺 `residual_ic_series` / `pbo_value` 即判 `TIER_UNRATED` 并给明确拒绝原因（**禁止**以原始 IC 自比或硬编码 PBO 绕过动量残差门与 PBO 过拟合门）；Class B/C/D 真实指标须由 `gate_inputs={"b","c","d"}` 提供，缺即在当级早退，绝不以常量填充；`ClassBEvaluator` 对 `top_industry_weights` 做 `np.asarray(...,float64)` 防御（消灭 `list ** 2` 崩溃）；`promote_candidate` 四门参数改可选 + 逐级早退；沙盒 `SandboxSignalEvaluation` 增 `residual_ic_series`/`pbo_value`/`gate_inputs` 并透传真实输入。附录 A #4 复现命令由 **TypeError 崩溃 → 诚实 `TIER_UNRATED`**；新增 `TestAlphaTierHonestGate`（真实四门全通过 → `TIER_D`）。
 > **(2) P0-2 CI 归零 + 测试环境隔离**：`ruff check --fix`（27 自动 + 3 人工：F841 `lppl_sandbox.py`、E402 `# noqa` ×2）→ `ruff check src/uniquant/ tests/ scripts/` **All checks passed!**；`tests/test_data_fetcher_init_fault_tolerance.py::_write_min_all_stock_codes` 增 `root.mkdir(parents=True, exist_ok=True)`，消除对开发机残留 `/tmp` 目录的依赖 → 干净环境 4 fail → 0（历史"2530 passed"属环境依赖假绿）。
 > **(3) P2-1 过户费全市场统一**（`shared/cost_model.py` + `unified_matching_engine.py`）：依 2022-04-29 中国结算通知，`_has_transfer_fee` 重写为**沪深北 A 股统一 0.01‰ 双向**（SH 60/68 主板+**科创板**、SZ 000/001/002/003/300/301/302、BJ 43/83/87/88/920），指数/ETF/可转债豁免；新增向量化 `has_transfer_fee_mask`（语义与标量版严格一致），撮合引擎三处 `sh_mask` → `fee_mask`。**废止历史"P1-01 深市免收"口径**，并修复其漏掉 688 科创板的缺陷。
 > **(4) P2-2 LPPL 降为遥测**（`signal/adapters.py` + `signal/arbitrator.py`）：`LPPLAdapter` 默认 `diagnostic_only=True`（危险态仅写 metadata、**不产 SELL**）；`ENGINE_PRIORITY["lppl"] 0 → 99`（与未知引擎同级=最低），文档串同步——LPPL 不再优先于决策引擎、亦不具强制平仓能力（呼应 QTR-OS 蓝图与 walk-forward"LPPL 零预测力"实证）。
 > **(5) P2-3 H-A 运行器对齐 ADV 地板**（`scripts/canslim/daily_signal_ha.py`）：`AMOUNT_FLOOR: None → 20_000_000.0`，无地板口径降为研究对照、非可交易形态。
-> **验证**：全量 `pytest tests/` **2544 passed / 2 skipped / 0 failed**（收集 2546 = 修复前 2532 + 新增 14 项；另有 4 项隔离缺陷用例由 fail 转 pass）；`ruff` 0；定向抽查 166（signal/仲裁）+ 60（成本/撮合）+ 20（沙盒门禁）+ 17（H-A 工程化）全绿。
-> **⚠️ 仍开放（P1）**：科研控制平面未接入生产（`DegreesOfFreedomLedger` 等零生产调用方，仅 `scripts/factor_mining/five_gate.py` + 2 单测引用 `uniquant.research`）；文档漂移（`README.md`/`docs/index.md` 陈旧、项目指令引用的根 `CLAUDE.md` 不存在）；CI 覆盖率门（`.github/workflows/test.yml`）与数据湖/results 可复现性（全 gitignore）。
+> **验证**：第一轮当时全量 `pytest tests/` **2544 passed / 2 skipped / 0 failed**（收集 2546）；`ruff` 0；定向抽查 166（signal/仲裁）+ 60（成本/撮合）+ 20（沙盒门禁）+ 17（H-A 工程化）全绿。
+> **⚠️ 当时仍开放（P1）→ 已在第二轮全部关闭**：科研控制平面已接入生产（见上"第二轮"）；文档漂移已根治（新建 `CLAUDE.md`）；CI 覆盖率门与数据湖/results 可复现性已落地。第二轮全量口径为 **2596 passed / 2 skipped / 0 failed**、**覆盖率 70.55%**。
 >
 > **Updated 2026-10-13 (数据源迁移后全仓大清理落地完成：39个废弃生产模块/脚本彻底剪除，66 文件净削减 -9,581 行，2,530 项全量回归 100% 绿)**: 经由量化金融工程架构与算法实测核验，编排并闭环执行三阶段原子清理与全量回归（清理本体 `ec45ca9..cae22b9`：66 文件，+20 / -9,601，净削减 -9,581 行；总删除条目 52 项含 39 生产 py + 4 测试 py + 6 历史 json + 1 csv + 1 js + 1 软链；工作区物理移除 .gitignore 的 `src/data/` 运行时污染目录）：
 > **(1) Phase 1（非代码污染与废弃爬虫工具剪除，commit `ad49eac`，24 文件 -2,913 行）**：彻底清除 `src/data/` 运行时非代码污染目录、`src/hands/results/` 6 个历史 JSON 及 `src/config` 废弃软链接；彻底剪除 `src/uniquant/data/scripts/` 下 7 个废弃数据拉取脚本（`download_baostock_factors.py`, `download_baostock_pro.py`, `sync_daily_mootdx.py`, `sync_factors_mootdx.py`, `sync_financial_mootdx.py`, `update_daily_data_akshare.py`, `update_daily_incremental.py`）；清除 `src/uniquant/data/utils/` 下 4 个废弃爬虫与 JS 执行器（`akshare_reference_service.py` 及单测, `js_executor.py`, `js/ths.js`, `request_utils.py`）；清除孤儿行业映射 `industry_provider.py` 与废弃 `stock_list.csv`；删除 3 个空桩服务（`market_regime_service.py`, `report_service.py`, `signal_generation_service.py`）。
@@ -90,24 +97,23 @@ The repository is past the historical "migration target" phase. The eight declar
 
 `shared -> data -> brain/risk/signal -> hands -> services -> ui`
 
-Current worktree snapshot from 2026-07-13 (post-v6 TDD-Red-Blue):
+Current worktree snapshot (**2026-10-16**, live measurement after the post-simplification P0/P1/P2 remediation):
 
 | Metric | Current value |
 |---:|---:|
-| Python files under `src/uniquant/` (active) | 252 |
-| Python active LOC under `src/uniquant/` | 61,889 |
-| Archived files (dead code) | 6 (2,217 LOC) |
-| Test files under `tests/` | 144 |
-| Approximate test functions | 1,934 |
-| Tests passing | 2,051 (22 skipped) |
+| Python files under `src/uniquant/` (active) | 236 |
+| Python active LOC under `src/uniquant/` | 59,594 |
+| Declared runtime layers | 8 (`shared → data → brain/risk/signal → hands → services → ui`) + `research/` control plane |
+| Test files under `tests/` | 194 |
+| Test functions | 2,359 |
+| Tests passing | 2,596 passed / 2 skipped / 0 failed (collected 2,598) |
 | Ruff issues | 0 (src + tests + scripts) |
-| Test coverage | 57.88% |
-| Dead code (archived) | ~2,217 LOC (3.5%) |
-| Functions total | 2,249 |
-| `except Exception:` total | 231 (all layers) |
+| Test coverage (whole package, `ui/` omitted) | **70.55%** (26,412 statements / 7,779 missed) |
+| `except Exception:` total (src) | 145 |
 | `except:` (bare) total | 0 |
-| Doc claims verified | 83 (88% accurate) |
-| Files at 0% coverage | 35 (reduced from 45, ~2,500 LOC) |
+| Archived / dead code | 0 (physically removed — no `archive/` dirs remain) |
+
+> **Historical snapshot (2026-07-13, post-v6 TDD-Red-Blue)** — retained for traceability only: 252 files / 61,889 LOC / 144 test files / 1,934 test functions / 2,051 passing (22 skipped) / coverage 57.88% / 6 archived files (2,217 LOC) / `except Exception:` 231 / 35 files at 0% coverage. **All of these are superseded** by the live table above; see `docs/analysis/POST_SIMPLIFICATION_ARCHITECTURE_TRADING_EVALUATION_20261016.md` for the measured basis and `docs/index.md` for the documentation state boundary.
 
 Comprehensive re-analysis complete (Phases 0-9): full baseline audit, worktree diff, 8-engine correctness audit, 7-line backtest trust audit, data pipeline reliability, signal system, engineering health, production readiness, governance, and final roadmap. See `docs/reanalysis/` for full reports.
 
@@ -827,7 +833,7 @@ Read these first:
 | `docs/remediation/v5_remediation_work_list_20260710.md` | Verified remediation work list (2026-07-10) — all 11 P0 fixes confirmed FIXED, 14 remaining items ranked R0-R3 with file:line evidence, zero hallucination gate |
 | `docs/remediation/red_blue_remediation_plan.md` | Red-blue remediation execution plan: Phase 0 (P0-01 through P0-10 core bugs), Phase 1 (P1-01 through P1-07 engineering health), Phase 2 (documentation + portfolio research). |
 | `src/uniquant/shared/event_types.py` | Event/Command base and domain events. |
-| `src/uniquant/shared/factor_governance.py` | FactorManifest / FactorRegistry with admission gate. |
+| `src/uniquant/brain/factors/registry.py` | FactorRegistry with access gate (replaced the removed `shared/factor_governance.py`). |
 | `src/uniquant/shared/config_models.py` | RefactoringConfig / FeatureFlags for staged migration. |
 | `src/uniquant/hands/backtest/unified_engine.py` | Typed signal-driven backtest engine. |
 | `src/uniquant/hands/backtest/unified_matching_engine.py` | Vectorized A-share matching engine. |
@@ -841,13 +847,14 @@ Historical architecture and migration documents under `docs/` are useful backgro
 
 | Layer | Path | Files | Responsibility |
 |---|---:|---:|---:|
-| `shared` | `src/uniquant/shared/` | 44 | Protocols, constants, config, exceptions, cache, logging, A-share rules, costs, slippage, price collars (dead), time_provider, event_types, factor_governance (dead), config_models. |
-| `data` | `src/uniquant/data/` | 67 | Multi-source data ingestion, TDX/local/online sources, data lake, managers, parsers, cleaners, validators, adjusters. |
-| `brain` | `src/uniquant/brain/` | 54 | Strategy and research engines: FSM, CZSC, LPPL, NTF, Regime, Wyckoff, indicators, factors, screener, alpha decoupler. |
-| `signal` | `src/uniquant/signal/` | 8 | Standard signal models, adapters, normalization, aggregation, quality checks. |
-| `hands` | `src/uniquant/hands/` | 33 | Backtesting, matching, portfolio engine (dead), strategy framework, reports, robustness and sensitivity tools. |
-| `risk` | `src/uniquant/risk/` | 6 | Position sizing, drawdown, EVT, structural risk, portfolio optimization. |
-| `services` | `src/uniquant/services/` | 31 | DAG service container, analysis orchestration, data service, cache coordination, reports, scan, health, research pipeline. ⚠️ 1,651 LOC legacy dead code (analysis_service_legacy.py). |
+| `shared` | `src/uniquant/shared/` | 42 | Protocols/contracts, constants, config (+loader/validator/schema), exceptions, cache, logging, A-share rules (`limit_checker`/`market_rules`), `cost_model`, `slippage_model`, `time_provider`, `event_bus`/`event_types`, `kill_switch`, `result_store`, `secret_manager`, DI container. |
+| `data` | `src/uniquant/data/` | 33 | Lake-first single-source ingestion (mootdx local/online), corporate-action adjustment (single track `CorporateActionAdjuster`), gbbq/main-data managers, parsers, cleaners, validators, GBBQ/calendar writers. |
+| `brain` | `src/uniquant/brain/` | 62 | Strategy and research engines: FSM, CZSC, LPPL, NTF, Regime, Wyckoff, indicators, factors, screener, alpha decoupler. |
+| `signal` | `src/uniquant/signal/` | 8 | Standard signal models, adapters, normalization, aggregation, arbitration, quality checks. |
+| `hands` | `src/uniquant/hands/` | 33 | Backtesting, A-share matching, strategy framework, reports, robustness and sensitivity tools (CFFEX cross-asset/TWAP/SAGA included). |
+| `risk` | `src/uniquant/risk/` | 8 | Position sizing, drawdown, EVT, structural risk, portfolio optimizer, sparse convex optimizer, compliance engine. |
+| `services` | `src/uniquant/services/` | 29 | DAG service container, analysis orchestration, data service, cache coordination/market cache, reports, scan, health, validation, research pipeline. |
+| `research` | `src/uniquant/research/` | 12 | Scientific control plane: alpha tier gates (four-tier `alpha_tier_engine`), strategy sandboxes, degrees-of-freedom ledger (trials → BH-FDR / alpha-wealth). |
 | `ui` | `src/uniquant/ui/` | 8 | Streamlit dashboard, health check, UI manager logic, LPPL visualization. |
 
 ---
@@ -874,7 +881,7 @@ Key files:
 | Engine lazy loading | `src/uniquant/services/analysis/engine_factory.py` |
 | Signal conversion | `src/uniquant/signal/adapters.py` |
 | Signal arbitration | `src/uniquant/signal/arbitrator.py` |
-| Factor governance | `src/uniquant/shared/factor_governance.py` |
+| Factor governance | `src/uniquant/brain/factors/registry.py` |
 | Feature flags | `src/uniquant/shared/config_models.py` |
 | Time provider | `src/uniquant/shared/time_provider.py` |
 | Backtest execution | `src/uniquant/hands/backtest/unified_engine.py` |
@@ -893,7 +900,7 @@ Key files:
 | T+1 sell restriction | `src/uniquant/hands/backtest/unified_engine.py`, `src/uniquant/hands/backtest/unified_matching_engine.py` |
 | Commission, stamp duty, transfer fee | `src/uniquant/shared/cost_model.py` |
 | Slippage | `src/uniquant/shared/slippage_model.py`, matching engines |
-| Price collar | `src/uniquant/shared/price_collar.py` |
+| Price collar | `src/uniquant/shared/market_rules.py` (`BoardRule.price_collar_pct`) |
 | Lot size | `src/uniquant/shared/market_rules.py` |
 
 Any change touching these rules requires focused tests and explicit review.
@@ -910,7 +917,7 @@ Any change touching these rules requires focused tests and explicit review.
 | `src/uniquant/services/service_container.py` | Runtime dependency graph and service lifetime. |
 | `src/uniquant/services/analysis_service_v2.py` | Main analysis workflow and failure defaults. |
 | `src/uniquant/services/analysis/engine_factory.py` | Engine registration and lazy import behavior. |
-| `src/uniquant/data/sources/tdx.py` | TDX source path used across data workflows. |
+| `src/uniquant/data/sources/mootdx_local.py` | Local TDX lake ingestion path used across data workflows (replaced the deleted `sources/tdx.py`). |
 | `src/uniquant/data/pipeline/data_validator.py` | OHLC data correctness guardrail. |
 | `src/uniquant/signal/adapters.py` | Converts heterogeneous engine outputs into executable signals. |
 | `src/uniquant/hands/backtest/unified_engine.py` | User-facing typed backtest behavior. |
@@ -1049,7 +1056,7 @@ Each stage requires a plan, concrete artifacts, checkpoint context, and verifica
 | If working on... | Read this first | And be aware of |
 |---|---|---|
 | Time-dependent code | `shared/time_provider.py` | 2 guarded `datetime.now()` remain in `time_provider.py` FrozenTimeProvider fallback |
-| Factor registration/access | `brain/factors/registry.py` (actual) NOT `shared/archive/factor_governance.py` (dead code, archived) | shared/ deprecated with warning |
+| Factor registration/access | `brain/factors/registry.py` | `shared/factor_governance.py` and `shared/archive/` have been physically removed — do not reintroduce |
 | Baseline/regression testing | `scripts/capture_baseline.py` + `compare_baseline.py` | Phase 0 all committed |
 | Event-driven features | `shared/event_bus.py` (sync) + `shared/event_bus.py` (async) | AsyncEventBus deployed with 9 tests |
 | Pipeline typing / data pack | `shared/interfaces.py` `ResearchDataPack` + `services/analysis_service_v2.py` dual-path | Feature flag `use_research_data_pack: true` default (flipped Phase 5); `to_dict()` flattens `metadata` for signal collector |
@@ -1072,7 +1079,7 @@ Each stage requires a plan, concrete artifacts, checkpoint context, and verifica
 | Pipeline bare except | `services/research_pipeline.py:239` | P0-08 **FIXED**: narrowed to specific exceptions |
 | Wyckoff bare except | `brain/wyckoff/engine.py:251,261,1575,1591` | P0-09 **FIXED**: 4 bare excepts narrowed |
 | Signal timeout disabled | `signal/arbitrator.py:39` | `DEFAULT_MAX_SIGNAL_AGE_SECONDS=0.0` — backtest-aware context needed for enable |
-| price_collar dead | `shared/price_collar.py` | Zero production callers; remove from P1 consideration |
+| price_collar | `shared/market_rules.py` (`BoardRule.price_collar_pct`) | Standalone `shared/price_collar.py` removed; the collar now lives as a per-board field |
 | DynamicSlippage dead | `shared/slippage_model.py:DynamicSlippage` | Never instantiated in default backtest path |
 | BoardType unified | `shared/board_registry.py` | 116 LOC — BoardType dual system resolved via registry |
 | Walk-Forward 回测终结结论 | `scripts/output/walk_forward_definitive_report.json` + `/tmp/walk_forward_actual.py` | 500 只 × 6 窗口 walk-forward 验证: LPPL 零预测力 (MC 证明 93% GBM 噪声拟合), Wyckoff 理论从不触发, Wyckoff "买入" 4.5% 罕见信号 p=0.0098 显著, 自定义分类掩盖了唯一有效信号 |

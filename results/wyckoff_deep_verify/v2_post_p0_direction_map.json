@@ -1,0 +1,128 @@
+{
+  "meta": {
+    "script": "v2_post_p0_direction_map.py",
+    "description": "P0 实施后方向映射实证验证 — adapter direction gate 分布",
+    "windows": [
+      "W1",
+      "W2",
+      "W3",
+      "X4",
+      "X5"
+    ],
+    "entry_directions": [
+      "买入",
+      "做多",
+      "轻仓试探"
+    ],
+    "confidence_gate": 0.4
+  },
+  "verdict": {
+    "overall_pass": true,
+    "rule": "V2 PASS ⇔ 5/5 窗 BUY>0 且 SELL==0",
+    "all_buy_gt_0": true,
+    "all_sell_eq_0": true,
+    "details": {
+      "W1": {
+        "buy_gt_0": true,
+        "sell_eq_0": true
+      },
+      "W2": {
+        "buy_gt_0": true,
+        "sell_eq_0": true
+      },
+      "W3": {
+        "buy_gt_0": true,
+        "sell_eq_0": true
+      },
+      "X4": {
+        "buy_gt_0": true,
+        "sell_eq_0": true
+      },
+      "X5": {
+        "buy_gt_0": true,
+        "sell_eq_0": true
+      }
+    }
+  },
+  "per_window": [
+    {
+      "window": "W1",
+      "as_of_date": "2026-04-30",
+      "n_total": 4762,
+      "n_non_neutral": 153,
+      "n_buy": 126,
+      "n_none": 4636,
+      "n_sell": 0,
+      "n_direction_only": 137,
+      "n_buy_gate40": 126,
+      "coverage": 0.8235,
+      "buy_gt_0": true,
+      "sell_eq_0": true
+    },
+    {
+      "window": "W2",
+      "as_of_date": "2026-03-31",
+      "n_total": 4773,
+      "n_non_neutral": 46,
+      "n_buy": 36,
+      "n_none": 4737,
+      "n_sell": 0,
+      "n_direction_only": 40,
+      "n_buy_gate40": 36,
+      "coverage": 0.7826,
+      "buy_gt_0": true,
+      "sell_eq_0": true
+    },
+    {
+      "window": "W3",
+      "as_of_date": "2026-05-29",
+      "n_total": 4766,
+      "n_non_neutral": 115,
+      "n_buy": 60,
+      "n_none": 4706,
+      "n_sell": 0,
+      "n_direction_only": 66,
+      "n_buy_gate40": 60,
+      "coverage": 0.5217,
+      "buy_gt_0": true,
+      "sell_eq_0": true
+    },
+    {
+      "window": "X4",
+      "as_of_date": "2025-06-30",
+      "n_total": 4719,
+      "n_non_neutral": 306,
+      "n_buy": 155,
+      "n_none": 4564,
+      "n_sell": 0,
+      "n_direction_only": 167,
+      "n_buy_gate40": 155,
+      "coverage": 0.5065,
+      "buy_gt_0": true,
+      "sell_eq_0": true
+    },
+    {
+      "window": "X5",
+      "as_of_date": "2024-12-31",
+      "n_total": 4670,
+      "n_non_neutral": 301,
+      "n_buy": 75,
+      "n_none": 4595,
+      "n_sell": 0,
+      "n_direction_only": 120,
+      "n_buy_gate40": 75,
+      "coverage": 0.2492,
+      "buy_gt_0": true,
+      "sell_eq_0": true
+    }
+  ],
+  "direction_lookup": {
+    "买入": "BUY",
+    "做多": "BUY",
+    "持有": null,
+    "持有观察": null,
+    "空仓观望": null,
+    "观察等待": null,
+    "轻仓试探": "BUY"
+  }
+}

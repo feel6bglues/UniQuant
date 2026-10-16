@@ -1,0 +1,492 @@
+{
+  "metadata": {
+    "title": "TDX Stock Metadata Equivalence Verification (D5 Constraint 5)",
+    "timestamp_utc": "2026-10-13T01:27:02.847498+00:00",
+    "git_commit": "8a64057b1ef3525beccb693e273fc053fbd97df0",
+    "python_version": "3.12.3 (main, Aug 31 2026, 10:18:26) [GCC 13.3.0]"
+  },
+  "baseline_summary": {
+    "file_path": "/home/james/Documents/Project/UniQuant/data/all_stock_codes.csv",
+    "total_rows": 8878,
+    "columns": [
+      "code",
+      "name",
+      "代码",
+      "ipoDate",
+      "outDate",
+      "type",
+      "status"
+    ],
+    "active_count": 7702,
+    "delisted_count": 1176,
+    "with_ipo_date_count": 8878,
+    "with_out_date_count": 1176,
+    "type_distribution": {
+      "1": 5541,
+      "5": 1622,
+      "4": 1119,
+      "2": 596
+    },
+    "sample_records": {
+      "600519": {
+        "code": "sh.600519",
+        "name": "贵州茅台",
+        "代码": 600519,
+        "ipoDate": "2001-08-27",
+        "outDate": null,
+        "type": 1,
+        "status": 1
+      },
+      "000001": {
+        "code": "sh.000001",
+        "name": "上证综合指数",
+        "代码": 1,
+        "ipoDate": "1991-07-15",
+        "outDate": null,
+        "type": 2,
+        "status": 1
+      },
+      "600001": {
+        "code": "sh.600001",
+        "name": "邯郸钢铁",
+        "代码": 600001,
+        "ipoDate": "1998-01-22",
+        "outDate": "2009-12-29",
+        "type": 1,
+        "status": 0
+      },
+      "600002": {
+        "code": "sh.600002",
+        "name": "齐鲁石化",
+        "代码": 600002,
+        "ipoDate": "1998-04-08",
+        "outDate": "2006-04-24",
+        "type": 1,
+        "status": 0
+      },
+      "600069": {
+        "code": "sh.600069",
+        "name": "退市银鸽",
+        "代码": 600069,
+        "ipoDate": "1997-04-30",
+        "outDate": "2020-08-27",
+        "type": 1,
+        "status": 0
+      },
+      "600074": {
+        "code": "sh.600074",
+        "name": "退市保千",
+        "代码": 600074,
+        "ipoDate": "1997-06-23",
+        "outDate": "2020-06-02",
+        "type": 1,
+        "status": 0
+      }
+    }
+  },
+  "tdx_local_tnf": {
+    "shs_tnf": {
+      "exists": true,
+      "file_path": "/home/james/.local/share/tdxcfv/drive_c/tc/T0002/hq_cache/shs.tnf",
+      "file_size_bytes": 9940010,
+      "server_ip": "118.25.98.114",
+      "record_size_bytes": 360,
+      "record_count": 27611,
+      "fields_supported": [
+        "code",
+        "name",
+        "decimal_point",
+        "volunit_or_preclose",
+        "pinyin"
+      ],
+      "fields_missing": [
+        "ipoDate",
+        "outDate",
+        "type",
+        "status"
+      ],
+      "sample_records": [
+        {
+          "code": "999999",
+          "name": "上证指数",
+          "decimal_point": 2,
+          "pinyin": "SZZS"
+        },
+        {
+          "code": "999998",
+          "name": "Ａ股指数",
+          "decimal_point": 2,
+          "pinyin": "AGZS"
+        },
+        {
+          "code": "999997",
+          "name": "Ｂ股指数",
+          "decimal_point": 2,
+          "pinyin": "BGZS"
+        },
+        {
+          "code": "000001",
+          "name": "上证指数",
+          "decimal_point": 2,
+          "pinyin": "SZZS"
+        },
+        {
+          "code": "000002",
+          "name": "Ａ股指数",
+          "decimal_point": 2,
+          "pinyin": "AGZS"
+        }
+      ],
+      "delisted_found": {
+        "600001": false,
+        "600002": false,
+        "600069": false,
+        "600074": false
+      },
+      "active_found": {
+        "600519": true,
+        "000001": true
+      }
+    },
+    "szs_tnf": {
+      "exists": true,
+      "file_path": "/home/james/.local/share/tdxcfv/drive_c/tc/T0002/hq_cache/szs.tnf",
+      "file_size_bytes": 8794850,
+      "server_ip": "118.25.98.114",
+      "record_size_bytes": 360,
+      "record_count": 24430,
+      "fields_supported": [
+        "code",
+        "name",
+        "decimal_point",
+        "volunit_or_preclose",
+        "pinyin"
+      ],
+      "fields_missing": [
+        "ipoDate",
+        "outDate",
+        "type",
+        "status"
+      ],
+      "sample_records": [
+        {
+          "code": "395001",
+          "name": "主板Ａ股",
+          "decimal_point": 2,
+          "pinyin": "ZBAG"
+        },
+        {
+          "code": "395002",
+          "name": "主板Ｂ股",
+          "decimal_point": 2,
+          "pinyin": "ZBBG"
+        },
+        {
+          "code": "395004",
+          "name": "创业板",
+          "decimal_point": 2,
+          "pinyin": "CYB"
+        },
+        {
+          "code": "395005",
+          "name": "主板DR",
+          "decimal_point": 2,
+          "pinyin": "ZBDR"
+        },
+        {
+          "code": "395006",
+          "name": "创业板DR",
+          "decimal_point": 2,
+          "pinyin": "CYBDR"
+        }
+      ],
+      "delisted_found": {
+        "600001": false,
+        "600002": false,
+        "600069": false,
+        "600074": false
+      },
+      "active_found": {
+        "600519": false,
+        "000001": true
+      }
+    }
+  },
+  "tdx_local_dbf": {
+    "exists": true,
+    "file_path": "/home/james/.local/share/tdxcfv/drive_c/tc/T0002/hq_cache/base.dbf",
+    "file_size_bytes": 56619343,
+    "version": 3,
+    "date": "2026-10-12",
+    "total_records": 117709,
+    "header_length": 1313,
+    "record_length": 481,
+    "total_fields": 40,
+    "fields": [
+      "SC",
+      "GPDM",
+      "GXRQ",
+      "ZGB",
+      "GJG",
+      "FQRFRG",
+      "FRG",
+      "BG",
+      "HG",
+      "LTAG",
+      "ZGG",
+      "ZPG",
+      "ZZC",
+      "LDZC",
+      "GDZC",
+      "WXZC",
+      "CQTZ",
+      "LDFZ",
+      "CQFZ",
+      "ZBGJJ",
+      "JZC",
+      "ZYSY",
+      "ZYLY",
+      "QTLY",
+      "YYLY",
+      "TZSY",
+      "BTSY",
+      "YYWSZ",
+      "SNSYTZ",
+      "LYZE",
+      "SHLY",
+      "JLY",
+      "WFPLY",
+      "TZMGJZ",
+      "DY",
+      "HY",
+      "ZBNB",
+      "SSDATE",
+      "MODIDATE",
+      "GDRS"
+    ],
+    "has_name_field": false,
+    "has_ipo_date_field": true,
+    "has_out_date_field": false,
+    "has_status_field": false,
+    "has_type_field": false,
+    "delisted_found": {
+      "600074": false,
+      "600069": false,
+      "600002": false,
+      "600001": false
+    },
+    "active_found": {
+      "000001": true,
+      "600519": true
+    },
+    "sample_records": [
+      {
+        "SC": "0",
+        "GPDM": "000001",
+        "GXRQ": "20251028",
+        "ZGB": "1940591.87",
+        "JZC": "517929984.0",
+        "JLY": "38339000.0",
+        "DY": "18",
+        "HY": "1",
+        "SSDATE": "19910403"
+      },
+      {
+        "SC": "1",
+        "GPDM": "600519",
+        "GXRQ": "20251030",
+        "ZGB": "125227.02",
+        "JZC": "257069952.0",
+        "JLY": "64626744.0",
+        "DY": "29",
+        "HY": "37",
+        "SSDATE": "20010827"
+      },
+      {
+        "SC": "0",
+        "GPDM": "000001",
+        "GXRQ": "20260321",
+        "ZGB": "1940591.87",
+        "JZC": "551184000.0",
+        "JLY": "42633000.0",
+        "DY": "18",
+        "HY": "1",
+        "SSDATE": "19910403"
+      }
+    ]
+  },
+  "tdx_local_readers": {
+    "mootdx_reader_methods": [
+      "block",
+      "block_new",
+      "daily",
+      "find_path",
+      "fzline",
+      "minute",
+      "tdxdir"
+    ],
+    "has_security_metadata_method": false,
+    "block_type": "NoneType",
+    "block_new_type": "DataFrame",
+    "block_new_columns": [],
+    "verdict": "mootdx Reader 仅支持行情分笔/K线与板块读写，无主数据/代码表/退市日读取能力"
+  },
+  "tdx_remote_quotes": {
+    "skipped": false,
+    "connected_server": [
+      "180.153.18.170",
+      7709
+    ],
+    "pytdx_get_security_list_fields": [
+      "code",
+      "volunit",
+      "decimal_point",
+      "name",
+      "pre_close"
+    ],
+    "pytdx_batch_counts": {
+      "sz_first_page_count": 1000,
+      "sh_first_page_count": 1000
+    },
+    "mootdx_stocks_columns": [
+      "code",
+      "volunit",
+      "decimal_point",
+      "name",
+      "pre_close"
+    ],
+    "mootdx_total_security_count": 52051,
+    "mootdx_sample_records": [
+      {
+        "code": "395001",
+        "volunit": 100,
+        "decimal_point": 2,
+        "name": "主板Ａ股",
+        "pre_close": 1495.0
+      },
+      {
+        "code": "395002",
+        "volunit": 100,
+        "decimal_point": 2,
+        "name": "主板Ｂ股",
+        "pre_close": 128.0
+      },
+      {
+        "code": "395004",
+        "volunit": 100,
+        "decimal_point": 2,
+        "name": "创业板\u0000\u0000",
+        "pre_close": 1410.0
+      }
+    ],
+    "delisted_stocks_found": {
+      "600001": false,
+      "600002": false,
+      "600069": false,
+      "600074": false
+    },
+    "active_stocks_found": {
+      "600519": true,
+      "000001": true
+    },
+    "finance_columns_count": 37,
+    "finance_has_outdate": false,
+    "finance_has_status": false,
+    "finance_delisted_stock_supported": false,
+    "finance_latency_evaluation": "5,000+ 标的逐只调用需数千次网络往返，单线程 >300s，且退市股返回空数据"
+  },
+  "survivorship_bias_guard_impact": {
+    "delisted_target": "600069.SH",
+    "baseline_test": {
+      "delist_date_resolved": "2020-08-27",
+      "is_delisted_2021_01_01": true,
+      "is_delisted_2020_01_01": false,
+      "survivorship_warning_generated": true,
+      "warning_message": "Symbol delisted 2020-08-27; backtest extends to 2020-09-01"
+    },
+    "hypothetical_tdx_test": {
+      "delist_date_resolved": null,
+      "is_delisted_2021_01_01": false,
+      "survivorship_warning_generated": false,
+      "warning_message": "",
+      "impact": "TDX 缺失 outDate 且剔除退市股后: get_delist_date 返回 None, is_delisted 恒为 False, unified_engine 退市守卫静默失效 (零警告), 导致横截面研究与回测系统性产生幸存者偏差！"
+    }
+  },
+  "field_comparison_matrix": [
+    {
+      "field": "code",
+      "baseline_meaning": "带交易所前缀标的代码 (sh.600519)",
+      "baseline_present": true,
+      "tdx_local_tnf": "支持 (6位纯数字，如 600519)",
+      "tdx_local_dbf": "支持 (6位纯数字 GPDM 列)",
+      "tdx_remote_stocks": "支持 (6位纯数字 code 列)",
+      "status": "等价 (需前缀规整化)"
+    },
+    {
+      "field": "name",
+      "baseline_meaning": "证券简称 (贵州茅台)",
+      "baseline_present": true,
+      "tdx_local_tnf": "支持 (GBK 字符串)",
+      "tdx_local_dbf": "缺失 (base.dbf 无证券简称列)",
+      "tdx_remote_stocks": "支持 (name 列)",
+      "status": "等价 (除 base.dbf 缺失外)"
+    },
+    {
+      "field": "代码",
+      "baseline_meaning": "6位数字股票代码 (600519)",
+      "baseline_present": true,
+      "tdx_local_tnf": "支持",
+      "tdx_local_dbf": "支持 (GPDM)",
+      "tdx_remote_stocks": "支持 (code)",
+      "status": "等价"
+    },
+    {
+      "field": "ipoDate",
+      "baseline_meaning": "上市日期 (YYYY-MM-DD)",
+      "baseline_present": true,
+      "tdx_local_tnf": "缺失 (360字节记录无上市日)",
+      "tdx_local_dbf": "部分支持 (SSDATE YYYYMMDD，仅限未退市标的)",
+      "tdx_remote_stocks": "缺失 (get_security_list 无上市日列)",
+      "status": "严重缺失 (代码表接口均不提供，仅 F10 单股接口逐只包含)"
+    },
+    {
+      "field": "outDate",
+      "baseline_meaning": "退市日期 (YYYY-MM-DD，若未退市为空)",
+      "baseline_present": true,
+      "tdx_local_tnf": "缺失 (无退市日且物理剔除退市股)",
+      "tdx_local_dbf": "缺失 (40个字段中无任何退市日字段)",
+      "tdx_remote_stocks": "缺失 (无退市日列，已退市标的无法查询)",
+      "status": "致命缺失 (通达信全系行情接口完全不提供退市日)"
+    },
+    {
+      "field": "type",
+      "baseline_meaning": "证券类型 (1=股票, 2=指数, 4=可转债, 5=ETF/基金)",
+      "baseline_present": true,
+      "tdx_local_tnf": "缺失 (混合存储，无显式类型枚举)",
+      "tdx_local_dbf": "缺失 (无证券类型分类字段)",
+      "tdx_remote_stocks": "缺失 (全市场 5.2 万标的混编，无类型列)",
+      "status": "缺失 (需靠代码前缀规则脆弱推断，无法区分股票与混合类品种)"
+    },
+    {
+      "field": "status",
+      "baseline_meaning": "存续状态 (1=上市在市, 0=已退市)",
+      "baseline_present": true,
+      "tdx_local_tnf": "缺失 (仅保留当前交易日有效标的)",
+      "tdx_local_dbf": "缺失 (无状态标记)",
+      "tdx_remote_stocks": "缺失 (无状态列，退市股直接剔除)",
+      "status": "致命缺失 (无法区分存续与退市状态)"
+    }
+  ],
+  "verdict": {
+    "d5_constraint_5_passed": false,
+    "can_replace_baostock": false,
+    "key_reasons": [
+      "TDX 本地缓存 (shs.tnf/szs.tnf) 与远程 API (get_security_list/stocks) 完全不提供 ipoDate、outDate、type、status 核心字段;",
+      "TDX 行情接口与本地缓存物理剔除了已退市标的 (600001/600002/600069/600074 查无此股), 无法提供全量证券历史生命周期;",
+      "TDX 本地 base.dbf 虽然包含 SSDATE (上市日), 但完全缺失 outDate 与 status 字段, 且历史退市股票记录已被清洗;",
+      "若用 TDX 代码表替代, StockMetadataManager.get_delist_date 恒返回 None, unified_engine 退市守卫静默失效, 横截面研究将系统性引入幸存者偏差。"
+    ],
+    "architectural_decision": "永久冻结 `src/uniquant/data/managers/_baostock_client.py` 作为受管的离线/本地主数据同步生产模块。关闭'裁剪 baostock 离线生产链'待办，D5 约束 5 正式核准并关单。项目数据契约维持当前单副本 SSOT `data/all_stock_codes.csv` (8,879 行)。",
+    "status": "APPROVED_AND_CLOSED"
+  }
+}

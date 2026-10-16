@@ -1,0 +1,9 @@
+{
+  "pre_registered": true,
+  "gate": "P2-5 golden baseline 前后对比 (golden_20, 4 标量字段)",
+  "n_symbols": 20,
+  "identical": true,
+  "diffs": {},
+  "verdict": "PASS",
+  "note": "P0 改动在 RDP 默认路径下不影响 Wyckoff→TradingSignal 链 (F12 三层绝缘); 预期 4 标量字段全一致; 若 FAIL 需人工裁决是否故意 (如非 RDP 直连信号增减)"
+}

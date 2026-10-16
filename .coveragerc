@@ -1,2 +1,15 @@
 [run]
-omit = src/uniquant/ui/*
+source = src/uniquant
+# The Streamlit dashboard is exercised manually, not by the test suite.
+omit =
+    src/uniquant/ui/*
+
+[report]
+# Keep the gate honest: exclude only lines that genuinely cannot be covered.
+exclude_lines =
+    pragma: no cover
+    if TYPE_CHECKING:
+    if __name__ == .__main__.:
+    raise NotImplementedError
+show_missing = True
+skip_covered = True

@@ -1,0 +1,2984 @@
+{
+  "test_name": "V4: 全信号链 SELL-as-entry 泄漏审计",
+  "timestamp": "2026-08-14T11:22:00.745099",
+  "p0_commit": "P0-1/2/3/4/5/6/7 (2026-08-12 深入再研究定稿)",
+  "sections": [
+    {
+      "section": "A. 静态代码审计",
+      "checks": {
+        "A1_adapter_no_sell": {
+          "pass": true,
+          "detail": "WyckoffAdapter 范围内 (151-215) SELL 字面量引用: 0 处; _ENTRY_DIRECTIONS: {'line': 164, 'text': '_ENTRY_DIRECTIONS = {\"做多\", \"买入\", \"轻仓试探\"}'}"
+        },
+        "A2_direction_map_all_zero": {
+          "pass": true,
+          "detail": "_DIRECTION_MAP = {WYCKOFF_ACCUMULATION: 0, WYCKOFF_SPRING: 0, WYCKOFF_LPS: 0, WYCKOFF_DISTRIBUTION: 0, WYCKOFF_UTAD: 0, WYCKOFF_SOW: 0} — 全部为 0，无 -1 注入"
+        },
+        "A3_scan_signal_buy_hold_only": {
+          "pass": true,
+          "detail": "scan_signal (2018-2098) 中 action='SELL' 赋值: False; action 赋值仅 {BUY, HOLD} (line 2068-2071); 注释 '# 恒不产 SELL' 为正确声明"
+        },
+        "A4_arbitrator_sell_branch_analysis": {
+          "pass": true,
+          "detail": {
+            "sell_sources_in_system": {
+              "LPPLAdapter": "SELL (Danger, line 89)",
+              "FSMAdapter": "SELL/EXECUTE_SELL/FORCE_EXIT (line 231-237)",
+              "NTFAdapter": "SELL (RESISTANCE+intensity>=0.6, line 341-349)",
+              "AlphaScoreAdapter": "SELL (score<0.3, line 375-376)",
+              "MAStatusAdapter": "SELL (<= in ma_status, line 411-412)",
+              "TradingSignal.from_dict": "SELL (EXECUTE_SELL/FORCE_EXIT, line 171-174)",
+              "WyckoffAdapter": "恒不产 SELL (P0-2/P0-7, 仅返回 BUY 或 None)"
+            },
+            "arbitrator_sell_branches": [
+              {
+                "line": 151,
+                "text": "actionable = [s for s in day_signals if s.action in (\"BUY\", \"SELL\")]",
+                "wyckoff_caused": false,
+                "reachable_with_non_wyckoff_input": true,
+                "reachable_with_wyckoff_only_input": false
+              },
+              {
+                "line": 170,
+                "text": "if oos_r2 < self._quality_threshold and sig.action == \"SELL\":",
+                "wyckoff_caused": false,
+                "reachable_with_non_wyckoff_input": true,
+                "reachable_with_wyckoff_only_input": false
+              },
+              {
+                "line": 199,
+                "text": "sells = [s for s in actionable if s.action == \"SELL\"]",
+                "wyckoff_caused": false,
+                "reachable_with_non_wyckoff_input": true,
+                "reachable_with_wyckoff_only_input": false
+              },
+              {
+                "line": 204,
+                "text": "log.selected_action = \"SELL\"",
+                "wyckoff_caused": false,
+                "reachable_with_non_wyckoff_input": true,
+                "reachable_with_wyckoff_only_input": false
+              },
+              {
+                "line": 219,
+                "text": "for action in (\"BUY\", \"SELL\"):",
+                "wyckoff_caused": false,
+                "reachable_with_non_wyckoff_input": true,
+                "reachable_with_wyckoff_only_input": false
+              },
+              {
+                "line": 251,
+                "text": "if sig.action not in (\"BUY\", \"SELL\"):",
+                "wyckoff_caused": false,
+                "reachable_with_non_wyckoff_input": true,
+                "reachable_with_wyckoff_only_input": false
+              },
+              {
+                "line": 315,
+                "text": "report.final_action = \"SELL\"",
+                "wyckoff_caused": false,
+                "reachable_with_non_wyckoff_input": true,
+                "reachable_with_wyckoff_only_input": false
+              },
+              {
+                "line": 319,
+                "text": "TradingSignal(action=\"SELL\", reason=\"FORCE_EXIT\", confidence=1.0, symbol=symbol)",
+                "wyckoff_caused": false,
+                "reachable_with_non_wyckoff_input": true,
+                "reachable_with_wyckoff_only_input": false
+              },
+              {
+                "line": 338,
+                "text": "sell_candidates = [c for c in candidates if c.action == \"SELL\"]",
+                "wyckoff_caused": false,
+                "reachable_with_non_wyckoff_input": true,
+                "reachable_with_wyckoff_only_input": false
+              },
+              {
+                "line": 341,
+                "text": "report.final_action = \"SELL\"",
+                "wyckoff_caused": false,
+                "reachable_with_non_wyckoff_input": true,
+                "reachable_with_wyckoff_only_input": false
+              },
+              {
+                "line": 346,
+                "text": "if c.action != \"SELL\":",
+                "wyckoff_caused": false,
+                "reachable_with_non_wyckoff_input": true,
+                "reachable_with_wyckoff_only_input": false
+              },
+              {
+                "line": 350,
+                "text": "action=\"SELL\",",
+                "wyckoff_caused": false,
+                "reachable_with_non_wyckoff_input": true,
+                "reachable_with_wyckoff_only_input": false
+              }
+            ],
+            "conclusion": "仲裁器 SELL 分支全部可达（输入可能来自 LPPL/FSM/NTF/AlphaScore/MAStatus），但 Wyckoff 恒不产 SELL 输入，因此 Wyckoff 信号不可能被仲裁器提升为 SELL。仲裁器 SELL-priority 规则仅从已有 SELL 信号中选最高置信度，不产生新 SELL。Wyckoff 在仲裁器中的 SELL 分支 = 不可达（dead code for Wyckoff input）。"
+          }
+        },
+        "A5_unified_engine_sell_guard": {
+          "pass": true,
+          "detail": "unified_engine.py:384 — if (sig.action == \"SELL\" and position > 0 and pending_order is None"
+        }
+      }
+    },
+    {
+      "section": "B. 运行时注入",
+      "checks": {
+        "B1_collector_e2e": {
+          "pass": true,
+          "detail": {
+            "total_signals": 2,
+            "sell_count": 0,
+            "wyckoff_signals": [
+              {
+                "action": "BUY",
+                "reason": "Wyckoff direction=做多 phase=accumulation spring=True utad=False",
+                "confidence": 0.7
+              }
+            ],
+            "conclusion": "Collector 全链未产出 SELL-as-entry"
+          }
+        },
+        "B2_adapter_direction_injection": {
+          "pass": true,
+          "detail": {
+            "injected_directions": [
+              "做多",
+              "买入",
+              "轻仓试探",
+              "持有",
+              "观察等待",
+              "空仓观望",
+              "做空",
+              "卖出",
+              "减仓",
+              "清仓",
+              ""
+            ],
+            "results": [
+              {
+                "direction": "做多",
+                "action": "BUY",
+                "is_sell": false
+              },
+              {
+                "direction": "买入",
+                "action": "BUY",
+                "is_sell": false
+              },
+              {
+                "direction": "轻仓试探",
+                "action": "BUY",
+                "is_sell": false
+              },
+              {
+                "direction": "持有",
+                "action": "None",
+                "is_sell": false
+              },
+              {
+                "direction": "观察等待",
+                "action": "None",
+                "is_sell": false
+              },
+              {
+                "direction": "空仓观望",
+                "action": "None",
+                "is_sell": false
+              },
+              {
+                "direction": "做空",
+                "action": "None",
+                "is_sell": false
+              },
+              {
+                "direction": "卖出",
+                "action": "None",
+                "is_sell": false
+              },
+              {
+                "direction": "减仓",
+                "action": "None",
+                "is_sell": false
+              },
+              {
+                "direction": "清仓",
+                "action": "None",
+                "is_sell": false
+              },
+              {
+                "direction": "",
+                "action": "None",
+                "is_sell": false
+              }
+            ],
+            "conclusion": "WyckoffAdapter 恒不产 SELL-as-entry"
+          }
+        },
+        "B3_arbitrator_no_wyckoff_sell": {
+          "pass": true,
+          "detail": {
+            "input_signals": [
+              {
+                "action": "HOLD",
+                "reason": "LPPL risk=Safe conf=0.20",
+                "confidence": 0.2
+              },
+              {
+                "action": "BUY",
+                "reason": "Wyckoff direction=做多 phase=accumulation spring=True utad=False",
+                "confidence": 0.7
+              },
+              {
+                "action": "BUY",
+                "reason": "AlphaScore=0.65",
+                "confidence": 0.30000000000000004
+              }
+            ],
+            "final_signals": [
+              {
+                "action": "BUY",
+                "reason": "Wyckoff direction=做多 phase=accumulation spring=True utad=False",
+                "confidence": 0.7
+              }
+            ],
+            "wyckoff_in_final": true,
+            "any_sell": false,
+            "conclusion": "仲裁器不会将 Wyckoff 信号提升为 SELL"
+          }
+        },
+        "B3b_mixed_scenario": {
+          "pass": true,
+          "detail": {
+            "input": [
+              {
+                "action": "BUY",
+                "reason": "Wyckoff direction=做多 phase=accumulation"
+              },
+              {
+                "action": "SELL",
+                "reason": "LPPL risk=Danger"
+              }
+            ],
+            "output": [
+              {
+                "action": "SELL",
+                "reason": "LPPL risk=Danger"
+              }
+            ],
+            "wyckoff_misattributed_as_sell": false,
+            "conclusion": "非 Wyckoff SELL 存在时，仲裁器正确选择 SELL (LPPL) 为 winner，Wyckoff BUY 未被提升为 SELL"
+          }
+        },
+        "B3c_arbitrate_candidates_wyckoff_not_sell": {
+          "pass": true,
+          "detail": {
+            "input_candidates": [
+              {
+                "source": "wyckoff",
+                "action": "BUY",
+                "confidence": 0.7
+              },
+              {
+                "source": "alpha_score",
+                "action": "BUY",
+                "confidence": 0.6
+              },
+              {
+                "source": "lppl",
+                "action": "SELL",
+                "confidence": 0.8
+              }
+            ],
+            "output_signals": [
+              {
+                "action": "SELL",
+                "reason": "arbitrated: lppl confidence=0.80"
+              }
+            ],
+            "report": {
+              "final_action": "SELL",
+              "final_reason": "arbitrated: lppl SELL",
+              "veto_chain": [
+                "sell_priority: lppl"
+              ]
+            },
+            "wyckoff_misattributed_as_sell": false,
+            "conclusion": "arbitrate_candidates 路径中，Wyckoff CandidateSignal 恒为 BUY，不会被误提升为 SELL"
+          }
+        },
+        "B4_scan_signal_injection": {
+          "pass": true,
+          "detail": {
+            "action": "HOLD",
+            "phase": "unknown",
+            "signal_type": "no_signal",
+            "confidence": 0.3,
+            "conclusion": "scan_signal action ∈ {('BUY', 'HOLD')} = True"
+          }
+        }
+      }
+    },
+    {
+      "section": "C. 路径覆盖矩阵",
+      "matrix": [
+        {
+          "phase": "accumulation",
+          "spring": false,
+          "utad": false,
+          "direction": "做多",
+          "adapter_action": "BUY",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "BUY"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "accumulation",
+          "spring": false,
+          "utad": false,
+          "direction": "买入",
+          "adapter_action": "BUY",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "BUY"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "accumulation",
+          "spring": false,
+          "utad": false,
+          "direction": "轻仓试探",
+          "adapter_action": "BUY",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "BUY"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "accumulation",
+          "spring": false,
+          "utad": false,
+          "direction": "持有",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "accumulation",
+          "spring": false,
+          "utad": false,
+          "direction": "观察等待",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "accumulation",
+          "spring": false,
+          "utad": false,
+          "direction": "空仓观望",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "accumulation",
+          "spring": false,
+          "utad": false,
+          "direction": "做空",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "accumulation",
+          "spring": false,
+          "utad": false,
+          "direction": "卖出",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "accumulation",
+          "spring": false,
+          "utad": false,
+          "direction": "减仓",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "accumulation",
+          "spring": false,
+          "utad": false,
+          "direction": "清仓",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "accumulation",
+          "spring": false,
+          "utad": false,
+          "direction": "",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "accumulation",
+          "spring": false,
+          "utad": true,
+          "direction": "做多",
+          "adapter_action": "BUY",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "BUY"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "accumulation",
+          "spring": false,
+          "utad": true,
+          "direction": "买入",
+          "adapter_action": "BUY",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "BUY"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "accumulation",
+          "spring": false,
+          "utad": true,
+          "direction": "轻仓试探",
+          "adapter_action": "BUY",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "BUY"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "accumulation",
+          "spring": false,
+          "utad": true,
+          "direction": "持有",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "accumulation",
+          "spring": false,
+          "utad": true,
+          "direction": "观察等待",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "accumulation",
+          "spring": false,
+          "utad": true,
+          "direction": "空仓观望",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "accumulation",
+          "spring": false,
+          "utad": true,
+          "direction": "做空",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "accumulation",
+          "spring": false,
+          "utad": true,
+          "direction": "卖出",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "accumulation",
+          "spring": false,
+          "utad": true,
+          "direction": "减仓",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "accumulation",
+          "spring": false,
+          "utad": true,
+          "direction": "清仓",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "accumulation",
+          "spring": false,
+          "utad": true,
+          "direction": "",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "accumulation",
+          "spring": true,
+          "utad": false,
+          "direction": "做多",
+          "adapter_action": "BUY",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "BUY"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "accumulation",
+          "spring": true,
+          "utad": false,
+          "direction": "买入",
+          "adapter_action": "BUY",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "BUY"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "accumulation",
+          "spring": true,
+          "utad": false,
+          "direction": "轻仓试探",
+          "adapter_action": "BUY",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "BUY"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "accumulation",
+          "spring": true,
+          "utad": false,
+          "direction": "持有",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "accumulation",
+          "spring": true,
+          "utad": false,
+          "direction": "观察等待",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "accumulation",
+          "spring": true,
+          "utad": false,
+          "direction": "空仓观望",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "accumulation",
+          "spring": true,
+          "utad": false,
+          "direction": "做空",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "accumulation",
+          "spring": true,
+          "utad": false,
+          "direction": "卖出",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "accumulation",
+          "spring": true,
+          "utad": false,
+          "direction": "减仓",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "accumulation",
+          "spring": true,
+          "utad": false,
+          "direction": "清仓",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "accumulation",
+          "spring": true,
+          "utad": false,
+          "direction": "",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "accumulation",
+          "spring": true,
+          "utad": true,
+          "direction": "做多",
+          "adapter_action": "BUY",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "BUY"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "accumulation",
+          "spring": true,
+          "utad": true,
+          "direction": "买入",
+          "adapter_action": "BUY",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "BUY"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "accumulation",
+          "spring": true,
+          "utad": true,
+          "direction": "轻仓试探",
+          "adapter_action": "BUY",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "BUY"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "accumulation",
+          "spring": true,
+          "utad": true,
+          "direction": "持有",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "accumulation",
+          "spring": true,
+          "utad": true,
+          "direction": "观察等待",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "accumulation",
+          "spring": true,
+          "utad": true,
+          "direction": "空仓观望",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "accumulation",
+          "spring": true,
+          "utad": true,
+          "direction": "做空",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "accumulation",
+          "spring": true,
+          "utad": true,
+          "direction": "卖出",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "accumulation",
+          "spring": true,
+          "utad": true,
+          "direction": "减仓",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "accumulation",
+          "spring": true,
+          "utad": true,
+          "direction": "清仓",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "accumulation",
+          "spring": true,
+          "utad": true,
+          "direction": "",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "distribution",
+          "spring": false,
+          "utad": false,
+          "direction": "做多",
+          "adapter_action": "BUY",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "BUY"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "distribution",
+          "spring": false,
+          "utad": false,
+          "direction": "买入",
+          "adapter_action": "BUY",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "BUY"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "distribution",
+          "spring": false,
+          "utad": false,
+          "direction": "轻仓试探",
+          "adapter_action": "BUY",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "BUY"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "distribution",
+          "spring": false,
+          "utad": false,
+          "direction": "持有",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "distribution",
+          "spring": false,
+          "utad": false,
+          "direction": "观察等待",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "distribution",
+          "spring": false,
+          "utad": false,
+          "direction": "空仓观望",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "distribution",
+          "spring": false,
+          "utad": false,
+          "direction": "做空",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "distribution",
+          "spring": false,
+          "utad": false,
+          "direction": "卖出",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "distribution",
+          "spring": false,
+          "utad": false,
+          "direction": "减仓",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "distribution",
+          "spring": false,
+          "utad": false,
+          "direction": "清仓",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "distribution",
+          "spring": false,
+          "utad": false,
+          "direction": "",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "distribution",
+          "spring": false,
+          "utad": true,
+          "direction": "做多",
+          "adapter_action": "BUY",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "BUY"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "distribution",
+          "spring": false,
+          "utad": true,
+          "direction": "买入",
+          "adapter_action": "BUY",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "BUY"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "distribution",
+          "spring": false,
+          "utad": true,
+          "direction": "轻仓试探",
+          "adapter_action": "BUY",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "BUY"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "distribution",
+          "spring": false,
+          "utad": true,
+          "direction": "持有",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "distribution",
+          "spring": false,
+          "utad": true,
+          "direction": "观察等待",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "distribution",
+          "spring": false,
+          "utad": true,
+          "direction": "空仓观望",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "distribution",
+          "spring": false,
+          "utad": true,
+          "direction": "做空",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "distribution",
+          "spring": false,
+          "utad": true,
+          "direction": "卖出",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "distribution",
+          "spring": false,
+          "utad": true,
+          "direction": "减仓",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "distribution",
+          "spring": false,
+          "utad": true,
+          "direction": "清仓",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "distribution",
+          "spring": false,
+          "utad": true,
+          "direction": "",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "distribution",
+          "spring": true,
+          "utad": false,
+          "direction": "做多",
+          "adapter_action": "BUY",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "BUY"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "distribution",
+          "spring": true,
+          "utad": false,
+          "direction": "买入",
+          "adapter_action": "BUY",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "BUY"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "distribution",
+          "spring": true,
+          "utad": false,
+          "direction": "轻仓试探",
+          "adapter_action": "BUY",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "BUY"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "distribution",
+          "spring": true,
+          "utad": false,
+          "direction": "持有",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "distribution",
+          "spring": true,
+          "utad": false,
+          "direction": "观察等待",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "distribution",
+          "spring": true,
+          "utad": false,
+          "direction": "空仓观望",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "distribution",
+          "spring": true,
+          "utad": false,
+          "direction": "做空",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "distribution",
+          "spring": true,
+          "utad": false,
+          "direction": "卖出",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "distribution",
+          "spring": true,
+          "utad": false,
+          "direction": "减仓",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "distribution",
+          "spring": true,
+          "utad": false,
+          "direction": "清仓",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "distribution",
+          "spring": true,
+          "utad": false,
+          "direction": "",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "distribution",
+          "spring": true,
+          "utad": true,
+          "direction": "做多",
+          "adapter_action": "BUY",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "BUY"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "distribution",
+          "spring": true,
+          "utad": true,
+          "direction": "买入",
+          "adapter_action": "BUY",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "BUY"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "distribution",
+          "spring": true,
+          "utad": true,
+          "direction": "轻仓试探",
+          "adapter_action": "BUY",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "BUY"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "distribution",
+          "spring": true,
+          "utad": true,
+          "direction": "持有",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "distribution",
+          "spring": true,
+          "utad": true,
+          "direction": "观察等待",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "distribution",
+          "spring": true,
+          "utad": true,
+          "direction": "空仓观望",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "distribution",
+          "spring": true,
+          "utad": true,
+          "direction": "做空",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "distribution",
+          "spring": true,
+          "utad": true,
+          "direction": "卖出",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "distribution",
+          "spring": true,
+          "utad": true,
+          "direction": "减仓",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "distribution",
+          "spring": true,
+          "utad": true,
+          "direction": "清仓",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "distribution",
+          "spring": true,
+          "utad": true,
+          "direction": "",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "markup",
+          "spring": false,
+          "utad": false,
+          "direction": "做多",
+          "adapter_action": "BUY",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "BUY"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "markup",
+          "spring": false,
+          "utad": false,
+          "direction": "买入",
+          "adapter_action": "BUY",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "BUY"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "markup",
+          "spring": false,
+          "utad": false,
+          "direction": "轻仓试探",
+          "adapter_action": "BUY",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "BUY"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "markup",
+          "spring": false,
+          "utad": false,
+          "direction": "持有",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "markup",
+          "spring": false,
+          "utad": false,
+          "direction": "观察等待",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "markup",
+          "spring": false,
+          "utad": false,
+          "direction": "空仓观望",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "markup",
+          "spring": false,
+          "utad": false,
+          "direction": "做空",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "markup",
+          "spring": false,
+          "utad": false,
+          "direction": "卖出",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "markup",
+          "spring": false,
+          "utad": false,
+          "direction": "减仓",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "markup",
+          "spring": false,
+          "utad": false,
+          "direction": "清仓",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "markup",
+          "spring": false,
+          "utad": false,
+          "direction": "",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "markup",
+          "spring": false,
+          "utad": true,
+          "direction": "做多",
+          "adapter_action": "BUY",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "BUY"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "markup",
+          "spring": false,
+          "utad": true,
+          "direction": "买入",
+          "adapter_action": "BUY",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "BUY"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "markup",
+          "spring": false,
+          "utad": true,
+          "direction": "轻仓试探",
+          "adapter_action": "BUY",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "BUY"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "markup",
+          "spring": false,
+          "utad": true,
+          "direction": "持有",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "markup",
+          "spring": false,
+          "utad": true,
+          "direction": "观察等待",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "markup",
+          "spring": false,
+          "utad": true,
+          "direction": "空仓观望",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "markup",
+          "spring": false,
+          "utad": true,
+          "direction": "做空",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "markup",
+          "spring": false,
+          "utad": true,
+          "direction": "卖出",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "markup",
+          "spring": false,
+          "utad": true,
+          "direction": "减仓",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "markup",
+          "spring": false,
+          "utad": true,
+          "direction": "清仓",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "markup",
+          "spring": false,
+          "utad": true,
+          "direction": "",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "markup",
+          "spring": true,
+          "utad": false,
+          "direction": "做多",
+          "adapter_action": "BUY",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "BUY"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "markup",
+          "spring": true,
+          "utad": false,
+          "direction": "买入",
+          "adapter_action": "BUY",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "BUY"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "markup",
+          "spring": true,
+          "utad": false,
+          "direction": "轻仓试探",
+          "adapter_action": "BUY",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "BUY"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "markup",
+          "spring": true,
+          "utad": false,
+          "direction": "持有",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "markup",
+          "spring": true,
+          "utad": false,
+          "direction": "观察等待",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "markup",
+          "spring": true,
+          "utad": false,
+          "direction": "空仓观望",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "markup",
+          "spring": true,
+          "utad": false,
+          "direction": "做空",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "markup",
+          "spring": true,
+          "utad": false,
+          "direction": "卖出",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "markup",
+          "spring": true,
+          "utad": false,
+          "direction": "减仓",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "markup",
+          "spring": true,
+          "utad": false,
+          "direction": "清仓",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "markup",
+          "spring": true,
+          "utad": false,
+          "direction": "",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "markup",
+          "spring": true,
+          "utad": true,
+          "direction": "做多",
+          "adapter_action": "BUY",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "BUY"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "markup",
+          "spring": true,
+          "utad": true,
+          "direction": "买入",
+          "adapter_action": "BUY",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "BUY"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "markup",
+          "spring": true,
+          "utad": true,
+          "direction": "轻仓试探",
+          "adapter_action": "BUY",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "BUY"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "markup",
+          "spring": true,
+          "utad": true,
+          "direction": "持有",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "markup",
+          "spring": true,
+          "utad": true,
+          "direction": "观察等待",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "markup",
+          "spring": true,
+          "utad": true,
+          "direction": "空仓观望",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "markup",
+          "spring": true,
+          "utad": true,
+          "direction": "做空",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "markup",
+          "spring": true,
+          "utad": true,
+          "direction": "卖出",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "markup",
+          "spring": true,
+          "utad": true,
+          "direction": "减仓",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "markup",
+          "spring": true,
+          "utad": true,
+          "direction": "清仓",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "markup",
+          "spring": true,
+          "utad": true,
+          "direction": "",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "markdown",
+          "spring": false,
+          "utad": false,
+          "direction": "做多",
+          "adapter_action": "BUY",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "BUY"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "markdown",
+          "spring": false,
+          "utad": false,
+          "direction": "买入",
+          "adapter_action": "BUY",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "BUY"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "markdown",
+          "spring": false,
+          "utad": false,
+          "direction": "轻仓试探",
+          "adapter_action": "BUY",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "BUY"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "markdown",
+          "spring": false,
+          "utad": false,
+          "direction": "持有",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "markdown",
+          "spring": false,
+          "utad": false,
+          "direction": "观察等待",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "markdown",
+          "spring": false,
+          "utad": false,
+          "direction": "空仓观望",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "markdown",
+          "spring": false,
+          "utad": false,
+          "direction": "做空",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "markdown",
+          "spring": false,
+          "utad": false,
+          "direction": "卖出",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "markdown",
+          "spring": false,
+          "utad": false,
+          "direction": "减仓",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "markdown",
+          "spring": false,
+          "utad": false,
+          "direction": "清仓",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "markdown",
+          "spring": false,
+          "utad": false,
+          "direction": "",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "markdown",
+          "spring": false,
+          "utad": true,
+          "direction": "做多",
+          "adapter_action": "BUY",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "BUY"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "markdown",
+          "spring": false,
+          "utad": true,
+          "direction": "买入",
+          "adapter_action": "BUY",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "BUY"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "markdown",
+          "spring": false,
+          "utad": true,
+          "direction": "轻仓试探",
+          "adapter_action": "BUY",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "BUY"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "markdown",
+          "spring": false,
+          "utad": true,
+          "direction": "持有",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "markdown",
+          "spring": false,
+          "utad": true,
+          "direction": "观察等待",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "markdown",
+          "spring": false,
+          "utad": true,
+          "direction": "空仓观望",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "markdown",
+          "spring": false,
+          "utad": true,
+          "direction": "做空",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "markdown",
+          "spring": false,
+          "utad": true,
+          "direction": "卖出",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "markdown",
+          "spring": false,
+          "utad": true,
+          "direction": "减仓",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "markdown",
+          "spring": false,
+          "utad": true,
+          "direction": "清仓",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "markdown",
+          "spring": false,
+          "utad": true,
+          "direction": "",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "markdown",
+          "spring": true,
+          "utad": false,
+          "direction": "做多",
+          "adapter_action": "BUY",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "BUY"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "markdown",
+          "spring": true,
+          "utad": false,
+          "direction": "买入",
+          "adapter_action": "BUY",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "BUY"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "markdown",
+          "spring": true,
+          "utad": false,
+          "direction": "轻仓试探",
+          "adapter_action": "BUY",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "BUY"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "markdown",
+          "spring": true,
+          "utad": false,
+          "direction": "持有",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "markdown",
+          "spring": true,
+          "utad": false,
+          "direction": "观察等待",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "markdown",
+          "spring": true,
+          "utad": false,
+          "direction": "空仓观望",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "markdown",
+          "spring": true,
+          "utad": false,
+          "direction": "做空",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "markdown",
+          "spring": true,
+          "utad": false,
+          "direction": "卖出",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "markdown",
+          "spring": true,
+          "utad": false,
+          "direction": "减仓",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "markdown",
+          "spring": true,
+          "utad": false,
+          "direction": "清仓",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "markdown",
+          "spring": true,
+          "utad": false,
+          "direction": "",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "markdown",
+          "spring": true,
+          "utad": true,
+          "direction": "做多",
+          "adapter_action": "BUY",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "BUY"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "markdown",
+          "spring": true,
+          "utad": true,
+          "direction": "买入",
+          "adapter_action": "BUY",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "BUY"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "markdown",
+          "spring": true,
+          "utad": true,
+          "direction": "轻仓试探",
+          "adapter_action": "BUY",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "BUY"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "markdown",
+          "spring": true,
+          "utad": true,
+          "direction": "持有",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "markdown",
+          "spring": true,
+          "utad": true,
+          "direction": "观察等待",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "markdown",
+          "spring": true,
+          "utad": true,
+          "direction": "空仓观望",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "markdown",
+          "spring": true,
+          "utad": true,
+          "direction": "做空",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "markdown",
+          "spring": true,
+          "utad": true,
+          "direction": "卖出",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "markdown",
+          "spring": true,
+          "utad": true,
+          "direction": "减仓",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "markdown",
+          "spring": true,
+          "utad": true,
+          "direction": "清仓",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "markdown",
+          "spring": true,
+          "utad": true,
+          "direction": "",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "unknown",
+          "spring": false,
+          "utad": false,
+          "direction": "做多",
+          "adapter_action": "BUY",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "BUY"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "unknown",
+          "spring": false,
+          "utad": false,
+          "direction": "买入",
+          "adapter_action": "BUY",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "BUY"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "unknown",
+          "spring": false,
+          "utad": false,
+          "direction": "轻仓试探",
+          "adapter_action": "BUY",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "BUY"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "unknown",
+          "spring": false,
+          "utad": false,
+          "direction": "持有",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "unknown",
+          "spring": false,
+          "utad": false,
+          "direction": "观察等待",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "unknown",
+          "spring": false,
+          "utad": false,
+          "direction": "空仓观望",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "unknown",
+          "spring": false,
+          "utad": false,
+          "direction": "做空",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "unknown",
+          "spring": false,
+          "utad": false,
+          "direction": "卖出",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "unknown",
+          "spring": false,
+          "utad": false,
+          "direction": "减仓",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "unknown",
+          "spring": false,
+          "utad": false,
+          "direction": "清仓",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "unknown",
+          "spring": false,
+          "utad": false,
+          "direction": "",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "unknown",
+          "spring": false,
+          "utad": true,
+          "direction": "做多",
+          "adapter_action": "BUY",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "BUY"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "unknown",
+          "spring": false,
+          "utad": true,
+          "direction": "买入",
+          "adapter_action": "BUY",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "BUY"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "unknown",
+          "spring": false,
+          "utad": true,
+          "direction": "轻仓试探",
+          "adapter_action": "BUY",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "BUY"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "unknown",
+          "spring": false,
+          "utad": true,
+          "direction": "持有",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "unknown",
+          "spring": false,
+          "utad": true,
+          "direction": "观察等待",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "unknown",
+          "spring": false,
+          "utad": true,
+          "direction": "空仓观望",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "unknown",
+          "spring": false,
+          "utad": true,
+          "direction": "做空",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "unknown",
+          "spring": false,
+          "utad": true,
+          "direction": "卖出",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "unknown",
+          "spring": false,
+          "utad": true,
+          "direction": "减仓",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "unknown",
+          "spring": false,
+          "utad": true,
+          "direction": "清仓",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "unknown",
+          "spring": false,
+          "utad": true,
+          "direction": "",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "unknown",
+          "spring": true,
+          "utad": false,
+          "direction": "做多",
+          "adapter_action": "BUY",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "BUY"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "unknown",
+          "spring": true,
+          "utad": false,
+          "direction": "买入",
+          "adapter_action": "BUY",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "BUY"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "unknown",
+          "spring": true,
+          "utad": false,
+          "direction": "轻仓试探",
+          "adapter_action": "BUY",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "BUY"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "unknown",
+          "spring": true,
+          "utad": false,
+          "direction": "持有",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "unknown",
+          "spring": true,
+          "utad": false,
+          "direction": "观察等待",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "unknown",
+          "spring": true,
+          "utad": false,
+          "direction": "空仓观望",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "unknown",
+          "spring": true,
+          "utad": false,
+          "direction": "做空",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "unknown",
+          "spring": true,
+          "utad": false,
+          "direction": "卖出",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "unknown",
+          "spring": true,
+          "utad": false,
+          "direction": "减仓",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "unknown",
+          "spring": true,
+          "utad": false,
+          "direction": "清仓",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "unknown",
+          "spring": true,
+          "utad": false,
+          "direction": "",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "unknown",
+          "spring": true,
+          "utad": true,
+          "direction": "做多",
+          "adapter_action": "BUY",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "BUY"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "unknown",
+          "spring": true,
+          "utad": true,
+          "direction": "买入",
+          "adapter_action": "BUY",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "BUY"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "unknown",
+          "spring": true,
+          "utad": true,
+          "direction": "轻仓试探",
+          "adapter_action": "BUY",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "BUY"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "unknown",
+          "spring": true,
+          "utad": true,
+          "direction": "持有",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "unknown",
+          "spring": true,
+          "utad": true,
+          "direction": "观察等待",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "unknown",
+          "spring": true,
+          "utad": true,
+          "direction": "空仓观望",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "unknown",
+          "spring": true,
+          "utad": true,
+          "direction": "做空",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "unknown",
+          "spring": true,
+          "utad": true,
+          "direction": "卖出",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "unknown",
+          "spring": true,
+          "utad": true,
+          "direction": "减仓",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "unknown",
+          "spring": true,
+          "utad": true,
+          "direction": "清仓",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        },
+        {
+          "phase": "unknown",
+          "spring": true,
+          "utad": true,
+          "direction": "",
+          "adapter_action": "None",
+          "normalizer_direction": 0,
+          "collector_actions": [
+            "None"
+          ],
+          "has_sell": false
+        }
+      ],
+      "pass": true,
+      "total_cells": 220,
+      "sell_cells": 0,
+      "sell_cell_details": [],
+      "conclusion": "矩阵 220 单元格，其中 SELL 单元格 0 个 → PASS"
+    }
+  ],
+  "verdict": "PASS",
+  "summary": {
+    "A_static_audit": "PASS",
+    "B_runtime_injection": "PASS",
+    "C_path_matrix": "PASS",
+    "final_verdict": "PASS"
+  }
+}

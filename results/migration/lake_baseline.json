@@ -1,0 +1,119 @@
+{
+  "generated_at": "2026-10-12T06:46:38+00:00",
+  "git_head": "ddd678a5884d594bd211136c196084a59e6af0c1",
+  "quotes_daily": {
+    "dir": "/home/james/Documents/Project/UniQuant/data/lake/quotes/daily",
+    "file_count": 5201,
+    "symlink_count": 2,
+    "symlink_files": [
+      "000001.SH.parquet",
+      "000300.SH.parquet"
+    ],
+    "total_rows": 16771505,
+    "last_date_min": "2026-01-20",
+    "last_date_max": "2026-09-23",
+    "schema_variants": [
+      {
+        "columns": [
+          "amount",
+          "close",
+          "code",
+          "date",
+          "high",
+          "low",
+          "open",
+          "reserved",
+          "volume"
+        ],
+        "file_count": 5201
+      }
+    ]
+  },
+  "quotes_index": {
+    "dir": "/home/james/Documents/Project/UniQuant/data/lake/quotes/index",
+    "file_count": 554,
+    "symlink_count": 0,
+    "symlink_files": [],
+    "total_rows": 2407606,
+    "last_date_min": "2026-09-23",
+    "last_date_max": "2026-09-23",
+    "schema_variants": [
+      {
+        "columns": [
+          "amount",
+          "close",
+          "code",
+          "date",
+          "high",
+          "low",
+          "open",
+          "reserved",
+          "volume"
+        ],
+        "file_count": 554
+      }
+    ]
+  },
+  "financial": {
+    "dir": "/home/james/Documents/Project/UniQuant/data/lake/financial",
+    "file_count": 5211,
+    "symlink_count": 0
+  },
+  "fq_gbbq": {
+    "path": "/home/james/Documents/Project/UniQuant/data/fq/gbbq.parquet",
+    "rows": 193295
+  },
+  "stock_pool": {
+    "method": "lightweight (不 import StorageManager): 扫描 daily/*.parquet 排除 symlink+指数符号, 语义镜像 StorageManager.get_symbols(exclude_indices=True)",
+    "count": 5201,
+    "sha256": "9188d32f4a85ab3e2265a6662e40a65a4d6488c58e662034c4c889dfd5046e6e",
+    "all_stock_codes_csv": {
+      "path": "/home/james/Documents/Project/UniQuant/data/all_stock_codes.csv",
+      "sha256": "593f0d41e5032b87b30c726e32c0d16b1f1c08fdd9ad31fb6778de965e2392e1"
+    }
+  },
+  "dimension_stats": {
+    "method": "sampled daily parquet files",
+    "seed": 42,
+    "n_sampled": 20,
+    "sampled_symbols": [
+      "002406.SZ",
+      "000677.SZ",
+      "300815.SZ",
+      "300555.SZ",
+      "300369.SZ",
+      "002658.SZ",
+      "002330.SZ",
+      "603987.SH",
+      "002196.SZ",
+      "688285.SH",
+      "600745.SH",
+      "000758.SZ",
+      "000728.SZ",
+      "002252.SZ",
+      "300326.SZ",
+      "300450.SZ",
+      "603332.SH",
+      "688391.SH",
+      "000695.SZ",
+      "688007.SH"
+    ],
+    "metrics": {
+      "amount": {
+        "p25": 18454051.0,
+        "median": 56256572.0,
+        "p75": 165868252.0
+      },
+      "close": {
+        "p25": 6.87,
+        "median": 9.89,
+        "p75": 17.77
+      },
+      "volume": {
+        "p25": 1742200.0,
+        "median": 5132665.5,
+        "p75": 13744587.25
+      }
+    }
+  }
+}

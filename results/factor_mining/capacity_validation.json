@@ -1,0 +1,45 @@
+{
+  "_meta": {
+    "prereg": "docstring §预注册扩展 (2026-08-25)",
+    "elapsed_sec": 109.5,
+    "n_universe": 4943
+  },
+  "episodes_hot_days": 270,
+  "strategies": {
+    "FULL_no_floor": {
+      "ann_return": 0.0998,
+      "sharpe": 0.933,
+      "max_drawdown": -0.2215,
+      "in_market_frac": 0.169,
+      "avg_turnover": 0.098,
+      "held_name_adv_median_yi": 0.808,
+      "held_name_adv_p25_yi": 0.371
+    },
+    "FULL_floor2000w": {
+      "ann_return": 0.0895,
+      "sharpe": 0.776,
+      "max_drawdown": -0.128,
+      "in_market_frac": 0.169,
+      "avg_turnover": 0.131,
+      "held_name_adv_median_yi": 0.95,
+      "held_name_adv_p25_yi": 0.477
+    },
+    "SAMPLE500_no_floor": {
+      "ann_return": 0.1318,
+      "sharpe": 1.078,
+      "max_drawdown": -0.1317,
+      "in_market_frac": null,
+      "avg_turnover": 0.088
+    }
+  },
+  "verdict": {
+    "F1_fullnet_positive_and_sharpe_ge1": false,
+    "F2_floor_not_harmful": false
+  },
+  "capacity": {
+    "note": "规模上限 = 持仓名单ADV合计 x 单边参与率10% x 再平衡周期摊薄",
+    "held_adv_sum_median_yi": 28.5,
+    "participation": 0.1,
+    "rough_capacity_per_slot_yi": 0.095
+  }
+}

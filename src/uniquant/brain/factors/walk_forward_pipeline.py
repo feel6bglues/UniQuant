@@ -7,7 +7,8 @@
 """
 
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Tuple
+from types import SimpleNamespace
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
@@ -15,6 +16,9 @@ import pandas as pd
 from ...shared.logger_factory import get_logger
 from .analyzer import AnalysisMode, FactorAnalyzer, check_lookahead_leakage, LookaheadBiasError
 from .composer import FactorComposer
+
+if TYPE_CHECKING:  # 科研控制平面为可选依赖：仅在显式传入 ledger 时才需要
+    from ...research.ledger.degrees_of_freedom import DegreesOfFreedomLedger
 
 logger = get_logger(__name__)
 
@@ -40,6 +44,7 @@ class WalkForwardResult:
     oos_ic_std: float
     oos_icir: float
     weight_stability: Dict[str, float]
+    ledger_audit: Optional[Dict[str, Any]] = None
 
 
 class WalkForwardFactorPipeline:
@@ -52,6 +57,8 @@ class WalkForwardFactorPipeline:
         min_train_days: int = 252,
         weight_method: str = "rank_icir",
         half_life: Optional[int] = None,
+        ledger: Optional["DegreesOfFreedomLedger"] = None,
+        ledger_family_id: str = "walk_forward",
     ):
         self.analyzer = factor_analyzer or FactorAnalyzer()
         self.composer = factor_composer or FactorComposer()
@@ -60,6 +67,8 @@ class WalkForwardFactorPipeline:
         self.min_train_days = min_train_days
         self.weight_method = weight_method
         self.half_life = half_life
+        self.ledger = ledger
+        self.ledger_family_id = ledger_family_id
         self._ic_history: Dict[str, Dict[str, List[float]]] = {}
 
     def _temporal_split(
@@ -166,6 +175,7 @@ class WalkForwardFactorPipeline:
         window_results: List[WalkForwardWindowResult] = []
         final_weights: Dict[str, float] = {}
         oos_ic_values = []
+        window_ic_results: List[Dict[str, Dict[int, Any]]] = []
 
         for ts, te, ss, se in windows:
             train_df = df[(pd.to_datetime(df[date_col]) >= ts) & (pd.to_datetime(df[date_col]) <= te)].copy()
@@ -189,6 +199,7 @@ class WalkForwardFactorPipeline:
                 price_col=price_col,
                 mode=AnalysisMode.BACKTEST,
             )
+            window_ic_results.append(ic_results)
 
             for col in factor_cols:
                 if col not in ic_results:
@@ -256,6 +267,8 @@ class WalkForwardFactorPipeline:
             w_arr = np.array(w_series)
             weight_stability[col] = float(np.std(w_arr)) if len(w_arr) > 1 else 0.0
 
+        ledger_audit = self._register_with_ledger(window_ic_results, df, code_col)
+
         return WalkForwardResult(
             windows=window_results,
             final_weights=final_weights,
@@ -263,4 +276,69 @@ class WalkForwardFactorPipeline:
             oos_ic_std=oos_ic_std,
             oos_icir=oos_icir,
             weight_stability=weight_stability,
+            ledger_audit=ledger_audit,
         )
+
+    def _register_with_ledger(
+        self,
+        window_ic_results: List[Dict[str, Dict[int, Any]]],
+        df: pd.DataFrame,
+        code_col: str,
+    ) -> Optional[Dict[str, Any]]:
+        """把 Walk-Forward 因子试验登记进科研控制平面（自由度账本）。
+
+        为防止单窗尖峰（正是 PBO 过拟合关注点），对每个 ``(因子, 持有期)``
+        取**跨窗 t 统计量中位数**作为登记统计量，而非某一幸运窗口的估计。
+        未传入 ledger 时为 no-op。
+        """
+        if self.ledger is None or not window_ic_results:
+            return None
+
+        collected: Dict[Tuple[str, int], List[Any]] = {}
+        for ic_res in window_ic_results:
+            for factor, period_results in (ic_res or {}).items():
+                for period, result in (period_results or {}).items():
+                    if result is None:
+                        continue
+                    collected.setdefault((str(factor), int(period)), []).append(result)
+
+        if not collected:
+            return None
+
+        merged: Dict[str, Dict[int, Any]] = {}
+        for (factor, period), results in collected.items():
+            t_values = [float(getattr(r, "ic_t_stat", 0.0) or 0.0) for r in results]
+            n_values = [int(getattr(r, "n_periods", 0) or 0) for r in results]
+            finite_t = [t for t in t_values if np.isfinite(t)]
+            if not finite_t:
+                continue
+            merged.setdefault(factor, {})[period] = SimpleNamespace(
+                ic_t_stat=float(np.median(finite_t)),
+                n_periods=int(np.median(n_values)),
+            )
+
+        from ...research.ledger.bridge import register_factor_trials
+
+        try:
+            audit = register_factor_trials(
+                self.ledger,
+                merged,
+                family_id=self.ledger_family_id,
+                cross_section_N=int(df[code_col].nunique()) if code_col in df.columns else 0,
+                metadata={
+                    "source": "WalkForwardFactorPipeline.run",
+                    "n_windows": len(window_ic_results),
+                    "aggregation": "median_across_windows",
+                },
+            )
+        except (KeyError, TypeError, ValueError) as exc:
+            logger.warning("科研控制平面(walk-forward)登记失败（不影响回测）: %s", exc)
+            return None
+
+        logger.info(
+            "科研控制平面(walk-forward): 登记 %d 项试验 / 平台累计 %d / BH-FDR 显著 %d",
+            audit.registered,
+            audit.total_platform_trials,
+            len(audit.significant_factors),
+        )
+        return audit.to_dict()

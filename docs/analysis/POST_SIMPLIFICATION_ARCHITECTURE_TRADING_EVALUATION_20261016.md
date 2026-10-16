@@ -193,6 +193,8 @@ tests/test_strategy_sandboxes.py:11,12
 即：**因子生产链（`scan_service` / `factor composer` / `walk_forward_pipeline`）没有任何一处向 `DegreesOfFreedomLedger` 登记试验**。
 "防过拟合最强防线"目前是**孤岛**，未覆盖任何真实因子产出。累计试验数 `total_trials` 在真实研究流程中恒为 0。
 
+> **✅ 2026-10-16 已接入**：`scan_service.ScanPipeline` 现将每次因子分析的全部 `(因子, 持有期)` 试验登记入账本（真实 IC/t → 双侧 student-t p → Bonferroni / BH-FDR / BY-FDR / Alpha-Wealth），`walk_forward_pipeline` 增可选钩子（登记跨窗 t 中位数）。**诚实边界**：analyzer 的 `t` 是**朴素 t（无自相关修正）**，故以 `STUDENT_T` + `autocorr_adjusted=False` 登记，**不冒充** `IC_NEWEY_WEST_T`；`factor_correlation_matrix=None` → `M_eff = m`，不做乐观折扣。见 §6 P1-1。
+
 ---
 
 ### 🟠 P1-2　文档严重漂移（违反项目自身"文档即阻断项"规则）
@@ -200,6 +202,8 @@ tests/test_strategy_sandboxes.py:11,12
 - 项目指令要求"先读根目录 `CLAUDE.md`（10 条编码规则）"——**该文件在仓库中不存在**（`find . -name CLAUDE.md` 无结果）。
 - `README.md`：声明"v0.3 / 44 文件 / 12.6K LOC / 完成度 28%"，并列出**已在上次大清理中删除**的数据源（Sina/Tencent/THS/Eastmoney/BaoStock）。
 - `docs/index.md`：更新时间停留在 **2026-07-10**，仍引用"256 文件 / 62,549 LOC"口径。
+
+> **✅ 2026-10-16 已修复（P1-2）**：**根因定位**——`CLAUDE.md` 并非"从未创建"，而是被根 `.gitignore` 的 `/*.md` 静默忽略（根级 markdown 全部排除），故始终无法提交；已补 `!/CLAUDE.md` 并新建**逐条标注出处**的规则文件（不虚构"原始 10 条"）。`README.md` 整体重写、`docs/index.md` 按实测口径更新。见 §6 P1-2。
 
 ---
 
@@ -236,6 +240,8 @@ def _has_transfer_fee(symbol: str) -> bool:
 
 - `pyproject.toml` `addopts = "-q"`，CI `pytest tests/ -q --tb=short` **不带 `--cov`** → 编码规范里的"80% 覆盖率"**未被任何 CI 校验**。
 - `.gitignore` 忽略 `data/lake/` 与 `results/` → **所有实证结论（P 系列、H-A 对账、对账存证）在仓库内不可复现**，证据链只存在于本机。
+
+> **✅ 2026-10-16 已修复**：CI 新增独立 `coverage` 作业（`--cov-fail-under=68`，实测覆盖率 **70.55%**，定位为**回归地板**而非达成 80% 目标）；`results/` 由"整目录忽略"改为"白名单 + SHA-256 内容哈希账本"，50 个结构化证据文件（≈920 KB）纳入版本库并由 CI 每 push 校验 `verify`。见 §6 P2-3（剩余）。
 
 ---
 
@@ -275,7 +281,10 @@ def _has_transfer_fee(symbol: str) -> bool:
 
 ## 6. 实施落地记录（Remediation Log · 2026-10-16）
 
-按 §5 优先级，本轮落地 **P0-1 / P0-2 / P2-1 / P2-2 / P2-3** 五项（**P1 项暂缓**，见文末）。所有改动均在本工作树完成并逐条以实测命令验证。
+按 §5 优先级分两轮落地，全部在本工作树完成并逐条以实测命令验证：
+
+- **第一轮（2026-10-16 上午）：P0-1 / P0-2 / P2-1 / P2-2 / P2-3（H-A 地板）** —— 见下表前五行。
+- **第二轮（2026-10-16 下午）：P1-1 / P1-2 + P2-3 剩余（CI 覆盖率门 + 证据链可复现）** —— 见下表后三行。
 
 | 项 | 实施 | 关键文件 | 验证 |
 |---|---|---|---|
@@ -284,6 +293,9 @@ def _has_transfer_fee(symbol: str) -> bool:
 | **P2-1** 过户费全市场统一 | `_has_transfer_fee` 重写为全市场口径：SH `60/68`、SZ `000/001/002/003/300/301/302`、BJ `43/83/87/88/920`，依 2022-04-29 中国结算 **沪深北 A 股统一 0.01‰ 双向**；新增向量化 `has_transfer_fee_mask`（语义与标量版严格一致）；指数/ETF/可转债豁免。撮合引擎三处 `sh_mask` → `fee_mask`。**按项目"交易规则变更须显式复核"要求**，冻结执行基线 `tests/benchmark/baseline_execution_v0.parquet` 以 `scripts/capture_baseline.py --execution` 重生成 | `shared/cost_model.py`、`hands/backtest/unified_matching_engine.py`、`tests/benchmark/baseline_execution_v0.parquet` | `tests/test_cost_model.py test_matching_engine.py test_unified_matching.py` **60 passed** + `tests/benchmark/` **2 passed**；手工矩阵 17 例全对；基线重生成的 diff 证明**仅含预期变动**：成交笔数 95 恒定、沪市（600519/601318/600080）零变化、**深市+科创板由 0 → 实收**（000001.SZ +0.62、000858.SZ +14.34、300750.SZ +16.34、688981.SH +2.85 元），收益漂移 ≤3.3e-5 |
 | **P2-2** LPPL 降为遥测 | `LPPLAdapter` 默认 `diagnostic_only=True`（危险态仅写入 metadata，**不产 SELL**）；`create_default_registry` 显式遥测注册；`arbitrator.py` `ENGINE_PRIORITY["lppl"] 0 → 99`（与未知引擎同级=最低），模块文档串同步——LPPL 不再优先于决策引擎、亦不具强制平仓能力 | `signal/adapters.py`、`signal/arbitrator.py` | `tests/signal/ tests/test_signal_arbitrator.py tests/test_lookahead_bias.py tests/test_unified_matching.py` **166 passed**；新增"默认遥测"与"优先级降级"断言 |
 | **P2-3** H-A 运行器对齐 ADV 地板 | `daily_signal_ha.py` `AMOUNT_FLOOR: None → 20_000_000.0`；文档串澄明"无地板仅研究对照、非可交易形态" | `scripts/canslim/daily_signal_ha.py` | 新增 `TestLiquidityFloor`；`tests/scripts/test_ha_engineering.py` **17 passed** |
+| **P1-1** 科研控制平面接入生产因子链 | `ScanPipeline` 新增 `ledger_enabled=True` / `ledger_path=None` / `ledger_family_id="factor_scan"`；`analyze_factors` 把每 `(因子, 持有期)` 的真实 IC/t 登记进 `DegreesOfFreedomLedger`，结果进 `report["research_ledger"]` 并由 `generate_report` 渲染；`_register_factor_trials` 幂等（实例缓存）。新增 `research/ledger/bridge.py`（`ic_t_stat_to_p_value` 双侧 student-t · `register_factor_trials` · `LedgerAudit`）与 `research/ledger/ledger_store.py`（mkstemp + `os.replace` 原子 JSON；损坏/缺失→空账本）。`degrees_of_freedom.py` 增 `to_state/from_state`（**直接还原 Alpha-Wealth，按原始 p 重算族系校正，不二次计息**）。`walk_forward_pipeline.py` 增可选 `ledger` 钩子（默认 `None`，研究工具行为不变），登记**跨窗 t 中位数**以避开单窗尖峰 | `services/scan_service.py`、`research/ledger/bridge.py`、`research/ledger/ledger_store.py`、`research/ledger/degrees_of_freedom.py`、`brain/factors/walk_forward_pipeline.py` | 新增 `tests/test_research_ledger_bridge.py` **22 用例**；与 `tests/test_walk_forward_pipeline.py` 合并 **42 passed**；相邻套件（`test_research_os_gates` / `test_strategy_sandboxes` / `test_scan_service` / factor 系）全绿；`ruff` 0 |
+| **P1-2** 文档漂移修复 | 新建根 `CLAUDE.md`（10 条规则，**逐条标注出处**；文件从未提交的**根因**已定位并修复：`.gitignore` 的 `/*.md` 静默忽略根级 markdown → 增 `!/CLAUDE.md`）。`AGENTS.md` 首行注记该文件从未提交、现为"有出处的诚实合并版"。`docs/index.md` 头部实测口径 + 真源表（历史 live map 降级为历史）+ 删除悬空链接 + 增 `research` 行 + 新增「Evidence & Reproducibility」节。`README.md` 整体重写（删 v0.3 / 28% / 12.6K LOC 与**已删除**的数据源；真实分层表；当前主线状态）。AGENTS 分层表/高风险表/控制文档表漂移一并修正 | `CLAUDE.md`、`AGENTS.md`、`docs/index.md`、`README.md`、`.gitignore` | 逐项对照实测：分层计数 `data 67→33`、`brain 54→62`、`shared 44→42`、`risk 6→8`、`services 31→29`、新增 `research 12`；`sources/tdx.py` 行 → `mootdx_local.py`；`factor_governance` / `price_collar` / `portfolio_engine` / `analysis_service_legacy` 引用全部指向**已物理删除**的文件 → 改为现存真源。`git check-ignore` 前后验证 `CLAUDE.md` 由 ignore → tracked |
+| **P2-3（剩余）** CI 覆盖率门 + 证据链可复现 | ① `.coveragerc` 明确 `source=src/uniquant`、omit `ui/*`、排除 `pragma: no cover`/`TYPE_CHECKING` 等；CI 新增 **`coverage` 作业**（`pytest --cov -n auto --timeout=900 --cov-fail-under=68`，与快速 `test` 作业**并行**，不拖慢反馈）。② `results/.gitignore` 白名单 + 根 `.gitignore` `results/`→`results/*`（**目录级排除无法再白名单，必须改为通配**）：把实证结论的结构化证据（P 系列因子研究、H-A 对账、迁移/QFQ 存证、门禁裁决，50 文件 ≈ 920 KB）真正纳入版本库；③ 新增 `scripts/maintenance/evidence_manifest.py`（`build`/`verify`，SHA-256+size 内容哈希账本，CI 每 push 校验）；④ `results/migration/lake_baseline.json` 即数据湖基线存证（本身也在哈希账本内） | `.coveragerc`、`.github/workflows/test.yml`、`results/.gitignore`、`.gitignore`、`results/EVIDENCE_MANIFEST.json`、`scripts/maintenance/evidence_manifest.py` | `evidence_manifest.py verify` → **no drift**（50 文件 / 942,274 B）；新增 `tests/scripts/test_evidence_manifest.py` **23 passed**（含"等长内容改写仍被摘要捕获"反例、缺文件/新增文件/`--allow-missing`/CLI 退出码、真实仓库账本与树一致）；`--cov-fail-under` 门限经反向验证（阈值 68 下小样本必红、阈值 1 下必绿）。**诚实披露：实测全包覆盖率 = 70.55%（26,412 statements / 7,779 missed）**——与 `AGENTS.md` 历史声称的 57.88% 及历史审计的 21.91% 均不符（后者系 `--cov` 未跑完的残缺值），门限 68% 定位为**回归地板**而非达成 80% 目标 |
 
 **P0-1 修复前后（附录 A #4 命令逐字）**：
 
@@ -294,15 +306,50 @@ def _has_transfer_fee(symbol: str) -> bool:
                  pbo_value（真实 Bootstrap PBO 值）...
 ```
 
-**全量门禁（本工作树实测）**：`.venv/bin/python -m pytest tests/ -o addopts="" -p no:cacheprovider -q` → **2544 passed / 2 skipped / 0 failed**（收集 2546 = 修复前 2532 + 新增 14 项门禁/回归用例；另有 4 项隔离缺陷用例由 fail 转 pass）；`ruff check src/uniquant/ tests/ scripts/` → **All checks passed!**
+**全量门禁（本工作树实测）**：
+
+| 命令 | 结果 |
+|---|---|
+| `.venv/bin/python -m pytest tests/ -o addopts="" -p no:cacheprovider -q` | **2596 passed / 2 skipped / 0 failed**（收集 2598） |
+| `.venv/bin/python -m pytest tests/ -o addopts="" -p no:cacheprovider -n 8 --timeout=900 --cov` | **2596 passed / 2 skipped / 0 failed**，**3 分 37 秒**，覆盖率 **70.55%** |
+| `ruff check src/uniquant/ tests/ scripts/` | **All checks passed!** |
+| `python scripts/maintenance/evidence_manifest.py verify` | **no drift**（50 文件 / 942,274 B） |
+
+> **`-n 8` 与单进程结果逐位一致**（2596+2 = 2598 = 单进程 2575 + 本轮新增 23 项证据链用例；亦等于 `--collect-only` 计数），故 CI 覆盖率作业可安全启用 `-n auto` 提速。
+
+**分层覆盖率（2026-10-16 实测，`cov.json` 口径）**：
+
+| 层 | statements | missed | 覆盖率 |
+|---|---:|---:|---:|
+| `research/` | 704 | 40 | **94.3%** |
+| `signal/` | 1,096 | 98 | 91.1% |
+| `shared/` | 3,266 | 425 | 87.0% |
+| `risk/` | 994 | 267 | 73.1% |
+| `brain/` | 9,465 | 2,656 | 71.9% |
+| `hands/` | 2,817 | 1,009 | 64.2% |
+| `services/` | 4,393 | 1,590 | 63.8% |
+| `data/` | 3,676 | 1,694 | **53.9%** |
+| **合计（omit `ui/`）** | **26,412** | **7,779** | **70.55%** |
+
+> **口径更正**：`AGENTS.md` 顶部曾记 "coverage 57.88%"（2026-08-05），历史审计（2026-09-14）又记 "21.91%" 并称 `--cov` 会挂起——**两者均不成立**：全包 `--cov` 可正常跑完（3 分 37 秒 / `-n 8`），真实覆盖率为 **70.55%**；历史 21.91% 系 `--cov` 未跑完的残缺值。**`data/` 层 53.9% 为当前最薄弱面**，是下一步补测的优先目标。
 
 > 落实口径更正：报告 §3 中"全量测试干净环境 4 fail"已修复；提交 `7509c2a` 宣称的 "2530 passed" 属**环境依赖假绿**（依赖开发机 `/tmp` 残留目录），修复后干净环境亦全绿。
 
-**本轮未纳入（P1，仍开放）**：
+**§5 Roadmap 关单状态（第二轮后）**：
 
-- **P1-1** 科研控制平面接线：`DegreesOfFreedomLedger` 等仍零生产调用方，仅 `scripts/factor_mining/five_gate.py` + 2 单测引用 `uniquant.research`。
-- **P1-2** 文档漂移：`README.md` / `docs/index.md` 陈旧；项目指令引用的根目录 `CLAUDE.md` 不存在。
-- **P2-3 剩余**：CI 覆盖率门（`.github/workflows/test.yml`）与数据湖/results 可复现性（全 gitignore）。
+| 项 | 状态 | 证据 |
+|---|---|---|
+| P0-1 四阶门禁诚实化 | ✅ 关单 | 附录 A #4：TypeError → 诚实 `TIER_UNRATED` |
+| P0-2 CI 归零 + 测试隔离 | ✅ 关单 | `ruff` 0；干净 `/tmp` 下该文件 5/5 |
+| P1-1 科研控制平面接入生产 | ✅ 关单 | `scan_service`/`walk_forward_pipeline` 登记真实试验；`tests/test_research_ledger_bridge.py` 22 用例 |
+| P1-2 文档漂移 | ✅ 关单 | `CLAUDE.md` 新建；`README.md`/`docs/index.md`/`AGENTS.md` 按实测重写 |
+| P2-1 过户费全市场统一 | ✅ 关单 | 基线重生成 diff 仅含预期变动 |
+| P2-2 LPPL 降为遥测 | ✅ 关单 | 默认 `diagnostic_only=True` + 优先级 99 |
+| P2-3 H-A 对齐 ADV 地板 | ✅ 关单 | `AMOUNT_FLOOR = 20_000_000.0` |
+| P2-3 剩余：CI 覆盖率门 | ✅ 关单 | 独立 `coverage` 作业 + `--cov-fail-under=68`（实测 70.55%） |
+| P2-3 剩余：数据湖/results 可复现 | ✅ 关单 | 证据白名单 + 内容哈希账本 + CI 校验 |
+
+> **仍开放（不属本报告 §5 范围，供后续决策）**：① `data/` 层覆盖率 53.9%、45 处历史零覆盖文件；② 历史文档（`docs/archive/`、`docs/reanalysis/`）仍含大量已失效口径，未做全量清理；③ 策略容量受限于 ≈2850 万元（H-A 的固有属性，非工程缺陷）。
 
 ---
 
@@ -329,14 +376,31 @@ import numpy as np
 from uniquant.research.gates.alpha_tier_engine import AlphaTierEngine
 ic = np.full(200, 0.05) + np.random.normal(0, 0.01, 200)
 eng = AlphaTierEngine()
-eng.evaluate_candidate('x', ic.tolist(), [0.001]*200, [0.02]*200)   # → TypeError @ :213
+print(eng.evaluate_candidate('x', ic.tolist(), [0.001]*200, [0.02]*200))
+# → TierVerdict(tier=TIER_UNRATED, ...) 诚实拒绝：缺 residual_ic_series / pbo_value / gate_inputs
 PY
+.venv/bin/python -m pytest tests/test_strategy_sandboxes.py tests/test_research_os_gates.py -q -p no:cacheprovider
 
 # 5) 测试隔离根因
 grep -n "test_df_lake_first\|_write_min_all_stock_codes" tests/test_data_fetcher_init_fault_tolerance.py
 
-# 6) 科研平面接线面
+# 6) 科研平面接线面（第一轮前：仅 3 处；第一轮后：含生产扫描链）
 grep -rn "uniquant.research" --include='*.py' src scripts tests | grep -v "^src/uniquant/research/"
+
+# 7) P1-1 科研控制平面生产接线（第二轮）
+grep -rn "register_factor_trials\|research_ledger\|ledger_enabled" --include='*.py' src/uniquant | grep -v ledger/bridge
+.venv/bin/python -m pytest tests/test_research_ledger_bridge.py tests/test_walk_forward_pipeline.py -o addopts="" -q -p no:cacheprovider
+
+# 8) P2-3 证据链可复现（第二轮）
+.venv/bin/python scripts/maintenance/evidence_manifest.py verify      # → "no drift"
+.venv/bin/python scripts/maintenance/capture_lake_baseline.py         # 重新捕获数据湖基线
+.venv/bin/python -m pytest tests/scripts/test_evidence_manifest.py -o addopts="" -q -p no:cacheprovider
+
+# 9) P2-3 CI 覆盖率门（第二轮；实测覆盖率 70.55%，门限 68%）
+.venv/bin/python -m pytest tests/ -o addopts="" -p no:cacheprovider \
+    -n 8 --timeout=900 --cov --cov-report=term:skip-covered --cov-fail-under=68
+# 反向验证门限确实生效（小样本 + 高阈值 → 必红）
+.venv/bin/python -m pytest tests/scripts/test_evidence_manifest.py --cov --cov-report= --cov-fail-under=68; echo $?   # → 1
 ```
 
 ---
@@ -352,7 +416,7 @@ grep -rn "uniquant.research" --include='*.py' src scripts tests | grep -v "^src/
 | `QTR_OS_REFACTORING_BLUEPRINT` | LPPL 从仲裁优先级/FORCE_EXIT 切除 | `arbitrator.py:29` 仍 `lppl:0` |
 | `QTR_OS_REFACTORING_BLUEPRINT` | 四级门禁"完成落地并验证通过" | 捷径路径伪造输入且崩溃 |
 
-> **更新（2026-10-16）**：上表第 1、2、5、6 行涉及的偏差**已在本工作树修复**——`ruff` 归零、干净环境全量测试 0 fail、`ENGINE_PRIORITY["lppl"]` 降为 99、四级门禁改为诚实拒绝伪造输入。第 3、4 行（缺失 `CLAUDE.md`、`README.md` 漂移）属 P1，仍未处理。详见 §6。
+> **更新（2026-10-16）**：上表第 1、2、5、6 行涉及的偏差**已在第一轮修复**——`ruff` 归零、干净环境全量测试 0 fail、`ENGINE_PRIORITY["lppl"]` 降为 99、四级门禁改为诚实拒绝伪造输入。第 3、4 行（缺失 `CLAUDE.md`、`README.md` 漂移）**已在第二轮 P1-2 修复**——根因是根 `.gitignore` 的 `/*.md` 静默忽略根级 markdown（故该文件"曾经写过却从未提交"），现已补 `!/CLAUDE.md` 并新建**逐条标注出处**的规则文件；`README.md` 已整体重写、`docs/index.md` 已更新口径。详见 §6。
 
 ---
 

@@ -2,7 +2,7 @@
 
 > Unified Quantitative Trading Platform for China A-share research, backtesting, and trading workflows.
 >
-> Updated: 2026-07-10. Phase A-K v2.0 deep audit completed, plus live system map (I_live_system_map.md) verifying all 256 source files against documented state. 5-round adversarial analysis completed: 256 files, 62,549 LOC, 1,606 test functions, 1,673 passing. See `docs/reanalysis/` for 16 reports total. This page is a documentation state boundary. Prefer current source code and control documents over historical migration notes.
+> Updated: 2026-10-16. Post-simplification state. Live measurement: **236** Python files / **59,594** LOC under `src/uniquant/` (incl. the `research/` control plane), **194** test files / **2,359** test functions, **2,596 passed / 2 skipped / 0 failed**, whole-package coverage **70.55%**, `ruff` 0. The 2026-07-10 audit numbers (256 files / 62,549 LOC / 1,606 test functions) are retained in `docs/reanalysis/` as historical snapshots and no longer describe the tree. See `docs/analysis/POST_SIMPLIFICATION_ARCHITECTURE_TRADING_EVALUATION_20261016.md` for the current architecture + trading-caliber evaluation. This page is a documentation state boundary. Prefer current source code and control documents over historical migration notes.
 
 ---
 
@@ -12,11 +12,17 @@ Read these first when starting analysis or implementation:
 
 | Document | Status | Purpose |
 |---|---|---|
-| [Root AGENTS.md](../AGENTS.md) | Current | First project control context for agents. Updated 2026-07-09 with live system map ref. |
-| [Live System Map](reanalysis/I_live_system_map.md) | Current (2026-07-09) | Verified architecture: 256 files, dead code inventory, active bugs ranked, data path heat map. |
+| [Root CLAUDE.md](../CLAUDE.md) | Current | The 10 repository coding rules (source-cited consolidation; the originally-referenced file was never committed). |
+| [Root AGENTS.md](../AGENTS.md) | Current | Canonical project control context for agents (wins on any conflict). |
+| [Post-Simplification Evaluation](analysis/POST_SIMPLIFICATION_ARCHITECTURE_TRADING_EVALUATION_20261016.md) | Current (2026-10-16) | Architecture + trading-caliber evaluation of the current tree; §5 roadmap, §6 remediation log. |
+| [Live System Map](reanalysis/I_live_system_map.md) | Historical (2026-07-09) | Verified architecture at that date: dead code inventory, active bugs ranked, data path heat map. Numbers superseded; methodology still useful. |
 | [Analysis Prompt Playbook](ANALYSIS_PROMPT_PLAYBOOK.md) | Current | Direct-call staged prompts for system analysis, checkpoints, artifacts, and validation. |
 | [Reshaping Logs Index](reshaping_logs/README.md) | Current | Controlled state-machine logs and audit sequence. |
-| [Status](STATUS.md) | ⚠️ Archived 2026-05-26 | Historical snapshot, does NOT reflect current 256-file codebase. |
+
+> **Removed dangling links (2026-10-16):** `docs/STATUS.md`, `docs/EVALUATION_REPORT.md`,
+> `docs/VERIFICATION_REPORT.md` and `docs/RESTRUCTURE_PLAN.md` are referenced by older docs
+> but do **not** exist in this repository. They have been dropped from the indexes rather
+> than left as false pointers.
 
 Historical docs in this folder are still useful, but many describe target architecture or pre-remediation gaps. If a package page says `data`, `signal`, or `hands` are missing, that statement is stale.
 
@@ -28,13 +34,14 @@ Current source layout under `src/uniquant/`:
 
 | Module | Current state | Responsibility |
 |---|---|---|
-| `shared` | Present | Protocols, constants, config, exceptions, cache, A-share rules, costs, slippage, logging. |
-| `data` | Present | Multi-source data ingestion, data lake, managers, parsers, cleaning, validation, adjustment. |
+| `shared` | Present | Protocols/contracts, constants, config, exceptions, cache, A-share rules, costs, slippage, logging. |
+| `data` | Present | Lake-first single-source ingestion (mootdx local/online), data lake, managers, parsers, cleaning, validation, single-track adjustment. |
 | `brain` | Present | FSM, CZSC, LPPL, NTF, Regime, Wyckoff, indicators, factors, screener, alpha decoupler. |
-| `signal` | Present | Adapters, normalization, aggregation, quality, typed signal conversion. |
-| `hands` | Present | Backtest engines, vectorized matching, portfolio engine, strategy framework, reports. |
+| `signal` | Present | Adapters, normalization, aggregation, arbitration, quality, typed signal conversion. |
+| `hands` | Present | Backtest engines, vectorized matching, strategy framework, reports, robustness tools. |
 | `risk` | Present | Position sizing, drawdown, EVT, historical risk, structural risk, portfolio optimization. |
 | `services` | Present | Service container, analysis service, data service, research pipeline, reports, scans, health. |
+| `research` | Present | QTR-OS research control plane: degrees-of-freedom ledger (multiple-testing corrections), alpha four-tier gates, strategy sandboxes. Wired into the production factor chain (2026-10-16). |
 | `ui` | Present | Streamlit dashboard, health checks, manager logic, LPPL visualization. |
 
 Core flow:
@@ -44,6 +51,27 @@ Core flow:
 Primary runtime chain:
 
 `DataService.fetch_for_brain()` -> `AnalysisService.run_ticker_analysis()` -> `TradingSignalCollector.collect()` -> `UnifiedBacktestEngine.run()` -> `PipelineResult`
+
+---
+
+## Evidence & Reproducibility (2026-10-16)
+
+The data lake (`data/lake/`, multi-GB) and bulk research output are regenerable and therefore not tracked as blobs. That previously left every published conclusion with no auditable trail in the repository. Three mechanisms now close that gap:
+
+| Mechanism | What it guarantees | Where / command |
+|---|---|---|
+| **Evidence allow-list** | The structured evidence behind published conclusions (P-series factor studies, H-A reconciliation, migration/QFQ verification, gate verdicts) **is** in the repository | `results/.gitignore` + root `.gitignore` (`results/*`) |
+| **Content-hash ledger** | Every tracked evidence file has a recorded SHA-256 + size, so silent edits/drift are detectable | `results/EVIDENCE_MANIFEST.json`; `python scripts/maintenance/evidence_manifest.py build\|verify` |
+| **Data-lake baseline** | Records lake counts, schema combinations, seed=42 dimension sampling and the git HEAD at capture time (the baseline file itself is inside the hash ledger) | `results/migration/lake_baseline.json`; `python scripts/maintenance/capture_lake_baseline.py` |
+
+CI runs `evidence_manifest.py verify` on every push, so the evidence chain cannot drift silently. Regenerate the ledger only after an **intentional** evidence change:
+
+```bash
+python scripts/maintenance/evidence_manifest.py build   # update the ledger
+python scripts/maintenance/evidence_manifest.py verify  # must print "Evidence manifest verified: no drift."
+```
+
+> Bulk artifacts (full-market Wyckoff scans, dated per-symbol dumps) stay out of the repository by design; rebuild them with the scripts under `scripts/wyckoff_experiments/` and `scripts/factor_mining/`.
 
 ---
 
@@ -102,7 +130,7 @@ Each stage includes:
 | Data fetcher | `../src/uniquant/data/data_fetcher.py` |
 | Signal adapters | `../src/uniquant/signal/adapters.py` |
 | Signal arbitrator | `../src/uniquant/signal/arbitrator.py` |
-| Factor governance | `../src/uniquant/shared/factor_governance.py` |
+| Factor governance | `../src/uniquant/brain/factors/registry.py` |
 | Feature flags | `../src/uniquant/shared/config_models.py` |
 | Time provider | `../src/uniquant/shared/time_provider.py` |
 | Typed backtest engine | `../src/uniquant/hands/backtest/unified_engine.py` |

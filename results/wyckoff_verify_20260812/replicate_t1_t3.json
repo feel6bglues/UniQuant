@@ -1,0 +1,159 @@
+{
+  "pre_registered": true,
+  "t1": {
+    "W1": {
+      "as_of": "2026-04-30",
+      "n": 5174,
+      "n_buy": 86,
+      "n_sell_from_map": 0,
+      "n_raw_sell_keyword_direction": 0,
+      "coverage_buy_over_non_noaction": 0.5409,
+      "conf_gate_change_pct": {
+        "conf>=0.30": 1.0,
+        "conf>=0.40": 0.6744,
+        "delta": -0.3256
+      },
+      "assert1_buy_gt_0": true,
+      "assert2_no_sell": true
+    },
+    "W2": {
+      "as_of": "2026-03-31",
+      "n": 5185,
+      "n_buy": 27,
+      "n_sell_from_map": 0,
+      "n_raw_sell_keyword_direction": 0,
+      "coverage_buy_over_non_noaction": 0.5294,
+      "conf_gate_change_pct": {
+        "conf>=0.30": 1.0,
+        "conf>=0.40": 0.5556,
+        "delta": -0.4444
+      },
+      "assert1_buy_gt_0": true,
+      "assert2_no_sell": true
+    },
+    "W3": {
+      "as_of": "2026-05-29",
+      "n": 5178,
+      "n_buy": 69,
+      "n_sell_from_map": 0,
+      "n_raw_sell_keyword_direction": 0,
+      "coverage_buy_over_non_noaction": 0.575,
+      "conf_gate_change_pct": {
+        "conf>=0.30": 1.0,
+        "conf>=0.40": 0.7681,
+        "delta": -0.2319
+      },
+      "assert1_buy_gt_0": true,
+      "assert2_no_sell": true
+    },
+    "X4": {
+      "as_of": "2025-06-30",
+      "n": 5133,
+      "n_buy": 174,
+      "n_sell_from_map": 0,
+      "n_raw_sell_keyword_direction": 0,
+      "coverage_buy_over_non_noaction": 0.5421,
+      "conf_gate_change_pct": {
+        "conf>=0.30": 1.0,
+        "conf>=0.40": 0.7069,
+        "delta": -0.2931
+      },
+      "assert1_buy_gt_0": true,
+      "assert2_no_sell": true
+    },
+    "X5": {
+      "as_of": "2024-12-31",
+      "n": 5084,
+      "n_buy": 123,
+      "n_sell_from_map": 0,
+      "n_raw_sell_keyword_direction": 0,
+      "coverage_buy_over_non_noaction": 0.3856,
+      "conf_gate_change_pct": {
+        "conf>=0.30": 1.0,
+        "conf>=0.40": 0.7642,
+        "delta": -0.2358
+      },
+      "assert1_buy_gt_0": true,
+      "assert2_no_sell": true
+    },
+    "overall": "PASS"
+  },
+  "t3": {
+    "W1": {
+      "as_of": "2026-04-30",
+      "n": 5174,
+      "n_buy": 58,
+      "buy_exc_20d": 3.7799,
+      "m2_ols_resid": 1.7374,
+      "m2_p_two_sided": 0.9951,
+      "m2_p_one_sided": 0.4975,
+      "r3_trim_righttail_resid": -0.4135,
+      "r3_p_two_sided": 0.4644,
+      "r3_p_one_sided": 0.7678,
+      "r3_n": 46,
+      "independent_increment_pass": false
+    },
+    "W2": {
+      "as_of": "2026-03-31",
+      "n": 5185,
+      "n_buy": 15,
+      "buy_exc_20d": -5.9535,
+      "m2_ols_resid": -5.4916,
+      "m2_p_two_sided": 0.1448,
+      "m2_p_one_sided": 0.9276,
+      "r3_trim_righttail_resid": -6.3046,
+      "r3_p_two_sided": 0.1686,
+      "r3_p_one_sided": 0.9157,
+      "r3_n": 7,
+      "independent_increment_pass": false
+    },
+    "W3": {
+      "as_of": "2026-05-29",
+      "n": 5178,
+      "n_buy": 53,
+      "buy_exc_20d": -1.2932,
+      "m2_ols_resid": -3.9629,
+      "m2_p_two_sided": 0.0484,
+      "m2_p_one_sided": 0.9758,
+      "r3_trim_righttail_resid": -2.5666,
+      "r3_p_two_sided": 0.2159,
+      "r3_p_one_sided": 0.8921,
+      "r3_n": 46,
+      "independent_increment_pass": false
+    },
+    "X4": {
+      "as_of": "2025-06-30",
+      "n": 5133,
+      "n_buy": 123,
+      "buy_exc_20d": 4.1205,
+      "m2_ols_resid": 4.0557,
+      "m2_p_two_sided": 0.0008,
+      "m2_p_one_sided": 0.0004,
+      "r3_trim_righttail_resid": 4.5418,
+      "r3_p_two_sided": 0.0003,
+      "r3_p_one_sided": 0.0002,
+      "r3_n": 114,
+      "independent_increment_pass": true
+    },
+    "X5": {
+      "as_of": "2024-12-31",
+      "n": 5084,
+      "n_buy": 94,
+      "buy_exc_20d": -1.15,
+      "m2_ols_resid": -0.8595,
+      "m2_p_two_sided": 0.3024,
+      "m2_p_one_sided": 0.8488,
+      "r3_trim_righttail_resid": -0.5031,
+      "r3_p_two_sided": 0.605,
+      "r3_p_one_sided": 0.6975,
+      "r3_n": 77,
+      "independent_increment_pass": false
+    },
+    "summary": {
+      "windows_pass_r3": "1/5",
+      "pre_registered_threshold": "R3 剔右尾后 ≥2/3 窗 (5→4) 单侧 p<0.05 且 >0",
+      "verdict": "FAIL(维持叙事层裁决)"
+    }
+  },
+  "overall": "PASS"
+}

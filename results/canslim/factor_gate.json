@@ -1,0 +1,237 @@
+{
+  "_meta": {
+    "n_symbols": 494,
+    "as_of": "2026-05-29",
+    "windows": 21,
+    "elapsed_sec": 222.0
+  },
+  "factors": {
+    "c_single_yoy": {
+      "fwd5": {
+        "fwd_col": "fwd5",
+        "oos_ic_mean": 0.012,
+        "oos_icir": 0.4242,
+        "pbo": 0.1655,
+        "mom_res_ic": 0.0151,
+        "mom_tail_ic": 0.0114,
+        "mom_pos_frac": 0.619,
+        "n_windows": 21,
+        "passed": {
+          "ic": true,
+          "icir": false,
+          "pbo": true,
+          "momentum": false
+        },
+        "passed_all": false
+      },
+      "fwd63": {
+        "fwd_col": "fwd63",
+        "oos_ic_mean": 0.0035,
+        "oos_icir": 0.0401,
+        "pbo": 0.5455,
+        "mom_res_ic": 0.008,
+        "mom_tail_ic": 0.0013,
+        "mom_pos_frac": 0.571,
+        "n_windows": 21,
+        "passed": {
+          "ic": false,
+          "icir": false,
+          "pbo": false,
+          "momentum": false
+        },
+        "passed_all": false
+      },
+      "family": "C",
+      "passed_all_any_horizon": false
+    },
+    "c_ttm_yoy": {
+      "fwd5": {
+        "fwd_col": "fwd5",
+        "oos_ic_mean": 0.0018,
+        "oos_icir": 0.0612,
+        "pbo": 0.1655,
+        "mom_res_ic": 0.0024,
+        "mom_tail_ic": -0.0007,
+        "mom_pos_frac": 0.381,
+        "n_windows": 21,
+        "passed": {
+          "ic": false,
+          "icir": false,
+          "pbo": true,
+          "momentum": false
+        },
+        "passed_all": false
+      },
+      "fwd63": {
+        "fwd_col": "fwd63",
+        "oos_ic_mean": -0.0314,
+        "oos_icir": -0.3069,
+        "pbo": 0.5455,
+        "mom_res_ic": -0.0312,
+        "mom_tail_ic": -0.0372,
+        "mom_pos_frac": 0.333,
+        "n_windows": 21,
+        "passed": {
+          "ic": true,
+          "icir": false,
+          "pbo": false,
+          "momentum": false
+        },
+        "passed_all": false
+      },
+      "family": "C",
+      "passed_all_any_horizon": false
+    },
+    "rev_ttm_yoy": {
+      "fwd5": {
+        "fwd_col": "fwd5",
+        "oos_ic_mean": 0.0028,
+        "oos_icir": 0.1362,
+        "pbo": 0.6275,
+        "mom_res_ic": 0.0044,
+        "mom_tail_ic": 0.0019,
+        "mom_pos_frac": 0.571,
+        "n_windows": 21,
+        "passed": {
+          "ic": false,
+          "icir": false,
+          "pbo": false,
+          "momentum": false
+        },
+        "passed_all": false
+      },
+      "fwd63": {
+        "fwd_col": "fwd63",
+        "oos_ic_mean": -0.0066,
+        "oos_icir": -0.0949,
+        "pbo": 0.5455,
+        "mom_res_ic": -0.0071,
+        "mom_tail_ic": -0.0106,
+        "mom_pos_frac": 0.476,
+        "n_windows": 21,
+        "passed": {
+          "ic": false,
+          "icir": false,
+          "pbo": false,
+          "momentum": false
+        },
+        "passed_all": false
+      },
+      "family": "REV",
+      "passed_all_any_horizon": false
+    },
+    "roe": {
+      "fwd5": {
+        "fwd_col": "fwd5",
+        "oos_ic_mean": -0.0088,
+        "oos_icir": -0.2066,
+        "pbo": 0.5455,
+        "mom_res_ic": -0.0076,
+        "mom_tail_ic": -0.0145,
+        "mom_pos_frac": 0.333,
+        "n_windows": 21,
+        "passed": {
+          "ic": false,
+          "icir": false,
+          "pbo": false,
+          "momentum": false
+        },
+        "passed_all": false
+      },
+      "fwd63": {
+        "fwd_col": "fwd63",
+        "oos_ic_mean": -0.078,
+        "oos_icir": -0.5568,
+        "pbo": 0.5455,
+        "mom_res_ic": -0.0795,
+        "mom_tail_ic": -0.0867,
+        "mom_pos_frac": 0.238,
+        "n_windows": 21,
+        "passed": {
+          "ic": true,
+          "icir": true,
+          "pbo": false,
+          "momentum": false
+        },
+        "passed_all": false
+      },
+      "family": "ROE",
+      "passed_all_any_horizon": false
+    },
+    "a_cagr3": {
+      "fwd5": {
+        "fwd_col": "fwd5",
+        "oos_ic_mean": -0.0158,
+        "oos_icir": -0.3359,
+        "pbo": 0.5975,
+        "mom_res_ic": -0.0224,
+        "mom_tail_ic": -0.0223,
+        "mom_pos_frac": 0.286,
+        "n_windows": 14,
+        "passed": {
+          "ic": true,
+          "icir": false,
+          "pbo": false,
+          "momentum": false
+        },
+        "passed_all": false
+      },
+      "fwd63": {
+        "fwd_col": "fwd63",
+        "oos_ic_mean": -0.0808,
+        "oos_icir": -0.9309,
+        "pbo": 0.613,
+        "mom_res_ic": -0.0948,
+        "mom_tail_ic": -0.1078,
+        "mom_pos_frac": 0.143,
+        "n_windows": 13,
+        "passed": {
+          "ic": true,
+          "icir": true,
+          "pbo": false,
+          "momentum": false
+        },
+        "passed_all": false
+      },
+      "family": "A",
+      "passed_all_any_horizon": false
+    }
+  },
+  "event_study": {
+    "c_single_yoy": {
+      "n_events": 107,
+      "median_spread": -0.0152,
+      "mean_spread": -0.021,
+      "pos_frac": 0.402
+    },
+    "c_ttm_yoy": {
+      "n_events": 117,
+      "median_spread": -0.0018,
+      "mean_spread": -0.02,
+      "pos_frac": 0.479
+    },
+    "rev_ttm_yoy": {
+      "n_events": 137,
+      "median_spread": -0.0092,
+      "mean_spread": -0.0199,
+      "pos_frac": 0.445
+    },
+    "roe": {
+      "n_events": 137,
+      "median_spread": -0.0564,
+      "mean_spread": -0.0638,
+      "pos_frac": 0.263
+    },
+    "a_cagr3": {
+      "n_events": 46,
+      "median_spread": -0.0334,
+      "mean_spread": -0.0384,
+      "pos_frac": 0.37
+    }
+  },
+  "verdict": {
+    "H1_C_pass": false,
+    "H2_A_pass": false,
+    "early_exit_terminate": true
+  }
+}

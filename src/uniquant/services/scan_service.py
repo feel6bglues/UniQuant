@@ -19,6 +19,9 @@ from ..brain.factors.composer import FactorComposer
 from ..brain.screener.screener import StockScreener, ScreenerConfig
 from ..brain.indicators.indicators import Indicators
 from ..data.lake.storage_manager import StorageManager
+from ..research.ledger.bridge import register_factor_trials
+from ..research.ledger.degrees_of_freedom import DegreesOfFreedomLedger
+from ..research.ledger.ledger_store import LedgerStore
 from ..shared.constants import ResultsConstants
 from ..shared.error_handling import handle_errors
 from ..shared.logger_factory import get_logger
@@ -62,7 +65,10 @@ class ScanConfig:
     max_workers: int = 4
     checkpoint_enabled: bool = False
     checkpoint_dir: Optional[str] = None
-    
+    ledger_enabled: bool = True
+    ledger_path: Optional[str] = None
+    ledger_family_id: str = "factor_scan"
+
     def __post_init__(self):
         if self.holding_periods is None:
             self.holding_periods = [1, 5, 20]
@@ -115,10 +121,24 @@ class ScanPipeline:
         cp_dir = self.config.checkpoint_dir
         self._checkpoint_dir = Path(cp_dir) if cp_dir else Path(data_dir) / ".scan_cache"
         self._max_workers = self.config.max_workers
+
+        # 科研控制平面：把因子试验登记进自由度账本（防过拟合防线）。
+        # ledger_path 为空时使用进程内账本（单次扫描内多重检验校正）；
+        # 提供路径时跨运行累积 total_trials（真正的科研自由度审计）。
+        self._ledger: Optional[DegreesOfFreedomLedger] = None
+        self._ledger_store: Optional[LedgerStore] = None
+        self._ledger_audit: Optional[Dict[str, Any]] = None
+        if self.config.ledger_enabled:
+            if self.config.ledger_path:
+                self._ledger_store = LedgerStore(self.config.ledger_path)
+                self._ledger = self._ledger_store.load()
+            else:
+                self._ledger = DegreesOfFreedomLedger()
         
         logger.info(f"ScanPipeline initialized with top_n={self.config.top_n}, "
                      f"max_workers={self._max_workers}, "
-                     f"checkpoint_enabled={self.config.checkpoint_enabled}")
+                     f"checkpoint_enabled={self.config.checkpoint_enabled}, "
+                     f"ledger_enabled={self.config.ledger_enabled}")
     
     def _checkpoint_path(self, name: str) -> Path:
         return self._checkpoint_dir / f"{name}.json"
@@ -364,9 +384,61 @@ class ScanPipeline:
         )
         
         report = self.factor_analyzer.generate_report(ic_results)
-        
+
+        ledger_audit = self._register_factor_trials(ic_results)
+        if ledger_audit is not None:
+            report["research_ledger"] = ledger_audit
+
         logger.info(f"Factor analysis complete: {len(ic_results)} factors analyzed")
         return report
+
+    def _register_factor_trials(self, ic_results: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """把本次因子分析登记进科研控制平面（自由度账本）。
+
+        幂等：同一 pipeline 实例内只登记一次（``run()`` 经 ``analyze_factors``
+        与 ``generate_report`` 两处调用），避免重复计费与重复计入族系。
+        任何登记失败都不影响扫描主流程。
+        """
+        if self._ledger is None or self.config.lightweight:
+            return None
+        if self._ledger_audit is not None:
+            return self._ledger_audit
+
+        cross_section_n = 0
+        if "code" in self.combined_df.columns:
+            cross_section_n = int(self.combined_df["code"].nunique())
+
+        try:
+            audit = register_factor_trials(
+                self._ledger,
+                ic_results,
+                family_id=self.config.ledger_family_id,
+                cross_section_N=cross_section_n,
+                metadata={
+                    "source": "ScanPipeline.analyze_factors",
+                    "n_records": int(len(self.combined_df)),
+                    "n_symbols": len(self.daily_data),
+                },
+            )
+        except (KeyError, TypeError, ValueError) as exc:
+            logger.warning("科研控制平面登记失败（不影响扫描）: %s", exc)
+            return None
+
+        self._ledger_audit = audit.to_dict()
+
+        if self._ledger_store is not None:
+            self._ledger_store.save(self._ledger)
+
+        logger.info(
+            "科研控制平面: 登记 %d 项试验 / 平台累计 %d / BH-FDR 显著 %d / Alpha-Wealth 余 %.4f",
+            audit.registered,
+            audit.total_platform_trials,
+            len(self._ledger_audit["significant_factors"]),
+            audit.alpha_wealth_remaining,
+        )
+        if audit.alpha_wealth_exhausted:
+            logger.warning("科研控制平面 Alpha-Wealth 耗尽，本族后续检验已熔断")
+        return self._ledger_audit
     
     def compose_scores(self) -> pd.DataFrame:
         """
@@ -510,6 +582,31 @@ class ScanPipeline:
                         f.write(f"- Best Period: {details.get('best_period', 'N/A')}\n")
                         f.write(f"- Avg IC: {details.get('avg_ic') or 0:.4f}\n")
                         f.write(f"- Avg ICIR: {details.get('avg_icir') or 0:.4f}\n\n")
+
+                ledger = factor_report.get("research_ledger")
+                if ledger:
+                    f.write("## Research Control Plane (Degrees of Freedom Ledger)\n\n")
+                    f.write(f"- Family: `{ledger.get('family_id')}`\n")
+                    f.write(f"- Trials registered this scan: {ledger.get('registered')}\n")
+                    f.write(f"- Platform cumulative trials: {ledger.get('total_platform_trials')}\n")
+                    f.write(f"- Alpha-Wealth remaining: {ledger.get('alpha_wealth_remaining')}\n")
+                    if ledger.get("alpha_wealth_exhausted"):
+                        f.write("- ⚠️ Alpha-Wealth exhausted — further tests in this family are frozen\n")
+                    sig = ledger.get("significant_factors") or []
+                    f.write(
+                        "- Factors surviving BH-FDR (q<=0.10): "
+                        f"{', '.join(sig) if sig else '(none)'}\n\n"
+                    )
+                    f.write("| Factor | Period | t | p_raw | q_BH | pass BH |\n")
+                    f.write("|--------|--------|---|-------|------|---------|\n")
+                    for trial in ledger.get("trials", []):
+                        f.write(
+                            f"| {trial.get('factor')} | {trial.get('holding_period')} | "
+                            f"{trial.get('statistic', 0):.2f} | {trial.get('p_raw', 1):.4g} | "
+                            f"{trial.get('p_adj_bh_fdr', 1):.4g} | "
+                            f"{'yes' if trial.get('passed_bh_fdr') else 'no'} |\n"
+                        )
+                    f.write("\n")
             files["factor_analysis"] = str(factor_file)
         
         tech_signals_file = output_path / f"tech_signals_top20_{timestamp}.md"

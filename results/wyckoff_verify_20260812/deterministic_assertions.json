@@ -1,0 +1,197 @@
+{
+  "pre_registered": true,
+  "D1_deterministic_assertion_map": {
+    "windows": {
+      "W1": {
+        "n_buy": 82,
+        "n_sell_keyword": 0,
+        "buy_survive_040": 54,
+        "survival_rate_040": 0.6585,
+        "a1_buy_gt_0": true,
+        "a2_no_sell": true
+      },
+      "W2": {
+        "n_buy": 23,
+        "n_sell_keyword": 0,
+        "buy_survive_040": 12,
+        "survival_rate_040": 0.5217,
+        "a1_buy_gt_0": true,
+        "a2_no_sell": true
+      },
+      "W3": {
+        "n_buy": 66,
+        "n_sell_keyword": 0,
+        "buy_survive_040": 50,
+        "survival_rate_040": 0.7576,
+        "a1_buy_gt_0": true,
+        "a2_no_sell": true
+      },
+      "X4": {
+        "n_buy": 166,
+        "n_sell_keyword": 0,
+        "buy_survive_040": 116,
+        "survival_rate_040": 0.6988,
+        "a1_buy_gt_0": true,
+        "a2_no_sell": true
+      },
+      "X5": {
+        "n_buy": 118,
+        "n_sell_keyword": 0,
+        "buy_survive_040": 89,
+        "survival_rate_040": 0.7542,
+        "a1_buy_gt_0": true,
+        "a2_no_sell": true
+      }
+    },
+    "adapter_matrix": {
+      "做多/0.5": "BUY",
+      "买入/0.5": "BUY",
+      "轻仓试探/0.5": "BUY",
+      "做多/0.35_below_gate": null,
+      "轻仓试探/0.35_below_gate": null,
+      "做空/0.9": null,
+      "卖出/0.9": null,
+      "持有/0.9": null,
+      "观察等待/0.9": null,
+      "空仓观望/0.9": null
+    },
+    "adapter_matrix_expected": {
+      "做多/0.5": "BUY",
+      "买入/0.5": "BUY",
+      "轻仓试探/0.5": "BUY",
+      "做多/0.35_below_gate": null,
+      "轻仓试探/0.35_below_gate": null,
+      "做空/0.9": null,
+      "卖出/0.9": null,
+      "持有/0.9": null,
+      "观察等待/0.9": null,
+      "空仓观望/0.9": null
+    },
+    "adapter_matrix_ok": true,
+    "all_pass": true
+  },
+  "D2_preregistered_mwu_gate": {
+    "verdicts": {
+      "distribution": {
+        "same_sign_significant_n": 1,
+        "significant": [
+          [
+            "X4",
+            2.928223782545943
+          ]
+        ],
+        "upgrade": false
+      },
+      "markdown": {
+        "same_sign_significant_n": 1,
+        "significant": [
+          [
+            "X5",
+            1.2804487113642002
+          ]
+        ],
+        "upgrade": false
+      },
+      "leader": {
+        "same_sign_significant_n": 3,
+        "significant": [
+          [
+            "W1",
+            -0.9414823860693289
+          ],
+          [
+            "W2",
+            0.14504256038958388
+          ],
+          [
+            "W3",
+            -1.288674069139429
+          ],
+          [
+            "X5",
+            -1.539193717826804
+          ]
+        ],
+        "upgrade": false
+      },
+      "accumulation": {
+        "same_sign_significant_n": 2,
+        "significant": [
+          [
+            "W1",
+            -4.145537528419264
+          ],
+          [
+            "W2",
+            2.2171451608477546
+          ],
+          [
+            "X4",
+            3.64570636678713
+          ]
+        ],
+        "upgrade": false
+      },
+      "markup": {
+        "same_sign_significant_n": 1,
+        "significant": [
+          [
+            "X5",
+            -1.4927159560133267
+          ]
+        ],
+        "upgrade": false
+      },
+      "spring": {
+        "same_sign_significant_n": 1,
+        "significant": [
+          [
+            "W2",
+            -0.5289320287713504
+          ]
+        ],
+        "upgrade": false
+      }
+    },
+    "all_pass": true,
+    "threshold": "无信号类达 2/3 多数同号 (≥4/5) 升级线 → 维持叙事/风控层"
+  },
+  "D3_markup_survival_table": {
+    "survival_table": {
+      "W1": {
+        "n_buy": 82,
+        "survive_040": 54,
+        "survival_rate_040": 0.6585
+      },
+      "W2": {
+        "n_buy": 23,
+        "survive_040": 12,
+        "survival_rate_040": 0.5217
+      },
+      "W3": {
+        "n_buy": 66,
+        "survive_040": 50,
+        "survival_rate_040": 0.7576
+      },
+      "X4": {
+        "n_buy": 166,
+        "survive_040": 116,
+        "survival_rate_040": 0.6988
+      },
+      "X5": {
+        "n_buy": 118,
+        "survive_040": 89,
+        "survival_rate_040": 0.7542
+      }
+    },
+    "reference": {
+      "W1": 0.92,
+      "W2": 0.9,
+      "W3": 0.909,
+      "X4": 0.928,
+      "X5": 0.625
+    },
+    "matches_reference": false
+  },
+  "overall": "PASS"
+}

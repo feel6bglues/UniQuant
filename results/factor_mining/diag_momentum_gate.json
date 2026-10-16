@@ -1,0 +1,46 @@
+{
+  "summary": {
+    "cash_ratio": {
+      "rho_fm": 0.0136,
+      "rho_mr": 0.0388,
+      "ic_raw": -0.0081,
+      "ic_res": -0.0094,
+      "beta": 0.014,
+      "flip_pct": 2.8
+    },
+    "fcf_yield": {
+      "rho_fm": 0.0113,
+      "rho_mr": 0.0388,
+      "ic_raw": -0.0089,
+      "ic_res": -0.0105,
+      "beta": 0.011,
+      "flip_pct": 2.3
+    },
+    "real_dy": {
+      "rho_fm": -0.0297,
+      "rho_mr": 0.0388,
+      "ic_raw": -0.0153,
+      "ic_res": -0.0153,
+      "beta": -0.029,
+      "flip_pct": 3.4
+    },
+    "cfp_ttm": {
+      "rho_fm": -0.0131,
+      "rho_mr": 0.0388,
+      "ic_raw": -0.0203,
+      "ic_res": -0.0216,
+      "beta": -0.013,
+      "flip_pct": 2.5
+    },
+    "illiq_20d": {
+      "rho_fm": -0.02,
+      "rho_mr": 0.0388,
+      "ic_raw": -0.0424,
+      "ic_res": -0.0411,
+      "beta": -0.02,
+      "flip_pct": 2.1
+    }
+  },
+  "n_symbols": 500,
+  "elapsed_sec": 197.4
+}

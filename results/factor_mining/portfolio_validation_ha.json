@@ -1,0 +1,51 @@
+{
+  "_meta": {
+    "prereg": "本文件 docstring §预注册 (2026-08-25)",
+    "top_n": 30,
+    "cost_one_side_bp": 15.0,
+    "rebalance_every": 5,
+    "elapsed_sec": 92.8
+  },
+  "episodes": {
+    "count": 19,
+    "avg_days": 14.2
+  },
+  "strategies": {
+    "STRAT_A_cond_illiq": {
+      "ann_return": 0.1582,
+      "ann_vol": 0.1153,
+      "sharpe": 1.331,
+      "max_drawdown": -0.1288,
+      "total_return": 1.6196,
+      "in_market_frac": 0.169,
+      "avg_daily_turnover_onesided": 0.0863,
+      "n_rebalances": 81
+    },
+    "CTRL_B_uncond_illiq": {
+      "ann_return": 0.1397,
+      "ann_vol": 0.2503,
+      "sharpe": 0.649,
+      "max_drawdown": -0.4366,
+      "total_return": 1.3575,
+      "in_market_frac": 1.0,
+      "avg_daily_turnover_onesided": 0.0342,
+      "n_rebalances": 318
+    },
+    "CTRL_C_random_in_state": {
+      "ann_return": 0.0689,
+      "ann_vol": 0.1228,
+      "sharpe": 0.604,
+      "max_drawdown": -0.1426,
+      "total_return": 0.5481,
+      "in_market_frac": 0.169,
+      "avg_daily_turnover_onesided": 0.2081,
+      "n_rebalances": 81
+    }
+  },
+  "verdict": {
+    "Q1_net_positive": true,
+    "Q2b_timing_value_sharpe": 0.682,
+    "Q2c_timing_value_ann": 0.0185,
+    "Q3_selection_value_sharpe": 0.727
+  }
+}

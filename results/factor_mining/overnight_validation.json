@@ -1,0 +1,89 @@
+{
+  "_meta": {
+    "n_codes": 492,
+    "n_days": 287,
+    "window": [
+      "2025-06-24",
+      "2026-08-25"
+    ],
+    "splice_qa": {
+      "pre_mean_on": 0.00032,
+      "post_mean_on": -8e-05,
+      "gap": 0.0004,
+      "overall_std": 0.00639,
+      "tolerance": 0.01918,
+      "pass": true
+    },
+    "gates": "G1 nwt>=2.5; G2 halves; G3 resid>=1.5",
+    "terminated_by_qa": false,
+    "elapsed_sec": 3.5
+  },
+  "factors": {
+    "F1_on_mom_10": {
+      "fwd5": {
+        "mean_ic": -0.0109,
+        "nw_t": -0.86,
+        "resid_nw_t": -0.76,
+        "half_means": [
+          -0.0199,
+          -0.002
+        ],
+        "gates": {
+          "G1": false,
+          "G2_halves": true,
+          "G3_resid": false
+        },
+        "passed_all": false
+      }
+    },
+    "F2_on_mom_20": {
+      "fwd5": {
+        "mean_ic": -0.0033,
+        "nw_t": -0.24,
+        "resid_nw_t": 0.85,
+        "half_means": [
+          0.0047,
+          -0.0112
+        ],
+        "gates": {
+          "G1": false,
+          "G2_halves": false,
+          "G3_resid": false
+        },
+        "passed_all": false
+      }
+    },
+    "F3_intra_mom_20": {
+      "fwd5": {
+        "mean_ic": -0.0522,
+        "nw_t": -2.85,
+        "resid_nw_t": -2.13,
+        "half_means": [
+          -0.0623,
+          -0.0422
+        ],
+        "gates": {
+          "G1": false,
+          "G2_halves": false,
+          "G3_resid": false
+        },
+        "passed_all": false
+      },
+      "fwd21": {
+        "mean_ic": -0.0655,
+        "nw_t": -2.21,
+        "resid_nw_t": -2.6,
+        "half_means": [
+          -0.0669,
+          -0.064
+        ],
+        "gates": {
+          "G1": false,
+          "G2_halves": false,
+          "G3_resid": false
+        },
+        "passed_all": false
+      }
+    }
+  }
+}

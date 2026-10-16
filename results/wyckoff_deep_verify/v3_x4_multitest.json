@@ -1,0 +1,219 @@
+{
+  "meta": {
+    "script": "v3_x4_multitest.py",
+    "description": "X4 单窗显著性多重检验审计",
+    "windows": [
+      "W1",
+      "W2",
+      "W3",
+      "X4",
+      "X5"
+    ],
+    "family": "5 窗 × (M2 + R3) = 最多 10 p 值",
+    "pre_registered_rules": {
+      "V3_PASS": "Bonferroni 校正后 p≥0.05 或 子时段/稳健性显示为动量驱动",
+      "V3_UPGRADE": "Bonferroni 校正后仍显著 且 非单一 relmom 桶驱动 且 剔除右尾后仍显著"
+    }
+  },
+  "family_p_values": {
+    "note": "所有 5 窗的 M2 和 R3 p 值（双侧 MWU）",
+    "windows": {
+      "W1": {
+        "as_of": "2026-04-30",
+        "n": 4762,
+        "n_buy": 126,
+        "m2_resid_mean": 0.03802798853001907,
+        "m2_p": 0.5133930690443804,
+        "m2_n": 126,
+        "r3_trim_P90_resid_mean": -0.6664100317315749,
+        "r3_p": 0.2921468387497763,
+        "r3_n": 105
+      },
+      "W2": {
+        "as_of": "2026-03-31",
+        "n": 4773,
+        "n_buy": 36,
+        "m2_resid_mean": -6.3096707074228,
+        "m2_p": 0.02332749642392003,
+        "m2_n": 36,
+        "r3_trim_P90_resid_mean": -3.6452069530141387,
+        "r3_p": 0.33948650564644056,
+        "r3_n": 23
+      },
+      "W3": {
+        "as_of": "2026-05-29",
+        "n": 4766,
+        "n_buy": 60,
+        "m2_resid_mean": -0.2739397200153488,
+        "m2_p": 0.39340061716892916,
+        "m2_n": 60,
+        "r3_trim_P90_resid_mean": 2.0168607702220758,
+        "r3_p": 0.9540809818235396,
+        "r3_n": 47
+      },
+      "X4": {
+        "as_of": "2025-06-30",
+        "n": 4719,
+        "n_buy": 155,
+        "m2_resid_mean": 4.212439153788167,
+        "m2_p": 0.00026190255349363347,
+        "m2_n": 155,
+        "r3_trim_P90_resid_mean": 4.961651268967093,
+        "r3_p": 6.307510108047872e-05,
+        "r3_n": 133
+      },
+      "X5": {
+        "as_of": "2024-12-31",
+        "n": 4670,
+        "n_buy": 75,
+        "m2_resid_mean": -0.9661800850951414,
+        "m2_p": 0.1163617121785967,
+        "m2_n": 75,
+        "r3_trim_P90_resid_mean": -1.5989598293528287,
+        "r3_p": 0.2526153263633689,
+        "r3_n": 54
+      }
+    },
+    "p_label_order": [
+      "W1_M2",
+      "W1_R3",
+      "W2_M2",
+      "W2_R3",
+      "W3_M2",
+      "W3_R3",
+      "X4_M2",
+      "X4_R3",
+      "X5_M2",
+      "X5_R3"
+    ],
+    "p_values": [
+      0.513393,
+      0.292147,
+      0.023327,
+      0.339487,
+      0.393401,
+      0.954081,
+      0.000262,
+      6.3e-05,
+      0.116362,
+      0.252615
+    ]
+  },
+  "section_A_multitest_correction": {
+    "family_size": 10,
+    "p_labels": [
+      "W1_M2",
+      "W1_R3",
+      "W2_M2",
+      "W2_R3",
+      "W3_M2",
+      "W3_R3",
+      "X4_M2",
+      "X4_R3",
+      "X5_M2",
+      "X5_R3"
+    ],
+    "all_p_values": [
+      0.513393,
+      0.292147,
+      0.023327,
+      0.339487,
+      0.393401,
+      0.954081,
+      0.000262,
+      6.3e-05,
+      0.116362,
+      0.252615
+    ],
+    "x4_r3_raw_p": 6.3e-05,
+    "bonferroni_adj_p": 0.000631,
+    "holm_adj_p": 0.000631,
+    "bh_q": 0.000631,
+    "bonferroni_significant": 1,
+    "holm_significant": 1,
+    "bh_significant": 1
+  },
+  "section_B_quintile_analysis": {
+    "overall_buy_mean_fwd_20d": 10.6845,
+    "overall_other_mean_fwd_20d": 6.3418,
+    "overall_buy_vs_other_effect": 4.3427,
+    "dominant_bucket": {
+      "quintile": 0,
+      "relmom_range": "-0.50 to -0.04",
+      "n_buy": 11,
+      "n_other": 933,
+      "buy_mean_fwd_20d": 13.5464,
+      "other_mean_fwd_20d": 5.8857,
+      "buy_vs_other_effect": 7.6607,
+      "mwu_p": 0.002263
+    },
+    "quintiles": [
+      {
+        "quintile": 0,
+        "relmom_range": "-0.50 to -0.04",
+        "n_buy": 11,
+        "n_other": 933,
+        "buy_mean_fwd_20d": 13.5464,
+        "other_mean_fwd_20d": 5.8857,
+        "buy_vs_other_effect": 7.6607,
+        "mwu_p": 0.002263
+      },
+      {
+        "quintile": 1,
+        "relmom_range": "-0.04 to -0.01",
+        "n_buy": 20,
+        "n_other": 924,
+        "buy_mean_fwd_20d": 10.5183,
+        "other_mean_fwd_20d": 6.7215,
+        "buy_vs_other_effect": 3.7967,
+        "mwu_p": 0.060841
+      },
+      {
+        "quintile": 2,
+        "relmom_range": "-0.01 to 0.03",
+        "n_buy": 39,
+        "n_other": 904,
+        "buy_mean_fwd_20d": 9.6332,
+        "other_mean_fwd_20d": 6.6068,
+        "buy_vs_other_effect": 3.0264,
+        "mwu_p": 0.11456
+      },
+      {
+        "quintile": 3,
+        "relmom_range": "0.03 to 0.09",
+        "n_buy": 34,
+        "n_other": 910,
+        "buy_mean_fwd_20d": 13.5762,
+        "other_mean_fwd_20d": 7.4596,
+        "buy_vs_other_effect": 6.1166,
+        "mwu_p": 0.006506
+      },
+      {
+        "quintile": 4,
+        "relmom_range": "0.09 to 1.62",
+        "n_buy": 51,
+        "n_other": 893,
+        "buy_mean_fwd_20d": 9.0086,
+        "other_mean_fwd_20d": 5.0179,
+        "buy_vs_other_effect": 3.9907,
+        "mwu_p": 0.328635
+      }
+    ]
+  },
+  "section_C_robustness": {
+    "r3c_cubic_resid_mean": 4.1458,
+    "r3c_p": 0.000341,
+    "r3c_n": 155,
+    "r3t_trim_abs_fwd_P95_P90_resid_mean": 2.4552,
+    "r3t_p": 0.000196,
+    "r3t_n": 117,
+    "abs_fwd_p95_threshold": 26.7593
+  },
+  "verdict": {
+    "verdict": "V3 PASS (维持候选)",
+    "detail": "Bonferroni 显著但子时段/稳健性显示为动量驱动",
+    "bonferroni_significant_at_0.05": 1,
+    "single_bucket_driven": 1,
+    "robust_after_tail_removal": 1
+  }
+}

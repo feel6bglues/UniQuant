@@ -1,0 +1,26 @@
+{
+  "_meta": {
+    "prereg": "docs/analysis/P14_CASH_FCF_DY_PREREGISTRATION.md",
+    "as_of": "2026-05-29",
+    "lookback_days": 1600,
+    "sample": true,
+    "n_symbols": 500,
+    "elapsed_sec": 154.4
+  },
+  "cross_section": "2026-05-29 00:00:00",
+  "coverage": {
+    "fcf_yield": 1.0,
+    "cfp_ttm": 1.0,
+    "cash_ratio": 0.7243,
+    "real_dy": 0.9779
+  },
+  "redundancy": {
+    "fcf_yield_vs_cfp_ttm_spearman": 0.7916016307718055,
+    "cash_ratio_vs_cfp_ttm_spearman": 0.6617605074113225,
+    "real_dy_vs_cfp_ttm_spearman": 0.4376329129613315,
+    "note": "spearman > 0.9 判 fcf_yield 为 cfp_ttm 冗余 (非独立增量, 退出五门)"
+  },
+  "verdict": {
+    "fcf_yield_is_redundant": false
+  }
+}

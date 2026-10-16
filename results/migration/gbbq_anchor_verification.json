@@ -1,0 +1,463 @@
+{
+  "generated_at": "2026-10-12T08:13:18+00:00",
+  "script": "scripts/maintenance/verify_gbbq_anchors.py",
+  "gbbq_parquet": "data/fq/gbbq.parquet",
+  "gbbq_rows": 193506,
+  "gbbq_columns": [
+    "code",
+    "market",
+    "date",
+    "category",
+    "cash_div",
+    "split_ratio",
+    "rights_ratio",
+    "rights_price"
+  ],
+  "raw_gbbq_path": "/home/james/.local/share/tdxcfv/drive_c/tc/T0002/hq_cache/gbbq",
+  "anchors": {
+    "S0": {
+      "id": "S0",
+      "name": "resync 行数/列契约/最新事件日 gate",
+      "status": "PASS",
+      "checks": [
+        {
+          "name": "columns_8_contract",
+          "expected": [
+            "code",
+            "market",
+            "date",
+            "category",
+            "cash_div",
+            "split_ratio",
+            "rights_ratio",
+            "rights_price"
+          ],
+          "actual": [
+            "code",
+            "market",
+            "date",
+            "category",
+            "cash_div",
+            "split_ratio",
+            "rights_ratio",
+            "rights_price"
+          ],
+          "pass": true
+        },
+        {
+          "name": "category1_latest_date",
+          "expected": ">= 20261014",
+          "actual": 20261014,
+          "pass": true
+        },
+        {
+          "name": "raw_vs_parquet_row_diff",
+          "expected": "0 (raw 全量无清洗丢失)",
+          "actual": 0,
+          "pass": true
+        }
+      ],
+      "metrics": {
+        "parquet_rows": 193506,
+        "category1_rows": 63668,
+        "category1_max_date": 20261014,
+        "columns": [
+          "code",
+          "market",
+          "date",
+          "category",
+          "cash_div",
+          "split_ratio",
+          "rights_ratio",
+          "rights_price"
+        ],
+        "dtypes": {
+          "code": "object",
+          "market": "int64",
+          "date": "int64",
+          "category": "int64",
+          "cash_div": "float64",
+          "split_ratio": "float64",
+          "rights_ratio": "float64",
+          "rights_price": "float64"
+        },
+        "raw_rows": 193506,
+        "raw_minus_parquet": 0,
+        "raw_category1_rows": 63668
+      }
+    },
+    "A1": {
+      "id": "A1",
+      "name": "茅台 600519 两源派现交叉对账",
+      "status": "PASS",
+      "checks": [
+        {
+          "name": "gbbq_2024_sum_per_share_vs_dividend_lake",
+          "expected": "54.758",
+          "actual": 54.758002,
+          "pass": true
+        },
+        {
+          "name": "event_20240619_gbbq_vs_dividend_lake",
+          "expected": 30.876001,
+          "actual": 30.876001,
+          "pass": true
+        },
+        {
+          "name": "event_20240619_is_10_for_308_76",
+          "expected": 308.76,
+          "actual": 308.760009765625,
+          "pass": true
+        },
+        {
+          "name": "unit_ratio_gbbq_per10_dividend_pershare",
+          "expected": 10.0,
+          "actual": 10.0,
+          "pass": true
+        }
+      ],
+      "metrics": {
+        "gbbq_2024_events": [
+          {
+            "date": 20240619,
+            "cash_div_per_10": 308.760009765625
+          },
+          {
+            "date": 20241220,
+            "cash_div_per_10": 238.82000732421875
+          }
+        ],
+        "gbbq_2024_sum_per_10": 547.5800170898438,
+        "gbbq_2024_sum_per_share": 54.758001708984374,
+        "dividend_lake_2024_dps_sum": 54.75800170898438,
+        "dividend_lake_2024_rows": 2,
+        "abs_diff": 7.105427357601002e-15,
+        "unit_note": "gbbq cash_div=元/10股；dividend lake dps=元/股；比值恰为 10"
+      }
+    },
+    "A2": {
+      "id": "A2",
+      "name": "送转手算 3 例 + 原始 gbbq 二进制一致性",
+      "status": "PASS",
+      "checks": [
+        {
+          "name": "raw_binary_match_20110701",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "name": "raw_binary_match_20140625",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "name": "raw_binary_match_20150717",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "name": "raw_binary_match_20060519",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "name": "handcalc_factor_increment_20110701",
+          "expected": "|手算-引擎| <= 1e-6",
+          "actual": "0.000e+00",
+          "pass": true
+        },
+        {
+          "name": "handcalc_theo_vs_ex_open_20110701",
+          "expected": "|ex_open-theo|/pre_close <= 5%",
+          "actual": "0.6067%",
+          "pass": true
+        },
+        {
+          "name": "handcalc_factor_increment_20140625",
+          "expected": "|手算-引擎| <= 1e-6",
+          "actual": "0.000e+00",
+          "pass": true
+        },
+        {
+          "name": "handcalc_theo_vs_ex_open_20140625",
+          "expected": "|ex_open-theo|/pre_close <= 5%",
+          "actual": "0.3729%",
+          "pass": true
+        },
+        {
+          "name": "handcalc_factor_increment_20150717",
+          "expected": "|手算-引擎| <= 1e-6",
+          "actual": "0.000e+00",
+          "pass": true
+        },
+        {
+          "name": "handcalc_theo_vs_ex_open_20150717",
+          "expected": "|ex_open-theo|/pre_close <= 5%",
+          "actual": "1.6932%",
+          "pass": true
+        },
+        {
+          "name": "handcalc_examples_count",
+          "expected": 3,
+          "actual": 3,
+          "pass": true
+        }
+      ],
+      "metrics": {
+        "engine_mode": "CorporateActionAdjuster(new_track)",
+        "handcalc": [
+          {
+            "date": 20110701,
+            "cash_div_per_10": 23.0,
+            "split_ratio_per_10": 1.0,
+            "pre_close": 212.63,
+            "theoretical_ex_price": 191.21,
+            "actual_ex_open": 192.5,
+            "factor_hand": 1.1120234297369385,
+            "factor_engine": 1.1120234297369385,
+            "abs_diff": 0.0,
+            "theo_vs_open_rel": 0.0060668767342331375
+          },
+          {
+            "date": 20140625,
+            "cash_div_per_10": 43.7400016784668,
+            "split_ratio_per_10": 1.0,
+            "pre_close": 163.57,
+            "theoretical_ex_price": 144.72,
+            "actual_ex_open": 145.33,
+            "factor_hand": 1.1302515201768932,
+            "factor_engine": 1.1302515201768932,
+            "abs_diff": 0.0,
+            "theo_vs_open_rel": 0.003729290212141674
+          },
+          {
+            "date": 20150717,
+            "cash_div_per_10": 43.7400016784668,
+            "split_ratio_per_10": 1.0,
+            "pre_close": 251.59,
+            "theoretical_ex_price": 224.74,
+            "actual_ex_open": 229.0,
+            "factor_hand": 1.119471389160808,
+            "factor_engine": 1.119471389160808,
+            "abs_diff": 0.0,
+            "theo_vs_open_rel": 0.016932310505186975
+          }
+        ],
+        "raw_only_events": [
+          {
+            "date": 20060519,
+            "in_daily": false,
+            "gbbq_cash_div": 3.0,
+            "gbbq_split_ratio": 10.0,
+            "raw_match": true
+          }
+        ],
+        "raw_file_available": true,
+        "formula": "(pre_close - cash_div/10) / (1 + split_ratio/10)"
+      }
+    },
+    "A3": {
+      "id": "A3",
+      "name": "新轨 qfq 锚点 (600519 全历史)",
+      "status": "PASS",
+      "checks": [
+        {
+          "name": "qfq_last_day_equals_raw_close",
+          "expected": "0.0",
+          "actual": "0.000e+00",
+          "pass": true
+        },
+        {
+          "name": "volume_series_identical",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "name": "adjustment_actually_applied",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "name": "adj_factor_last_day_is_1",
+          "expected": 1.0,
+          "actual": 1.0,
+          "pass": true
+        },
+        {
+          "name": "rows_unchanged",
+          "expected": 6011,
+          "actual": 6011,
+          "pass": true
+        }
+      ],
+      "metrics": {
+        "mode": "CorporateActionAdjuster(new_track)",
+        "degraded": false,
+        "rows": 6011,
+        "first_date": "2001-08-27",
+        "last_date": "2026-09-23",
+        "raw_close_last": 1251.24,
+        "qfq_close_last": 1251.24,
+        "raw_close_first": 35.55,
+        "qfq_close_first": 4.164534756339884,
+        "max_abs_price_shift": 373.960408839469,
+        "adj_factor_last": 1.0,
+        "adj_factor_first": 0.11714584406019365
+      }
+    },
+    "A4": {
+      "id": "A4",
+      "name": "category=1 量纲分布哨兵",
+      "status": "PASS",
+      "checks": [
+        {
+          "name": "cash_div_p50_about_1",
+          "expected": "~1.0",
+          "actual": 1.0,
+          "pass": true
+        },
+        {
+          "name": "split_ratio_p99_about_10",
+          "expected": "~10",
+          "actual": 10.0,
+          "pass": true
+        },
+        {
+          "name": "rights_price_not_divided_by_10",
+          "expected": "p50 == 0.0 (raw 量纲保留, 不 /10)",
+          "actual": 0.0,
+          "pass": true
+        },
+        {
+          "name": "cash_div_p99_sane",
+          "expected": "< 1000",
+          "actual": 17.0,
+          "pass": true
+        }
+      ],
+      "metrics": {
+        "category1_rows": 63668,
+        "cash_div": {
+          "p50": 1.0,
+          "p99": 17.0,
+          "max": 1500.0
+        },
+        "split_ratio": {
+          "p50": 0.0,
+          "p99": 10.0,
+          "max": 990.0
+        },
+        "rights_price": {
+          "p50": 0.0,
+          "p99": 5.599999904632568,
+          "nonzero_rows": 1008
+        },
+        "unit_note": "cash_div/split_ratio/rights_ratio 为 per-10 股量纲, rights_price 为元/股不除 10"
+      }
+    },
+    "A5": {
+      "id": "A5",
+      "name": "超大量纲记录归档与因子隔离",
+      "status": "PASS",
+      "checks": [
+        {
+          "name": "non_category1_rows_exist_for_archive",
+          "expected": "> 0",
+          "actual": 129838,
+          "pass": true
+        },
+        {
+          "name": "2650_class_all_non_category1",
+          "expected": "0 rows of category=1",
+          "actual": 0,
+          "pass": true
+        },
+        {
+          "name": "factor_input_excludes_non_category1",
+          "expected": 0,
+          "actual": 0,
+          "pass": true
+        },
+        {
+          "name": "factor_input_row_count_matches_positive_filter",
+          "expected": 63648,
+          "actual": 63648,
+          "pass": true
+        },
+        {
+          "name": "huge_split_rows_excluded_from_factor_input",
+          "expected": "2650.0 类 (per-share 265.0) 不在因子输入",
+          "actual": false,
+          "pass": true
+        },
+        {
+          "name": "cleaned_max_split_bounded_by_category1_history",
+          "expected": "<= 100.0 (per-share, 对应 1992 年 10 送 99 历史极值)",
+          "actual": 99.0,
+          "pass": true
+        }
+      ],
+      "metrics": {
+        "total_rows": 193506,
+        "category_distribution_all": {
+          "1": 63668,
+          "2": 4142,
+          "3": 4436,
+          "4": 2,
+          "5": 112136,
+          "6": 67,
+          "7": 18,
+          "8": 657,
+          "9": 7574,
+          "10": 274,
+          "11": 409,
+          "12": 8,
+          "13": 9,
+          "14": 15,
+          "15": 91
+        },
+        "non_category1_rows": 129838,
+        "non_category1_category_distribution": {
+          "2": 4142,
+          "3": 4436,
+          "4": 2,
+          "5": 112136,
+          "6": 67,
+          "7": 18,
+          "8": 657,
+          "9": 7574,
+          "10": 274,
+          "11": 409,
+          "12": 8,
+          "13": 9,
+          "14": 15,
+          "15": 91
+        },
+        "split_ratio_2650_rows": 9,
+        "split_ratio_2650_category_distribution": {
+          "5": 9
+        },
+        "non_category1_split_gt_10_rows": 129039,
+        "factor_input_rows_after_load_and_clean": 63648,
+        "factor_input_expected_rows": 63648,
+        "future_exdate_rows_excluded": 19,
+        "factor_input_non_category1_rows": 0,
+        "factor_input_split_gt_1_per_share_rows": 585,
+        "factor_input_max_split_per_share": 99.0,
+        "note": "2650.0 等超大量纲行全部落在 category!=1，且被 GBBQProcessorV15.load_and_clean 过滤，不进因子输入"
+      }
+    }
+  },
+  "summary": {
+    "total": 6,
+    "passed": 6,
+    "failed": 0,
+    "status": "PASS"
+  }
+}

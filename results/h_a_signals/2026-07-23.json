@@ -1,0 +1,198 @@
+{
+ "generated_at": "2026-08-25T14:22:34",
+ "strategy": "H-A conditional illiquidity (P7/P8/D+10)",
+ "state": {
+  "as_of": "2026-07-23",
+  "idx_close": 4728.0,
+  "trend_on": true,
+  "vol_state": "vol_high",
+  "hot_bull": true
+ },
+ "target_portfolio": {
+  "as_of": "2026-07-23",
+  "n_eligible": 5033,
+  "target": [
+   {
+    "code": "002731.SZ",
+    "weight": 0.0333,
+    "illiq": 30.85,
+    "adv20_wan": 1300.9
+   },
+   {
+    "code": "603789.SH",
+    "weight": 0.0333,
+    "illiq": 8.08,
+    "adv20_wan": 3421.3
+   },
+   {
+    "code": "688121.SH",
+    "weight": 0.0333,
+    "illiq": 7.13,
+    "adv20_wan": 3971.3
+   },
+   {
+    "code": "600491.SH",
+    "weight": 0.0333,
+    "illiq": 6.98,
+    "adv20_wan": 5650.3
+   },
+   {
+    "code": "688496.SH",
+    "weight": 0.0333,
+    "illiq": 4.95,
+    "adv20_wan": 813.7
+   },
+   {
+    "code": "002175.SZ",
+    "weight": 0.0333,
+    "illiq": 4.15,
+    "adv20_wan": 6151.8
+   },
+   {
+    "code": "603001.SH",
+    "weight": 0.0333,
+    "illiq": 4.0,
+    "adv20_wan": 17107.5
+   },
+   {
+    "code": "600180.SH",
+    "weight": 0.0333,
+    "illiq": 3.56,
+    "adv20_wan": 4702.0
+   },
+   {
+    "code": "603580.SH",
+    "weight": 0.0333,
+    "illiq": 3.43,
+    "adv20_wan": 2917.2
+   },
+   {
+    "code": "002694.SZ",
+    "weight": 0.0333,
+    "illiq": 3.15,
+    "adv20_wan": 995.0
+   },
+   {
+    "code": "605336.SH",
+    "weight": 0.0333,
+    "illiq": 3.13,
+    "adv20_wan": 1876.3
+   },
+   {
+    "code": "603828.SH",
+    "weight": 0.0333,
+    "illiq": 3.12,
+    "adv20_wan": 1489.9
+   },
+   {
+    "code": "603137.SH",
+    "weight": 0.0333,
+    "illiq": 3.11,
+    "adv20_wan": 7673.1
+   },
+   {
+    "code": "603377.SH",
+    "weight": 0.0333,
+    "illiq": 2.87,
+    "adv20_wan": 1811.4
+   },
+   {
+    "code": "600119.SH",
+    "weight": 0.0333,
+    "illiq": 2.83,
+    "adv20_wan": 1354.8
+   },
+   {
+    "code": "603922.SH",
+    "weight": 0.0333,
+    "illiq": 2.75,
+    "adv20_wan": 2511.2
+   },
+   {
+    "code": "000909.SZ",
+    "weight": 0.0333,
+    "illiq": 2.58,
+    "adv20_wan": 1670.7
+   },
+   {
+    "code": "688184.SH",
+    "weight": 0.0333,
+    "illiq": 2.52,
+    "adv20_wan": 1116.4
+   },
+   {
+    "code": "000820.SZ",
+    "weight": 0.0333,
+    "illiq": 2.49,
+    "adv20_wan": 1386.2
+   },
+   {
+    "code": "603869.SH",
+    "weight": 0.0333,
+    "illiq": 2.45,
+    "adv20_wan": 1046.7
+   },
+   {
+    "code": "002691.SZ",
+    "weight": 0.0333,
+    "illiq": 2.43,
+    "adv20_wan": 1751.4
+   },
+   {
+    "code": "002193.SZ",
+    "weight": 0.0333,
+    "illiq": 2.36,
+    "adv20_wan": 1955.7
+   },
+   {
+    "code": "002759.SZ",
+    "weight": 0.0333,
+    "illiq": 2.31,
+    "adv20_wan": 89564.3
+   },
+   {
+    "code": "600965.SH",
+    "weight": 0.0333,
+    "illiq": 2.31,
+    "adv20_wan": 1578.6
+   },
+   {
+    "code": "603838.SH",
+    "weight": 0.0333,
+    "illiq": 2.19,
+    "adv20_wan": 1170.2
+   },
+   {
+    "code": "002485.SZ",
+    "weight": 0.0333,
+    "illiq": 2.15,
+    "adv20_wan": 2536.1
+   },
+   {
+    "code": "600365.SH",
+    "weight": 0.0333,
+    "illiq": 1.87,
+    "adv20_wan": 1187.4
+   },
+   {
+    "code": "600107.SH",
+    "weight": 0.0333,
+    "illiq": 1.85,
+    "adv20_wan": 1576.8
+   },
+   {
+    "code": "600543.SH",
+    "weight": 0.0333,
+    "illiq": 1.83,
+    "adv20_wan": 1284.3
+   },
+   {
+    "code": "603359.SH",
+    "weight": 0.0333,
+    "illiq": 1.82,
+    "adv20_wan": 2401.3
+   }
+  ]
+ },
+ "action": "HOLD top30 illiq (equal weight)"
+}

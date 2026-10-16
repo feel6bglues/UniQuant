@@ -1,0 +1,213 @@
+{
+  "version": 1,
+  "generated_at": "2026-10-16T02:46:00.820182+00:00",
+  "git_head": "0a12f0cff4733c98d24357909a87031590585fe3",
+  "roots": [
+    "results",
+    "tests/benchmark"
+  ],
+  "file_count": 50,
+  "total_bytes": 942274,
+  "files": {
+    "results/canslim/factor_gate.json": {
+      "sha256": "126f128bef0d472c67ac70b698640fe60c848ee59f68ce8d7378fec86d64ad24",
+      "size": 5471
+    },
+    "results/factor_mining/baseline_walkforward_sample500.json": {
+      "sha256": "cf5bcee567551ee862f0c3b04d359ce24d59a8a761d96401e61eb5d82a90a3af",
+      "size": 25534
+    },
+    "results/factor_mining/baseline_walkforward_sample500_oos.json": {
+      "sha256": "23604f95f11640e29c79fe8e589300c643645f37d64b6bda569031d7767779c9",
+      "size": 22425
+    },
+    "results/factor_mining/bp_ha_portfolio.json": {
+      "sha256": "f0ee212c319f09588e93d8e977038c06b3823a14650d61ac1cc10590124623ac",
+      "size": 1619
+    },
+    "results/factor_mining/bp_ha_unified.json": {
+      "sha256": "93fd5aa5445cb43b4afbfd7ca38bd0b726271b959e50b210d409849c95c014a5",
+      "size": 15550
+    },
+    "results/factor_mining/capacity_validation.json": {
+      "sha256": "b672c6acdbc0dea485f3ee227bb9955df6e616a35ae20697885f5848edc5d46b",
+      "size": 1171
+    },
+    "results/factor_mining/cash_fcf_dy_test.json": {
+      "sha256": "b8b3b72145f3674077819baec8ad5dbe324a18436aba2048713db4d6deb97b67",
+      "size": 2796
+    },
+    "results/factor_mining/conditional_validation.json": {
+      "sha256": "72e2eab1b7cd6cd7d0367eeb0c8f3eb39fdbd6eb44fa3c02179ad440133c72d9",
+      "size": 5004
+    },
+    "results/factor_mining/diag_momentum_gate.json": {
+      "sha256": "f08ee5ac960401facd8beae866613cb5b9566921ff4bb3af1d18a7e6cf32aa42",
+      "size": 900
+    },
+    "results/factor_mining/financial_fetch_checkpoint.json": {
+      "sha256": "786b105c39b1495d0483ed6d526e93d6941bc1d16b4c9acda539b2179f1aff54",
+      "size": 443
+    },
+    "results/factor_mining/fundamental_factor_test.json": {
+      "sha256": "f57d54394c57251a12686fd64ac3a978fffa537f6d38c997a0dd9bb65ce9d074",
+      "size": 4931
+    },
+    "results/factor_mining/gp_mining.json": {
+      "sha256": "0c364af71bbfef3927b5f3de79a4cfd774d91681cde77e9c6f9d85e3eab8e3a1",
+      "size": 28613
+    },
+    "results/factor_mining/gp_mining_report.md": {
+      "sha256": "ad2465ea8e1865a25a4536e8467e7f1cef3346068e1d89c8eed0fff187c39cee",
+      "size": 2614
+    },
+    "results/factor_mining/gp_smoke_diversity.json": {
+      "sha256": "3bc78b2f3566912231ab5a4903a6b0f4a25de6d14dabf4a1f5bdca423ff96500",
+      "size": 28799
+    },
+    "results/factor_mining/ha_rotation_sim.json": {
+      "sha256": "8f1d177707e3039dc886c96d3862227f16ffb572349503d57452c72d342cc866",
+      "size": 449
+    },
+    "results/factor_mining/ha_unified_adapter.json": {
+      "sha256": "050718974aa57339d3082bc148b3cc64789f6bead577234e31686eeba428b303",
+      "size": 50120
+    },
+    "results/factor_mining/logic_factor_test.json": {
+      "sha256": "d5c4d492e2d85b68bd5d330ff2ce92a8bdb484f1b7461121107425e49207b726",
+      "size": 5061
+    },
+    "results/factor_mining/minute_fetch_qa.json": {
+      "sha256": "303662e92bb757e673dbe1bf56c56241ec32a83a63a46dda15264e817106cdb9",
+      "size": 61835
+    },
+    "results/factor_mining/overnight_validation.json": {
+      "sha256": "e9d2c104b066d26fceb87170db3ba825c8414208694a407fe4c1cc9403737b61",
+      "size": 1778
+    },
+    "results/factor_mining/p12_tail_chip_factor_test.json": {
+      "sha256": "078cf19c8ea5b232febc1443dcc42f60619ed04c311bcc404aa83e101f180171",
+      "size": 4762
+    },
+    "results/factor_mining/portfolio_validation_ha.json": {
+      "sha256": "5209e85f2c107a8d9d6f30ac99b898bc4dd8d0ec76eaeca24f89c47356eb1ffa",
+      "size": 1245
+    },
+    "results/factor_mining/regime_conditional_ic.json": {
+      "sha256": "2367f26ef42cd9fc8533759b279c86c303dab66dde7018162e2739e6da784cb6",
+      "size": 73895
+    },
+    "results/factor_mining/t5_redundancy_precheck.json": {
+      "sha256": "3b89b197b9d2e8857bb2cb77720297bc2d0253ac7513ac77a6b5cc4540555453",
+      "size": 703
+    },
+    "results/h_a_signals/2026-07-23.json": {
+      "sha256": "95d3477325794dd3cd74cf08c1c40eb6a4a6ae86ae3c217db38e92b6e896686d",
+      "size": 3396
+    },
+    "results/migration/csi300_singleday_qfq_verification.json": {
+      "sha256": "9a75e6be1db58b960d34eaa76a3d8aaeab5acc970c9e8657291a983225131792",
+      "size": 178135
+    },
+    "results/migration/gbbq_anchor_verification.json": {
+      "sha256": "d408fe6f70f6ae9a5917777a776ada666a83986fff5b782ae443936a62ed50ef",
+      "size": 12588
+    },
+    "results/migration/lake_baseline.json": {
+      "sha256": "cfffb5ed0c7dc55687468c34168ac6de0f4d64adb0a7a038555b6aace57c38c7",
+      "size": 2863
+    },
+    "results/migration/qfq_baostock_benchmark.json": {
+      "sha256": "ca9c5ce85b416d614bacbbcb455b5c81c5c419670876442458cc9a8772648d25",
+      "size": 8194
+    },
+    "results/migration/step3_get_price_contract.md": {
+      "sha256": "96d4344d6a2baae88180ec24d28e44693b94b026efaf857be228fef3e82de27e",
+      "size": 3960
+    },
+    "results/migration/step5_d5_metadata_verification.json": {
+      "sha256": "ba8219452ce4760dae32ad51e681e6688c92266e4b0c3598ca38abc66c4ca4ae",
+      "size": 13719
+    },
+    "results/wyckoff_deep_verify/v1_f7_robustness.json": {
+      "sha256": "db9c28c20a73bb123d1031ba34c8bf930efded132c7b954f39167739ccb62d3c",
+      "size": 160166
+    },
+    "results/wyckoff_deep_verify/v2_post_p0_direction_map.json": {
+      "sha256": "889c56fe0a3545e1f70e0cd3817e3e47855362daf6fe06b2c94c781db6c32d1e",
+      "size": 2675
+    },
+    "results/wyckoff_deep_verify/v3_x4_multitest.json": {
+      "sha256": "a5ba97ed6ea83e36d326604f89ccd4bc71425903232f933969f6bb4df7cf1156",
+      "size": 5398
+    },
+    "results/wyckoff_deep_verify/v4_signal_chain_leak.json": {
+      "sha256": "4f6b4cdf70364468b295379fa910f2727c891bc14475f5d12877acc8ea4fbb0c",
+      "size": 79004
+    },
+    "results/wyckoff_deep_verify/v5_ashare_guard.json": {
+      "sha256": "9a56e483104e5882dda37a199ee7067ff59552ac7a38ba0e6f2ff01cdeb7c64e",
+      "size": 7300
+    },
+    "results/wyckoff_experiments/atr_trigger_diff.json": {
+      "sha256": "c56913ce4e0929f4d8287de5e33fa88423434b07c34a0e1ccf9c86d289c9072e",
+      "size": 3618
+    },
+    "results/wyckoff_experiments/buyset_momentum_residual.json": {
+      "sha256": "37d5a09f8320ca4d5c98cc39d82904223647afae59e2314cd8afc4d38a91ed91",
+      "size": 2639
+    },
+    "results/wyckoff_experiments/confidence_survival.json": {
+      "sha256": "aaf105ec8f11031fb0c127103677f6421e16ef274d68b37d2632e6391a24755c",
+      "size": 14919
+    },
+    "results/wyckoff_experiments/direction_map_check.json": {
+      "sha256": "ba288c7645c12a3c8777f9483f198e28b5ea73d9956355982c2db8d096d7c652",
+      "size": 1968
+    },
+    "results/wyckoff_experiments/stoploss_exit_check.json": {
+      "sha256": "f19db60252763d444cc65605a58a26af29d3d98e6f0d51507a3e5dd1fbc1ae7c",
+      "size": 865
+    },
+    "results/wyckoff_verify_20260812/_tmp_head_baseline_v0.parquet": {
+      "sha256": "379c4d324fd268a07e1e819e8857ae12eaa48fa8989977dc58c25df17abae78c",
+      "size": 10574
+    },
+    "results/wyckoff_verify_20260812/check_impl_state.json": {
+      "sha256": "54f2ca61cda724e34d1a810a11e4cad43f27d0f8f01f6b63951fade3d6fe233b",
+      "size": 1441
+    },
+    "results/wyckoff_verify_20260812/deterministic_assertions.json": {
+      "sha256": "6d9eaa849fba3f55874c667069bf868d47e0f66d14af908ed7252a100fad578b",
+      "size": 4360
+    },
+    "results/wyckoff_verify_20260812/golden_gate.json": {
+      "sha256": "cb425cca9b52d3985a6fead07931df273d7e66fbba6d1b953516fa85c382d27c",
+      "size": 383
+    },
+    "results/wyckoff_verify_20260812/replicate_f7.json": {
+      "sha256": "0f58375151d20a8b8064a994da962d9964d426cf2c331a1944ab6c029caa1521",
+      "size": 8007
+    },
+    "results/wyckoff_verify_20260812/replicate_t1_t3.json": {
+      "sha256": "d5a006b1acdfb3ec575dfca71e6d53e32cc68f6ee2265b378d5d817b3f947064",
+      "size": 4094
+    },
+    "results/wyckoff_verify_20260812/verify_seal_as_entry.json": {
+      "sha256": "e679921e83133fe770f46815048627f9e3afd5a6b7471ab98ee9fb2803f2de64",
+      "size": 1030
+    },
+    "tests/benchmark/baseline_execution_v0.parquet": {
+      "sha256": "66543707beba1a98ac508287a4d53731345281984a6ecf7ae313be836c417b5e",
+      "size": 32653
+    },
+    "tests/benchmark/baseline_v0.parquet": {
+      "sha256": "b95f2e1d089d17f200128558f61f2ad69dece33efee341320288c0a932cdc5f5",
+      "size": 10583
+    },
+    "tests/benchmark/baseline_v0_100.parquet": {
+      "sha256": "60f6e4b9c2f4269a01370eb068b65a18cbd7717bbe544a0ce1cb3b04c22d8370",
+      "size": 22024
+    }
+  }
+}

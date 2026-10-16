@@ -52,6 +52,7 @@ tests/benchmark/*_intermediate.parquet
 
 # Root-level generated reports & data
 /*.md
+!/CLAUDE.md
 /*.json
 /*.csv
 
@@ -69,8 +70,12 @@ src/uniquant/shared/__pycache__/
 *,cover
 mutants/
 
-# Runtime results
-results/
+# Runtime results — bulk artifacts are regenerable/large and stay out of the
+# repo. The structured evidence behind published conclusions IS tracked; see
+# results/.gitignore (allow-list) and results/EVIDENCE_MANIFEST.json (the
+# content-hash ledger, verified in CI via scripts/maintenance/evidence_manifest.py).
+results/*
+!results/.gitignore
 failed_downloads.txt
 
 # ECC / AI agent configuration

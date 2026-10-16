@@ -29,5 +29,43 @@ jobs:
       - name: Lint with ruff
         run: ruff check src/uniquant/ tests/ scripts/
 
+      - name: Verify evidence manifest
+        # The data lake and bulk research output are not tracked; the structured
+        # evidence behind published conclusions is, and is covered by a
+        # content-hash ledger. Fail if that ledger drifts from the tree.
+        run: python scripts/maintenance/evidence_manifest.py verify
+
       - name: Test with pytest
         run: pytest tests/ -q --tb=short
+
+  coverage:
+    # Separate job so the fast `test` job above still gives quick feedback.
+    # `--cov-fail-under` is a *regression floor*: the measured full-package
+    # coverage at the time of writing is 70.55% (see `.coveragerc` and
+    # docs/analysis/POST_SIMPLIFICATION_ARCHITECTURE_TRADING_EVALUATION_20261016.md §6).
+    # The floor is set ~2.5 points below the measurement so that minor
+    # environment differences cannot produce a spurious failure, while a real
+    # regression (dropping >700 uncovered statements) still fails the build.
+    # The repository coding standard's 80% aspiration is still unmet — this gate
+    # only guarantees coverage never silently drops.
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -e ".[all,dev]"
+
+      - name: Test with coverage gate
+        run: |
+          pytest tests/ -q --tb=short \
+            -n auto \
+            --timeout=900 \
+            --cov \
+            --cov-report=term:skip-covered \
+            --cov-fail-under=68

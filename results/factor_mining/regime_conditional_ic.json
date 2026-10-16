@@ -1,0 +1,2693 @@
+{
+  "_meta": {
+    "n_symbols": 500,
+    "horizons": [
+      5,
+      21
+    ],
+    "elapsed_sec": 222.9
+  },
+  "factors": {
+    "momentum_20d": {
+      "fwd5": {
+        "by_state": {
+          "trend_off|vol_high": {
+            "n_days": 102,
+            "mean_ic": -0.0787,
+            "t": -5.7,
+            "pos_frac": 0.314
+          },
+          "trend_off|vol_low": {
+            "n_days": 416,
+            "mean_ic": -0.0551,
+            "t": -7.62,
+            "pos_frac": 0.356
+          },
+          "trend_off|vol_mid": {
+            "n_days": 204,
+            "mean_ic": -0.0368,
+            "t": -2.59,
+            "pos_frac": 0.446
+          },
+          "trend_on|vol_high": {
+            "n_days": 130,
+            "mean_ic": -0.0949,
+            "t": -7.16,
+            "pos_frac": 0.254
+          },
+          "trend_on|vol_low": {
+            "n_days": 456,
+            "mean_ic": -0.0349,
+            "t": -5.95,
+            "pos_frac": 0.351
+          },
+          "trend_on|vol_mid": {
+            "n_days": 267,
+            "mean_ic": -0.045,
+            "t": -4.59,
+            "pos_frac": 0.401
+          },
+          "_overall": {
+            "n_days": 1575,
+            "mean_ic": -0.05
+          }
+        },
+        "highlights": [
+          "trend_off|vol_high:IC=-0.0787(t=-5.7,n=102)",
+          "trend_off|vol_low:IC=-0.0551(t=-7.6,n=416)",
+          "trend_on|vol_high:IC=-0.0949(t=-7.2,n=130)",
+          "trend_on|vol_low:IC=-0.0349(t=-6.0,n=456)",
+          "trend_on|vol_mid:IC=-0.0450(t=-4.6,n=267)"
+        ]
+      },
+      "fwd21": {
+        "by_state": {
+          "trend_off|vol_high": {
+            "n_days": 102,
+            "mean_ic": -0.0924,
+            "t": -6.62,
+            "pos_frac": 0.275
+          },
+          "trend_off|vol_low": {
+            "n_days": 416,
+            "mean_ic": -0.0743,
+            "t": -10.37,
+            "pos_frac": 0.325
+          },
+          "trend_off|vol_mid": {
+            "n_days": 204,
+            "mean_ic": -0.1176,
+            "t": -9.5,
+            "pos_frac": 0.25
+          },
+          "trend_on|vol_high": {
+            "n_days": 130,
+            "mean_ic": -0.132,
+            "t": -12.58,
+            "pos_frac": 0.131
+          },
+          "trend_on|vol_low": {
+            "n_days": 444,
+            "mean_ic": -0.0351,
+            "t": -5.66,
+            "pos_frac": 0.358
+          },
+          "trend_on|vol_mid": {
+            "n_days": 263,
+            "mean_ic": -0.0601,
+            "t": -7.04,
+            "pos_frac": 0.338
+          },
+          "_overall": {
+            "n_days": 1559,
+            "mean_ic": -0.0724
+          }
+        },
+        "highlights": [
+          "trend_off|vol_high:IC=-0.0924(t=-6.6,n=102)",
+          "trend_off|vol_low:IC=-0.0743(t=-10.4,n=416)",
+          "trend_off|vol_mid:IC=-0.1176(t=-9.5,n=204)",
+          "trend_on|vol_high:IC=-0.1320(t=-12.6,n=130)",
+          "trend_on|vol_low:IC=-0.0351(t=-5.7,n=444)",
+          "trend_on|vol_mid:IC=-0.0601(t=-7.0,n=263)"
+        ]
+      }
+    },
+    "momentum_60d": {
+      "fwd5": {
+        "by_state": {
+          "trend_off|vol_high": {
+            "n_days": 102,
+            "mean_ic": -0.0272,
+            "t": -2.13,
+            "pos_frac": 0.392
+          },
+          "trend_off|vol_low": {
+            "n_days": 416,
+            "mean_ic": -0.0506,
+            "t": -6.05,
+            "pos_frac": 0.368
+          },
+          "trend_off|vol_mid": {
+            "n_days": 204,
+            "mean_ic": -0.0724,
+            "t": -5.15,
+            "pos_frac": 0.412
+          },
+          "trend_on|vol_high": {
+            "n_days": 130,
+            "mean_ic": -0.0805,
+            "t": -5.89,
+            "pos_frac": 0.292
+          },
+          "trend_on|vol_low": {
+            "n_days": 416,
+            "mean_ic": -0.046,
+            "t": -6.8,
+            "pos_frac": 0.392
+          },
+          "trend_on|vol_mid": {
+            "n_days": 267,
+            "mean_ic": -0.0472,
+            "t": -4.87,
+            "pos_frac": 0.412
+          },
+          "_overall": {
+            "n_days": 1535,
+            "mean_ic": -0.0526
+          }
+        },
+        "highlights": [
+          "trend_off|vol_low:IC=-0.0506(t=-6.0,n=416)",
+          "trend_off|vol_mid:IC=-0.0724(t=-5.2,n=204)",
+          "trend_on|vol_high:IC=-0.0805(t=-5.9,n=130)",
+          "trend_on|vol_low:IC=-0.0460(t=-6.8,n=416)",
+          "trend_on|vol_mid:IC=-0.0472(t=-4.9,n=267)"
+        ]
+      },
+      "fwd21": {
+        "by_state": {
+          "trend_off|vol_high": {
+            "n_days": 102,
+            "mean_ic": -0.0314,
+            "t": -2.17,
+            "pos_frac": 0.52
+          },
+          "trend_off|vol_low": {
+            "n_days": 416,
+            "mean_ic": -0.0921,
+            "t": -11.34,
+            "pos_frac": 0.236
+          },
+          "trend_off|vol_mid": {
+            "n_days": 204,
+            "mean_ic": -0.0894,
+            "t": -7.3,
+            "pos_frac": 0.309
+          },
+          "trend_on|vol_high": {
+            "n_days": 130,
+            "mean_ic": -0.143,
+            "t": -13.83,
+            "pos_frac": 0.092
+          },
+          "trend_on|vol_low": {
+            "n_days": 404,
+            "mean_ic": -0.0428,
+            "t": -6.92,
+            "pos_frac": 0.374
+          },
+          "trend_on|vol_mid": {
+            "n_days": 263,
+            "mean_ic": -0.0638,
+            "t": -6.66,
+            "pos_frac": 0.399
+          },
+          "_overall": {
+            "n_days": 1519,
+            "mean_ic": -0.074
+          }
+        },
+        "highlights": [
+          "trend_off|vol_low:IC=-0.0921(t=-11.3,n=416)",
+          "trend_off|vol_mid:IC=-0.0894(t=-7.3,n=204)",
+          "trend_on|vol_high:IC=-0.1430(t=-13.8,n=130)",
+          "trend_on|vol_low:IC=-0.0428(t=-6.9,n=404)",
+          "trend_on|vol_mid:IC=-0.0638(t=-6.7,n=263)"
+        ]
+      }
+    },
+    "volatility_20d": {
+      "fwd5": {
+        "by_state": {
+          "trend_off|vol_high": {
+            "n_days": 102,
+            "mean_ic": -0.0748,
+            "t": -4.06,
+            "pos_frac": 0.304
+          },
+          "trend_off|vol_low": {
+            "n_days": 416,
+            "mean_ic": -0.0875,
+            "t": -9.43,
+            "pos_frac": 0.344
+          },
+          "trend_off|vol_mid": {
+            "n_days": 204,
+            "mean_ic": -0.0483,
+            "t": -3.37,
+            "pos_frac": 0.348
+          },
+          "trend_on|vol_high": {
+            "n_days": 130,
+            "mean_ic": -0.0761,
+            "t": -4.19,
+            "pos_frac": 0.346
+          },
+          "trend_on|vol_low": {
+            "n_days": 456,
+            "mean_ic": -0.0726,
+            "t": -10.17,
+            "pos_frac": 0.325
+          },
+          "trend_on|vol_mid": {
+            "n_days": 267,
+            "mean_ic": -0.0415,
+            "t": -3.97,
+            "pos_frac": 0.367
+          },
+          "_overall": {
+            "n_days": 1575,
+            "mean_ic": -0.0685
+          }
+        },
+        "highlights": [
+          "trend_off|vol_high:IC=-0.0748(t=-4.1,n=102)",
+          "trend_off|vol_low:IC=-0.0875(t=-9.4,n=416)",
+          "trend_off|vol_mid:IC=-0.0483(t=-3.4,n=204)",
+          "trend_on|vol_high:IC=-0.0761(t=-4.2,n=130)",
+          "trend_on|vol_low:IC=-0.0726(t=-10.2,n=456)",
+          "trend_on|vol_mid:IC=-0.0415(t=-4.0,n=267)"
+        ]
+      },
+      "fwd21": {
+        "by_state": {
+          "trend_off|vol_high": {
+            "n_days": 102,
+            "mean_ic": -0.1093,
+            "t": -7.47,
+            "pos_frac": 0.176
+          },
+          "trend_off|vol_low": {
+            "n_days": 416,
+            "mean_ic": -0.1319,
+            "t": -13.16,
+            "pos_frac": 0.257
+          },
+          "trend_off|vol_mid": {
+            "n_days": 204,
+            "mean_ic": -0.0441,
+            "t": -3.56,
+            "pos_frac": 0.333
+          },
+          "trend_on|vol_high": {
+            "n_days": 130,
+            "mean_ic": -0.1491,
+            "t": -8.73,
+            "pos_frac": 0.246
+          },
+          "trend_on|vol_low": {
+            "n_days": 444,
+            "mean_ic": -0.073,
+            "t": -9.41,
+            "pos_frac": 0.349
+          },
+          "trend_on|vol_mid": {
+            "n_days": 263,
+            "mean_ic": -0.0775,
+            "t": -6.57,
+            "pos_frac": 0.384
+          },
+          "_overall": {
+            "n_days": 1559,
+            "mean_ic": -0.0944
+          }
+        },
+        "highlights": [
+          "trend_off|vol_high:IC=-0.1093(t=-7.5,n=102)",
+          "trend_off|vol_low:IC=-0.1319(t=-13.2,n=416)",
+          "trend_off|vol_mid:IC=-0.0441(t=-3.6,n=204)",
+          "trend_on|vol_high:IC=-0.1491(t=-8.7,n=130)",
+          "trend_on|vol_low:IC=-0.0730(t=-9.4,n=444)",
+          "trend_on|vol_mid:IC=-0.0775(t=-6.6,n=263)"
+        ]
+      }
+    },
+    "volatility_60d": {
+      "fwd5": {
+        "by_state": {
+          "trend_off|vol_high": {
+            "n_days": 102,
+            "mean_ic": -0.0705,
+            "t": -3.5,
+            "pos_frac": 0.284
+          },
+          "trend_off|vol_low": {
+            "n_days": 416,
+            "mean_ic": -0.0758,
+            "t": -7.32,
+            "pos_frac": 0.365
+          },
+          "trend_off|vol_mid": {
+            "n_days": 204,
+            "mean_ic": -0.0369,
+            "t": -2.44,
+            "pos_frac": 0.402
+          },
+          "trend_on|vol_high": {
+            "n_days": 130,
+            "mean_ic": -0.0479,
+            "t": -2.45,
+            "pos_frac": 0.4
+          },
+          "trend_on|vol_low": {
+            "n_days": 416,
+            "mean_ic": -0.0825,
+            "t": -9.86,
+            "pos_frac": 0.31
+          },
+          "trend_on|vol_mid": {
+            "n_days": 267,
+            "mean_ic": -0.03,
+            "t": -2.68,
+            "pos_frac": 0.427
+          },
+          "_overall": {
+            "n_days": 1535,
+            "mean_ic": -0.0618
+          }
+        },
+        "highlights": [
+          "trend_off|vol_high:IC=-0.0705(t=-3.5,n=102)",
+          "trend_off|vol_low:IC=-0.0758(t=-7.3,n=416)",
+          "trend_on|vol_low:IC=-0.0825(t=-9.9,n=416)"
+        ]
+      },
+      "fwd21": {
+        "by_state": {
+          "trend_off|vol_high": {
+            "n_days": 102,
+            "mean_ic": -0.1384,
+            "t": -8.12,
+            "pos_frac": 0.167
+          },
+          "trend_off|vol_low": {
+            "n_days": 416,
+            "mean_ic": -0.1284,
+            "t": -11.46,
+            "pos_frac": 0.315
+          },
+          "trend_off|vol_mid": {
+            "n_days": 204,
+            "mean_ic": -0.0195,
+            "t": -1.56,
+            "pos_frac": 0.348
+          },
+          "trend_on|vol_high": {
+            "n_days": 130,
+            "mean_ic": -0.1187,
+            "t": -6.84,
+            "pos_frac": 0.277
+          },
+          "trend_on|vol_low": {
+            "n_days": 404,
+            "mean_ic": -0.0861,
+            "t": -10.07,
+            "pos_frac": 0.29
+          },
+          "trend_on|vol_mid": {
+            "n_days": 263,
+            "mean_ic": -0.0789,
+            "t": -6.85,
+            "pos_frac": 0.361
+          },
+          "_overall": {
+            "n_days": 1519,
+            "mean_ic": -0.0938
+          }
+        },
+        "highlights": [
+          "trend_off|vol_high:IC=-0.1384(t=-8.1,n=102)",
+          "trend_off|vol_low:IC=-0.1284(t=-11.5,n=416)",
+          "trend_on|vol_high:IC=-0.1187(t=-6.8,n=130)",
+          "trend_on|vol_low:IC=-0.0861(t=-10.1,n=404)",
+          "trend_on|vol_mid:IC=-0.0789(t=-6.8,n=263)"
+        ]
+      }
+    },
+    "ma_ratio_5_20": {
+      "fwd5": {
+        "by_state": {
+          "trend_off|vol_high": {
+            "n_days": 102,
+            "mean_ic": -0.0734,
+            "t": -5.66,
+            "pos_frac": 0.255
+          },
+          "trend_off|vol_low": {
+            "n_days": 416,
+            "mean_ic": -0.0499,
+            "t": -6.77,
+            "pos_frac": 0.37
+          },
+          "trend_off|vol_mid": {
+            "n_days": 204,
+            "mean_ic": -0.0196,
+            "t": -1.4,
+            "pos_frac": 0.456
+          },
+          "trend_on|vol_high": {
+            "n_days": 130,
+            "mean_ic": -0.078,
+            "t": -6.21,
+            "pos_frac": 0.315
+          },
+          "trend_on|vol_low": {
+            "n_days": 457,
+            "mean_ic": -0.0269,
+            "t": -4.88,
+            "pos_frac": 0.379
+          },
+          "trend_on|vol_mid": {
+            "n_days": 267,
+            "mean_ic": -0.0486,
+            "t": -5.38,
+            "pos_frac": 0.36
+          },
+          "_overall": {
+            "n_days": 1576,
+            "mean_ic": -0.0429
+          }
+        },
+        "highlights": [
+          "trend_off|vol_high:IC=-0.0734(t=-5.7,n=102)",
+          "trend_off|vol_low:IC=-0.0499(t=-6.8,n=416)",
+          "trend_on|vol_high:IC=-0.0780(t=-6.2,n=130)",
+          "trend_on|vol_low:IC=-0.0269(t=-4.9,n=457)",
+          "trend_on|vol_mid:IC=-0.0486(t=-5.4,n=267)"
+        ]
+      },
+      "fwd21": {
+        "by_state": {
+          "trend_off|vol_high": {
+            "n_days": 102,
+            "mean_ic": -0.0665,
+            "t": -4.88,
+            "pos_frac": 0.343
+          },
+          "trend_off|vol_low": {
+            "n_days": 416,
+            "mean_ic": -0.0604,
+            "t": -8.7,
+            "pos_frac": 0.329
+          },
+          "trend_off|vol_mid": {
+            "n_days": 204,
+            "mean_ic": -0.1025,
+            "t": -8.78,
+            "pos_frac": 0.275
+          },
+          "trend_on|vol_high": {
+            "n_days": 130,
+            "mean_ic": -0.1077,
+            "t": -9.41,
+            "pos_frac": 0.208
+          },
+          "trend_on|vol_low": {
+            "n_days": 445,
+            "mean_ic": -0.0299,
+            "t": -5.27,
+            "pos_frac": 0.398
+          },
+          "trend_on|vol_mid": {
+            "n_days": 263,
+            "mean_ic": -0.0496,
+            "t": -5.7,
+            "pos_frac": 0.354
+          },
+          "_overall": {
+            "n_days": 1560,
+            "mean_ic": -0.0597
+          }
+        },
+        "highlights": [
+          "trend_off|vol_high:IC=-0.0665(t=-4.9,n=102)",
+          "trend_off|vol_low:IC=-0.0604(t=-8.7,n=416)",
+          "trend_off|vol_mid:IC=-0.1025(t=-8.8,n=204)",
+          "trend_on|vol_high:IC=-0.1077(t=-9.4,n=130)",
+          "trend_on|vol_low:IC=-0.0299(t=-5.3,n=445)",
+          "trend_on|vol_mid:IC=-0.0496(t=-5.7,n=263)"
+        ]
+      }
+    },
+    "ma_ratio_10_60": {
+      "fwd5": {
+        "by_state": {
+          "trend_off|vol_high": {
+            "n_days": 102,
+            "mean_ic": -0.0476,
+            "t": -3.47,
+            "pos_frac": 0.373
+          },
+          "trend_off|vol_low": {
+            "n_days": 416,
+            "mean_ic": -0.0602,
+            "t": -8.23,
+            "pos_frac": 0.361
+          },
+          "trend_off|vol_mid": {
+            "n_days": 204,
+            "mean_ic": -0.0659,
+            "t": -4.45,
+            "pos_frac": 0.426
+          },
+          "trend_on|vol_high": {
+            "n_days": 130,
+            "mean_ic": -0.075,
+            "t": -5.37,
+            "pos_frac": 0.292
+          },
+          "trend_on|vol_low": {
+            "n_days": 417,
+            "mean_ic": -0.0374,
+            "t": -5.36,
+            "pos_frac": 0.376
+          },
+          "trend_on|vol_mid": {
+            "n_days": 267,
+            "mean_ic": -0.0461,
+            "t": -4.41,
+            "pos_frac": 0.416
+          },
+          "_overall": {
+            "n_days": 1536,
+            "mean_ic": -0.0527
+          }
+        },
+        "highlights": [
+          "trend_off|vol_high:IC=-0.0476(t=-3.5,n=102)",
+          "trend_off|vol_low:IC=-0.0602(t=-8.2,n=416)",
+          "trend_off|vol_mid:IC=-0.0659(t=-4.5,n=204)",
+          "trend_on|vol_high:IC=-0.0750(t=-5.4,n=130)",
+          "trend_on|vol_low:IC=-0.0374(t=-5.4,n=417)",
+          "trend_on|vol_mid:IC=-0.0461(t=-4.4,n=267)"
+        ]
+      },
+      "fwd21": {
+        "by_state": {
+          "trend_off|vol_high": {
+            "n_days": 102,
+            "mean_ic": -0.0685,
+            "t": -5.0,
+            "pos_frac": 0.333
+          },
+          "trend_off|vol_low": {
+            "n_days": 416,
+            "mean_ic": -0.0837,
+            "t": -10.55,
+            "pos_frac": 0.322
+          },
+          "trend_off|vol_mid": {
+            "n_days": 204,
+            "mean_ic": -0.1097,
+            "t": -8.57,
+            "pos_frac": 0.289
+          },
+          "trend_on|vol_high": {
+            "n_days": 130,
+            "mean_ic": -0.1519,
+            "t": -14.29,
+            "pos_frac": 0.108
+          },
+          "trend_on|vol_low": {
+            "n_days": 405,
+            "mean_ic": -0.0466,
+            "t": -7.32,
+            "pos_frac": 0.309
+          },
+          "trend_on|vol_mid": {
+            "n_days": 263,
+            "mean_ic": -0.0671,
+            "t": -7.2,
+            "pos_frac": 0.327
+          },
+          "_overall": {
+            "n_days": 1520,
+            "mean_ic": -0.0793
+          }
+        },
+        "highlights": [
+          "trend_off|vol_high:IC=-0.0685(t=-5.0,n=102)",
+          "trend_off|vol_low:IC=-0.0837(t=-10.6,n=416)",
+          "trend_off|vol_mid:IC=-0.1097(t=-8.6,n=204)",
+          "trend_on|vol_high:IC=-0.1519(t=-14.3,n=130)",
+          "trend_on|vol_low:IC=-0.0466(t=-7.3,n=405)",
+          "trend_on|vol_mid:IC=-0.0671(t=-7.2,n=263)"
+        ]
+      }
+    },
+    "volume_ratio_5_20": {
+      "fwd5": {
+        "by_state": {
+          "trend_off|vol_high": {
+            "n_days": 102,
+            "mean_ic": -0.0823,
+            "t": -9.22,
+            "pos_frac": 0.176
+          },
+          "trend_off|vol_low": {
+            "n_days": 416,
+            "mean_ic": -0.0326,
+            "t": -6.52,
+            "pos_frac": 0.382
+          },
+          "trend_off|vol_mid": {
+            "n_days": 204,
+            "mean_ic": -0.0141,
+            "t": -1.81,
+            "pos_frac": 0.475
+          },
+          "trend_on|vol_high": {
+            "n_days": 130,
+            "mean_ic": -0.0696,
+            "t": -6.96,
+            "pos_frac": 0.277
+          },
+          "trend_on|vol_low": {
+            "n_days": 457,
+            "mean_ic": -0.0235,
+            "t": -5.0,
+            "pos_frac": 0.425
+          },
+          "trend_on|vol_mid": {
+            "n_days": 267,
+            "mean_ic": -0.0364,
+            "t": -5.97,
+            "pos_frac": 0.345
+          },
+          "_overall": {
+            "n_days": 1576,
+            "mean_ic": -0.0345
+          }
+        },
+        "highlights": [
+          "trend_off|vol_high:IC=-0.0823(t=-9.2,n=102)",
+          "trend_off|vol_low:IC=-0.0326(t=-6.5,n=416)",
+          "trend_on|vol_high:IC=-0.0696(t=-7.0,n=130)",
+          "trend_on|vol_low:IC=-0.0235(t=-5.0,n=457)",
+          "trend_on|vol_mid:IC=-0.0364(t=-6.0,n=267)"
+        ]
+      },
+      "fwd21": {
+        "by_state": {
+          "trend_off|vol_high": {
+            "n_days": 102,
+            "mean_ic": -0.0399,
+            "t": -3.6,
+            "pos_frac": 0.333
+          },
+          "trend_off|vol_low": {
+            "n_days": 416,
+            "mean_ic": -0.031,
+            "t": -6.48,
+            "pos_frac": 0.351
+          },
+          "trend_off|vol_mid": {
+            "n_days": 204,
+            "mean_ic": -0.0349,
+            "t": -4.98,
+            "pos_frac": 0.319
+          },
+          "trend_on|vol_high": {
+            "n_days": 130,
+            "mean_ic": -0.0614,
+            "t": -7.49,
+            "pos_frac": 0.277
+          },
+          "trend_on|vol_low": {
+            "n_days": 445,
+            "mean_ic": -0.0214,
+            "t": -5.16,
+            "pos_frac": 0.458
+          },
+          "trend_on|vol_mid": {
+            "n_days": 263,
+            "mean_ic": -0.0334,
+            "t": -6.04,
+            "pos_frac": 0.319
+          },
+          "_overall": {
+            "n_days": 1560,
+            "mean_ic": -0.0323
+          }
+        },
+        "highlights": [
+          "trend_off|vol_high:IC=-0.0399(t=-3.6,n=102)",
+          "trend_off|vol_low:IC=-0.0310(t=-6.5,n=416)",
+          "trend_off|vol_mid:IC=-0.0349(t=-5.0,n=204)",
+          "trend_on|vol_high:IC=-0.0614(t=-7.5,n=130)",
+          "trend_on|vol_low:IC=-0.0214(t=-5.2,n=445)",
+          "trend_on|vol_mid:IC=-0.0334(t=-6.0,n=263)"
+        ]
+      }
+    },
+    "rsi_14": {
+      "fwd5": {
+        "by_state": {
+          "trend_off|vol_high": {
+            "n_days": 102,
+            "mean_ic": -0.0633,
+            "t": -5.12,
+            "pos_frac": 0.255
+          },
+          "trend_off|vol_low": {
+            "n_days": 416,
+            "mean_ic": -0.0432,
+            "t": -6.15,
+            "pos_frac": 0.375
+          },
+          "trend_off|vol_mid": {
+            "n_days": 204,
+            "mean_ic": -0.0242,
+            "t": -1.88,
+            "pos_frac": 0.436
+          },
+          "trend_on|vol_high": {
+            "n_days": 130,
+            "mean_ic": -0.062,
+            "t": -5.48,
+            "pos_frac": 0.308
+          },
+          "trend_on|vol_low": {
+            "n_days": 463,
+            "mean_ic": -0.0217,
+            "t": -4.08,
+            "pos_frac": 0.415
+          },
+          "trend_on|vol_mid": {
+            "n_days": 267,
+            "mean_ic": -0.0401,
+            "t": -4.86,
+            "pos_frac": 0.397
+          },
+          "_overall": {
+            "n_days": 1582,
+            "mean_ic": -0.0368
+          }
+        },
+        "highlights": [
+          "trend_off|vol_high:IC=-0.0633(t=-5.1,n=102)",
+          "trend_off|vol_low:IC=-0.0432(t=-6.2,n=416)",
+          "trend_on|vol_high:IC=-0.0620(t=-5.5,n=130)",
+          "trend_on|vol_low:IC=-0.0217(t=-4.1,n=463)",
+          "trend_on|vol_mid:IC=-0.0401(t=-4.9,n=267)"
+        ]
+      },
+      "fwd21": {
+        "by_state": {
+          "trend_off|vol_high": {
+            "n_days": 102,
+            "mean_ic": -0.0631,
+            "t": -4.8,
+            "pos_frac": 0.382
+          },
+          "trend_off|vol_low": {
+            "n_days": 416,
+            "mean_ic": -0.0457,
+            "t": -6.64,
+            "pos_frac": 0.339
+          },
+          "trend_off|vol_mid": {
+            "n_days": 204,
+            "mean_ic": -0.0829,
+            "t": -7.34,
+            "pos_frac": 0.314
+          },
+          "trend_on|vol_high": {
+            "n_days": 130,
+            "mean_ic": -0.081,
+            "t": -7.56,
+            "pos_frac": 0.238
+          },
+          "trend_on|vol_low": {
+            "n_days": 451,
+            "mean_ic": -0.0192,
+            "t": -3.54,
+            "pos_frac": 0.437
+          },
+          "trend_on|vol_mid": {
+            "n_days": 263,
+            "mean_ic": -0.043,
+            "t": -5.14,
+            "pos_frac": 0.388
+          },
+          "_overall": {
+            "n_days": 1566,
+            "mean_ic": -0.0465
+          }
+        },
+        "highlights": [
+          "trend_off|vol_high:IC=-0.0631(t=-4.8,n=102)",
+          "trend_off|vol_low:IC=-0.0457(t=-6.6,n=416)",
+          "trend_off|vol_mid:IC=-0.0829(t=-7.3,n=204)",
+          "trend_on|vol_high:IC=-0.0810(t=-7.6,n=130)",
+          "trend_on|vol_low:IC=-0.0192(t=-3.5,n=451)",
+          "trend_on|vol_mid:IC=-0.0430(t=-5.1,n=263)"
+        ]
+      }
+    },
+    "price_position_20d": {
+      "fwd5": {
+        "by_state": {
+          "trend_off|vol_high": {
+            "n_days": 102,
+            "mean_ic": -0.0545,
+            "t": -3.97,
+            "pos_frac": 0.314
+          },
+          "trend_off|vol_low": {
+            "n_days": 416,
+            "mean_ic": -0.0328,
+            "t": -4.72,
+            "pos_frac": 0.392
+          },
+          "trend_off|vol_mid": {
+            "n_days": 204,
+            "mean_ic": -0.0252,
+            "t": -1.95,
+            "pos_frac": 0.456
+          },
+          "trend_on|vol_high": {
+            "n_days": 130,
+            "mean_ic": -0.049,
+            "t": -4.29,
+            "pos_frac": 0.392
+          },
+          "trend_on|vol_low": {
+            "n_days": 457,
+            "mean_ic": -0.0132,
+            "t": -2.49,
+            "pos_frac": 0.431
+          },
+          "trend_on|vol_mid": {
+            "n_days": 267,
+            "mean_ic": -0.02,
+            "t": -2.48,
+            "pos_frac": 0.479
+          },
+          "_overall": {
+            "n_days": 1576,
+            "mean_ic": -0.0267
+          }
+        },
+        "highlights": [
+          "trend_off|vol_high:IC=-0.0545(t=-4.0,n=102)",
+          "trend_off|vol_low:IC=-0.0328(t=-4.7,n=416)",
+          "trend_on|vol_high:IC=-0.0490(t=-4.3,n=130)"
+        ]
+      },
+      "fwd21": {
+        "by_state": {
+          "trend_off|vol_high": {
+            "n_days": 102,
+            "mean_ic": -0.0394,
+            "t": -3.16,
+            "pos_frac": 0.451
+          },
+          "trend_off|vol_low": {
+            "n_days": 416,
+            "mean_ic": -0.0395,
+            "t": -5.95,
+            "pos_frac": 0.358
+          },
+          "trend_off|vol_mid": {
+            "n_days": 204,
+            "mean_ic": -0.0777,
+            "t": -6.99,
+            "pos_frac": 0.314
+          },
+          "trend_on|vol_high": {
+            "n_days": 130,
+            "mean_ic": -0.0635,
+            "t": -5.91,
+            "pos_frac": 0.292
+          },
+          "trend_on|vol_low": {
+            "n_days": 445,
+            "mean_ic": -0.0009,
+            "t": -0.18,
+            "pos_frac": 0.494
+          },
+          "trend_on|vol_mid": {
+            "n_days": 263,
+            "mean_ic": -0.032,
+            "t": -4.07,
+            "pos_frac": 0.414
+          },
+          "_overall": {
+            "n_days": 1560,
+            "mean_ic": -0.0342
+          }
+        },
+        "highlights": [
+          "trend_off|vol_high:IC=-0.0394(t=-3.2,n=102)",
+          "trend_off|vol_low:IC=-0.0395(t=-6.0,n=416)",
+          "trend_off|vol_mid:IC=-0.0777(t=-7.0,n=204)",
+          "trend_on|vol_high:IC=-0.0635(t=-5.9,n=130)",
+          "trend_on|vol_mid:IC=-0.0320(t=-4.1,n=263)"
+        ]
+      }
+    },
+    "illiq_20d": {
+      "fwd5": {
+        "by_state": {
+          "trend_off|vol_high": {
+            "n_days": 102,
+            "mean_ic": 0.0545,
+            "t": 5.07,
+            "pos_frac": 0.706
+          },
+          "trend_off|vol_low": {
+            "n_days": 416,
+            "mean_ic": 0.0627,
+            "t": 7.4,
+            "pos_frac": 0.671
+          },
+          "trend_off|vol_mid": {
+            "n_days": 204,
+            "mean_ic": 0.0364,
+            "t": 2.67,
+            "pos_frac": 0.588
+          },
+          "trend_on|vol_high": {
+            "n_days": 130,
+            "mean_ic": 0.1118,
+            "t": 10.01,
+            "pos_frac": 0.808
+          },
+          "trend_on|vol_low": {
+            "n_days": 466,
+            "mean_ic": 0.0203,
+            "t": 2.85,
+            "pos_frac": 0.567
+          },
+          "trend_on|vol_mid": {
+            "n_days": 267,
+            "mean_ic": 0.0354,
+            "t": 3.75,
+            "pos_frac": 0.584
+          },
+          "_overall": {
+            "n_days": 1585,
+            "mean_ic": 0.0457
+          }
+        },
+        "highlights": [
+          "trend_off|vol_high:IC=+0.0545(t=+5.1,n=102)",
+          "trend_off|vol_low:IC=+0.0627(t=+7.4,n=416)",
+          "trend_on|vol_high:IC=+0.1118(t=+10.0,n=130)",
+          "trend_on|vol_mid:IC=+0.0354(t=+3.8,n=267)"
+        ]
+      },
+      "fwd21": {
+        "by_state": {
+          "trend_off|vol_high": {
+            "n_days": 102,
+            "mean_ic": 0.0421,
+            "t": 3.94,
+            "pos_frac": 0.716
+          },
+          "trend_off|vol_low": {
+            "n_days": 416,
+            "mean_ic": 0.1169,
+            "t": 13.76,
+            "pos_frac": 0.798
+          },
+          "trend_off|vol_mid": {
+            "n_days": 204,
+            "mean_ic": 0.0859,
+            "t": 6.62,
+            "pos_frac": 0.75
+          },
+          "trend_on|vol_high": {
+            "n_days": 130,
+            "mean_ic": 0.233,
+            "t": 22.22,
+            "pos_frac": 0.946
+          },
+          "trend_on|vol_low": {
+            "n_days": 454,
+            "mean_ic": 0.0328,
+            "t": 3.93,
+            "pos_frac": 0.593
+          },
+          "trend_on|vol_mid": {
+            "n_days": 263,
+            "mean_ic": 0.0798,
+            "t": 8.51,
+            "pos_frac": 0.692
+          },
+          "_overall": {
+            "n_days": 1569,
+            "mean_ic": 0.0871
+          }
+        },
+        "highlights": [
+          "trend_off|vol_high:IC=+0.0421(t=+3.9,n=102)",
+          "trend_off|vol_low:IC=+0.1169(t=+13.8,n=416)",
+          "trend_off|vol_mid:IC=+0.0859(t=+6.6,n=204)",
+          "trend_on|vol_high:IC=+0.2330(t=+22.2,n=130)",
+          "trend_on|vol_low:IC=+0.0328(t=+3.9,n=454)",
+          "trend_on|vol_mid:IC=+0.0798(t=+8.5,n=263)"
+        ]
+      }
+    },
+    "pv_divergence_20d": {
+      "fwd5": {
+        "by_state": {
+          "trend_off|vol_high": {
+            "n_days": 102,
+            "mean_ic": -0.0141,
+            "t": -1.45,
+            "pos_frac": 0.412
+          },
+          "trend_off|vol_low": {
+            "n_days": 416,
+            "mean_ic": 0.0104,
+            "t": 1.9,
+            "pos_frac": 0.548
+          },
+          "trend_off|vol_mid": {
+            "n_days": 204,
+            "mean_ic": 0.0166,
+            "t": 1.67,
+            "pos_frac": 0.505
+          },
+          "trend_on|vol_high": {
+            "n_days": 130,
+            "mean_ic": -0.0202,
+            "t": -2.45,
+            "pos_frac": 0.377
+          },
+          "trend_on|vol_low": {
+            "n_days": 457,
+            "mean_ic": -0.0023,
+            "t": -0.59,
+            "pos_frac": 0.468
+          },
+          "trend_on|vol_mid": {
+            "n_days": 267,
+            "mean_ic": -0.0039,
+            "t": -0.66,
+            "pos_frac": 0.446
+          },
+          "_overall": {
+            "n_days": 1576,
+            "mean_ic": 0.001
+          }
+        },
+        "highlights": []
+      },
+      "fwd21": {
+        "by_state": {
+          "trend_off|vol_high": {
+            "n_days": 102,
+            "mean_ic": 0.0059,
+            "t": 0.61,
+            "pos_frac": 0.49
+          },
+          "trend_off|vol_low": {
+            "n_days": 416,
+            "mean_ic": 0.0217,
+            "t": 3.98,
+            "pos_frac": 0.555
+          },
+          "trend_off|vol_mid": {
+            "n_days": 204,
+            "mean_ic": 0.0413,
+            "t": 4.43,
+            "pos_frac": 0.574
+          },
+          "trend_on|vol_high": {
+            "n_days": 130,
+            "mean_ic": 0.0006,
+            "t": 0.07,
+            "pos_frac": 0.431
+          },
+          "trend_on|vol_low": {
+            "n_days": 445,
+            "mean_ic": -0.0013,
+            "t": -0.33,
+            "pos_frac": 0.501
+          },
+          "trend_on|vol_mid": {
+            "n_days": 263,
+            "mean_ic": 0.0084,
+            "t": 1.39,
+            "pos_frac": 0.498
+          },
+          "_overall": {
+            "n_days": 1560,
+            "mean_ic": 0.0127
+          }
+        },
+        "highlights": [
+          "trend_off|vol_low:IC=+0.0217(t=+4.0,n=416)",
+          "trend_off|vol_mid:IC=+0.0413(t=+4.4,n=204)"
+        ]
+      }
+    },
+    "cs_momentum_20d": {
+      "fwd5": {
+        "by_state": {
+          "trend_off|vol_high": {
+            "n_days": 102,
+            "mean_ic": -0.0374,
+            "t": -2.96,
+            "pos_frac": 0.373
+          },
+          "trend_off|vol_low": {
+            "n_days": 416,
+            "mean_ic": -0.0424,
+            "t": -5.98,
+            "pos_frac": 0.399
+          },
+          "trend_off|vol_mid": {
+            "n_days": 204,
+            "mean_ic": -0.0215,
+            "t": -1.65,
+            "pos_frac": 0.48
+          },
+          "trend_on|vol_high": {
+            "n_days": 130,
+            "mean_ic": -0.0514,
+            "t": -4.09,
+            "pos_frac": 0.354
+          },
+          "trend_on|vol_low": {
+            "n_days": 456,
+            "mean_ic": -0.0213,
+            "t": -3.88,
+            "pos_frac": 0.404
+          },
+          "trend_on|vol_mid": {
+            "n_days": 267,
+            "mean_ic": -0.028,
+            "t": -3.06,
+            "pos_frac": 0.404
+          },
+          "_overall": {
+            "n_days": 1575,
+            "mean_ic": -0.0316
+          }
+        },
+        "highlights": [
+          "trend_off|vol_low:IC=-0.0424(t=-6.0,n=416)",
+          "trend_on|vol_high:IC=-0.0514(t=-4.1,n=130)",
+          "trend_on|vol_low:IC=-0.0213(t=-3.9,n=456)",
+          "trend_on|vol_mid:IC=-0.0280(t=-3.1,n=267)"
+        ]
+      },
+      "fwd21": {
+        "by_state": {
+          "trend_off|vol_high": {
+            "n_days": 102,
+            "mean_ic": -0.0688,
+            "t": -5.55,
+            "pos_frac": 0.304
+          },
+          "trend_off|vol_low": {
+            "n_days": 416,
+            "mean_ic": -0.056,
+            "t": -8.14,
+            "pos_frac": 0.353
+          },
+          "trend_off|vol_mid": {
+            "n_days": 204,
+            "mean_ic": -0.1121,
+            "t": -9.57,
+            "pos_frac": 0.25
+          },
+          "trend_on|vol_high": {
+            "n_days": 130,
+            "mean_ic": -0.1023,
+            "t": -9.74,
+            "pos_frac": 0.192
+          },
+          "trend_on|vol_low": {
+            "n_days": 444,
+            "mean_ic": -0.0246,
+            "t": -4.12,
+            "pos_frac": 0.412
+          },
+          "trend_on|vol_mid": {
+            "n_days": 263,
+            "mean_ic": -0.0436,
+            "t": -5.82,
+            "pos_frac": 0.365
+          },
+          "_overall": {
+            "n_days": 1559,
+            "mean_ic": -0.057
+          }
+        },
+        "highlights": [
+          "trend_off|vol_high:IC=-0.0688(t=-5.5,n=102)",
+          "trend_off|vol_low:IC=-0.0560(t=-8.1,n=416)",
+          "trend_off|vol_mid:IC=-0.1121(t=-9.6,n=204)",
+          "trend_on|vol_high:IC=-0.1023(t=-9.7,n=130)",
+          "trend_on|vol_low:IC=-0.0246(t=-4.1,n=444)",
+          "trend_on|vol_mid:IC=-0.0436(t=-5.8,n=263)"
+        ]
+      }
+    },
+    "idiosyncratic_vol_20d": {
+      "fwd5": {
+        "by_state": {
+          "trend_off|vol_high": {
+            "n_days": 102,
+            "mean_ic": 0.0738,
+            "t": 4.04,
+            "pos_frac": 0.696
+          },
+          "trend_off|vol_low": {
+            "n_days": 416,
+            "mean_ic": 0.0874,
+            "t": 9.37,
+            "pos_frac": 0.656
+          },
+          "trend_off|vol_mid": {
+            "n_days": 204,
+            "mean_ic": 0.0496,
+            "t": 3.48,
+            "pos_frac": 0.647
+          },
+          "trend_on|vol_high": {
+            "n_days": 130,
+            "mean_ic": 0.067,
+            "t": 3.71,
+            "pos_frac": 0.638
+          },
+          "trend_on|vol_low": {
+            "n_days": 462,
+            "mean_ic": 0.0718,
+            "t": 10.08,
+            "pos_frac": 0.671
+          },
+          "trend_on|vol_mid": {
+            "n_days": 267,
+            "mean_ic": 0.0406,
+            "t": 3.95,
+            "pos_frac": 0.622
+          },
+          "_overall": {
+            "n_days": 1581,
+            "mean_ic": 0.0675
+          }
+        },
+        "highlights": [
+          "trend_off|vol_high:IC=+0.0738(t=+4.0,n=102)",
+          "trend_off|vol_low:IC=+0.0874(t=+9.4,n=416)",
+          "trend_off|vol_mid:IC=+0.0496(t=+3.5,n=204)",
+          "trend_on|vol_high:IC=+0.0670(t=+3.7,n=130)",
+          "trend_on|vol_low:IC=+0.0718(t=+10.1,n=462)",
+          "trend_on|vol_mid:IC=+0.0406(t=+4.0,n=267)"
+        ]
+      },
+      "fwd21": {
+        "by_state": {
+          "trend_off|vol_high": {
+            "n_days": 102,
+            "mean_ic": 0.1131,
+            "t": 7.88,
+            "pos_frac": 0.833
+          },
+          "trend_off|vol_low": {
+            "n_days": 416,
+            "mean_ic": 0.1339,
+            "t": 13.37,
+            "pos_frac": 0.743
+          },
+          "trend_off|vol_mid": {
+            "n_days": 204,
+            "mean_ic": 0.0438,
+            "t": 3.66,
+            "pos_frac": 0.667
+          },
+          "trend_on|vol_high": {
+            "n_days": 130,
+            "mean_ic": 0.1423,
+            "t": 8.3,
+            "pos_frac": 0.762
+          },
+          "trend_on|vol_low": {
+            "n_days": 450,
+            "mean_ic": 0.0742,
+            "t": 9.72,
+            "pos_frac": 0.667
+          },
+          "trend_on|vol_mid": {
+            "n_days": 263,
+            "mean_ic": 0.0761,
+            "t": 6.56,
+            "pos_frac": 0.616
+          },
+          "_overall": {
+            "n_days": 1565,
+            "mean_ic": 0.0946
+          }
+        },
+        "highlights": [
+          "trend_off|vol_high:IC=+0.1131(t=+7.9,n=102)",
+          "trend_off|vol_low:IC=+0.1339(t=+13.4,n=416)",
+          "trend_off|vol_mid:IC=+0.0438(t=+3.7,n=204)",
+          "trend_on|vol_high:IC=+0.1423(t=+8.3,n=130)",
+          "trend_on|vol_low:IC=+0.0742(t=+9.7,n=450)",
+          "trend_on|vol_mid:IC=+0.0761(t=+6.6,n=263)"
+        ]
+      }
+    },
+    "max_ret_20d": {
+      "fwd5": {
+        "by_state": {
+          "trend_off|vol_high": {
+            "n_days": 102,
+            "mean_ic": -0.0878,
+            "t": -6.65,
+            "pos_frac": 0.235
+          },
+          "trend_off|vol_low": {
+            "n_days": 416,
+            "mean_ic": -0.0799,
+            "t": -10.74,
+            "pos_frac": 0.291
+          },
+          "trend_off|vol_mid": {
+            "n_days": 204,
+            "mean_ic": -0.0549,
+            "t": -5.25,
+            "pos_frac": 0.27
+          },
+          "trend_on|vol_high": {
+            "n_days": 130,
+            "mean_ic": -0.0897,
+            "t": -6.14,
+            "pos_frac": 0.223
+          },
+          "trend_on|vol_low": {
+            "n_days": 466,
+            "mean_ic": -0.0667,
+            "t": -11.14,
+            "pos_frac": 0.305
+          },
+          "trend_on|vol_mid": {
+            "n_days": 267,
+            "mean_ic": -0.0519,
+            "t": -5.89,
+            "pos_frac": 0.352
+          },
+          "_overall": {
+            "n_days": 1585,
+            "mean_ic": -0.0694
+          }
+        },
+        "highlights": [
+          "trend_off|vol_high:IC=-0.0878(t=-6.7,n=102)",
+          "trend_off|vol_low:IC=-0.0799(t=-10.7,n=416)",
+          "trend_off|vol_mid:IC=-0.0549(t=-5.2,n=204)",
+          "trend_on|vol_high:IC=-0.0897(t=-6.1,n=130)",
+          "trend_on|vol_low:IC=-0.0667(t=-11.1,n=466)",
+          "trend_on|vol_mid:IC=-0.0519(t=-5.9,n=267)"
+        ]
+      },
+      "fwd21": {
+        "by_state": {
+          "trend_off|vol_high": {
+            "n_days": 102,
+            "mean_ic": -0.1303,
+            "t": -12.79,
+            "pos_frac": 0.078
+          },
+          "trend_off|vol_low": {
+            "n_days": 416,
+            "mean_ic": -0.1143,
+            "t": -13.92,
+            "pos_frac": 0.245
+          },
+          "trend_off|vol_mid": {
+            "n_days": 204,
+            "mean_ic": -0.0742,
+            "t": -7.65,
+            "pos_frac": 0.26
+          },
+          "trend_on|vol_high": {
+            "n_days": 130,
+            "mean_ic": -0.1518,
+            "t": -11.91,
+            "pos_frac": 0.154
+          },
+          "trend_on|vol_low": {
+            "n_days": 454,
+            "mean_ic": -0.0701,
+            "t": -10.91,
+            "pos_frac": 0.3
+          },
+          "trend_on|vol_mid": {
+            "n_days": 263,
+            "mean_ic": -0.0824,
+            "t": -8.45,
+            "pos_frac": 0.342
+          },
+          "_overall": {
+            "n_days": 1569,
+            "mean_ic": -0.0951
+          }
+        },
+        "highlights": [
+          "trend_off|vol_high:IC=-0.1303(t=-12.8,n=102)",
+          "trend_off|vol_low:IC=-0.1143(t=-13.9,n=416)",
+          "trend_off|vol_mid:IC=-0.0742(t=-7.7,n=204)",
+          "trend_on|vol_high:IC=-0.1518(t=-11.9,n=130)",
+          "trend_on|vol_low:IC=-0.0701(t=-10.9,n=454)",
+          "trend_on|vol_mid:IC=-0.0824(t=-8.4,n=263)"
+        ]
+      }
+    },
+    "reversal_1d": {
+      "fwd5": {
+        "by_state": {
+          "trend_off|vol_high": {
+            "n_days": 102,
+            "mean_ic": 0.0191,
+            "t": 1.58,
+            "pos_frac": 0.52
+          },
+          "trend_off|vol_low": {
+            "n_days": 416,
+            "mean_ic": 0.0111,
+            "t": 1.54,
+            "pos_frac": 0.526
+          },
+          "trend_off|vol_mid": {
+            "n_days": 204,
+            "mean_ic": 0.0072,
+            "t": 0.59,
+            "pos_frac": 0.564
+          },
+          "trend_on|vol_high": {
+            "n_days": 130,
+            "mean_ic": 0.023,
+            "t": 1.88,
+            "pos_frac": 0.562
+          },
+          "trend_on|vol_low": {
+            "n_days": 475,
+            "mean_ic": 0.0161,
+            "t": 2.8,
+            "pos_frac": 0.541
+          },
+          "trend_on|vol_mid": {
+            "n_days": 267,
+            "mean_ic": 0.0069,
+            "t": 0.9,
+            "pos_frac": 0.502
+          },
+          "_overall": {
+            "n_days": 1594,
+            "mean_ic": 0.0129
+          }
+        },
+        "highlights": []
+      },
+      "fwd21": {
+        "by_state": {
+          "trend_off|vol_high": {
+            "n_days": 102,
+            "mean_ic": 0.0084,
+            "t": 0.65,
+            "pos_frac": 0.49
+          },
+          "trend_off|vol_low": {
+            "n_days": 416,
+            "mean_ic": 0.0156,
+            "t": 2.31,
+            "pos_frac": 0.553
+          },
+          "trend_off|vol_mid": {
+            "n_days": 204,
+            "mean_ic": -0.001,
+            "t": -0.09,
+            "pos_frac": 0.525
+          },
+          "trend_on|vol_high": {
+            "n_days": 130,
+            "mean_ic": 0.0107,
+            "t": 1.03,
+            "pos_frac": 0.515
+          },
+          "trend_on|vol_low": {
+            "n_days": 463,
+            "mean_ic": 0.0073,
+            "t": 1.52,
+            "pos_frac": 0.514
+          },
+          "trend_on|vol_mid": {
+            "n_days": 263,
+            "mean_ic": 0.0115,
+            "t": 1.54,
+            "pos_frac": 0.559
+          },
+          "_overall": {
+            "n_days": 1578,
+            "mean_ic": 0.0095
+          }
+        },
+        "highlights": []
+      }
+    },
+    "amivest_20d": {
+      "fwd5": {
+        "by_state": {
+          "trend_off|vol_high": {
+            "n_days": 102,
+            "mean_ic": -0.0125,
+            "t": -1.52,
+            "pos_frac": 0.461
+          },
+          "trend_off|vol_low": {
+            "n_days": 416,
+            "mean_ic": -0.0042,
+            "t": -0.8,
+            "pos_frac": 0.502
+          },
+          "trend_off|vol_mid": {
+            "n_days": 204,
+            "mean_ic": -0.0072,
+            "t": -0.7,
+            "pos_frac": 0.446
+          },
+          "trend_on|vol_high": {
+            "n_days": 130,
+            "mean_ic": -0.0219,
+            "t": -3.25,
+            "pos_frac": 0.385
+          },
+          "trend_on|vol_low": {
+            "n_days": 466,
+            "mean_ic": -0.0032,
+            "t": -0.76,
+            "pos_frac": 0.481
+          },
+          "trend_on|vol_mid": {
+            "n_days": 267,
+            "mean_ic": -0.0082,
+            "t": -1.78,
+            "pos_frac": 0.427
+          },
+          "_overall": {
+            "n_days": 1585,
+            "mean_ic": -0.0069
+          }
+        },
+        "highlights": [
+          "trend_on|vol_high:IC=-0.0219(t=-3.2,n=130)"
+        ]
+      },
+      "fwd21": {
+        "by_state": {
+          "trend_off|vol_high": {
+            "n_days": 102,
+            "mean_ic": 0.009,
+            "t": 1.09,
+            "pos_frac": 0.598
+          },
+          "trend_off|vol_low": {
+            "n_days": 416,
+            "mean_ic": -0.0022,
+            "t": -0.4,
+            "pos_frac": 0.457
+          },
+          "trend_off|vol_mid": {
+            "n_days": 204,
+            "mean_ic": -0.0417,
+            "t": -4.68,
+            "pos_frac": 0.328
+          },
+          "trend_on|vol_high": {
+            "n_days": 130,
+            "mean_ic": -0.0475,
+            "t": -8.08,
+            "pos_frac": 0.231
+          },
+          "trend_on|vol_low": {
+            "n_days": 454,
+            "mean_ic": -0.0118,
+            "t": -2.54,
+            "pos_frac": 0.465
+          },
+          "trend_on|vol_mid": {
+            "n_days": 263,
+            "mean_ic": -0.0088,
+            "t": -1.95,
+            "pos_frac": 0.456
+          },
+          "_overall": {
+            "n_days": 1569,
+            "mean_ic": -0.0142
+          }
+        },
+        "highlights": [
+          "trend_off|vol_mid:IC=-0.0417(t=-4.7,n=204)",
+          "trend_on|vol_high:IC=-0.0475(t=-8.1,n=130)"
+        ]
+      }
+    },
+    "range_20d": {
+      "fwd5": {
+        "by_state": {
+          "trend_off|vol_high": {
+            "n_days": 102,
+            "mean_ic": -0.0518,
+            "t": -2.65,
+            "pos_frac": 0.333
+          },
+          "trend_off|vol_low": {
+            "n_days": 416,
+            "mean_ic": -0.071,
+            "t": -7.81,
+            "pos_frac": 0.365
+          },
+          "trend_off|vol_mid": {
+            "n_days": 204,
+            "mean_ic": -0.0355,
+            "t": -2.33,
+            "pos_frac": 0.402
+          },
+          "trend_on|vol_high": {
+            "n_days": 130,
+            "mean_ic": -0.0633,
+            "t": -3.63,
+            "pos_frac": 0.385
+          },
+          "trend_on|vol_low": {
+            "n_days": 467,
+            "mean_ic": -0.0649,
+            "t": -9.69,
+            "pos_frac": 0.338
+          },
+          "trend_on|vol_mid": {
+            "n_days": 267,
+            "mean_ic": -0.021,
+            "t": -1.99,
+            "pos_frac": 0.408
+          },
+          "_overall": {
+            "n_days": 1586,
+            "mean_ic": -0.0544
+          }
+        },
+        "highlights": [
+          "trend_off|vol_low:IC=-0.0710(t=-7.8,n=416)",
+          "trend_on|vol_high:IC=-0.0633(t=-3.6,n=130)",
+          "trend_on|vol_low:IC=-0.0649(t=-9.7,n=467)"
+        ]
+      },
+      "fwd21": {
+        "by_state": {
+          "trend_off|vol_high": {
+            "n_days": 102,
+            "mean_ic": -0.0684,
+            "t": -4.1,
+            "pos_frac": 0.255
+          },
+          "trend_off|vol_low": {
+            "n_days": 416,
+            "mean_ic": -0.1101,
+            "t": -11.71,
+            "pos_frac": 0.31
+          },
+          "trend_off|vol_mid": {
+            "n_days": 204,
+            "mean_ic": -0.0072,
+            "t": -0.55,
+            "pos_frac": 0.387
+          },
+          "trend_on|vol_high": {
+            "n_days": 130,
+            "mean_ic": -0.1078,
+            "t": -6.22,
+            "pos_frac": 0.292
+          },
+          "trend_on|vol_low": {
+            "n_days": 455,
+            "mean_ic": -0.067,
+            "t": -9.49,
+            "pos_frac": 0.316
+          },
+          "trend_on|vol_mid": {
+            "n_days": 263,
+            "mean_ic": -0.0486,
+            "t": -4.47,
+            "pos_frac": 0.384
+          },
+          "_overall": {
+            "n_days": 1570,
+            "mean_ic": -0.071
+          }
+        },
+        "highlights": [
+          "trend_off|vol_high:IC=-0.0684(t=-4.1,n=102)",
+          "trend_off|vol_low:IC=-0.1101(t=-11.7,n=416)",
+          "trend_on|vol_high:IC=-0.1078(t=-6.2,n=130)",
+          "trend_on|vol_low:IC=-0.0670(t=-9.5,n=455)",
+          "trend_on|vol_mid:IC=-0.0486(t=-4.5,n=263)"
+        ]
+      }
+    },
+    "skew_20d": {
+      "fwd5": {
+        "by_state": {
+          "trend_off|vol_high": {
+            "n_days": 102,
+            "mean_ic": -0.0523,
+            "t": -5.64,
+            "pos_frac": 0.314
+          },
+          "trend_off|vol_low": {
+            "n_days": 416,
+            "mean_ic": -0.0227,
+            "t": -5.44,
+            "pos_frac": 0.425
+          },
+          "trend_off|vol_mid": {
+            "n_days": 204,
+            "mean_ic": -0.0421,
+            "t": -6.58,
+            "pos_frac": 0.309
+          },
+          "trend_on|vol_high": {
+            "n_days": 130,
+            "mean_ic": -0.0406,
+            "t": -3.77,
+            "pos_frac": 0.323
+          },
+          "trend_on|vol_low": {
+            "n_days": 466,
+            "mean_ic": -0.0232,
+            "t": -7.53,
+            "pos_frac": 0.371
+          },
+          "trend_on|vol_mid": {
+            "n_days": 267,
+            "mean_ic": -0.0377,
+            "t": -8.09,
+            "pos_frac": 0.33
+          },
+          "_overall": {
+            "n_days": 1585,
+            "mean_ic": -0.0312
+          }
+        },
+        "highlights": [
+          "trend_off|vol_high:IC=-0.0523(t=-5.6,n=102)",
+          "trend_off|vol_low:IC=-0.0227(t=-5.4,n=416)",
+          "trend_off|vol_mid:IC=-0.0421(t=-6.6,n=204)",
+          "trend_on|vol_high:IC=-0.0406(t=-3.8,n=130)",
+          "trend_on|vol_low:IC=-0.0232(t=-7.5,n=466)",
+          "trend_on|vol_mid:IC=-0.0377(t=-8.1,n=267)"
+        ]
+      },
+      "fwd21": {
+        "by_state": {
+          "trend_off|vol_high": {
+            "n_days": 102,
+            "mean_ic": -0.0954,
+            "t": -11.92,
+            "pos_frac": 0.127
+          },
+          "trend_off|vol_low": {
+            "n_days": 416,
+            "mean_ic": -0.0225,
+            "t": -5.58,
+            "pos_frac": 0.394
+          },
+          "trend_off|vol_mid": {
+            "n_days": 204,
+            "mean_ic": -0.0513,
+            "t": -9.2,
+            "pos_frac": 0.23
+          },
+          "trend_on|vol_high": {
+            "n_days": 130,
+            "mean_ic": -0.0639,
+            "t": -7.42,
+            "pos_frac": 0.262
+          },
+          "trend_on|vol_low": {
+            "n_days": 454,
+            "mean_ic": -0.0183,
+            "t": -5.48,
+            "pos_frac": 0.379
+          },
+          "trend_on|vol_mid": {
+            "n_days": 263,
+            "mean_ic": -0.0464,
+            "t": -11.69,
+            "pos_frac": 0.247
+          },
+          "_overall": {
+            "n_days": 1569,
+            "mean_ic": -0.0372
+          }
+        },
+        "highlights": [
+          "trend_off|vol_high:IC=-0.0954(t=-11.9,n=102)",
+          "trend_off|vol_low:IC=-0.0225(t=-5.6,n=416)",
+          "trend_off|vol_mid:IC=-0.0513(t=-9.2,n=204)",
+          "trend_on|vol_high:IC=-0.0639(t=-7.4,n=130)",
+          "trend_on|vol_low:IC=-0.0183(t=-5.5,n=454)",
+          "trend_on|vol_mid:IC=-0.0464(t=-11.7,n=263)"
+        ]
+      }
+    },
+    "reversal_5d": {
+      "fwd5": {
+        "by_state": {
+          "trend_off|vol_high": {
+            "n_days": 102,
+            "mean_ic": 0.085,
+            "t": 5.84,
+            "pos_frac": 0.775
+          },
+          "trend_off|vol_low": {
+            "n_days": 416,
+            "mean_ic": 0.0269,
+            "t": 3.84,
+            "pos_frac": 0.543
+          },
+          "trend_off|vol_mid": {
+            "n_days": 204,
+            "mean_ic": 0.0327,
+            "t": 2.55,
+            "pos_frac": 0.603
+          },
+          "trend_on|vol_high": {
+            "n_days": 130,
+            "mean_ic": 0.0759,
+            "t": 5.91,
+            "pos_frac": 0.685
+          },
+          "trend_on|vol_low": {
+            "n_days": 471,
+            "mean_ic": 0.0264,
+            "t": 4.57,
+            "pos_frac": 0.597
+          },
+          "trend_on|vol_mid": {
+            "n_days": 267,
+            "mean_ic": 0.0433,
+            "t": 5.14,
+            "pos_frac": 0.622
+          },
+          "_overall": {
+            "n_days": 1590,
+            "mean_ic": 0.038
+          }
+        },
+        "highlights": [
+          "trend_off|vol_high:IC=+0.0850(t=+5.8,n=102)",
+          "trend_off|vol_low:IC=+0.0269(t=+3.8,n=416)",
+          "trend_on|vol_high:IC=+0.0759(t=+5.9,n=130)",
+          "trend_on|vol_low:IC=+0.0264(t=+4.6,n=471)",
+          "trend_on|vol_mid:IC=+0.0433(t=+5.1,n=267)"
+        ]
+      },
+      "fwd21": {
+        "by_state": {
+          "trend_off|vol_high": {
+            "n_days": 102,
+            "mean_ic": 0.0464,
+            "t": 3.02,
+            "pos_frac": 0.618
+          },
+          "trend_off|vol_low": {
+            "n_days": 416,
+            "mean_ic": 0.0424,
+            "t": 6.18,
+            "pos_frac": 0.639
+          },
+          "trend_off|vol_mid": {
+            "n_days": 204,
+            "mean_ic": 0.0315,
+            "t": 2.57,
+            "pos_frac": 0.627
+          },
+          "trend_on|vol_high": {
+            "n_days": 130,
+            "mean_ic": 0.0554,
+            "t": 4.8,
+            "pos_frac": 0.677
+          },
+          "trend_on|vol_low": {
+            "n_days": 459,
+            "mean_ic": 0.0186,
+            "t": 3.83,
+            "pos_frac": 0.556
+          },
+          "trend_on|vol_mid": {
+            "n_days": 263,
+            "mean_ic": 0.0398,
+            "t": 4.95,
+            "pos_frac": 0.612
+          },
+          "_overall": {
+            "n_days": 1574,
+            "mean_ic": 0.0349
+          }
+        },
+        "highlights": [
+          "trend_off|vol_high:IC=+0.0464(t=+3.0,n=102)",
+          "trend_off|vol_low:IC=+0.0424(t=+6.2,n=416)",
+          "trend_on|vol_high:IC=+0.0554(t=+4.8,n=130)",
+          "trend_on|vol_low:IC=+0.0186(t=+3.8,n=459)",
+          "trend_on|vol_mid:IC=+0.0398(t=+5.0,n=263)"
+        ]
+      }
+    },
+    "reversal_20d": {
+      "fwd5": {
+        "by_state": {
+          "trend_off|vol_high": {
+            "n_days": 102,
+            "mean_ic": 0.0787,
+            "t": 5.7,
+            "pos_frac": 0.686
+          },
+          "trend_off|vol_low": {
+            "n_days": 416,
+            "mean_ic": 0.0551,
+            "t": 7.62,
+            "pos_frac": 0.644
+          },
+          "trend_off|vol_mid": {
+            "n_days": 204,
+            "mean_ic": 0.0368,
+            "t": 2.59,
+            "pos_frac": 0.554
+          },
+          "trend_on|vol_high": {
+            "n_days": 130,
+            "mean_ic": 0.0949,
+            "t": 7.16,
+            "pos_frac": 0.746
+          },
+          "trend_on|vol_low": {
+            "n_days": 456,
+            "mean_ic": 0.0349,
+            "t": 5.95,
+            "pos_frac": 0.649
+          },
+          "trend_on|vol_mid": {
+            "n_days": 267,
+            "mean_ic": 0.045,
+            "t": 4.59,
+            "pos_frac": 0.599
+          },
+          "_overall": {
+            "n_days": 1575,
+            "mean_ic": 0.05
+          }
+        },
+        "highlights": [
+          "trend_off|vol_high:IC=+0.0787(t=+5.7,n=102)",
+          "trend_off|vol_low:IC=+0.0551(t=+7.6,n=416)",
+          "trend_on|vol_high:IC=+0.0949(t=+7.2,n=130)",
+          "trend_on|vol_low:IC=+0.0349(t=+6.0,n=456)",
+          "trend_on|vol_mid:IC=+0.0450(t=+4.6,n=267)"
+        ]
+      },
+      "fwd21": {
+        "by_state": {
+          "trend_off|vol_high": {
+            "n_days": 102,
+            "mean_ic": 0.0924,
+            "t": 6.62,
+            "pos_frac": 0.725
+          },
+          "trend_off|vol_low": {
+            "n_days": 416,
+            "mean_ic": 0.0743,
+            "t": 10.37,
+            "pos_frac": 0.675
+          },
+          "trend_off|vol_mid": {
+            "n_days": 204,
+            "mean_ic": 0.1176,
+            "t": 9.5,
+            "pos_frac": 0.75
+          },
+          "trend_on|vol_high": {
+            "n_days": 130,
+            "mean_ic": 0.132,
+            "t": 12.58,
+            "pos_frac": 0.869
+          },
+          "trend_on|vol_low": {
+            "n_days": 444,
+            "mean_ic": 0.0351,
+            "t": 5.66,
+            "pos_frac": 0.642
+          },
+          "trend_on|vol_mid": {
+            "n_days": 263,
+            "mean_ic": 0.0601,
+            "t": 7.04,
+            "pos_frac": 0.662
+          },
+          "_overall": {
+            "n_days": 1559,
+            "mean_ic": 0.0724
+          }
+        },
+        "highlights": [
+          "trend_off|vol_high:IC=+0.0924(t=+6.6,n=102)",
+          "trend_off|vol_low:IC=+0.0743(t=+10.4,n=416)",
+          "trend_off|vol_mid:IC=+0.1176(t=+9.5,n=204)",
+          "trend_on|vol_high:IC=+0.1320(t=+12.6,n=130)",
+          "trend_on|vol_low:IC=+0.0351(t=+5.7,n=444)",
+          "trend_on|vol_mid:IC=+0.0601(t=+7.0,n=263)"
+        ]
+      }
+    },
+    "neg_range_20d": {
+      "fwd5": {
+        "by_state": {
+          "trend_off|vol_high": {
+            "n_days": 102,
+            "mean_ic": 0.0518,
+            "t": 2.65,
+            "pos_frac": 0.667
+          },
+          "trend_off|vol_low": {
+            "n_days": 416,
+            "mean_ic": 0.071,
+            "t": 7.81,
+            "pos_frac": 0.635
+          },
+          "trend_off|vol_mid": {
+            "n_days": 204,
+            "mean_ic": 0.0355,
+            "t": 2.33,
+            "pos_frac": 0.598
+          },
+          "trend_on|vol_high": {
+            "n_days": 130,
+            "mean_ic": 0.0633,
+            "t": 3.63,
+            "pos_frac": 0.615
+          },
+          "trend_on|vol_low": {
+            "n_days": 467,
+            "mean_ic": 0.0649,
+            "t": 9.69,
+            "pos_frac": 0.662
+          },
+          "trend_on|vol_mid": {
+            "n_days": 267,
+            "mean_ic": 0.021,
+            "t": 1.99,
+            "pos_frac": 0.592
+          },
+          "_overall": {
+            "n_days": 1586,
+            "mean_ic": 0.0544
+          }
+        },
+        "highlights": [
+          "trend_off|vol_low:IC=+0.0710(t=+7.8,n=416)",
+          "trend_on|vol_high:IC=+0.0633(t=+3.6,n=130)",
+          "trend_on|vol_low:IC=+0.0649(t=+9.7,n=467)"
+        ]
+      },
+      "fwd21": {
+        "by_state": {
+          "trend_off|vol_high": {
+            "n_days": 102,
+            "mean_ic": 0.0684,
+            "t": 4.1,
+            "pos_frac": 0.745
+          },
+          "trend_off|vol_low": {
+            "n_days": 416,
+            "mean_ic": 0.1101,
+            "t": 11.71,
+            "pos_frac": 0.69
+          },
+          "trend_off|vol_mid": {
+            "n_days": 204,
+            "mean_ic": 0.0072,
+            "t": 0.55,
+            "pos_frac": 0.613
+          },
+          "trend_on|vol_high": {
+            "n_days": 130,
+            "mean_ic": 0.1078,
+            "t": 6.22,
+            "pos_frac": 0.708
+          },
+          "trend_on|vol_low": {
+            "n_days": 455,
+            "mean_ic": 0.067,
+            "t": 9.49,
+            "pos_frac": 0.684
+          },
+          "trend_on|vol_mid": {
+            "n_days": 263,
+            "mean_ic": 0.0486,
+            "t": 4.47,
+            "pos_frac": 0.616
+          },
+          "_overall": {
+            "n_days": 1570,
+            "mean_ic": 0.071
+          }
+        },
+        "highlights": [
+          "trend_off|vol_high:IC=+0.0684(t=+4.1,n=102)",
+          "trend_off|vol_low:IC=+0.1101(t=+11.7,n=416)",
+          "trend_on|vol_high:IC=+0.1078(t=+6.2,n=130)",
+          "trend_on|vol_low:IC=+0.0670(t=+9.5,n=455)",
+          "trend_on|vol_mid:IC=+0.0486(t=+4.5,n=263)"
+        ]
+      }
+    },
+    "c_single_yoy": {
+      "fwd5": {
+        "by_state": {
+          "trend_off|vol_high": {
+            "n_days": 102,
+            "mean_ic": 0.017,
+            "t": 2.0,
+            "pos_frac": 0.637
+          },
+          "trend_off|vol_low": {
+            "n_days": 416,
+            "mean_ic": 0.0064,
+            "t": 1.17,
+            "pos_frac": 0.51
+          },
+          "trend_off|vol_mid": {
+            "n_days": 204,
+            "mean_ic": 0.0151,
+            "t": 1.99,
+            "pos_frac": 0.529
+          },
+          "trend_on|vol_high": {
+            "n_days": 130,
+            "mean_ic": -0.0072,
+            "t": -0.83,
+            "pos_frac": 0.538
+          },
+          "trend_on|vol_low": {
+            "n_days": 476,
+            "mean_ic": 0.0321,
+            "t": 7.22,
+            "pos_frac": 0.592
+          },
+          "trend_on|vol_mid": {
+            "n_days": 267,
+            "mean_ic": 0.0239,
+            "t": 3.25,
+            "pos_frac": 0.573
+          },
+          "_overall": {
+            "n_days": 1595,
+            "mean_ic": 0.0177
+          }
+        },
+        "highlights": [
+          "trend_on|vol_low:IC=+0.0321(t=+7.2,n=476)",
+          "trend_on|vol_mid:IC=+0.0239(t=+3.2,n=267)"
+        ]
+      },
+      "fwd21": {
+        "by_state": {
+          "trend_off|vol_high": {
+            "n_days": 102,
+            "mean_ic": 0.0479,
+            "t": 4.11,
+            "pos_frac": 0.667
+          },
+          "trend_off|vol_low": {
+            "n_days": 416,
+            "mean_ic": -0.0069,
+            "t": -1.22,
+            "pos_frac": 0.401
+          },
+          "trend_off|vol_mid": {
+            "n_days": 204,
+            "mean_ic": 0.0129,
+            "t": 1.89,
+            "pos_frac": 0.588
+          },
+          "trend_on|vol_high": {
+            "n_days": 130,
+            "mean_ic": -0.027,
+            "t": -2.76,
+            "pos_frac": 0.423
+          },
+          "trend_on|vol_low": {
+            "n_days": 464,
+            "mean_ic": 0.0534,
+            "t": 9.76,
+            "pos_frac": 0.625
+          },
+          "trend_on|vol_mid": {
+            "n_days": 263,
+            "mean_ic": 0.0292,
+            "t": 3.85,
+            "pos_frac": 0.646
+          },
+          "_overall": {
+            "n_days": 1579,
+            "mean_ic": 0.0213
+          }
+        },
+        "highlights": [
+          "trend_off|vol_high:IC=+0.0479(t=+4.1,n=102)",
+          "trend_on|vol_low:IC=+0.0534(t=+9.8,n=464)",
+          "trend_on|vol_mid:IC=+0.0292(t=+3.9,n=263)",
+          "FLIP trend_off|vol_high(+0.0479,t=+4.1) vs trend_on|vol_high(-0.0270,t=-2.8)",
+          "FLIP trend_on|vol_high(-0.0270,t=-2.8) vs trend_on|vol_low(+0.0534,t=+9.8)",
+          "FLIP trend_on|vol_high(-0.0270,t=-2.8) vs trend_on|vol_mid(+0.0292,t=+3.9)"
+        ]
+      }
+    },
+    "c_ttm_yoy": {
+      "fwd5": {
+        "by_state": {
+          "trend_off|vol_high": {
+            "n_days": 102,
+            "mean_ic": 0.012,
+            "t": 1.33,
+            "pos_frac": 0.559
+          },
+          "trend_off|vol_low": {
+            "n_days": 416,
+            "mean_ic": 0.0012,
+            "t": 0.22,
+            "pos_frac": 0.49
+          },
+          "trend_off|vol_mid": {
+            "n_days": 204,
+            "mean_ic": 0.0055,
+            "t": 0.67,
+            "pos_frac": 0.549
+          },
+          "trend_on|vol_high": {
+            "n_days": 130,
+            "mean_ic": -0.0132,
+            "t": -1.41,
+            "pos_frac": 0.454
+          },
+          "trend_on|vol_low": {
+            "n_days": 476,
+            "mean_ic": 0.0211,
+            "t": 4.53,
+            "pos_frac": 0.578
+          },
+          "trend_on|vol_mid": {
+            "n_days": 267,
+            "mean_ic": 0.0026,
+            "t": 0.34,
+            "pos_frac": 0.513
+          },
+          "_overall": {
+            "n_days": 1595,
+            "mean_ic": 0.0074
+          }
+        },
+        "highlights": [
+          "trend_on|vol_low:IC=+0.0211(t=+4.5,n=476)"
+        ]
+      },
+      "fwd21": {
+        "by_state": {
+          "trend_off|vol_high": {
+            "n_days": 102,
+            "mean_ic": 0.0163,
+            "t": 1.44,
+            "pos_frac": 0.422
+          },
+          "trend_off|vol_low": {
+            "n_days": 416,
+            "mean_ic": -0.0153,
+            "t": -2.66,
+            "pos_frac": 0.416
+          },
+          "trend_off|vol_mid": {
+            "n_days": 204,
+            "mean_ic": -0.0038,
+            "t": -0.57,
+            "pos_frac": 0.475
+          },
+          "trend_on|vol_high": {
+            "n_days": 130,
+            "mean_ic": -0.042,
+            "t": -4.19,
+            "pos_frac": 0.3
+          },
+          "trend_on|vol_low": {
+            "n_days": 464,
+            "mean_ic": 0.0268,
+            "t": 4.46,
+            "pos_frac": 0.567
+          },
+          "trend_on|vol_mid": {
+            "n_days": 263,
+            "mean_ic": 0.0115,
+            "t": 1.42,
+            "pos_frac": 0.532
+          },
+          "_overall": {
+            "n_days": 1579,
+            "mean_ic": 0.0029
+          }
+        },
+        "highlights": [
+          "trend_on|vol_high:IC=-0.0420(t=-4.2,n=130)",
+          "trend_on|vol_low:IC=+0.0268(t=+4.5,n=464)",
+          "FLIP trend_off|vol_low(-0.0153,t=-2.7) vs trend_on|vol_low(+0.0268,t=+4.5)",
+          "FLIP trend_on|vol_high(-0.0420,t=-4.2) vs trend_on|vol_low(+0.0268,t=+4.5)"
+        ]
+      }
+    },
+    "rev_ttm_yoy": {
+      "fwd5": {
+        "by_state": {
+          "trend_off|vol_high": {
+            "n_days": 102,
+            "mean_ic": 0.0101,
+            "t": 1.63,
+            "pos_frac": 0.539
+          },
+          "trend_off|vol_low": {
+            "n_days": 416,
+            "mean_ic": -0.011,
+            "t": -3.16,
+            "pos_frac": 0.442
+          },
+          "trend_off|vol_mid": {
+            "n_days": 204,
+            "mean_ic": 0.0196,
+            "t": 3.46,
+            "pos_frac": 0.578
+          },
+          "trend_on|vol_high": {
+            "n_days": 130,
+            "mean_ic": -0.0076,
+            "t": -1.14,
+            "pos_frac": 0.438
+          },
+          "trend_on|vol_low": {
+            "n_days": 476,
+            "mean_ic": 0.0161,
+            "t": 4.9,
+            "pos_frac": 0.567
+          },
+          "trend_on|vol_mid": {
+            "n_days": 267,
+            "mean_ic": 0.0177,
+            "t": 3.37,
+            "pos_frac": 0.551
+          },
+          "_overall": {
+            "n_days": 1595,
+            "mean_ic": 0.0075
+          }
+        },
+        "highlights": [
+          "trend_off|vol_low:IC=-0.0110(t=-3.2,n=416)",
+          "trend_off|vol_mid:IC=+0.0196(t=+3.5,n=204)",
+          "trend_on|vol_low:IC=+0.0161(t=+4.9,n=476)",
+          "trend_on|vol_mid:IC=+0.0177(t=+3.4,n=267)",
+          "FLIP trend_off|vol_low(-0.0110,t=-3.2) vs trend_off|vol_mid(+0.0196,t=+3.5)",
+          "FLIP trend_off|vol_low(-0.0110,t=-3.2) vs trend_on|vol_low(+0.0161,t=+4.9)",
+          "FLIP trend_off|vol_low(-0.0110,t=-3.2) vs trend_on|vol_mid(+0.0177,t=+3.4)"
+        ]
+      },
+      "fwd21": {
+        "by_state": {
+          "trend_off|vol_high": {
+            "n_days": 102,
+            "mean_ic": 0.0161,
+            "t": 2.13,
+            "pos_frac": 0.539
+          },
+          "trend_off|vol_low": {
+            "n_days": 416,
+            "mean_ic": -0.0199,
+            "t": -6.08,
+            "pos_frac": 0.361
+          },
+          "trend_off|vol_mid": {
+            "n_days": 204,
+            "mean_ic": 0.0192,
+            "t": 3.46,
+            "pos_frac": 0.603
+          },
+          "trend_on|vol_high": {
+            "n_days": 130,
+            "mean_ic": -0.0329,
+            "t": -4.09,
+            "pos_frac": 0.354
+          },
+          "trend_on|vol_low": {
+            "n_days": 464,
+            "mean_ic": 0.0336,
+            "t": 8.74,
+            "pos_frac": 0.593
+          },
+          "trend_on|vol_mid": {
+            "n_days": 263,
+            "mean_ic": 0.0039,
+            "t": 0.62,
+            "pos_frac": 0.513
+          },
+          "_overall": {
+            "n_days": 1579,
+            "mean_ic": 0.0061
+          }
+        },
+        "highlights": [
+          "trend_off|vol_low:IC=-0.0199(t=-6.1,n=416)",
+          "trend_off|vol_mid:IC=+0.0192(t=+3.5,n=204)",
+          "trend_on|vol_high:IC=-0.0329(t=-4.1,n=130)",
+          "trend_on|vol_low:IC=+0.0336(t=+8.7,n=464)",
+          "FLIP trend_off|vol_high(+0.0161,t=+2.1) vs trend_off|vol_low(-0.0199,t=-6.1)",
+          "FLIP trend_off|vol_high(+0.0161,t=+2.1) vs trend_on|vol_high(-0.0329,t=-4.1)",
+          "FLIP trend_off|vol_low(-0.0199,t=-6.1) vs trend_off|vol_mid(+0.0192,t=+3.5)",
+          "FLIP trend_off|vol_low(-0.0199,t=-6.1) vs trend_on|vol_low(+0.0336,t=+8.7)",
+          "FLIP trend_off|vol_mid(+0.0192,t=+3.5) vs trend_on|vol_high(-0.0329,t=-4.1)",
+          "FLIP trend_on|vol_high(-0.0329,t=-4.1) vs trend_on|vol_low(+0.0336,t=+8.7)"
+        ]
+      }
+    },
+    "roe": {
+      "fwd5": {
+        "by_state": {
+          "trend_off|vol_high": {
+            "n_days": 102,
+            "mean_ic": 0.0047,
+            "t": 0.48,
+            "pos_frac": 0.5
+          },
+          "trend_off|vol_low": {
+            "n_days": 416,
+            "mean_ic": -0.0215,
+            "t": -3.07,
+            "pos_frac": 0.409
+          },
+          "trend_off|vol_mid": {
+            "n_days": 204,
+            "mean_ic": -0.0159,
+            "t": -1.49,
+            "pos_frac": 0.402
+          },
+          "trend_on|vol_high": {
+            "n_days": 130,
+            "mean_ic": -0.056,
+            "t": -4.92,
+            "pos_frac": 0.346
+          },
+          "trend_on|vol_low": {
+            "n_days": 476,
+            "mean_ic": 0.0324,
+            "t": 5.65,
+            "pos_frac": 0.588
+          },
+          "trend_on|vol_mid": {
+            "n_days": 267,
+            "mean_ic": -0.0096,
+            "t": -1.07,
+            "pos_frac": 0.479
+          },
+          "_overall": {
+            "n_days": 1595,
+            "mean_ic": -0.0038
+          }
+        },
+        "highlights": [
+          "trend_off|vol_low:IC=-0.0215(t=-3.1,n=416)",
+          "trend_on|vol_high:IC=-0.0560(t=-4.9,n=130)",
+          "trend_on|vol_low:IC=+0.0324(t=+5.7,n=476)",
+          "FLIP trend_off|vol_low(-0.0215,t=-3.1) vs trend_on|vol_low(+0.0324,t=+5.7)",
+          "FLIP trend_on|vol_high(-0.0560,t=-4.9) vs trend_on|vol_low(+0.0324,t=+5.7)"
+        ]
+      },
+      "fwd21": {
+        "by_state": {
+          "trend_off|vol_high": {
+            "n_days": 102,
+            "mean_ic": 0.0292,
+            "t": 2.69,
+            "pos_frac": 0.529
+          },
+          "trend_off|vol_low": {
+            "n_days": 416,
+            "mean_ic": -0.0595,
+            "t": -6.91,
+            "pos_frac": 0.236
+          },
+          "trend_off|vol_mid": {
+            "n_days": 204,
+            "mean_ic": -0.0353,
+            "t": -3.89,
+            "pos_frac": 0.324
+          },
+          "trend_on|vol_high": {
+            "n_days": 130,
+            "mean_ic": -0.129,
+            "t": -11.79,
+            "pos_frac": 0.154
+          },
+          "trend_on|vol_low": {
+            "n_days": 464,
+            "mean_ic": 0.0287,
+            "t": 4.35,
+            "pos_frac": 0.556
+          },
+          "trend_on|vol_mid": {
+            "n_days": 263,
+            "mean_ic": -0.0149,
+            "t": -1.42,
+            "pos_frac": 0.392
+          },
+          "_overall": {
+            "n_days": 1579,
+            "mean_ic": -0.023
+          }
+        },
+        "highlights": [
+          "trend_off|vol_low:IC=-0.0595(t=-6.9,n=416)",
+          "trend_off|vol_mid:IC=-0.0353(t=-3.9,n=204)",
+          "trend_on|vol_high:IC=-0.1290(t=-11.8,n=130)",
+          "trend_on|vol_low:IC=+0.0287(t=+4.3,n=464)",
+          "FLIP trend_off|vol_high(+0.0292,t=+2.7) vs trend_off|vol_low(-0.0595,t=-6.9)",
+          "FLIP trend_off|vol_high(+0.0292,t=+2.7) vs trend_off|vol_mid(-0.0353,t=-3.9)",
+          "FLIP trend_off|vol_high(+0.0292,t=+2.7) vs trend_on|vol_high(-0.1290,t=-11.8)",
+          "FLIP trend_off|vol_low(-0.0595,t=-6.9) vs trend_on|vol_low(+0.0287,t=+4.3)",
+          "FLIP trend_off|vol_mid(-0.0353,t=-3.9) vs trend_on|vol_low(+0.0287,t=+4.3)",
+          "FLIP trend_on|vol_high(-0.1290,t=-11.8) vs trend_on|vol_low(+0.0287,t=+4.3)"
+        ]
+      }
+    },
+    "a_cagr3": {
+      "fwd5": {
+        "by_state": {
+          "trend_off|vol_high": {
+            "n_days": 75,
+            "mean_ic": -0.0223,
+            "t": -1.34,
+            "pos_frac": 0.44
+          },
+          "trend_off|vol_low": {
+            "n_days": 185,
+            "mean_ic": -0.0284,
+            "t": -3.16,
+            "pos_frac": 0.389
+          },
+          "trend_off|vol_mid": {
+            "n_days": 82,
+            "mean_ic": -0.0049,
+            "t": -0.46,
+            "pos_frac": 0.549
+          },
+          "trend_on|vol_high": {
+            "n_days": 57,
+            "mean_ic": 0.0201,
+            "t": 1.23,
+            "pos_frac": 0.561
+          },
+          "trend_on|vol_low": {
+            "n_days": 210,
+            "mean_ic": -0.0037,
+            "t": -0.42,
+            "pos_frac": 0.438
+          },
+          "trend_on|vol_mid": {
+            "n_days": 96,
+            "mean_ic": -0.0313,
+            "t": -2.91,
+            "pos_frac": 0.354
+          },
+          "_overall": {
+            "n_days": 705,
+            "mean_ic": -0.0141
+          }
+        },
+        "highlights": [
+          "trend_off|vol_low:IC=-0.0284(t=-3.2,n=185)"
+        ]
+      },
+      "fwd21": {
+        "by_state": {
+          "trend_off|vol_high": {
+            "n_days": 75,
+            "mean_ic": 0.0337,
+            "t": 3.48,
+            "pos_frac": 0.653
+          },
+          "trend_off|vol_low": {
+            "n_days": 185,
+            "mean_ic": -0.0693,
+            "t": -6.61,
+            "pos_frac": 0.303
+          },
+          "trend_off|vol_mid": {
+            "n_days": 82,
+            "mean_ic": 0.0048,
+            "t": 0.37,
+            "pos_frac": 0.561
+          },
+          "trend_on|vol_high": {
+            "n_days": 57,
+            "mean_ic": -0.0372,
+            "t": -3.27,
+            "pos_frac": 0.351
+          },
+          "trend_on|vol_low": {
+            "n_days": 198,
+            "mean_ic": -0.0632,
+            "t": -9.24,
+            "pos_frac": 0.222
+          },
+          "trend_on|vol_mid": {
+            "n_days": 92,
+            "mean_ic": -0.0443,
+            "t": -3.53,
+            "pos_frac": 0.272
+          },
+          "_overall": {
+            "n_days": 689,
+            "mean_ic": -0.0415
+          }
+        },
+        "highlights": [
+          "trend_off|vol_low:IC=-0.0693(t=-6.6,n=185)",
+          "trend_on|vol_low:IC=-0.0632(t=-9.2,n=198)"
+        ]
+      }
+    }
+  }
+}

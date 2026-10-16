@@ -1,0 +1,24 @@
+{
+  "pre_registered": true,
+  "checks": {
+    "B1_direction_passthrough": true,
+    "B2_extract_from_report_direction": true,
+    "B3_rdp_only_wyckoff_keys": true,
+    "B4_adapter_direction_gate": true,
+    "B5_confidence_gate_0_40": true,
+    "B6_structural_adjust_default_off": true,
+    "B7_normalizer_direction_map_zero": true,
+    "B8_no_seLL_as_entry": true
+  },
+  "notes": {
+    "B1": "WyckoffOutput.direction 字段 + to_dict/from_dict wyckoff_direction roundtrip",
+    "B2": "_extract_from_report 从 trading_plan.direction 提取 (覆盖 MTF 融合 final_report)",
+    "B3": "RDP metadata 键=['avwap', 'bias200', 'bypassed', 'event_cooldown_active', 'event_cooldown_days', 'evr_level', 'evr_position_context', 'evr_state', 'no_supply_detected', 'nsd_detected', 'pattern_failure_detected', 'pattern_failure_ratio', 'pre', 'range_score', 'rr_ratio', 'sos_candidate_detected', 'vdu_detected', 'wyckoff_confidence', 'wyckoff_direction', 'wyckoff_phase', 'wyckoff_spring', 'wyckoff_utad'], 意外键=[], 无关 engine 键泄漏=[]",
+    "B4": "做多/买入/轻仓试探→BUY=True; 其余→None=True; 相位/spring/utad 无 direction 直映射=True",
+    "B5": "config wyckoff.confidence_gate=0.4",
+    "B6": "config=False, engine._structural_adjust_enabled=False",
+    "B7": "_DIRECTION_MAP 6/6 项为 0",
+    "B8": "scan_signal actions=['HOLD', 'HOLD'] (恒 BUY/HOLD)=True; normalizer 无 -1 注入=True"
+  },
+  "overall": "PASS"
+}
