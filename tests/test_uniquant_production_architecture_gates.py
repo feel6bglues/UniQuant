@@ -27,16 +27,18 @@ from pathlib import Path
 from decimal import Decimal
 import pytest
 
-# 注入项目路径
-UNIQUANT_ROOT = Path("/home/james/Documents/Project/UniQuant")
-UNIQUANT_SRC = UNIQUANT_ROOT / "src"
+# 注入项目路径（仓库内相对定位：禁止硬编码开发机绝对路径，否则 CI 收集期即报错）
+REPO_ROOT = Path(__file__).resolve().parents[1]
+UNIQUANT_SRC = REPO_ROOT / "src"
 if str(UNIQUANT_SRC) not in sys.path:
     sys.path.insert(0, str(UNIQUANT_SRC))
 
-CNNM_ROOT = Path("/home/james/Documents/Project/CNNM")
-CNNM_SCRATCH = CNNM_ROOT / "scratch"
-if str(CNNM_SCRATCH) not in sys.path:
-    sys.path.insert(0, str(CNNM_SCRATCH))
+# `order_state_machine.py` 已随本仓库入库（scratch/，与 CNMM 兄弟仓副本逐字节一致）。
+# 该模块原先通过 CNMM 兄弟仓的绝对路径导入，在 CI（无该兄弟仓）上会以
+# ModuleNotFoundError 中断整个收集期——改用仓库内受版本管理的副本。
+SCRATCH_DIR = REPO_ROOT / "scratch"
+if str(SCRATCH_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRATCH_DIR))
 
 from uniquant.services.portfolio_service import PortfolioService  # noqa: E402
 from order_state_machine import (  # noqa: E402
@@ -227,7 +229,7 @@ class TestPortfolioServiceLegacyCompatibilityGates:
 class TestWyckoffEngineExceptionHandlingGates:
     """Gate 4: 修复 C4 冲突，彻底根除 5 处宽泛 except Exception"""
 
-    ENGINE_PATH = Path("/home/james/Documents/Project/UniQuant/src/uniquant/brain/wyckoff/engine.py")
+    ENGINE_PATH = UNIQUANT_SRC / "uniquant" / "brain" / "wyckoff" / "engine.py"
 
     def test_gate_4_ast_audit_no_broad_exception_in_engine(self):
         """AST 语法树法医级审计：验证 engine.py 中绝无任何裸 'except Exception:'"""

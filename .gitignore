@@ -67,6 +67,7 @@ src/uniquant/shared/__pycache__/
 
 # Coverage artifacts (regenerable)
 .coverage
+.coverage.*
 *,cover
 mutants/
 

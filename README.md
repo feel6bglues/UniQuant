@@ -157,7 +157,9 @@ P2-3 数据湖/results 可复现性      ✅ 完成（证据白名单 + SHA-256 
 第三轮 数据层补测                ✅ 完成（data/ 53.9% → 94.2%；13 文件 / 634 用例）
 第三轮 历史文档漂移根治          ✅ 完成（docs/reanalysis 60 文件 + docs/archive 10 文件加历史横幅）
 第三轮 潜在缺陷修复              ✅ 完成（parse_day_file 截断/NaT、storage_manager 路径遍历）
-第四轮 CI 真绿化                 ✅ 完成（requires_lake/futures_lake/gbbq 三标记 + 集中跳过钩子）
+第四轮 CI 数据湖依赖收口          ✅ 完成（requires_lake/futures_lake/gbbq 三标记 + 集中跳过钩子）
+第五轮 CI 收集期中断修复          ✅ 完成（硬编码开发机兄弟仓路径 → 仓库内相对定位 + 防回归守卫）
+第五轮 测试导入期 HOME 污染修复    ✅ 完成（静默跳过 5 个真实数据用例 → 删除 + 第二条防回归守卫）
 ```
 
 **闭环验证（2026-10-16 第三轮实测，本机含数据湖）**：`pytest tests/` **3226 passed / 2 skipped / 0 failed**（收集 3228）；
@@ -165,10 +167,23 @@ P2-3 数据湖/results 可复现性      ✅ 完成（证据白名单 + SHA-256 
 `ruff check src/uniquant/ tests/ scripts/` **All checks passed!**；
 `python scripts/maintenance/evidence_manifest.py verify` → **no drift**（50 证据文件 / 942,274 B）。
 
-**CI 口径（2026-10-16 第四轮实测，无数据湖）**：`pytest tests/` **0 failed / 0 error**（收集 3228，**151 skipped**，每个跳过均带显式原因）；
-覆盖率 **75.57%**（26,247 语句 / 6,412 未覆盖）≥ 门限 74%。真实数据用例依赖的本地数据湖
+**本机口径（2026-10-16 第五轮实测，含数据湖）**：`pytest tests/` **3230 passed / 2 skipped / 0 failed**（收集 3232；
+仅 2 个 backtrader 缺依赖 skip；`requires_*` 标记在本机为 no-op，用例全部真跑）。
+
+**CI 口径（2026-10-16 第五轮实测，无数据湖/无通达信/无开发机兄弟仓）**：`pytest tests/` **0 failed / 0 error**（收集 3232，运行 3081，**151 skipped**，每个跳过均带显式原因）；
+覆盖率 **75.57%**（26,247 语句 / 6,411 未覆盖）≥ 门限 74%。真实数据用例依赖的本地数据湖
 （`data/lake/**`）、GBBQ 基线（`data/fq/gbbq.parquet`）与本地通达信客户端均不进版本库，
 CI 上由 `requires_lake` / `requires_futures_lake` / `requires_gbbq` 三标记**声明式跳过**（非静默通过）。
+
+> ⚠️ **CI 曾长期红的三个串联成因**（第四轮曾单因归因于数据湖，已更正）：① `ruff` lint 失败（使 pytest 步骤被
+> skip）；② **测试收集期中断**——`tests/test_uniquant_production_architecture_gates.py` 硬编码开发机兄弟仓
+> 绝对路径 `/home/james/Documents/Project/CNNM/scratch` → CI 上 `ModuleNotFoundError: order_state_machine`
+> → `Interrupted: 1 error during collection` → **零用例执行（exit 2）**；③ 130 个数据湖依赖用例。
+> 第五轮修掉 ②（路径改为 `Path(__file__)` 仓库内相对定位 + 从入库的 `scratch/` 导入 + 新增防回归守卫
+> `tests/test_no_dev_absolute_paths.py`）。同轮还发现并修复同族缺陷：`tests/test_import_financial.py` 在**导入期**
+> 写 `os.environ["HOME"] = "/tmp"`，被 pytest 同进程按文件名顺序导入后污染后续模块，**静默跳过 5 个真实数据用例**
+> （本机 2 skip → 7 skip）——已删除，并加第二守卫 `tests/test_no_import_time_env_mutation.py`。详见报告 §7.7。
+> **教训**：本地等价复现 CI 必须同时屏蔽**数据依赖**与**开发机专有路径依赖**两类；测试不得依赖导入顺序或进程级可变状态。
 
 ---
 

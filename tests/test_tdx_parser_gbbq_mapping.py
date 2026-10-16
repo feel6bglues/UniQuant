@@ -36,7 +36,9 @@ from uniquant.data.parsers import tdx_parser as tdx_parser_mod
 from uniquant.data.parsers.tdx_parser import TDXParser, parse_gbbq_native
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
-GBBQ_REAL_PATH = "/home/james/.local/share/tdxcfv/drive_c/tc/T0002/hq_cache/gbbq"
+# 本机通达信安装根（CI 上不存在 → 相关用例按声明式 skipif 跳过，而非硬编码开发机路径）
+TDX_HOME = Path(os.environ.get("TDX_HOME", Path.home() / ".local" / "share" / "tdxcfv"))
+GBBQ_REAL_PATH = str(TDX_HOME / "drive_c" / "tc" / "T0002" / "hq_cache" / "gbbq")
 FQ_GBBQ_PATH = PROJECT_ROOT / "data" / "fq" / "gbbq.parquet"
 SYNC_SCRIPT_PATH = PROJECT_ROOT / "scripts" / "maintenance" / "sync_local_tdx_day.py"
 

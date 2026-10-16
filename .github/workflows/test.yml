@@ -43,6 +43,16 @@ jobs:
         # `requires_gbbq` markers (tests/conftest.py) and skip with an explicit
         # reason rather than failing — or worse, passing vacuously on an empty
         # frame. Everything else must pass for real here.
+        #
+        # Tests must also never hardcode a developer-machine absolute path. Doing
+        # so resolved locally but aborted the *whole* CI session during pytest
+        # collection (`Interrupted: 1 error during collection`, exit 2, zero
+        # tests run). `tests/test_no_dev_absolute_paths.py` guards against it.
+        # Related: tests must not mutate the process environment at import time
+        # (`os.environ[...] = ...` at module level) — pytest imports every module
+        # into one process, so a stray `HOME` write silently changed which
+        # real-data tests ran (it skipped 5 of them). Guarded by
+        # `tests/test_no_import_time_env_mutation.py`.
         run: |
           set +e
           pytest tests/ -q --tb=short > /tmp/pytest.log 2>&1
@@ -67,10 +77,13 @@ jobs:
   coverage:
     # Separate job so the fast `test` job above still gives quick feedback.
     # `--cov-fail-under` is a *regression floor*. Two measurements are on record:
-    #   * 75.57% (26,247 stmts / 6,412 missed) — CI-faithful environment, i.e.
+    #   * 75.57% (26,247 stmts / 6,411 missed) — CI-faithful environment, i.e.
     #     no data lake, so the `requires_*` real-data tests skip;
     #   * 76.05% (26,247 stmts / 6,285 missed) — developer machine WITH the
     #     local data lake, where those tests actually run.
+    # (A `-n 8` run of the first measurement once reported 6,412 missed; the
+    # 1-statement spread is xdist scheduling jitter — the percentage is 75.57%
+    # either way.)
     # See `.coveragerc` and
     # docs/analysis/POST_SIMPLIFICATION_ARCHITECTURE_TRADING_EVALUATION_20261016.md §7.
     # The floor sits ~1.6 points below the *lower* (CI-faithful) measurement so
@@ -93,9 +106,25 @@ jobs:
 
       - name: Test with coverage gate
         run: |
+          set +e
           pytest tests/ -q --tb=short \
             -n auto \
             --timeout=900 \
             --cov \
             --cov-report=term:skip-covered \
-            --cov-fail-under=74
+            --cov-fail-under=74 > /tmp/pytest_cov.log 2>&1
+          rc=$?
+          cat /tmp/pytest_cov.log
+          if [ "$rc" -ne 0 ]; then
+            # Same bounded digest as the `test` job so a failure here is
+            # triageable from the Checks tab without downloading step logs.
+            {
+              grep -E 'Interrupted|errors? during collection' /tmp/pytest_cov.log | head -3
+              grep -E 'Required test coverage|FAIL Required' /tmp/pytest_cov.log | head -3
+              grep -E '^E   ' /tmp/pytest_cov.log | head -12
+              grep -E '^(ERROR|FAILED) ' /tmp/pytest_cov.log | head -10
+            } 2>/dev/null | awk '!seen[$0]++' | head -20 \
+              | sed -e 's/%/%25/g' -e 's/\r//g' \
+              | while IFS= read -r line; do echo "::error title=pytest-digest::${line}"; done
+          fi
+          exit $rc

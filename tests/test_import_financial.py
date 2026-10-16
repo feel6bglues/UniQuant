@@ -2,11 +2,7 @@
 测试财务导入链路关键行为
 """
 
-import os
-
 import pandas as pd
-
-os.environ["HOME"] = "/tmp"
 
 from uniquant.data.services.import_financial import TDXFinancialImporter
 
