@@ -40,22 +40,24 @@
 
 | 分层 | 文件数 | LOC | 职责备注 |
 |---|---:|---:|---|
-| `shared` | 42 | 6,957 | 契约、常量、成本、时间抽象、秘钥 |
-| `data` | 33 | 6,828 | 湖优先数据访问、复权、清洗、校验、TDX/mootdx 源 |
-| `brain` | 62 | 19,968 | FSM/CZSC/LPPL/NTF/Regime/Wyckoff/因子 |
-| `signal` | 8 | 2,802 | 适配器、仲裁、归一 |
+| `shared` | 42 | 6,994 | 契约、常量、成本、时间抽象、秘钥 |
+| `data` | 32 | 6,496 | 湖优先数据访问、复权、清洗、校验、TDX/mootdx 源 |
+| `brain` | 62 | 20,046 | FSM/CZSC/LPPL/NTF/Regime/Wyckoff/因子 |
+| `signal` | 8 | 2,813 | 适配器、仲裁、归一 |
 | `hands` | 33 | 6,254 | 撮合 / 回测 / 执行切片 / CFFEX |
 | `risk` | 8 | 2,259 | 仓位、回撤、EVT、组合优化、合规 |
-| `services` | 29 | 9,026 | DI 容器、分析编排、扫描、清单生成 |
+| `services` | 29 | 9,122 | DI 容器、分析编排、扫描、清单生成 |
 | `ui` | 8 | 3,400 | Streamlit 仪表盘 |
-| **`research`** | **10** | **1,342** | **新增：QTR-OS 科研控制平面（门禁/账本/沙盒）** |
-| **合计** | **234** | **58,837** | |
+| **`research`** | **12** | **1,877** | **新增：QTR-OS 科研控制平面（门禁/账本/沙盒 + 自由度账本桥）** |
+| **合计** | **235** | **59,261** | （含 `src/uniquant/__init__.py`） |
+
+> 上表为 **2026-10-16 第三轮结束时的实测**；首次盘点时为 `data 33 / research 10 / 合计 234`——差异来自第三轮删除 `data/managers/cache_manager.py` 与第二轮新增 `research/ledger/{bridge,ledger_store}.py`。
 
 > ⚠️ `README.md` 仍声明"v0.3（44 文件 / ~12.6K LOC，完成度 28%）"——与实际相差 **19 倍文件数 / 4.7 倍 LOC**。
 
 ### 1.2 测试与脚本
 
-- 测试文件：**192** 个；`pytest --collect-only` 收敛：**2,532 tests collected**。
+- 测试文件：**205** 个；`pytest --collect-only` 收敛：**3,198 tests collected**（首次盘点时为 192 文件 / 2,532 tests）。
 - 脚本：**149** 个（研究/运维脚本占比很高，见 `scripts/{canslim,factor_mining,maintenance,qar,backtest}`）。
 
 ### 1.3 数据湖（本地，全部 gitignore）
@@ -349,7 +351,108 @@ def _has_transfer_fee(symbol: str) -> bool:
 | P2-3 剩余：CI 覆盖率门 | ✅ 关单 | 独立 `coverage` 作业 + `--cov-fail-under=68`（实测 70.55%） |
 | P2-3 剩余：数据湖/results 可复现 | ✅ 关单 | 证据白名单 + 内容哈希账本 + CI 校验 |
 
-> **仍开放（不属本报告 §5 范围，供后续决策）**：① `data/` 层覆盖率 53.9%、45 处历史零覆盖文件；② 历史文档（`docs/archive/`、`docs/reanalysis/`）仍含大量已失效口径，未做全量清理；③ 策略容量受限于 ≈2850 万元（H-A 的固有属性，非工程缺陷）。
+> **仍开放（不属本报告 §5 范围，供后续决策）**：① 策略容量受限于 ≈2850 万元（H-A 的固有属性，非工程缺陷）；② `services/` 层覆盖率 63.8% 为当前最薄弱面（`data/` 层已于第三轮补齐，见 §7）。
+
+---
+
+## 7. 第三轮：数据层补测 + 历史文档漂移根治（2026-10-16）
+
+第二轮结束时仍开放 ①②（`data/` 层 53.9%、历史文档失效口径）——本轮收口，纪律为**只补测试与文档、不改生产语义**。
+
+### 7.1 数据层补测：53.9% → 94.2%
+
+`data/` 层既是整包覆盖率最低面，又是**生产链路的入口**（湖优先读、单轨复权、清洗、校验、TDX 解包、主数据/日历）。本轮新增/扩充 **13 个测试文件 / 634 用例**（`tests/data/` 全量 634 passed）：
+
+| 测试文件 | 用例 | 覆盖的目标模块（覆盖率变化） |
+|---|---:|---|
+| `test_storage_manager_extra.py` | 121 | `lake/storage_manager.py`（R-5 主数据硬失败守卫、新鲜度 SLA、读写契约、路径遍历） |
+| `test_baostock_and_metadata.py` | 109 | `managers/_baostock_client.py` 19.8→**100%**；`baostock_cache_manager` 7.4→93.8%；`trade_calendar_manager` 67.1→97.4%；`stock_metadata_manager` 77.2→99% |
+| `test_data_fetcher_extra.py` | 95 | `data_fetcher.py`（湖优先链、LRU 缓存、normalize/adjust/slice、委托面；`__new__` 无副作用构造） |
+| `test_sources_and_factor_utils.py` | 71 | `sources/mootdx_online.py` 22.1→100%；`smart_factor_calculator` 58.7→97%；`utils/akshare_market_service.py` 54.5→94% |
+| `test_futures_and_financial_import.py` | 63 | `services/futures_storage_manager.py` 76.3→100%；`services/import_financial.py` 44.3→99% |
+| `test_akshare_wrapper.py` | 33 | `utils/akshare_wrapper.py` 0→高覆盖（假 `time`/`random` + `sys.modules` 注入假 akshare，**不触网**） |
+| `test_normalizer.py` | 31 | `utils/normalizer.py` 31.9→**100%**（含 `_validate_data` 告警断言） |
+| `test_tdx_parser_day_and_io.py` | 30 | `parsers/tdx_parser.py`（`.day` 解包、GBBQ 8 列契约、写盘守卫） |
+| `test_market_coordinator_and_pipeline.py` | 30 | `managers/market_data_coordinator.py` 35.1→**100%**；`data_pipeline_service.py` 55.6→高覆盖 |
+| `test_datasource_base.py` | 22 | `sources/base.py` 抽象契约 + 上下文管理器 + `close()` 语义 |
+| `test_lppl_data_service.py` | 15 | `services/lppl_data_service.py` 13.3→96.8% |
+| `test_data_layer_cleanup.py` | 10 | 死代码物理删除守卫 + `data/__init__.py` 懒加载契约（含子进程"重模块未被急切导入"断言） |
+| `test_scripts_smoke.py` | 4 | `data/scripts/` 脚本导入冒烟 |
+
+**分层覆盖率（第三轮实测，`coverage json` 口径）**：
+
+| 层 | statements | missed | 覆盖率 | 第二轮 |
+|---|---:|---:|---:|---:|
+| `research/` | 704 | 40 | 94.3% | 94.3% |
+| **`data/`** | **3,511** | **202** | **94.2%** | **53.9%** |
+| `signal/` | 1,096 | 98 | 91.1% | 91.1% |
+| `shared/` | 3,266 | 423 | 87.0% | 87.0% |
+| `risk/` | 994 | 267 | 73.1% | 73.1% |
+| `brain/` | 9,465 | 2,654 | 72.0% | 71.9% |
+| `hands/` | 2,817 | 1,009 | 64.2% | 64.2% |
+| **`services/`** | **4,393** | **1,592** | **63.8%** | 63.8% |
+| **合计（omit `ui/`）** | **26,247** | **6,285** | **76.05%** | **70.55%** |
+
+- `data/` 层 statements 3,676→3,511（含删除 `cache_manager.py`），missed 1,694→**202**。
+- 当前最薄弱面转为 **`services/` 63.8%**（下一轮优先）。
+- `data/` 残留未覆盖：`parsers/tdx_parser.py` 81.8%、`lake/storage_manager.py` 92.7%、`scripts/sync_minute_mootdx.py` 68.9%、`sources/mootdx_local.py` 75.6%、`corporate_action.py` 89.7%（多为 mootdx 真读者分支或需要真实 TDX/GBBQ 文件的分支）。
+
+### 7.2 死代码剔除与潜在缺陷修复
+
+**剔除（物理删除，附守卫测试）**：
+
+| 目标 | 依据 |
+|---|---|
+| `data/managers/cache_manager.py`（整文件） | 全仓零 importers 实测（`rg`） |
+| `data/sources/base.py` 215 → ~90 行 | 重复的列处理工具（`utils/normalizer.py` 为唯一实现）；仅保留 `DataSource` ABC 契约 |
+| `data/services/lppl_data_service.py` 4 个方法 + `Dict` 导入 | 零调用者的死分支 |
+
+**潜在缺陷修复（本轮定位并修复，全部附回归测试）**：
+
+1. `parsers/tdx_parser.py::parse_day_file` —— **32 字节记录截断**：原按 `len(buf)//32` 切分，遇尾部残字节产生错位帧；改用 `struct.calcsize(_DAY_STRUCT)` 精确步长。
+2. `parsers/tdx_parser.py::parse_day_file` —— **NaT 索引污染**：`set_index('date')` 后未剔除解析失败行，NaT 行进入下游；补 `df[df.index.notna()]`。
+3. `lake/storage_manager.py` —— **路径遍历守卫失效**：原 `str(resolved).startswith(str(data_dir))` 存在前缀碰撞（`data_evil/` 被误判为 `data/` 之下）；改用 `Path.is_relative_to`。
+4. `data_pipeline_service.py` × `pipeline/data_cleaner.py` —— **日期契约不一致（如实登记，未擅改语义）**：cleaner 用严格 `pd.to_datetime`（垃圾串抛 `DateParseError`），`process` 用 `errors="coerce"` + dropna。因 cleaner 先跑，`process` 的宽容分支对垃圾串**不可达**（仅 `None`/NaT 可达）。已用测试锁定实际契约（`test_garbage_date_raises_in_cleaner_not_silently_dropped`），并将两层的执行顺序（clean → validate → adjust）固化为断言。
+
+### 7.3 历史文档漂移根治（`docs/archive/` + `docs/reanalysis/`）
+
+策略：**目录级 README + 逐文件历史横幅（脚本化、仅插入）**，保留历史而非删除（`docs/archive/INDEX.md` 为既有范式）。
+
+- 新建 `docs/reanalysis/README.md`（目录边界声明 + 当前真相源指引）。
+- 59 个 `docs/reanalysis/*.md` 追加历史横幅（含 README 共 60 文件）。**逐文件与 `git show HEAD:<path>` 做插入式字节级校验：除新增横幅块外，正文逐字节不变。**
+- `docs/archive/` 原有 24 文件已带横幅，本轮补齐剩余 **10 文件**（`DOC_MANAGEMENT_PLAN.md`、`RESTRUCTURE_PLAN.md`、`verify_algo.md` 等），同样通过插入式字节级校验（每文件 +3 行）。
+- 横幅统一样式：声明"已归档 / 历史快照，不代表当前代码状态"，并指向 `docs/index.md` 与 `AGENTS.md`。
+- `docs/archive/` 另含子目录（`Phase3_GlobalSweep/`、`audit_logs/`，共 27 个 .md）——已被目录级 `INDEX.md` 边界覆盖，且含重复归档（`Phase3_GlobalSweep` 在两处），**保持原样不删**。
+
+### 7.4 未修的疑似问题（如实登记，不扩大本轮范围）
+
+三个并行补测子代理在执行中发现、**超出本轮范围故未修**的疑似缺陷：
+
+| # | 位置 | 现象 | 影响面 |
+|---|---|---|---|
+| 1 | `import_financial._normalize_stock_code` | 无数字字符串被伪造成 `"000000.SZ"` | 无白名单模式可能写入垃圾 parquet |
+| 2 | `futures_storage_manager.get_dynamic_basis_surface` | `try/except → 0.0` 对 NaN 收盘价不生效 | NaN `term_slope` 可能入湖 |
+| 3 | `import_financial.main()` | 第二阶段全部写失败仍 `return 0` | 编排层误判成功 |
+| 4 | `stock_metadata_manager` | `stock_status` 恒 `None`（全仓无消费者） | 死字段 |
+| 5 | `stock_metadata_manager.get_stock_info("sh.600519")` | 仅剥离 `.SH/.SZ/.BJ`，小写前缀查不到 | 缓存键归一不全 |
+| 6 | `trade_calendar_manager.get_trade_calendar` | 回退分支对非法日期重新抛出 | 兜底不兜底 |
+| 7 | `baostock_cache_manager` | 写死**相对**路径 `data/all_stock_codes.csv` | CWD 依赖 |
+| 8 | `handle_errors`（`akshare_wrapper` / `_baostock_client`） | 默认 `reraise=True`，使 `default_return=` 失效 | 装饰器语义误导 |
+| 9 | `akshare_wrapper.call` | 任何异常置 `_initialized=False`，重试循环改为"重初始化"而非"重放上游调用" | 上游仅触达一次 |
+| 10 | `sources/mootdx_online._normalize_columns` | 可产生重复 `volume` 列；无 手→股 换算 | 模块 `enabled=false`（网络兜底待裁决），当前不在生产链路 |
+
+### 7.5 CI 覆盖率门更新
+
+`.github/workflows/test.yml` 覆盖率作业 `--cov-fail-under` 由 **68 → 74**（实测 76.05%，留 ~2 点环境余量）——定位为**回归地板**，非 80% 达成线。
+
+**第三轮全量门禁（本工作树实测）**：
+
+| 命令 | 结果 |
+|---|---|
+| `.venv/bin/python -m pytest tests/ -o addopts="" -p no:cacheprovider` | **3226 passed / 2 skipped / 0 failed**（收集 3228） |
+| `.venv/bin/python -m pytest tests/ -o addopts="" -p no:cacheprovider -n 8 --timeout=900 --cov` | **3226 passed / 2 skipped / 0 failed**，**3 分 24 秒**，覆盖率 **76.05%** |
+| `ruff check src/uniquant/ tests/ scripts/` | **All checks passed!** |
+| `python scripts/maintenance/evidence_manifest.py verify` | **no drift** |
 
 ---
 

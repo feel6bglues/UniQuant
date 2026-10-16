@@ -1,5 +1,8 @@
 # 参数敏感性扫描分析报告 (2026-07-24)
 
+> ⚠️ **历史快照（point-in-time audit）** — 本文档记录的是**撰写时点**的工作树状态。其中的文件数 / LOC / 测试数 / 覆盖率 / 死代码清单 / "已修复" 声明**均可能已失效**，且已知与当前实测口径不符。
+> **请勿**将其作为当前状态的依据。当前真相源见 [`docs/index.md`](../index.md)、[`AGENTS.md`](../../AGENTS.md) 与 [`docs/analysis/POST_SIMPLIFICATION_ARCHITECTURE_TRADING_EVALUATION_20261016.md`](../analysis/POST_SIMPLIFICATION_ARCHITECTURE_TRADING_EVALUATION_20261016.md)。
+
 **脚本**: `scripts/param_sweep_v2.py` | **数据**: `param_sweep_v2_golden_20.parquet`
 **扫描范围**: 20 股票 × 24 参数组合 × 6 窗口 = 2880 observations | **0 错误, 15s**
 

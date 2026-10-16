@@ -1,5 +1,8 @@
 # UniQuant 项目深度分析报告
 
+> ⚠️ **已归档（历史文档）** — 本文件已移至 `docs/archive/`，仅作历史参考，**不代表当前代码状态**。其中的文件数 / LOC / 测试数 / 覆盖率 / "已修复" 声明均可能已失效。
+> 当前真相源见 [`docs/index.md`](../index.md) 与 [`AGENTS.md`](../../AGENTS.md)；归档分类见 [`INDEX.md`](INDEX.md)。
+
 ## 一、项目概述
 
 **UniQuant**（Unified Quantitative Trading Platform）是一个面向 **A 股市场**的统一量化交易平台，项目描述为 "TDX Alpha Tactician + LPPL"。它集成了多种分析引擎、回测框架、风险管理和 Streamlit 可视化界面。

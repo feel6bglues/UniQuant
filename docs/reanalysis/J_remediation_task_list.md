@@ -1,5 +1,8 @@
 # Phase J — 修复任务清单 (基于 7 层逐文件审计)
 
+> ⚠️ **历史快照（point-in-time audit）** — 本文档记录的是**撰写时点**的工作树状态。其中的文件数 / LOC / 测试数 / 覆盖率 / 死代码清单 / "已修复" 声明**均可能已失效**，且已知与当前实测口径不符。
+> **请勿**将其作为当前状态的依据。当前真相源见 [`docs/index.md`](../index.md)、[`AGENTS.md`](../../AGENTS.md) 与 [`docs/analysis/POST_SIMPLIFICATION_ARCHITECTURE_TRADING_EVALUATION_20261016.md`](../analysis/POST_SIMPLIFICATION_ARCHITECTURE_TRADING_EVALUATION_20261016.md)。
+
 > **生成**: 2026-07-09 | **基于**: 256 文件, 62,518 LOC, 1,674 tests, 7 层逐文件源代码审计
 > **前置阅读**: `docs/reanalysis/I_live_system_map.md`, `docs/reanalysis/E_red_blue_analysis.md`, `docs/remediation/red_blue_remediation_plan.md`
 > **修复原则**: 外科手术式修改, TDD 优先, 每轮验收门禁, 与设计一致

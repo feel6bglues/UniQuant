@@ -1,5 +1,8 @@
 # 红蓝对抗 — Round 1: LPPL 指数方案验证
 
+> ⚠️ **历史快照（point-in-time audit）** — 本文档记录的是**撰写时点**的工作树状态。其中的文件数 / LOC / 测试数 / 覆盖率 / 死代码清单 / "已修复" 声明**均可能已失效**，且已知与当前实测口径不符。
+> **请勿**将其作为当前状态的依据。当前真相源见 [`docs/index.md`](../index.md)、[`AGENTS.md`](../../AGENTS.md) 与 [`docs/analysis/POST_SIMPLIFICATION_ARCHITECTURE_TRADING_EVALUATION_20261016.md`](../analysis/POST_SIMPLIFICATION_ARCHITECTURE_TRADING_EVALUATION_20261016.md)。
+
 > **日期**: 2026-07-24  
 > **范围**: LPPL 指数方案 (计划 §1.1-1.7) — VP 优化器 + b<0/|c|>0.01 约束 + MC p-value + 880xxx 行业覆盖  
 > **基准**: Walk-Forward 最终报告 (LPPL 零预测力, 93% GBM 噪声拟合)  

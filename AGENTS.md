@@ -4,12 +4,19 @@
 >
 > UniQuant: A-share quantitative research and trading platform.
 >
+> **Updated 2026-10-16 (第三轮：数据层补测 53.9%→94.2% + 历史文档漂移根治 + 潜在缺陷修复 + 覆盖率门 68→74)**: 收口第二轮遗留的两项开放项（`data/` 层覆盖最低、历史文档失效口径未清理），纪律为**只补测试与文档、不改生产语义**：
+> **(1) 数据层补测**：新增/扩充 **13 个测试文件 / 634 用例**（`tests/data/` 全量 **634 passed**；三路并行子代理 + 主线协同）——`_baostock_client` 19.8→**100%**、`mootdx_online` 22.1→100%、`market_data_coordinator` 35.1→**100%**、`normalizer` 31.9→**100%**、`futures_storage_manager` 76.3→100%、`import_financial` 44.3→99%、`baostock_cache_manager` 7.4→93.8%、`lppl_data_service` 13.3→96.8%、`trade_calendar_manager` 67.1→97.4%、`stock_metadata_manager` 77.2→99%、`akshare_wrapper` 0→高覆盖（假 `time`/`random` + `sys.modules` 注入假 akshare，**不触网**）、`data_fetcher`/`storage_manager`/`tdx_parser`/`data_pipeline_service` 深度补测。
+> **(2) 历史文档漂移根治**：新建 `docs/reanalysis/README.md` + 59 个 `docs/reanalysis/*.md` 追加历史横幅（共 60 文件）；`docs/archive/` 补齐剩余 **10 个**无横幅文件（其余 24 已带）。全部**脚本化、仅插入**，并逐文件对 `git show HEAD:<path>` 做**字节级校验**——除新增横幅块外正文逐字节不变。横幅样式统一声明"已归档/历史快照，不代表当前代码状态"并指向 `docs/index.md` + `AGENTS.md`。
+> **(3) 死代码与潜在缺陷**：删除 `data/managers/cache_manager.py`（零 importers）+ 裁剪 `data/sources/base.py` 215→~90 行（重复列工具，`utils/normalizer.py` 为唯一实现）+ 删 `lppl_data_service.py` 4 个零调用方法；修复 3 个潜在缺陷并附回归测试——`parse_day_file` **32 字节记录截断**（改 `struct.calcsize` 精确步长）、`parse_day_file` **NaT 索引污染**（补 `df[df.index.notna()]`）、`storage_manager` **路径遍历守卫前缀碰撞**（`str.startswith` → `Path.is_relative_to`）。另如实登记 10 项未修疑似问题（见报告 §7.4）。
+> **(4) CI 覆盖率门**：`--cov-fail-under` **68 → 74**（实测 76.05%，留 ~2 点环境余量作回归地板）。
+> **验证**：全量 `pytest tests/` **3226 passed / 2 skipped / 0 failed**（收集 3228），`-n 8 --cov` **同上且逐位一致**，耗时 **3 分 24 秒**，**实测全包覆盖率 76.05%**（26,247 statements / 6,285 missed；`research` 94.3% / **`data` 94.2%（53.9→94.2）** / `signal` 91.1% / `shared` 87.0% / `risk` 73.1% / `brain` 72.0% / `hands` 64.2% / **`services` 63.8%（现最弱）**）；`ruff` **All checks passed!**；`evidence_manifest.py verify` **no drift**。
+
 > **Updated 2026-10-16 (第二轮 P1 落地：科研控制平面接入生产因子链 + 文档漂移根治 + CI 覆盖率门 + 证据链可复现)**: 在第一轮 P0/P2 之后，按用户"继续"推进 P1 三项与 P2-3 剩余，全部以当前工作树实测验证：
 > **(1) P1-1 科研控制平面接入生产因子链**（`services/scan_service.py` + 新增 `research/ledger/bridge.py`/`ledger_store.py` + `research/ledger/degrees_of_freedom.py` + `brain/factors/walk_forward_pipeline.py`）：`ScanConfig` 增 `ledger_enabled=True`/`ledger_path=None`/`ledger_family_id="factor_scan"`；`analyze_factors` 把每 `(因子, 持有期)` 的真实 IC/t 登记入 `DegreesOfFreedomLedger`（结果进 `report["research_ledger"]`，`generate_report` 渲染小节，`_register_factor_trials` 幂等）；`bridge.ic_t_stat_to_p_value`（双侧 student-t）→ Bonferroni/BH-FDR/BY-FDR/Alpha-Wealth；`ledger_store` 原子 JSON（mkstemp + `os.replace`，损坏/缺失降级为空账本，`PermissionError` 不炸扫描）；`to_state/from_state` **直接还原 Alpha-Wealth、按原始 p 重算族系校正、不二次计息**；walk-forward 增可选 `ledger` 钩子（默认 `None`）登记**跨窗 t 中位数**避开单窗尖峰。**诚实边界**：analyzer 的 `t = ic_mean/(ic_std/√n)` 是**朴素 t（无自相关修正）**→ 以 `STUDENT_T` + `autocorr_adjusted=False` 登记，**不冒充** `IC_NEWEY_WEST_T`；`factor_correlation_matrix=None` → `M_eff = m`（不做乐观折扣）。
 > **(2) P1-2 文档漂移根治**：新建根 `CLAUDE.md`（10 条规则，**逐条标注出处**，不虚构"原始 10 条"）；**根因定位**——该文件并非从未创建，而是被根 `.gitignore` 的 `/*.md` **静默忽略**，故始终无法提交，已补 `!/CLAUDE.md`；`AGENTS.md` 首行注记来源；`docs/index.md` 头部实测口径 + 真源表降级历史 live map + 删悬空链接 + 增 `research` 行 + 新增「Evidence & Reproducibility」节；`README.md` 整体重写（删 v0.3/28%/12.6K LOC 与**已删除**数据源）；AGENTS 分层表/高风险表/控制文档表按实测修正（`data 67→33`、`brain 54→62`、`shared 44→42`、`risk 6→8`、`services 31→29`、新增 `research 12`；`sources/tdx.py` → `mootdx_local.py`；`factor_governance`/`price_collar`/`portfolio_engine`/`analysis_service_legacy` 引用全部改指向现存真源）。
 > **(3) P2-3 剩余（CI 覆盖率门 + 证据链可复现）**：CI 增独立 `coverage` 作业（`pytest --cov -n auto --timeout=900 --cov-fail-under=68`，与快速 `test` 作业并行）；`.coveragerc` 明确 `source=src/uniquant`/omit `ui/*`；`results/` 由"整目录忽略"改为"**白名单 + SHA-256 内容哈希账本**"（根 `.gitignore` `results/`→`results/*`，因为目录级排除无法再白名单）——50 个结构化证据文件（≈920 KB）纳入版本库，`scripts/maintenance/evidence_manifest.py build|verify` 由 CI 每 push 校验；`results/migration/lake_baseline.json` 即数据湖基线存证（本身在账本内）。
 > **验证**：全量 `pytest tests/` **2596 passed / 2 skipped / 0 failed**（收集 2598 = 第一轮 2575 + 新增 23）；`-n 8 --cov` **同上且逐位一致**，耗时 **3 分 37 秒**，**实测全包覆盖率 70.55%**（26,412 statements / 7,779 missed；`research` 94.3% / `signal` 91.1% / `shared` 87.0% / `risk` 73.1% / `brain` 71.9% / `hands` 64.2% / `services` 63.8% / **`data` 53.9% 最弱**）；`ruff` **All checks passed!**；`evidence_manifest.py verify` **no drift**。新增 `tests/test_research_ledger_bridge.py`（22）+ `tests/scripts/test_evidence_manifest.py`（23）。
-> **⚠️ 口径更正**：`AGENTS.md` 历史自称 coverage **57.88%**、2026-09 审计又称 **21.91% 且 `--cov` 会挂起**——**两者均不成立**：全包 `--cov` 可正常跑完，真实覆盖率 **70.55%**（历史 21.91% 系 `--cov` 未跑完的残缺值）。门限 **68%** 定位为**回归地板**（留 ~2.5 点环境余量），**非**达成 80% 目标。**⚠️ 仍开放**：`data/` 层覆盖率 53.9%、历史零覆盖文件；`docs/archive/`+`docs/reanalysis/` 历史口径未全量清理；策略容量 ≈2850 万元（H-A 固有属性）。
+> **⚠️ 口径更正**：`AGENTS.md` 历史自称 coverage **57.88%**、2026-09 审计又称 **21.91% 且 `--cov` 会挂起**——**两者均不成立**：全包 `--cov` 可正常跑完，第二轮真实覆盖率 **70.55%**（历史 21.91% 系 `--cov` 未跑完的残缺值）。门限 **68%** 定位为**回归地板**（留 ~2.5 点环境余量），**非**达成 80% 目标。**第二轮遗留开放项（均已由第三轮关闭）**：① `data/` 层覆盖率 → 第三轮 53.9%→**94.2%**；② `docs/archive/`+`docs/reanalysis/` 历史口径 → 第三轮全量加历史横幅（字节级校验）。**仍开放**：`services/` 层覆盖率 63.8%（现最弱）；策略容量 ≈2850 万元（H-A 固有属性）。
 >
 > **Updated 2026-10-16 (第一轮：简化后全栈评估落地：四阶门禁诚实化 + CI 归零 + 过户费全市场统一 + LPPL 降为遥测 + H-A ADV 地板对齐)**: 依据只读实测报告 `docs/analysis/POST_SIMPLIFICATION_ARCHITECTURE_TRADING_EVALUATION_20261016.md`（用户核验与物理代码库 100% 吻合）与用户认可的优先级（P0-1 → P0-2 → P2）落地五项，全部以当前工作树实测验证：
 > **(1) P0-1 四阶门禁诚实化**（`research/gates/alpha_tier_engine.py` + `research/sandboxes/base_sandbox.py`）：`evaluate_candidate` 删除"捷径伪造"——缺 `residual_ic_series` / `pbo_value` 即判 `TIER_UNRATED` 并给明确拒绝原因（**禁止**以原始 IC 自比或硬编码 PBO 绕过动量残差门与 PBO 过拟合门）；Class B/C/D 真实指标须由 `gate_inputs={"b","c","d"}` 提供，缺即在当级早退，绝不以常量填充；`ClassBEvaluator` 对 `top_industry_weights` 做 `np.asarray(...,float64)` 防御（消灭 `list ** 2` 崩溃）；`promote_candidate` 四门参数改可选 + 逐级早退；沙盒 `SandboxSignalEvaluation` 增 `residual_ic_series`/`pbo_value`/`gate_inputs` 并透传真实输入。附录 A #4 复现命令由 **TypeError 崩溃 → 诚实 `TIER_UNRATED`**；新增 `TestAlphaTierHonestGate`（真实四门全通过 → `TIER_D`）。
@@ -97,18 +104,18 @@ The repository is past the historical "migration target" phase. The eight declar
 
 `shared -> data -> brain/risk/signal -> hands -> services -> ui`
 
-Current worktree snapshot (**2026-10-16**, live measurement after the post-simplification P0/P1/P2 remediation):
+Current worktree snapshot (**2026-10-16**, live measurement after the post-simplification P0/P1/P2 remediation + 第三轮数据层补测 / 文档漂移根治):
 
 | Metric | Current value |
 |---:|---:|
-| Python files under `src/uniquant/` (active) | 236 |
-| Python active LOC under `src/uniquant/` | 59,594 |
+| Python files under `src/uniquant/` (active) | 235 |
+| Python active LOC under `src/uniquant/` | 59,261 |
 | Declared runtime layers | 8 (`shared → data → brain/risk/signal → hands → services → ui`) + `research/` control plane |
-| Test files under `tests/` | 194 |
-| Test functions | 2,359 |
-| Tests passing | 2,596 passed / 2 skipped / 0 failed (collected 2,598) |
+| Test files under `tests/` | 206 |
+| Test functions | 2,869 |
+| Tests passing | 3,226 passed / 2 skipped / 0 failed (collected 3,228) |
 | Ruff issues | 0 (src + tests + scripts) |
-| Test coverage (whole package, `ui/` omitted) | **70.55%** (26,412 statements / 7,779 missed) |
+| Test coverage (whole package, `ui/` omitted) | **76.05%** (26,247 statements / 6,285 missed) |
 | `except Exception:` total (src) | 145 |
 | `except:` (bare) total | 0 |
 | Archived / dead code | 0 (physically removed — no `archive/` dirs remain) |
@@ -848,7 +855,7 @@ Historical architecture and migration documents under `docs/` are useful backgro
 | Layer | Path | Files | Responsibility |
 |---|---:|---:|---:|
 | `shared` | `src/uniquant/shared/` | 42 | Protocols/contracts, constants, config (+loader/validator/schema), exceptions, cache, logging, A-share rules (`limit_checker`/`market_rules`), `cost_model`, `slippage_model`, `time_provider`, `event_bus`/`event_types`, `kill_switch`, `result_store`, `secret_manager`, DI container. |
-| `data` | `src/uniquant/data/` | 33 | Lake-first single-source ingestion (mootdx local/online), corporate-action adjustment (single track `CorporateActionAdjuster`), gbbq/main-data managers, parsers, cleaners, validators, GBBQ/calendar writers. |
+| `data` | `src/uniquant/data/` | 32 | Lake-first single-source ingestion (mootdx local/online), corporate-action adjustment (single track `CorporateActionAdjuster`), gbbq/main-data managers, parsers, cleaners, validators, GBBQ/calendar writers. |
 | `brain` | `src/uniquant/brain/` | 62 | Strategy and research engines: FSM, CZSC, LPPL, NTF, Regime, Wyckoff, indicators, factors, screener, alpha decoupler. |
 | `signal` | `src/uniquant/signal/` | 8 | Standard signal models, adapters, normalization, aggregation, arbitration, quality checks. |
 | `hands` | `src/uniquant/hands/` | 33 | Backtesting, A-share matching, strategy framework, reports, robustness and sensitivity tools (CFFEX cross-asset/TWAP/SAGA included). |

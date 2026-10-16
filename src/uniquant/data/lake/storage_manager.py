@@ -125,10 +125,12 @@ class StorageManager:
         file_path_obj = Path(file_path)
         
         # 路径遍历校验：确保写入目标在 data_dir 内
+        # 注意: 必须用 Path.is_relative_to 做路径级包含判定 —— 字符串前缀
+        # startswith 会把兄弟目录 data_x 误判为 data 之下 (前缀碰撞)。
         try:
             resolved = file_path_obj.resolve()
             data_dir_resolved = self.data_dir.resolve()
-            if not str(resolved).startswith(str(data_dir_resolved)):
+            if not resolved.is_relative_to(data_dir_resolved):
                 logger.error(f"路径遍历拒绝: {file_path} 不在 {self.data_dir} 内")
                 return False
         except (OSError, ValueError) as e:

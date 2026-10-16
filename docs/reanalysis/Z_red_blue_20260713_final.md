@@ -1,5 +1,8 @@
 # 红蓝对抗 + TDD 全面评估报告 (2026-07-13)
 
+> ⚠️ **历史快照（point-in-time audit）** — 本文档记录的是**撰写时点**的工作树状态。其中的文件数 / LOC / 测试数 / 覆盖率 / 死代码清单 / "已修复" 声明**均可能已失效**，且已知与当前实测口径不符。
+> **请勿**将其作为当前状态的依据。当前真相源见 [`docs/index.md`](../index.md)、[`AGENTS.md`](../../AGENTS.md) 与 [`docs/analysis/POST_SIMPLIFICATION_ARCHITECTURE_TRADING_EVALUATION_20261016.md`](../analysis/POST_SIMPLIFICATION_ARCHITECTURE_TRADING_EVALUATION_20261016.md)。
+
 > **方法论**: 六路并行逐层逐文件源代码排查 + 红蓝对抗 + TDD 缺口分析
 > **排查范围**: 256 源文件, 62,559 LOC, 128 测试文件, 1,641 测试函数
 > **基线验证**: 0 bare `except:`, 225 `except Exception:`, 0 ruff 问题

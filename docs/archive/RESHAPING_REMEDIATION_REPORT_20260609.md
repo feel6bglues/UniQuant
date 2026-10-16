@@ -1,5 +1,8 @@
 # UniQuant 受控状态机审计与修复总报告
 
+> ⚠️ **已归档（历史文档）** — 本文件已移至 `docs/archive/`，仅作历史参考，**不代表当前代码状态**。其中的文件数 / LOC / 测试数 / 覆盖率 / "已修复" 声明均可能已失效。
+> 当前真相源见 [`docs/index.md`](../index.md) 与 [`AGENTS.md`](../../AGENTS.md)；归档分类见 [`INDEX.md`](INDEX.md)。
+
 日期: 2026-06-09
 
 关联提交: `91c2b06 remediate architecture risks and clear lint debt`

@@ -1,5 +1,8 @@
 # 红蓝对抗 Round 2 — Wyckoff 真实有效实现方案
 
+> ⚠️ **历史快照（point-in-time audit）** — 本文档记录的是**撰写时点**的工作树状态。其中的文件数 / LOC / 测试数 / 覆盖率 / 死代码清单 / "已修复" 声明**均可能已失效**，且已知与当前实测口径不符。
+> **请勿**将其作为当前状态的依据。当前真相源见 [`docs/index.md`](../index.md)、[`AGENTS.md`](../../AGENTS.md) 与 [`docs/analysis/POST_SIMPLIFICATION_ARCHITECTURE_TRADING_EVALUATION_20261016.md`](../analysis/POST_SIMPLIFICATION_ARCHITECTURE_TRADING_EVALUATION_20261016.md)。
+
 > **日期**: 2026-07-24  
 > **对抗议题**: 在项目约束下（A 股个股、120 天窗口、生产管线），Wyckoff 应该怎样实现才有真实预测力？
 > **角色**: 🔵 Blue = 理论派（Wyckoff 标准方法） / 🔴 Red = 实用派（A 股适配简化）

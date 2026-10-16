@@ -43,7 +43,7 @@ research/  —— 横切科研控制平面（自由度账本 · 四阶门禁 · 
 |----|-------|-----|------|
 | `brain/` | 62 | 20,046 | FSM、CZSC、LPPL、NTF、Regime、Wyckoff、indicators、factors、screener |
 | `shared/` | 42 | 6,994 | 常量、异常、缓存、配置、成本模型、A 股规则、接口契约 |
-| `data/` | 33 | 6,828 | 湖优先单源、managers、parsers、cleaners、validators、复权 |
+| `data/` | 32 | 6,496 | 湖优先单源、managers、parsers、cleaners、validators、复权 |
 | `hands/` | 33 | 6,254 | 回测引擎、向量化撮合、策略框架、报告 |
 | `services/` | 29 | 9,122 | 服务容器、分析编排、数据服务、科研管线、扫描、健康检查 |
 | `research/` | 12 | 1,877 | 自由度账本、四阶门禁、策略沙盒（已接入生产因子链） |
@@ -151,12 +151,16 @@ P2-2 LPPL 降为遥测               ✅ 完成（diagnostic_only 默认开，�
 P2-3 H-A 运行器对齐 ADV 地板     ✅ 完成
 P1-1 科研控制平面接入生产因子链   ✅ 完成（自由度账本覆盖扫描/回测因子链）
 P1-2 文档漂移修复                ✅ 完成（README / docs/index.md / CLAUDE.md）
-P2-3 CI 覆盖率门                 ✅ 完成（实测 70.55%，门限 68% 作回归地板）
+P2-3 CI 覆盖率门                 ✅ 完成（实测 76.05%，门限 74% 作回归地板）
 P2-3 数据湖/results 可复现性      ✅ 完成（证据白名单 + SHA-256 内容哈希账本 + CI 校验）
+第三轮 数据层补测                ✅ 完成（data/ 53.9% → 94.2%；13 文件 / 634 用例）
+第三轮 历史文档漂移根治          ✅ 完成（docs/reanalysis 60 文件 + docs/archive 10 文件加历史横幅）
+第三轮 潜在缺陷修复              ✅ 完成（parse_day_file 截断/NaT、storage_manager 路径遍历）
 ```
 
-**闭环验证（2026-10-16 实测）**：`pytest tests/` **2596 passed / 2 skipped / 0 failed**（收集 2598）；
-`-n 8 --cov` 同口径且逐位一致，覆盖率 **70.55%**；`ruff check src/uniquant/ tests/ scripts/` **All checks passed!**；
+**闭环验证（2026-10-16 第三轮实测）**：`pytest tests/` **3226 passed / 2 skipped / 0 failed**（收集 3228）；
+`-n 8 --cov` 同口径且逐位一致，覆盖率 **76.05%**（`data/` 层 **94.2%**，最弱层转为 `services/` 63.8%）；
+`ruff check src/uniquant/ tests/ scripts/` **All checks passed!**；
 `python scripts/maintenance/evidence_manifest.py verify` → **no drift**（50 证据文件 / 942,274 B）。
 
 ---

@@ -175,10 +175,13 @@ class TDXParser:
         # 使用二进制模式打开文件
         with open(file_path, 'rb') as f:
             buffer = f.read()
-        
-        # 定义 struct 格式
+
+        # 截断到完整记录边界：struct.iter_unpack 对非 32 字节整数倍的缓冲会抛
+        # struct.error，与上面"损坏则告警但继续解析完整记录"的意图相矛盾。
         fmt = "<IIIIIfii"
-        
+        _record_size = struct.calcsize(fmt)
+        buffer = buffer[: len(buffer) - (len(buffer) % _record_size)]
+
         # 使用 struct.iter_unpack 高效迭代
         for record in struct.iter_unpack(fmt, buffer):
             data_list.append(record)
@@ -217,8 +220,11 @@ class TDXParser:
                 df[col] = df[col] / 100.0
         
         df.set_index('date', inplace=True)
+        # DataFrame.dropna 不检查索引，NaT 日期的行会被保留 → 显式剔除无效日期
+        # (与上方 errors='coerce' 的意图一致)。
+        df = df[df.index.notna()]
         df.dropna(inplace=True)
-        
+
         return df
 
     def parse_gbbq_file(self, gbbq_path: str) -> pd.DataFrame:

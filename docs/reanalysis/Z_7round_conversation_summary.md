@@ -1,5 +1,8 @@
 # UniQuant 7 轮分析对话完整总结
 
+> ⚠️ **历史快照（point-in-time audit）** — 本文档记录的是**撰写时点**的工作树状态。其中的文件数 / LOC / 测试数 / 覆盖率 / 死代码清单 / "已修复" 声明**均可能已失效**，且已知与当前实测口径不符。
+> **请勿**将其作为当前状态的依据。当前真相源见 [`docs/index.md`](../index.md)、[`AGENTS.md`](../../AGENTS.md) 与 [`docs/analysis/POST_SIMPLIFICATION_ARCHITECTURE_TRADING_EVALUATION_20261016.md`](../analysis/POST_SIMPLIFICATION_ARCHITECTURE_TRADING_EVALUATION_20261016.md)。
+
 > 生成日期: 2026-07-09
 > 分析目标: 基于代码实际，将 UniQuant 作为量化研究平台，编排多轮分析任务诊断项目问题
 > 分析方法论: 参考 `docs/ANALYSIS_PROMPT_PLAYBOOK.md` 的阶段式分析框架，结合 `docs/reanalysis/I_live_system_map.md` 已验证的实时系统映射基线

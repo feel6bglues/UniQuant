@@ -1,5 +1,8 @@
 # 实施计划红蓝验证 — 最终裁决
 
+> ⚠️ **历史快照（point-in-time audit）** — 本文档记录的是**撰写时点**的工作树状态。其中的文件数 / LOC / 测试数 / 覆盖率 / 死代码清单 / "已修复" 声明**均可能已失效**，且已知与当前实测口径不符。
+> **请勿**将其作为当前状态的依据。当前真相源见 [`docs/index.md`](../index.md)、[`AGENTS.md`](../../AGENTS.md) 与 [`docs/analysis/POST_SIMPLIFICATION_ARCHITECTURE_TRADING_EVALUATION_20261016.md`](../analysis/POST_SIMPLIFICATION_ARCHITECTURE_TRADING_EVALUATION_20261016.md)。
+
 > **日期**: 2026-07-24  
 > **范围**: 3 轮对抗覆盖 LPPL 指数方案 + Wyckoff A-E 状态机 + P&F/九项/Signal Chain  
 > **方法**: 15 声明红蓝对抗 (R1:6+0+1, R2:6+0+1, R3:4+0+1)

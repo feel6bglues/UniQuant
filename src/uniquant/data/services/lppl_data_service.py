@@ -1,5 +1,4 @@
 from datetime import timedelta
-from typing import Dict
 
 from ...shared.time_provider import get_time_provider
 
@@ -95,27 +94,6 @@ class LPPLDataService:
 
         return df
 
-    def get_all_indices_data(self, days: int = 350) -> Dict[str, pd.DataFrame]:
-        """
-        获取所有7大指数的数据
-
-        Args:
-            days: 获取的天数
-
-        Returns:
-            指数数据字典，key为指数代码，value为数据DataFrame
-        """
-        indices_data = {}
-
-        for symbol in self.index_codes.keys():
-            df = self.get_index_data(symbol, days)
-            indices_data[symbol] = df
-            logger.info(
-                f"获取指数 {self.index_codes[symbol]} ({symbol}) 数据，共 {len(df)} 条记录"
-            )
-
-        return indices_data
-
     def _clean_data(self, df: pd.DataFrame) -> pd.DataFrame:
         """
         数据清洗
@@ -201,52 +179,3 @@ class LPPLDataService:
 
         logger.info(f"LPPL数据清洗完成，最终剩余 {len(df)} 条记录")
         return df
-
-    def refresh_all_indices(self):
-        """
-        刷新所有7大指数的数据
-        """
-        logger.info("开始刷新所有7大指数的数据")
-        self.get_all_indices_data()
-        logger.info("所有7大指数数据刷新完成")
-
-    def get_index_info(self, symbol: str) -> Dict:
-        """
-        获取指数信息
-
-        Args:
-            symbol: 指数代码
-
-        Returns:
-            指数信息字典
-        """
-        info = {
-            "symbol": symbol,
-            "name": self.index_codes.get(symbol, symbol),
-            "data_available": False,
-            "data_shape": None,
-            "last_update": None,
-        }
-
-        # 从数据湖获取信息
-        data_info = self.data_lake.get_data_info(symbol, data_type="index", market="cn")
-        if data_info.get("exists", False):
-            info["data_available"] = True
-            info["data_shape"] = data_info.get("shape", None)
-            info["last_update"] = data_info.get("last_date", None)
-
-        return info
-
-    def get_all_indices_info(self) -> Dict[str, Dict]:
-        """
-        获取所有7大指数的信息
-
-        Returns:
-            指数信息字典
-        """
-        info_dict = {}
-
-        for symbol in self.index_codes.keys():
-            info_dict[symbol] = self.get_index_info(symbol)
-
-        return info_dict

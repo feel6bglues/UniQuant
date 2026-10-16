@@ -1,5 +1,8 @@
 # 第三轮深度核实报告 — 最终综合验证
 
+> ⚠️ **已归档（历史文档）** — 本文件已移至 `docs/archive/`，仅作历史参考，**不代表当前代码状态**。其中的文件数 / LOC / 测试数 / 覆盖率 / "已修复" 声明均可能已失效。
+> 当前真相源见 [`docs/index.md`](../index.md) 与 [`AGENTS.md`](../../AGENTS.md)；归档分类见 [`INDEX.md`](INDEX.md)。
+
 **核实日期**: 2026-05-31
 **方法**: 5 路并行 Agent，每路逐行交叉对照源码与优化文档
 **范围**: OPTIMIZATION_MASTER_PLAN, A_SHARE_RULES, BACKTEST_ENGINE, PERFORMANCE, RISK_MODULE

@@ -1,5 +1,8 @@
 # 红蓝对抗 — Round 3: P&F 点数图 + 九项测试 + Signal Chain 集成验证
 
+> ⚠️ **历史快照（point-in-time audit）** — 本文档记录的是**撰写时点**的工作树状态。其中的文件数 / LOC / 测试数 / 覆盖率 / 死代码清单 / "已修复" 声明**均可能已失效**，且已知与当前实测口径不符。
+> **请勿**将其作为当前状态的依据。当前真相源见 [`docs/index.md`](../index.md)、[`AGENTS.md`](../../AGENTS.md) 与 [`docs/analysis/POST_SIMPLIFICATION_ARCHITECTURE_TRADING_EVALUATION_20261016.md`](../analysis/POST_SIMPLIFICATION_ARCHITECTURE_TRADING_EVALUATION_20261016.md)。
+
 > **日期**: 2026-07-24  
 > **范围**: Wyckoff P1 模块 (计划 §2.3 P&F/九项测试/置信度) + 集成 (Adapter/Output/MacroService) + 总体估算  
 > **基准**: 现有 `pnf.py` (213 行, 已实现) + `WyckoffOutput` (已有 P&F 字段) + `WyckoffAdapter` (已有) + Walk-Forward 终论  

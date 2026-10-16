@@ -1,5 +1,8 @@
 # 代码审查报告: OPTIMIZATION_A_SHARE_RULES_MODULE.md
 
+> ⚠️ **已归档（历史文档）** — 本文件已移至 `docs/archive/`，仅作历史参考，**不代表当前代码状态**。其中的文件数 / LOC / 测试数 / 覆盖率 / "已修复" 声明均可能已失效。
+> 当前真相源见 [`docs/index.md`](../index.md) 与 [`AGENTS.md`](../../AGENTS.md)；归档分类见 [`INDEX.md`](INDEX.md)。
+
 **审查者**: AI — quant finance / Python / A-share specialist
 **审查日期**: 2026-05-31
 **基准文件**: `docs/OPTIMIZATION_A_SHARE_RULES_MODULE.md` (v1.0)

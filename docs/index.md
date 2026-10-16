@@ -2,7 +2,7 @@
 
 > Unified Quantitative Trading Platform for China A-share research, backtesting, and trading workflows.
 >
-> Updated: 2026-10-16. Post-simplification state. Live measurement: **236** Python files / **59,594** LOC under `src/uniquant/` (incl. the `research/` control plane), **194** test files / **2,359** test functions, **2,596 passed / 2 skipped / 0 failed**, whole-package coverage **70.55%**, `ruff` 0. The 2026-07-10 audit numbers (256 files / 62,549 LOC / 1,606 test functions) are retained in `docs/reanalysis/` as historical snapshots and no longer describe the tree. See `docs/analysis/POST_SIMPLIFICATION_ARCHITECTURE_TRADING_EVALUATION_20261016.md` for the current architecture + trading-caliber evaluation. This page is a documentation state boundary. Prefer current source code and control documents over historical migration notes.
+> Updated: 2026-10-16. Post-simplification state. Live measurement: **235** Python files / **59,261** LOC under `src/uniquant/` (incl. the `research/` control plane), **206** test files / **2,869** test functions, **3,226 passed / 2 skipped / 0 failed**, whole-package coverage **76.05%**, `ruff` 0. The 2026-07-10 audit numbers (256 files / 62,549 LOC / 1,606 test functions) are retained in `docs/reanalysis/` as historical snapshots and no longer describe the tree. See `docs/analysis/POST_SIMPLIFICATION_ARCHITECTURE_TRADING_EVALUATION_20261016.md` for the current architecture + trading-caliber evaluation. This page is a documentation state boundary. Prefer current source code and control documents over historical migration notes.
 
 ---
 
