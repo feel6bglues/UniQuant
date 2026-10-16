@@ -323,8 +323,10 @@ class TestFuturesStorageManager:
         assert item["basis_rate_pct"] == 0.0
         assert item["annualized_carry"] == 0.0
 
-    def test_basis_surface_nan_close_propagates_nan_term_slope(self, tmp_path):
-        """A NaN close flows into the polyfit and yields a NaN slope (no raise)."""
+    def test_basis_surface_skips_non_finite_close_contract(self, tmp_path):
+        """§7.4 #2: a NaN close makes the contract row unusable, so it is dropped
+        (same class as a missing row) instead of leaking a NaN basis / term_slope
+        into the basis-surface lake."""
         nan = float("nan")
         mgr = _manager(
             tmp_path,
@@ -340,8 +342,43 @@ class TestFuturesStorageManager:
             spot=pd.DataFrame({"date": ["2024-03-15"], "close": [3500.0]}),
         )
         surface = mgr.get_dynamic_basis_surface("000300.SH", pd.Timestamp("2024-03-15"))
-        assert math.isnan(surface["contracts"][0]["basis"])
-        assert math.isnan(surface["term_slope"])
+        assert [c["symbol"] for c in surface["contracts"]] == ["IF2406"]
+        assert all(math.isfinite(c["basis"]) for c in surface["contracts"])
+        assert math.isfinite(surface["term_slope"])
+        assert surface["term_slope"] == 0.0  # single usable contract => no slope
+
+    def test_basis_surface_non_finite_spot_close_raises(self, tmp_path):
+        """§7.4 #2: a NaN spot close is as unusable as a missing spot row."""
+        nan = float("nan")
+        mgr = _manager(
+            tmp_path,
+            contracts={
+                "IF2403": _contract_frame(["2024-03-15"], [3400.0], settles=[3390.0]),
+            },
+            spot=pd.DataFrame({"date": ["2024-03-15"], "close": [nan]}),
+        )
+        with pytest.raises(ValueError, match="非有限值"):
+            mgr.get_dynamic_basis_surface("000300.SH", pd.Timestamp("2024-03-15"))
+
+    def test_basis_surface_non_finite_fit_falls_back_to_zero(self, tmp_path, monkeypatch):
+        """§7.4 #2: polyfit can return NaN without raising, so the finite check
+        (not just try/except) must degrade the slope to 0.0."""
+        import uniquant.data.lake.futures_storage_manager as fsm
+
+        mgr = _manager(
+            tmp_path,
+            contracts={
+                "IF2403": _contract_frame(["2024-03-15"], [3400.0], settles=[3390.0]),
+                "IF2406": _contract_frame(["2024-03-15"], [3450.0], settles=[3440.0]),
+            },
+            spot=pd.DataFrame({"date": ["2024-03-15"], "close": [3500.0]}),
+        )
+        monkeypatch.setattr(
+            fsm.np, "polyfit", lambda *a, **k: (float("nan"), float("nan"))
+        )
+        surface = mgr.get_dynamic_basis_surface("000300.SH", pd.Timestamp("2024-03-15"))
+        assert len(surface["contracts"]) == 2
+        assert surface["term_slope"] == 0.0
 
     def test_basis_surface_degenerate_term_slope_falls_back_to_zero(
         self, tmp_path, monkeypatch
@@ -800,12 +837,15 @@ class TestImportFinancialWriting:
         dup = written[written["report_date"] == pd.Timestamp("2023-12-31")]
         assert dup["v"].iloc[0] == 2
 
-    def test_write_single_stock_io_failure_returns_false(self, tmp_path, make_importer):
+    def test_write_single_stock_io_failure_raises(self, tmp_path, make_importer):
+        """§7.4 #3: a genuine IO failure propagates (it used to be swallowed into
+        the same ``False`` as an intentional skip, hiding total write failure)."""
         blocker = tmp_path / "blocked"
         blocker.write_text("i am a file, not a directory", encoding="utf-8")
         imp = make_importer(output_dir=blocker)
         df = pd.DataFrame({"code": ["600000"], "report_date": ["20231231"], "v": [1]})
-        assert imp._write_single_stock("600000", [df]) is False
+        with pytest.raises(OSError):
+            imp._write_single_stock("600000", [df])
 
     def test_write_single_stock_skips_disallowed_security(self, tmp_path, make_importer):
         codes = tmp_path / "codes.csv"
@@ -875,9 +915,34 @@ class TestImportFinancialBatch:
         _install_reader(monkeypatch, lambda name: pd.DataFrame())
         assert imp.import_batch(workers=1) == (0, 0, 1)
 
-    def test_import_batch_write_failure_is_logged(
+    def test_import_batch_write_failure_is_counted_as_failure(
         self, tmp_path, monkeypatch, make_importer
     ):
+        """§7.4 #3: a genuine write failure is counted in the returned failure total
+        (previously the batch reported pure success)."""
+        imp = make_importer()
+        _make_cw(tmp_path, ["gpcw20231231.dat"])
+        _install_reader(
+            monkeypatch,
+            lambda name: pd.DataFrame({"code": ["600000"], "report_date": ["20231231"]}),
+        )
+
+        def _boom(code, dfs):
+            raise OSError("disk full")
+
+        monkeypatch.setattr(imp, "_write_single_stock", _boom)
+
+        logged = []
+        monkeypatch.setattr(ifin.logger, "info", lambda msg, *a, **k: logged.append(msg))
+        result = imp.import_batch(workers=1)
+
+        assert result == (1, 0, 1)
+        assert "写入完成：成功 0, 跳过 0, 失败 1" in logged
+
+    def test_import_batch_write_skip_is_not_a_failure(
+        self, tmp_path, monkeypatch, make_importer
+    ):
+        """A rule-based skip stays a skip and must NOT inflate the failure total."""
         imp = make_importer()
         _make_cw(tmp_path, ["gpcw20231231.dat"])
         _install_reader(
@@ -891,7 +956,7 @@ class TestImportFinancialBatch:
         result = imp.import_batch(workers=1)
 
         assert result == (1, 0, 0)
-        assert "写入完成：成功 0, 失败 1" in logged
+        assert "写入完成：成功 0, 跳过 1, 失败 0" in logged
 
 
 class TestImportFinancialCli:

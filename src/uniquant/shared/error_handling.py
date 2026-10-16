@@ -79,9 +79,14 @@ def handle_errors(
 
     Args:
         expected_exceptions: 预期捕获的异常类型
-        default_return: 异常发生时的默认返回值
+        default_return: 异常发生时的默认返回值。
+            ⚠️ **仅在 ``reraise=False`` 时生效**：默认 ``reraise=True`` 会在记录
+            日志后立即 ``raise``，从而短路 ``default_return``，使其永不返回
+            （§7.4 #8：全仓约 30 处调用点传了非 None 的 ``default_return`` 却未传
+            ``reraise=False``，这些默认值实际不生效 —— 属既有约定；此处只如实
+            记录语义，**未改默认值**，以免静默改变这些调用点 fail-fast 的失败语义）。
         log_level: 日志级别
-        reraise: 是否重新抛出异常
+        reraise: 是否重新抛出异常（默认 True = 记录后抛出，fail-fast）
         error_type: 错误类型
         context: 上下文信息
     """

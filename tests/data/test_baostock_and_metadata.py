@@ -335,12 +335,52 @@ class TestBaostockClientFetchCalendar:
 
 @pytest.fixture
 def cache_env(tmp_path, monkeypatch):
-    """Run ``create_baostock_cache`` against an isolated CWD with mocked baostock."""
+    """Isolated output paths + mocked baostock.
+
+    §7.4 #7: ``create_baostock_cache`` now writes to the absolute SSOT constant
+    ``bcm.OUTPUT_PATH`` (no CWD dependence), so the fixture must retarget it onto
+    ``tmp_path`` — otherwise these tests would overwrite the real, tracked
+    ``data/all_stock_codes.csv``. ``chdir`` is kept so any *other* accidental
+    relative write still lands inside tmp.
+    """
     monkeypatch.chdir(tmp_path)
+    data_dir = tmp_path / "data"
+    monkeypatch.setattr(bcm, "OUTPUT_PATH", data_dir / "all_stock_codes.csv")
+    monkeypatch.setattr(bcm, "TEMP_PATH", data_dir / "all_stock_codes_temp.csv")
     monkeypatch.setattr(bcm, "get_time_provider", lambda: FrozenTimeProvider(FROZEN_NOW))
     monkeypatch.setattr(bcm.baostock, "login", MagicMock(return_value=True))
     monkeypatch.setattr(bcm.baostock, "logout", MagicMock())
     return tmp_path
+
+
+def test_cache_output_paths_are_absolute_ssot():
+    """§7.4 #7: cache output must be the absolute SSOT, never CWD-relative."""
+    from uniquant.shared.constants.path import STOCK_LIST_FILE
+
+    assert bcm.OUTPUT_PATH.is_absolute()
+    assert bcm.OUTPUT_PATH == STOCK_LIST_FILE
+    assert bcm.TEMP_PATH.is_absolute()
+    assert bcm.TEMP_PATH != bcm.OUTPUT_PATH
+
+
+def test_cache_writes_to_absolute_path_not_cwd(tmp_path, monkeypatch):
+    """§7.4 #7 regression: running from an unrelated CWD writes to the configured
+    absolute path and creates no ``data/`` directory in the current directory."""
+    cwd = tmp_path / "cwd"
+    cwd.mkdir()
+    outdir = tmp_path / "elsewhere"
+    monkeypatch.chdir(cwd)
+    monkeypatch.setattr(bcm, "OUTPUT_PATH", outdir / "all_stock_codes.csv")
+    monkeypatch.setattr(bcm, "TEMP_PATH", outdir / "all_stock_codes_temp.csv")
+    monkeypatch.setattr(bcm, "get_time_provider", lambda: FrozenTimeProvider(FROZEN_NOW))
+    monkeypatch.setattr(bcm.baostock, "login", MagicMock(return_value=True))
+    monkeypatch.setattr(bcm.baostock, "logout", MagicMock())
+    monkeypatch.setattr(bcm.baostock, "fetch_stock_list", MagicMock(return_value=_stock_list_df()))
+
+    bcm.create_baostock_cache()
+
+    assert (outdir / "all_stock_codes.csv").exists()
+    assert not (cwd / "data").exists()
 
 
 def _stock_list_df():
@@ -841,13 +881,16 @@ class TestStockMetadataLoad:
         # BJ code with no IPO/outDate -> both None
         assert mgr.get_ipo_date("430047.BJ") is None
 
-    def test_populated_status_column_is_ignored(self, tmp_path):
-        """FYI: ``_normalize_columns`` renames ``status``→``stock_status`` but the loader
-        reads ``getattr(row, 'status', ...)``, so ``stock_status`` is always None. Pinned here."""
+    def test_populated_status_column_is_loaded(self, tmp_path):
+        """§7.4 #4: the loader used to read ``getattr(row, 'status', ...)`` although
+        ``_normalize_columns`` had already renamed ``status``→``stock_status``, so the
+        field was always None (which silently disabled the退市状态 signal). The guard
+        now uses the normalised column name and the value is loaded."""
         _write_metadata_csv(tmp_path)
         mgr = StockMetadataManager(str(tmp_path))
         mgr.load()
-        assert mgr.get_stock_info("000001.SZ").stock_status is None
+        assert mgr.get_stock_info("000001.SZ").stock_status == "0"
+        assert mgr.get_stock_info("600519.SH").stock_status == "1"
 
     def test_load_skips_empty_and_unresolvable_codes(self, tmp_path, monkeypatch):
         (tmp_path / "all_stock_codes.csv").write_text("code,name\n", encoding="utf-8-sig")
@@ -885,13 +928,15 @@ class TestStockMetadataAccessors:
         mgr = self._manager(tmp_path)
         assert mgr.get_stock_info(code).code == "600519.SH"
 
-    def test_get_stock_info_does_not_accept_baostock_prefix(self, tmp_path):
-        """Pins current behaviour: ``get_stock_info`` strips ``.SH/.SZ/.BJ`` suffixes
-        only, so the raw ``sh.600519`` form misses the cache (returns None) even
-        though ``_normalize_stock_code`` handles it."""
+    def test_get_stock_info_accepts_baostock_prefix(self, tmp_path):
+        """§7.4 #5: ``get_stock_info`` now normalises the lookup code the same way the
+        cache keys are built, so the baostock ``sh.600519`` form resolves instead of
+        silently missing (a miss disables the退市 guard in ``storage_manager``)."""
         mgr = self._manager(tmp_path)
-        assert mgr.get_stock_info("sh.600519") is None
-        assert mgr.get_name("sh.600519") is None
+        assert mgr.get_stock_info("sh.600519").code == "600519.SH"
+        assert mgr.get_name("sh.600519") == "贵州茅台"
+        assert mgr.get_stock_info("sz.000001").code == "000001.SZ"
+        assert mgr.get_stock_info("bj.430047").code == "430047.BJ"
 
     def test_get_name_and_ipo_date_none_for_unknown(self, tmp_path):
         mgr = self._manager(tmp_path)

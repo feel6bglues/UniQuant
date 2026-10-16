@@ -343,6 +343,10 @@ class FuturesStorageManager:
             raise ValueError(f"标的 {underlying} 在日期 {cur_date.date()} 无现货数据")
 
         spot_close = float(spot_sub["close"].iloc[0])
+        if not np.isfinite(spot_close):
+            # §7.4 #2: 非有限现货价 = 无可用数据，与「无现货行」同类处理（响亮失败），
+            # 禁止把 NaN 静默扩散进基差/斜率进而落湖。
+            raise ValueError(f"标的 {underlying} 在日期 {cur_date.date()} 现货收盘价非有限值")
         chain = self.get_contract_chain(underlying, cur_date)
 
         contracts_data: List[Dict[str, Any]] = []
@@ -362,6 +366,13 @@ class FuturesStorageManager:
                 continue
 
             f_close = float(f_sub["close"].iloc[0])
+            if not np.isfinite(f_close):
+                # §7.4 #2: 非有限收盘价 = 该合约当日无可用数据，与「该合约无当日行」
+                # 同类跳过；否则 basis=NaN 会经 polyfit 产出 NaN term_slope 落湖。
+                logger.warning(
+                    f"跳过非有限收盘价合约 {contract.clean_symbol} @ {cur_date.date()}"
+                )
+                continue
             f_settle = float(f_sub["settle"].iloc[0]) if "settle" in f_sub.columns else f_close
             f_vol = int(f_sub["volume"].iloc[0])
             f_hold = int(f_sub["hold"].iloc[0])
@@ -404,7 +415,9 @@ class FuturesStorageManager:
             try:
                 # 拟合 Basis = intercept + slope * (DTE/365)
                 slope, _ = np.polyfit(dtes, bases, 1)
-                term_slope = float(slope)
+                # §7.4 #2: polyfit 对退化/非有限输入不保证抛异常（可返回 NaN），
+                # 故 try/except 之外还需显式有限性检查，保证落湖的 term_slope 恒有限。
+                term_slope = float(slope) if np.isfinite(slope) else 0.0
             except Exception:
                 term_slope = 0.0
 

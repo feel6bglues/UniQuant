@@ -455,6 +455,9 @@ def _has_transfer_fee(symbol: str) -> bool:
 | 9 | `akshare_wrapper.call` | 任何异常置 `_initialized=False`，重试循环改为"重初始化"而非"重放上游调用" | 上游仅触达一次 |
 | 10 | `sources/mootdx_online._normalize_columns` | 可产生重复 `volume` 列；无 手→股 换算 | 模块 `enabled=false`（网络兜底待裁决），当前不在生产链路 |
 
+> **➡️ 十项已于第六轮逐条处置（8 修 / 2 书面不修），含 4 个"把 bug 钉住"的用例反转与 1 个同类兄弟缺陷。见 §7.8。**
+> 其中第 7 项为**安全关键**（改绝对路径必须同步改测试夹具，否则会覆盖已入库 SSOT），见 §7.8.2。
+
 ### 7.5 CI 覆盖率门更新
 
 `.github/workflows/test.yml` 覆盖率作业 `--cov-fail-under` 由 **68 → 74**（实测 76.05%，留 ~2 点环境余量）——定位为**回归地板**，非 80% 达成线。
@@ -548,15 +551,15 @@ unshare -rm --propagation private sh -c '
 | 口径 | 命令 | 结果 |
 |---|---|---|
 | **修复前**（守卫 stash 掉，同一命名空间） | `pytest tests/ -q --tb=no --junit-xml=…` | **126 failed / 4 error** = 失败面 **130**（同环境 21 skip）→ `errors="4" failures="126" skipped="21" tests="3228"` |
-| **修复后**（本地等价复现，`test` 口径） | 同上 | **0 failed / 0 error**（`errors="0" failures="0" skipped="151" tests="3228"`） |
-| **修复后**（本地等价复现，`coverage` 口径） | `pytest -n auto --timeout=900 --cov --cov-fail-under=74` | **0 failed / 0 error**，**75.57%**（26,247 语句 / 6,411 未覆盖；早先 `-n 8` 一次测得 6,412，差 1 语句系 xdist 调度抖动，百分比恒为 75.57%）→ **Required test coverage of 74% reached** |
+| **修复后**（本地等价复现，`test` 口径） | 同上 | **0 failed / 0 error**（`errors="0" failures="0" skipped="151" tests="3228"`）**⚠️ 口径不正（依赖集含未声明的 `czsc`）——见 §7.9** |
+| **修复后**（本地等价复现，`coverage` 口径） | `pytest -n auto --timeout=900 --cov --cov-fail-under=74` | **0 failed / 0 error**，~~75.57%（26,247 语句 / 6,411 未覆盖）~~ **⚠️ 真实 CI 口径 = 74.57%（26,268 / 6,681）——见 §7.9** → **Required test coverage of 74% reached** |
 | 本机（含数据湖） | `pytest tests/ -q -n 8` | **3226 passed / 2 skipped / 0 failed**（标记在本机为 no-op，全部真跑） |
 | `ruff check src/uniquant/ tests/ scripts/` | — | **All checks passed!** |
 
-**覆盖率口径（重要）**：CI 口径 **75.57%** < 本机口径 **76.05%**，差额 **127 statements**
-正是被跳过的真实数据用例所覆盖的部分（`corporate_action.py` / `data_fetcher` qfq 路径 /
-`futures_storage_manager` / `storage_manager.validate_freshness` / `unified_engine`）。
-门限 **74** 相对 **CI 口径** 留 ~1.6 点余量；`.github/workflows/test.yml` 注释已同步记录两套口径。
+**覆盖率口径（重要）**：**⚠️ 本段数字已被 §7.9 更正**——此处"CI 口径 75.57%"是在**装了未声明的 `czsc`**
+的解释器上测得的，**并非真实 CI 口径**。真实 CI（`.[all,dev]`，无 `czsc`）为 **74.57%**（26,268 / 6,681）。
+本机口径当时为 76.05%（含 `czsc` + 数据湖）。门限 **74** 相对**真实 CI 口径**余量仅 **+0.57 点**（非 ~1.6 点）。
+`.github/workflows/test.yml` 注释亦已同步更正。
 
 **残余诚实说明**：CI 上有 **151** 个 skip（130 个本次新增 + 21 个既有环境守卫，如
 `test_tdx_parser_gbbq_mapping` 依赖本机通达信路径）。跳过**不等于**验证——这些用例的
@@ -633,8 +636,8 @@ pytest **在收集期整体中断**。pytest 退出码语义：`0` 全过 / `1` 
 |---|---|---|
 | 修复前（CI 实证） | check-run 注解 | `Interrupted: 1 error during collection` → exit 2 → **0 用例** |
 | 修复后（本次命名空间，**额外**屏蔽兄弟仓） | `pytest tests/test_uniquant_production_architecture_gates.py` | **17 passed**（该文件全部用例真跑） |
-| 修复后（全量，CI 等价：无湖/无通达信/**无兄弟仓**） | `pytest tests/ -q` | `errors="0" failures="0" skipped="151" tests="3232"`（run **3081**） |
-| 修复后（coverage 口径） | `-n auto --timeout=900 --cov --cov-fail-under=74` | **75.57%**（26,247 / 6,411）≥ 74 → **Required test coverage of 74% reached** |
+| 修复后（全量，CI 等价：无湖/无通达信/**无兄弟仓**） | `pytest tests/ -q` | `errors="0" failures="0" skipped="151" tests="3232"`（run **3081**）**⚠️ 该行口径不正**——见 §7.9：真实 CI 为 `skipped=164 tests=3216`（依赖集须与 `.[all,dev]` 一致，即**无 `czsc`**） |
+| 修复后（coverage 口径） | `-n auto --timeout=900 --cov --cov-fail-under=74` | ~~75.57%（26,247 / 6,411）~~ **⚠️ 更正为 74.57%（26,268 / 6,681）** ≥ 74 → **Required test coverage of 74% reached**（见 §7.9） |
 | 本机（含数据湖） | `pytest tests/ -q` | **3230 passed / 2 skipped / 0 failed**（收集 3232；标记为 no-op，用例全部真跑） |
 | 本机（含数据湖，`HOME` 污染修复生效） | 同上，skip 明细 | 仅 **2** 个 backtrader 缺依赖 skip；**此前 7 个**（多出的 5 个 = gbbq 真实数据用例被静默跳过） |
 | `ruff check src/uniquant/ tests/ scripts/` | — | **All checks passed!** |
@@ -662,6 +665,99 @@ pytest **在收集期整体中断**。pytest 退出码语义：`0` 全过 / `1` 
 **数据依赖**（数据湖/GBBQ/通达信）与**开发机专有路径依赖**（兄弟仓绝对路径）。
 只屏蔽前者，会得到"修完仍红、且本机复现不出来"的假象。已写入 §7.6 复现配方与
 `AGENTS.md`，并以此守卫锁死。
+
+---
+
+## 7.8 第六轮：§7.4 十项疑似问题处置（2026-10-16）
+
+**纪律变更声明（刻意为之）**：第三/四/五轮的纪律是"**只动测试与 CI，不改生产语义**"。
+§7.4 十项是当时**唯一剩余的显式待办**，且**全部位于生产代码**——要关闭它们就必须突破该纪律。
+本轮的纪律改为：**每项改动 = 定向回归测试 + 明确理由 + 书面裁决（修 / 不修）**，逐项可追溯。
+裁决取自三个并行**只读** `explore` 子代理的逐项取证（定位 / 调用方 / 既有测试）/ 以及对每一处源码的直接复读，
+并且对每一项都回答了一个关键问题：**既有测试是把 bug "钉住"了，还是把 bug "当成了正确行为"**——后者即"伪回归"，
+必须连同用例语义一起反转（本轮共反转 4 个此类用例）。
+
+### 7.8.1 处置总表
+
+| # | 位置 | 裁决 | 理由（含调用方证据） | 回归测试 |
+|---|---|---|---|---|
+| 1 | `import_financial._normalize_stock_code` | **修复** | 无数字输入（`"abc"` / `"..."` / 纯符号）经 `digits.zfill(6)` 被**伪造成 `"000000.SZ"`**。无白名单模式（`allowed_stock_codes` 为空）下会写出垃圾 parquet。改为返回 `None`（"无法归一的代码"），由 stage1 `map` 落 NaN、stage2 跳过 | `tests/test_import_financial.py`（+3 断言：`"abc"`/`"..."`/空 均为 `None`） |
+| 2 | `futures_storage_manager.get_dynamic_basis_surface` | **修复** | 原护栏 `try/except → 0.0` **对 NaN 不生效**：`np.polyfit` 遇非有限输入**不一定抛异常**（stub 验证：返回 NaN + `RankWarning`）→ NaN `term_slope` 可入湖。三层加固：① 非有限**现货**收盘价 → `ValueError`（与"无现货行"同类，响亮失败）；② 非有限**合约**收盘价 → **跳过该合约**（与"该合约当日无行"同类）；③ 拟合结果显式 `np.isfinite` 检查 → 非有限回退 `0.0`（与退化分支一致） | 原 `test_basis_surface_nan_close_propagates_nan_term_slope`（**钉住了 bug**）→ 反转+拆分为 3 例：`..._skips_non_finite_close_contract` / `..._non_finite_spot_close_raises` / `..._non_finite_fit_falls_back_to_zero`（monkeypatch `np.polyfit` 返回 NaN） |
+| 3 | `import_financial._write_single_stock` / `import_batch` / `main()` | **修复** | 原实现把"**真实写入失败**"与"**按规则跳过**"压成同一个 `False`；`import_batch` 只把后者计入局部 `write_fail`，且**不并入返回值** → **阶段2全量写失败时 `main()` 仍 `return 0`**，编排层误判成功。改为：`_write_single_stock` 对真实 IO/数据异常**向上抛出**（`False` 仅表示跳过）；`import_batch` 分设 `write_skipped` / `write_failed` 计数，返回值第三项 = **解析失败 + 写入失败** | 原 `test_write_single_stock_io_failure_returns_false`（**钉住 bug**）→ `..._io_failure_raises`；原 `test_import_batch_write_failure_is_logged` → 拆 2 例：`..._write_failure_is_counted_as_failure`（`(1,0,1)`）/ `..._write_skip_is_not_a_failure`（跳过仍 `(1,0,0)`，防两类混淆） |
+| 4 | `stock_metadata_manager._load_all_codes`（守卫行） | **修复** | `_normalize_columns` 已把 `status`→`stock_status`，但守卫仍 `getattr(row, 'status', None)`；`itertuples` 下**永无 `status` 属性** → `stock_status` 恒 `None`。**消费者确实存在**：`storage_manager.get_stock_metadata()` 会输出该字段（故非"死字段"而是"静默失效字段"） | 原 `test_populated_status_column_is_ignored`（**钉住 bug**）→ `..._is_loaded`（`"0"` / `"1"`） |
+| 5 | `stock_metadata_manager.get_stock_info` | **修复** | 缓存键由模块级 `_normalize_stock_code` 统一为**后缀**格式（Step4 已修**写侧**），但**查侧**只剥 `.SH/.SZ/.BJ` → 裸 `sh.600519` 永不命中 → `storage_manager` 退市守卫**静默失效**。改为先用同一归一函数归一化，再以原子键查询（保留原后缀探测为兜底） | 原 `test_get_stock_info_does_not_accept_baostock_prefix`（**钉住 bug**）→ `..._accepts_baostock_prefix`（`sh.600519` / `sz.000001` / `bj.430047`） |
+| 6 | `trade_calendar_manager.get_trade_calendar` 回退分支 | **不修（设计如此）** | 回退分支只针对**内部错误**；调用方传入**非法日期字符串**属编程错误，**响亮抛出（fail-fast）优于静默返回空日历**（静默空日历会让下游"以为休市"）。既有用例即按此语义钉住，且该语义是正确的 | 保留 `test_get_trade_calendar_invalid_dates_propagate_from_fallback`（语义正确，不动） |
+| 7 | `baostock_cache_manager`（+ 同类兄弟 `hands/reporter.py`，**附带发现**） | **修复** | 写死**相对**路径 `data/all_stock_codes.csv` → 行为依赖 CWD，从非仓库根目录运行时写到错位置。抽为模块常量 `OUTPUT_PATH` / `TEMP_PATH`（= `shared.constants.path.STOCK_LIST_FILE`，绝对 SSOT），3 处引用全替换；`reporter._load_stock_names` 同类问题改用同一常量 | 新增 `test_cache_output_paths_are_absolute_ssot`、`test_cache_writes_to_absolute_path_not_cwd`；**夹具同步改造为 monkeypatch 常量指向 `tmp_path`**（安全关键，见 §7.8.2） |
+| 8 | `handle_errors(default_return=...)` | **不修默认值，仅修文档** | 默认 `reraise=True` 会**先 `raise`**，使 `default_return=` 短路失效。全仓约 **30 处**调用点传了非 None `default_return` 却未传 `reraise=False`（属既有 fail-fast 约定）。**改默认值 = 静默改变这 30 处的失败语义**（10× 爆炸半径），远超本轮收益。仅在 docstring 如实标注该陷阱 | `tests/test_error_handling*.py`（语义不变，仅文档） |
+| 9 | `akshare_wrapper.call` "只重初始化不重放" | **不修（claim 部分被否证）** | 领域错误经 `handle_errors(reraise=True)` 抛出后**确会进入重试**；生产中 `_init_akshare()` 成功即置 `_initialized=True` → **上游调用确实重放**。"只重初始化不重放"仅在**重初始化被 mock 成 no-op** 的测试场景成立（属测试构造的假象，非生产缺陷）。"任何异常即重置会话"是既有策略，无证据表明改之有利 | 保留 `test_domain_error_toggles_uninitialized` / `test_generic_error_toggles_uninitialized`（后者证明会重放 5 次） |
+| 10 | `mootdx_local` / `mootdx_online._normalize_columns` | **修复（仅重复列）/ 不修（手→股）** | 原映射同时含 `volume→volume` 与 `vol→volume`，两列并存时 rename 产出**重复 `volume` 列**（落湖/pyarrow 报错，或静默取错列）。改为：仅做真正的别名重命名、目标列已存在时不覆盖、并存时保留规范列并丢弃别名（并 `warning`）。**"手→股"换算不修**：mootdx 输出单位为"手"，换算系数**跨 11 类资产不一致**（`compat.py`），属消费方归一化职责；硬编码 ÷100 会在非股票资产上出错 | 新增 `tests/test_mootdx_local_bugs.py` ×4（vol 单列改名 / volume 单列不动 / 两列并存→单列且规范列胜出 / datetime→date）+ `tests/data/test_sources_and_factor_utils.py` ×1（online 两列并存） |
+
+**净效果**：**8 项改生产代码**（#1、#2、#3、#4、#5、#7（含兄弟）、#8（仅文档）、#10（仅重复列处理）），
+**2 项书面裁决不修**（#6 设计如此、#9 claim 否证）。**无一项改变对外契约签名**；
+`import_batch` 返回值语义变化（第三项 = 解析失败+写入失败）已同步其**唯一**调用方
+`scripts/rebuild_financial_lake.py`（键名改为 `success_files`/`skipped_files`/`failed_files`，`rg` 确认无其它读取方）。
+
+### 7.8.2 安全关键：改了绝对路径就必须同步改夹具
+
+第 7 项是本轮**唯一可能造成版本库破坏**的改动，记录下防线：
+
+- 改动前 `create_baostock_cache` 写**相对** `data/all_stock_codes.csv`，而测试夹具靠
+  `monkeypatch.chdir(tmp_path)` 把它"关"进 `tmp`。
+- 一旦路径变成**绝对**，若沿用 `chdir` 夹具，测试**就会覆盖真实、已入库、全系统 SSOT 的**
+  `data/all_stock_codes.csv`（8,879 行）。
+- 因此**同一提交内**必须把夹具改为 `monkeypatch.setattr(bcm, "OUTPUT_PATH", tmp_path/"data"/...)`
+  等（`chdir` 保留作纵深防御），并**实测**该文件 `mtime` 与内容未变：
+  `ls -l --time-style=full-iso data/all_stock_codes.csv` → `2026-08-19 12:21:53`（本轮未触碰）。
+
+### 7.8.3 第六轮验证（本工作树实测）
+
+| 口径 | 命令 | 结果 |
+|---|---|---|
+| 定向（本轮触及的 5 个测试文件 + 2 个 error-handling 文件） | `pytest tests/test_import_financial.py tests/data/test_futures_and_financial_import.py tests/data/test_baostock_and_metadata.py tests/data/test_sources_and_factor_utils.py tests/test_mootdx_local_bugs.py tests/test_error_handling*.py` | **279 passed** |
+| 数据域广域回归 | `pytest tests/data tests/test_import_financial.py tests/test_mootdx_local_bugs.py tests/test_report_paths.py tests/test_results_manager_extra.py` | **661 passed** |
+| 本机全量（含数据湖 + `czsc`） | `.venv/bin/python -m pytest tests/ -q -n 8` | **3240 passed / 2 skipped / 0 failed**（收集 3242；= 第五轮 3230 + 本轮新增 **10**） |
+| CI 等价（三 mount；完整依赖） | 见 §7.6 配方的三个 `mount --bind` | **3091 passed / 151 skipped / 0 failed / 0 error**（收集 3242；= 第五轮 3081 + 10，跳过量**不变**） |
+| CI 等价（三 mount；`.[all,dev]` 真实依赖集） | 同上，但用无 `czsc` 的解释器 | **3052 passed / 164 skipped / 0 failed / 0 error**（收集 3216）——**这才是真实 CI 的数字**，见 §7.9 |
+| 本机覆盖率 | `-n 8 --cov --cov-fail-under=74` | **76.08%**（26,268 语句 / 6,284 未覆盖）≥ 74 |
+| CI 等价覆盖率（`.[all,dev]` 依赖集） | `-n auto --timeout=900 --cov --cov-fail-under=74` | **74.57%**（26,268 / 6,681）≥ 74 → `Required test coverage of 74% reached`（余量仅 **+0.57 pt**，见 §7.9 风险提示） |
+| `ruff` | `ruff check src/uniquant/ tests/ scripts/` | **All checks passed!** |
+| SSOT 未被测试污染 | `ls -l --time-style=full-iso data/all_stock_codes.csv` | `2026-08-19 12:21:53`，**未变** |
+
+---
+
+## 7.9 第六轮附带发现：CI 从未装上 `czsc`（并更正第五轮"CI 口径"）
+
+这是本轮**最重要的诚实更正**——它推翻了一个此前被当作既成事实的口径。
+
+**事实链（可复现）**：
+
+1. `src/uniquant/brain/czsc/czsc_engine.py:6` 顶层 `from czsc import CZSC, Freq, RawBar`（**未加守卫**）；
+   `brain/czsc/__init__.py` 用 `try/except ImportError → CZSCEngine = None` 兜住，故包导入不炸。
+2. **`czsc` 不在 `pyproject.toml` 的 `dependencies`，也不在任何一个 optional-extras**（`dev`/`tdx`/`baostock`/`curl`/`report`/`js`/`all`）中。
+   实测 `.venv/bin/pip show czsc` → `Required-by: rs_czsc`（`rs_czsc` 同样未声明）→ **本机 `czsc` 是手工装的开发机附加物**。
+3. CI 的安装步骤是 `pip install -e ".[all,dev]"` → **真实 CI 里没有 `czsc`**。
+4. 后果（在本机用"`.[all,dev]` 依赖集"的解释器 + 三 mount 实测）：
+   - 4 个 `pytest.importorskip("czsc")` 模块**整个不被收集** → 少 **30** 个用例
+     （`test_czsc_engine.py`、`test_czsc_bar_list_vectorization.py`、`test_technical_and_signal_regressions.py`、`test_more_analysis_engine_regressions.py`）；
+   - `test_brain_boundary_qa.py` 另有 **9** 例以 `czsc package not installed` 跳过；连上 4 个模块级 skip 条目共 **+13** 跳过；
+   - `czsc_engine.py`（及其同包模块）**从未被导入** → 其语句在覆盖率统计里**全额计入未覆盖**。
+
+**因此更正**：第五轮/§7.6/§7.7 记录的"CI 口径 **3,081 passed / 151 skipped / 收集 3,232**、coverage **75.57%**"
+是在**装了 `czsc` 的本机等价环境**里测的，**并非 CI 口径**。**真实 CI 口径 = 3,052 passed / 164 skipped / 0 failed / 0 error（收集 3,216）、coverage 74.57%**。
+差额（约 270 未覆盖语句 + 30 用例）恰好由"缺 `czsc`"解释。**§7.6/§7.7 与 `docs/index.md`/`AGENTS.md`/`README.md` 的对应数字已同步更正。**
+
+**为什么不在本轮"修"（如把 `czsc` 加进 `[all]`）**：`pip show czsc` 的 `Requires` 含 **`ta-lib`**——
+这是需要**系统级 C 库**的包，`pip install` 常因缺该库而**构建失败**。把它塞进 `[all]` 会让 CI 的
+`pip install -e ".[all,dev]"` 步骤本身变红，属**用更大风险换更小收益**。正确处置是**如实登记**
+（可选依赖必须"声明 + 守卫 + 显式跳过"，现状是"未声明 + 半守卫 + 隐式不收集"），
+若要根治应走独立立项（把 `czsc` 放入独立 extra 并在 CI 显式跳过该 extra，或换成纯 Python 的等价实现）。
+
+**风险提示（交给下一轮）**：CI 覆盖率门限 `--cov-fail-under=74` 在**真实 CI 口径下余量仅 +0.57 个百分点**。
+本轮不动门限（动门限=掩盖问题），但若后续新增未覆盖的生产模块，**大概率会把 CI 打红**——
+届时正确做法是补测，而非降门限。
+
+**本轮新生效的"文档纪律"**：**任何"CI 口径"数字必须注明解释器依赖集**（是否含未声明的开发机附加包）。
+仅写"CI 等价"而不同时写"依赖集"是会骗人的——这正是本轮踩到的坑。
 
 ---
 
@@ -720,19 +816,22 @@ REPO=/home/james/Documents/Project/UniQuant
 rm -rf /tmp/opencode/ci_data /tmp/opencode/ci_empty /tmp/opencode/ci_empty_cnnm
 mkdir -p /tmp/opencode/ci_data /tmp/opencode/ci_empty /tmp/opencode/ci_empty_cnnm
 cp $REPO/data/all_stock_codes.csv $REPO/data/qualified_universe.csv /tmp/opencode/ci_data/
-# 10a) CI `test` 作业口径 → 期望 0 failed / 0 error（151 skipped，收集 3230）
+# 10a) CI `test` 作业口径 → 期望 0 failed / 0 error
+#      ⚠️ 必须用与 CI 相同的依赖集（`.[all,dev]`，**不含未声明的 czsc**）才等价：
+#        .venv 含手工装的 czsc → 151 skipped / 收集 3242（**非** CI 口径）
+#        真实 CI 依赖集       → 164 skipped / 收集 3216（见 §7.9 更正）
 unshare -rm --propagation private sh -c '
   mount --bind /tmp/opencode/ci_data       '"$REPO"'/data
   mount --bind /tmp/opencode/ci_empty      /home/james/.local/share/tdxcfv
   mount --bind /tmp/opencode/ci_empty_cnnm /home/james/Documents/Project/CNNM
-  cd '"$REPO"' && .venv/bin/pytest tests/ -q --tb=short
+  cd '"$REPO"' && /tmp/opencode/civenv/bin/python -m pytest tests/ -q --tb=short
 '
-# 10b) CI `coverage` 作业口径 → 期望 75.57% ≥ 74
+# 10b) CI `coverage` 作业口径 → 期望 74.57% ≥ 74（真实 CI 依赖集；见 §7.9）
 unshare -rm --propagation private sh -c '
   mount --bind /tmp/opencode/ci_data       '"$REPO"'/data
   mount --bind /tmp/opencode/ci_empty      /home/james/.local/share/tdxcfv
   mount --bind /tmp/opencode/ci_empty_cnnm /home/james/Documents/Project/CNNM
-  cd '"$REPO"' && .venv/bin/pytest tests/ -q -n auto --timeout=900 \
+  cd '"$REPO"' && /tmp/opencode/civenv/bin/python -m pytest tests/ -q -n auto --timeout=900 \
     --cov --cov-report=term:skip-covered --cov-fail-under=74
 '
 # 标记面（本机含数据湖时为 no-op，用例全部真跑）
@@ -740,7 +839,17 @@ grep -rn "requires_lake\|requires_futures_lake\|requires_gbbq" tests/ --include=
 # 11) 防回归守卫：`tests/` 不得出现硬编码开发机绝对路径（§7.7 的真凶）
 #     端到端反证：临时放入 tests/test_zz_temp_planted_path.py 内容 `sys.path.insert(0, "/home/james/...")`
 #     → 守卫必红；删除后复绿。
-.venv/bin/python -m pytest tests/test_no_dev_absolute_paths.py -q
+.venv/bin/python -m pytest tests/test_no_dev_absolute_paths.py tests/test_no_import_time_env_mutation.py -q
+
+# 12) 第六轮：§7.4 十项处置的定向回归（2026-10-16）
+.venv/bin/python -m pytest tests/test_import_financial.py tests/data/test_futures_and_financial_import.py \
+    tests/data/test_baostock_and_metadata.py tests/data/test_sources_and_factor_utils.py \
+    tests/test_mootdx_local_bugs.py tests/test_error_handling.py tests/test_error_handling_additional.py -q
+# 安全关键：确认 SSOT 未被测试污染（mtime 应保持 2026-08-19）
+ls -l --time-style=full-iso data/all_stock_codes.csv
+# §7.9：证明真实 CI 依赖集里没有 czsc（故其 4 个测试模块不被收集）
+.venv/bin/pip show czsc | grep -E "^(Required-by)"      # → Required-by: rs_czsc（未被本项目声明）
+grep -n "czsc" pyproject.toml                            # → 仅一条 ruff per-file-ignore，无依赖声明
 ```
 
 ---
@@ -760,6 +869,13 @@ grep -rn "requires_lake\|requires_futures_lake\|requires_gbbq" tests/ --include=
 > **第二轮/第三轮的"CI 已绿"表述不成立**：真正的 CI 失败面直到**第四轮**才被定位——`/tmp` 依赖（4 例）只是其中一小部分，主体是约 **130** 个硬依赖本地数据湖/GBBQ/本地通达信的用例。第四轮以 `requires_lake` / `requires_futures_lake` / `requires_gbbq` 三标记 + 集中跳过钩子收口；**但该轮仍未使 CI 变绿**——真实 CI 在 pytest **收集期**就被硬编码的开发机兄弟仓路径中断（`ModuleNotFoundError: order_state_machine` → exit 2 → 零用例执行），直到 **§7.7（第五轮）** 才修掉。三因串联的完整账见 §7.7。
 >
 > **⚠️ 更早的假绿**：run `38398996210`（`7509c2a`）失败在 **Lint with ruff** 步骤，其 `Test with pytest` 是 **skipped**——即 2026-10-13 的 `7509c2a` 提交信息里"pytest 2530 passed, 0 failed"从未在 CI 上真实发生过。上表第 2 行的实测栏据此更正。
+>
+> **⚠️ 第六轮更正（"CI 口径"的自我打假，2026-10-16）**：第四/五轮多处记录的
+> "CI 口径 = **3,081 passed / 151 skipped / 收集 3,232**、coverage **75.57%**"**并非 CI 口径**——
+> 它是在装了 `czsc`（**未在 `pyproject.toml` 声明**、由开发机手工安装的 `rs_czsc` 带入）的解释器上测得的。
+> 真实 CI 执行 `pip install -e ".[all,dev]"`，**没有 `czsc`** → 4 个 `importorskip("czsc")` 模块整块不被收集（少 30 例）、
+> `test_brain_boundary_qa.py` 再跳 9 例 → **3,052 passed / 164 skipped / 0 failed / 0 error（收集 3,216）、coverage 74.57%**。
+> **教训**：报"CI 口径"必须连同**依赖集**一起报；只报"CI 等价"而隐含"本机装了什么"是会骗人的。详见 §7.9。
 
 ---
 

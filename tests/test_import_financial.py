@@ -20,6 +20,9 @@ class TestTDXFinancialImporter:
         assert importer._normalize_stock_code("000001") == "000001.SZ"
         assert importer._normalize_stock_code("600000") == "600000.SH"
         assert importer._normalize_stock_code("830001") == "830001.BJ"
+        # §7.4 #1: 无数字输入不得被伪造成 "000000.SZ"
+        assert importer._normalize_stock_code("abc") is None
+        assert importer._normalize_stock_code("...") is None
 
     def test_write_single_stock_preserves_existing_history(self, tmp_path):
         output_dir = tmp_path / "lake" / "financial"

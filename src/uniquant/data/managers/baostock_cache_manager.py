@@ -7,8 +7,15 @@
 from ...shared.time_provider import get_time_provider
 from ...data.managers import _baostock_client as baostock
 from ...shared.logger_factory import get_logger
+from ...shared.constants.path import STOCK_LIST_FILE
 
 logger = get_logger("BaostockCacheManager")
+
+# §7.4 #7: 主数据 SSOT 绝对路径（PROJECT_ROOT/data/all_stock_codes.csv）。
+# 此前写死相对路径 "data/all_stock_codes.csv" → 行为依赖 CWD，在非仓库根目录
+# 运行时会把 SSOT 写错位置。测试通过 monkeypatch 这两个常量指向 tmp_path 隔离。
+OUTPUT_PATH = STOCK_LIST_FILE
+TEMP_PATH = OUTPUT_PATH.with_name(f"{OUTPUT_PATH.stem}_temp{OUTPUT_PATH.suffix}")
 
 
 def create_baostock_cache():
@@ -41,9 +48,9 @@ def create_baostock_cache():
             logger.info(f"6. 数据列名: {list(stock_list.columns)}")
             logger.info(f"7. 前3只股票详细数据:\n{stock_list.head(3)}")
             
-            # 8. 保存到本地
-            output_path = "data/all_stock_codes.csv"
-            temp_path = "data/all_stock_codes_temp.csv"
+            # 8. 保存到本地（绝对 SSOT 路径，§7.4 #7：不再依赖 CWD）
+            output_path = OUTPUT_PATH
+            temp_path = TEMP_PATH
             logger.info(f"8. 保存到本地文件: {output_path}")
             
             # 处理数据，确保包含代码和名称列
@@ -115,7 +122,7 @@ def create_baostock_cache():
     
     # 验证文件是否创建成功
     logger.info("\n8. 验证文件...")
-    output_path = "data/all_stock_codes.csv"
+    output_path = OUTPUT_PATH
     try:
         import os
         if os.path.exists(output_path):

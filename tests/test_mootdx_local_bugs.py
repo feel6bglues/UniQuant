@@ -174,3 +174,33 @@ def test_sync_minute_1min_suffix_matches_data_type(tmp_path, monkeypatch):
     write_kwargs = storage.write_data.call_args.kwargs
     assert write_kwargs["data_type"] == "1mins"
     assert (success, fail) == (1, 0)
+
+
+# --- §7.4 #10: vol/volume 并存不得产生重复 volume 列（落湖会污染 schema） ---
+
+
+def test_normalize_columns_renames_vol_only():
+    df = pd.DataFrame({"vol": [10], "close": [1.0]})
+    out = MootdxLocalSource._normalize_columns(df)
+    assert list(out.columns) == ["volume", "close"]
+    assert out["volume"].iloc[0] == 10
+
+
+def test_normalize_columns_volume_only_untouched():
+    df = pd.DataFrame({"volume": [10], "close": [1.0]})
+    out = MootdxLocalSource._normalize_columns(df)
+    assert list(out.columns) == ["volume", "close"]
+
+
+def test_normalize_columns_both_vol_and_volume_no_duplicate():
+    df = pd.DataFrame({"vol": [7], "volume": [10], "close": [1.0]})
+    out = MootdxLocalSource._normalize_columns(df)
+    assert list(out.columns).count("volume") == 1
+    assert "vol" not in out.columns
+    assert out["volume"].iloc[0] == 10  # canonical column wins
+
+
+def test_normalize_columns_datetime_to_date():
+    df = pd.DataFrame({"datetime": ["2025-01-01"]})
+    out = MootdxLocalSource._normalize_columns(df)
+    assert list(out.columns) == ["date"]

@@ -106,6 +106,15 @@ class TestMootdxOnlineSourceNormalizeColumns:
         out = MootdxOnlineSource._normalize_columns(df)
         assert list(out.columns) == ["foo", "bar"]
 
+    def test_both_vol_and_volume_yields_single_canonical_column(self):
+        """§7.4 #10: when both ``vol`` and ``volume`` are present the rename must not
+        produce a duplicate ``volume`` column; the canonical column wins."""
+        df = pd.DataFrame({"vol": [7], "volume": [10], "close": [1.0]})
+        out = MootdxOnlineSource._normalize_columns(df)
+        assert list(out.columns).count("volume") == 1
+        assert "vol" not in out.columns
+        assert out["volume"].iloc[0] == 10
+
 
 class TestMootdxOnlineSourceFetchDaily:
     def _raw(self):

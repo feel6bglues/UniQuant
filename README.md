@@ -152,7 +152,7 @@ P2-2 LPPL 降为遥测               ✅ 完成（diagnostic_only 默认开，�
 P2-3 H-A 运行器对齐 ADV 地板     ✅ 完成
 P1-1 科研控制平面接入生产因子链   ✅ 完成（自由度账本覆盖扫描/回测因子链）
 P1-2 文档漂移修复                ✅ 完成（README / docs/index.md / CLAUDE.md）
-P2-3 CI 覆盖率门                 ✅ 完成（CI 口径实测 75.57%，门限 74% 作回归地板）
+P2-3 CI 覆盖率门                 ✅ 完成（真实 CI 口径实测 74.57%，门限 74% 作回归地板）
 P2-3 数据湖/results 可复现性      ✅ 完成（证据白名单 + SHA-256 内容哈希账本 + CI 校验）
 第三轮 数据层补测                ✅ 完成（data/ 53.9% → 94.2%；13 文件 / 634 用例）
 第三轮 历史文档漂移根治          ✅ 完成（docs/reanalysis 60 文件 + docs/archive 10 文件加历史横幅）
@@ -161,6 +161,8 @@ P2-3 数据湖/results 可复现性      ✅ 完成（证据白名单 + SHA-256 
 第五轮 CI 收集期中断修复          ✅ 完成（硬编码开发机兄弟仓路径 → 仓库内相对定位 + 防回归守卫）
 第五轮 测试导入期 HOME 污染修复    ✅ 完成（静默跳过 5 个真实数据用例 → 删除 + 第二条防回归守卫）
 第五轮 CI 首次全绿（自 7509c2a）   ✅ 完成（run 38870946347：test 全 8 步 + coverage + pip-audit 三绿）
+第六轮 §7.4 十项疑似缺陷处置       ✅ 完成（8 修 / 2 书面不修；含 4 个"钉住 bug"的用例反转 + 1 个同类兄弟缺陷）
+第六轮 "CI 口径"自我打假           ✅ 完成（真实 CI 缺未声明的 czsc → 真实 CI 口径 74.57% / 164 skipped）
 ```
 
 **闭环验证（2026-10-16 第三轮实测，本机含数据湖）**：`pytest tests/` **3226 passed / 2 skipped / 0 failed**（收集 3228）；
@@ -168,13 +170,25 @@ P2-3 数据湖/results 可复现性      ✅ 完成（证据白名单 + SHA-256 
 `ruff check src/uniquant/ tests/ scripts/` **All checks passed!**；
 `python scripts/maintenance/evidence_manifest.py verify` → **no drift**（50 证据文件 / 942,274 B）。
 
-**本机口径（2026-10-16 第五轮实测，含数据湖）**：`pytest tests/` **3230 passed / 2 skipped / 0 failed**（收集 3232；
-仅 2 个 backtrader 缺依赖 skip；`requires_*` 标记在本机为 no-op，用例全部真跑）。
+**本机口径（2026-10-16 第六轮实测，含数据湖 + 手工装的未声明 `czsc`）**：`pytest tests/ -q -n 8`
+**3240 passed / 2 skipped / 0 failed**（收集 3242；仅 2 个 backtrader 缺依赖 skip；`requires_*` 标记在本机为 no-op，用例全部真跑）；
+覆盖率 **76.08%**（26,268 语句 / 6,284 未覆盖）。
 
-**CI 口径（2026-10-16 第五轮实测，无数据湖/无通达信/无开发机兄弟仓）**：`pytest tests/` **0 failed / 0 error**（收集 3232，运行 3081，**151 skipped**，每个跳过均带显式原因）；
-覆盖率 **75.57%**（26,247 语句 / 6,411 未覆盖）≥ 门限 74%。真实数据用例依赖的本地数据湖
-（`data/lake/**`）、GBBQ 基线（`data/fq/gbbq.parquet`）与本地通达信客户端均不进版本库，
-CI 上由 `requires_lake` / `requires_futures_lake` / `requires_gbbq` 三标记**声明式跳过**（非静默通过）。
+**真实 CI 口径（2026-10-16 第六轮实测并更正；依赖集 = `pip install -e ".[all,dev]"`）**：
+`pytest tests/` **3052 passed / 164 skipped / 0 failed / 0 error**（收集 3216，每个跳过均带显式原因）；
+覆盖率 **74.57%**（26,268 语句 / 6,681 未覆盖）≥ 门限 74（**余量仅 +0.57 个百分点**）。
+真实数据用例依赖的本地数据湖（`data/lake/**`）、GBBQ 基线（`data/fq/gbbq.parquet`）与本地通达信客户端
+均不进版本库，CI 上由 `requires_lake` / `requires_futures_lake` / `requires_gbbq` 三标记**声明式跳过**（非静默通过）。
+
+> ⚠️ **"CI 口径"必须连同依赖集一起报（第六轮更正）**：第四/五轮记录的 CI 口径
+> `3,081 passed / 151 skipped / coverage 75.57%` 是在**装了 `czsc`** 的解释器上测得的。
+> 但 **`czsc` 并非本仓声明依赖**（`pyproject.toml` 的 `dependencies` 与所有 optional-extras 都没有它；
+> `pip show czsc` → `Required-by: rs_czsc`，`rs_czsc` 同样未声明），而 CI 只执行
+> `pip install -e ".[all,dev]"` → **真实 CI 没有 `czsc`** → 4 个 `pytest.importorskip("czsc")` 模块
+> **整块不被收集（少 30 例）**、`tests/test_brain_boundary_qa.py` 再跳 9 例、
+> `brain/czsc/czsc_engine.py` 全额计入未覆盖。故**真实 CI 数字是上段**（3052/164/74.57%）。
+> 本轮**不修**（把 `czsc` 塞进 `[all]` 会引入 `ta-lib` 系统级 C 库依赖，很可能让 CI 的安装步骤本身变红），
+> 仅如实登记为可选依赖治理项。详见报告 §7.9。
 
 **✅ CI 已全绿（2026-10-16 第五轮实测，真实 GitHub Actions）**：push `a434d68` → run **`38870946347`** —— `test` 作业全 8 步 success（含此前长期被 skip 的
 `Lint with ruff` 与 `Test with pytest`，后者 ~2.5 min 真跑）、`coverage` 作业 `Test with coverage gate` success（~112 s ⇒ CI 上 74% 门限达标）、
@@ -189,6 +203,14 @@ CI 上由 `requires_lake` / `requires_futures_lake` / `requires_gbbq` 三标记*
 > 写 `os.environ["HOME"] = "/tmp"`，被 pytest 同进程按文件名顺序导入后污染后续模块，**静默跳过 5 个真实数据用例**
 > （本机 2 skip → 7 skip）——已删除，并加第二守卫 `tests/test_no_import_time_env_mutation.py`。详见报告 §7.7。
 > **教训**：本地等价复现 CI 必须同时屏蔽**数据依赖**与**开发机专有路径依赖**两类；测试不得依赖导入顺序或进程级可变状态。
+
+> ⚠️ **第六轮补充教训（"CI 口径"必须连同依赖集一起报）**：本地"CI 等价"复现还有**第三类**偏差——**解释器依赖集**。
+> 第四/五轮测出的 `151 skipped / 75.57%` 是在装了 `czsc` 的 `.venv` 里得到的，而 `czsc` **并非本仓声明依赖**
+> （CI 只装 `.[all,dev]`）→ 真实 CI 为 `164 skipped / 74.57%`。**只报"CI 等价"而不报"装了什么"是会骗人的。**
+
+> ⚠️ **CI 覆盖率门余量偏薄（留给下一轮）**：门限 `--cov-fail-under=74` 相对**真实 CI 口径 74.57%**
+> 仅余 **+0.57 个百分点**。本轮**不动门限**（降门限=掩盖问题）；若后续新增未覆盖的生产模块，**大概率会把 CI 打红**——
+> 届时正确做法是**补测**，不是降门限。
 
 ---
 

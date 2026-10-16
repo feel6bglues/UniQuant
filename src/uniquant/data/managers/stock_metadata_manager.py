@@ -127,7 +127,10 @@ class StockMetadataManager:
             
             metadata.name = str(getattr(row, 'name', getattr(row, 'code_name', metadata.name)))
             metadata.stock_type = str(row.stock_type) if pd.notna(getattr(row, 'stock_type', None)) else metadata.stock_type
-            metadata.stock_status = str(row.stock_status) if pd.notna(getattr(row, 'status', None)) else metadata.stock_status
+            # §7.4 #4: _normalize_columns 已把 status/上市状态 重命名为 stock_status，
+            # itertuples 不可能再暴露 'status' 属性 —— 原守卫 getattr(row,'status',None)
+            # 恒为 None，导致 stock_status 永远是空字段。改用归一后的列名守卫。
+            metadata.stock_status = str(row.stock_status) if pd.notna(getattr(row, 'stock_status', None)) else metadata.stock_status
             
             if pd.notna(getattr(row, 'ipo_date', None)):
                 metadata.ipo_date = self._parse_date(row.ipo_date)
@@ -216,6 +219,12 @@ class StockMetadataManager:
     def get_stock_info(self, code: str) -> Optional[StockMetadata]:
         if not self._loaded:
             self.load()
+        # §7.4 #5: 缓存键由模块级 _normalize_stock_code 统一为 XXXXXX.SH/SZ/BJ，
+        # 但此处曾经只剥离 .SH/.SZ/.BJ 后缀 —— 于是 sh.600519 这类 baostock 前缀
+        # 形式永不命中（退市守卫静默失效）。先用同一归一函数归一化再查。
+        normalized = _normalize_stock_code(code)
+        if normalized and normalized in self._metadata_cache:
+            return self._metadata_cache[normalized]
         clean_code = code.replace('.SH', '').replace('.SZ', '').replace('.BJ', '')
         for suffix in ['', '.SH', '.SZ', '.BJ']:
             lookup_code = clean_code + suffix

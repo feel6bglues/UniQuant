@@ -199,6 +199,11 @@ class TDXFinancialImporter:
                 return f"{right.zfill(6)}.{left}"
 
         digits = "".join(ch for ch in code_str if ch.isdigit())
+        if not digits:
+            # §7.4 #1: 无数字输入（"abc" / "..." / 纯符号）此前被 "".zfill(6)
+            # 伪造成 "000000.SZ" 并可能落成垃圾 parquet；此处交回 None，
+            # 由调用方按「无法归一的代码」跳过（stage1 map / stage2 skip）。
+            return None
         if len(digits) > 6:
             digits = digits[-6:]
         digits = digits.zfill(6)
@@ -309,7 +314,21 @@ class TDXFinancialImporter:
             return False, 'failed', 0
 
     def _write_single_stock(self, code: str, dfs: List[pd.DataFrame]) -> bool:
-        """阶段2：将单个股票的所有数据合并写入文件"""
+        """阶段2：将单个股票的所有数据合并写入文件
+
+        Returns:
+            True  — 已成功写入
+            False — 按规则**跳过**（空数据 / 代码无法归一 / 非股票标的）。
+                    跳过是预期路径，不计入失败。
+
+        Raises:
+            Exception: 真实写入失败（IO / 数据异常）**向上抛出**，由
+                :meth:`import_batch` 计入失败数。
+
+        §7.4 #3: 此前这里 `except Exception → return False` 把「真实写入失败」
+        与「按规则跳过」压成同一个 False，使 import_batch 无法区分，最终
+        「全部写入失败」也被 main() 判定为成功（return 0）。
+        """
         if not dfs:
             return False
 
@@ -321,24 +340,27 @@ class TDXFinancialImporter:
             return False
 
         output_file = self.output_dir / f'{normalized_code}.parquet'
-        
-        try:
-            merged_df = pd.concat(dfs, ignore_index=True)
-            if output_file.exists():
-                existing_df = pd.read_parquet(output_file)
-                merged_df = pd.concat([existing_df, merged_df], ignore_index=True)
 
-            merged_df = self._normalize_financial_df(merged_df)
-            merged_df = merged_df.drop_duplicates(subset=['code', 'report_date'], keep='last')
-            merged_df = merged_df.sort_values('report_date')
-            merged_df.to_parquet(output_file, compression=PARQUET_COMPRESSION, index=False)
-            return True
-        except Exception as e:
-            logger.error(f"写入股票文件失败 {code}: {e}")
-            return False
+        merged_df = pd.concat(dfs, ignore_index=True)
+        if output_file.exists():
+            existing_df = pd.read_parquet(output_file)
+            merged_df = pd.concat([existing_df, merged_df], ignore_index=True)
+
+        merged_df = self._normalize_financial_df(merged_df)
+        merged_df = merged_df.drop_duplicates(subset=['code', 'report_date'], keep='last')
+        merged_df = merged_df.sort_values('report_date')
+        merged_df.to_parquet(output_file, compression=PARQUET_COMPRESSION, index=False)
+        return True
 
     def import_batch(self, limit: int = 0, force: bool = False, workers: int = MAX_WORKERS) -> Tuple[int, int, int]:
-        """两阶段批量导入"""
+        """两阶段批量导入
+
+        Returns:
+            ``(解析成功文件数, 跳过文件数, 失败总数)``，其中
+            **失败总数 = 解析失败 + 阶段2真实写入失败**，不含按规则跳过
+            （§7.4 #3：此前阶段2写入失败被吞掉且未计入返回值，导致编排层
+            在「全部写入失败」时仍误判成功）。
+        """
         self.output_dir.mkdir(parents=True, exist_ok=True)
         
         gpcw_files = sorted(self.cw_dir.glob('gpcw*.dat'))
@@ -387,24 +409,37 @@ class TDXFinancialImporter:
         logger.info("阶段2：顺序写入文件...")
 
         write_success = 0
-        write_fail = 0
+        write_skipped = 0
+        write_failed = 0
         total_codes = len(self._memory_store)
         
         for i, (code, dfs) in enumerate(self._memory_store.items()):
-            if self._write_single_stock(code, dfs):
-                write_success += 1
-            else:
-                write_fail += 1
+            try:
+                if self._write_single_stock(code, dfs):
+                    write_success += 1
+                else:
+                    write_skipped += 1
+            except Exception as e:  # noqa: BLE001 - 故意宽泛：阶段2 任何异常都必须计入失败
+                # 真实写入失败（区别于按规则跳过）：计入失败总数（§7.4 #3）。
+                # 此处刻意不窄化异常类型——阶段2 的任何异常若被漏掉，就会退回
+                # "写入全败仍报成功"的旧缺陷；捕获后由返回值向上兑现。
+                logger.error(f"写入股票文件失败 {code}: {e}")
+                write_failed += 1
             
             if (i + 1) % 500 == 0:
-                logger.info(f"写入进度: {i+1}/{total_codes}, 成功: {write_success}, 失败: {write_fail}")
+                logger.info(
+                    f"写入进度: {i+1}/{total_codes}, 成功: {write_success}, "
+                    f"跳过: {write_skipped}, 失败: {write_failed}"
+                )
 
         self.fingerprint.save()
         logger.info(f"导入完成：解析成功 {success_count}, 跳过 {skip_count}, 失败 {fail_count}")
-        logger.info(f"写入完成：成功 {write_success}, 失败 {write_fail}")
+        logger.info(
+            f"写入完成：成功 {write_success}, 跳过 {write_skipped}, 失败 {write_failed}"
+        )
         
         self._memory_store.clear()
-        return success_count, skip_count, fail_count
+        return success_count, skip_count, fail_count + write_failed
 
 
 def main():

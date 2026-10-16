@@ -3,6 +3,7 @@ from pathlib import Path
 from typing import Any, Dict, Optional
 
 from uniquant.shared.constants import ResultsConstants
+from uniquant.shared.constants.path import STOCK_LIST_FILE
 from uniquant.shared.logger_factory import get_logger
 from uniquant.shared.time_provider import get_time_provider
 
@@ -39,7 +40,9 @@ class Reporter:
         从all_stock_codes.csv文件加载股票代码和名称的映射
         """
         stock_name_map = {}
-        csv_path = Path("data") / "all_stock_codes.csv"
+        # §7.4 #7 (同类兄弟): 原为 Path("data")/"all_stock_codes.csv"，依赖 CWD，
+        # 从非仓库根目录运行时静默取不到名称。改用绝对 SSOT 常量。
+        csv_path = STOCK_LIST_FILE
 
         try:
             if csv_path.exists():

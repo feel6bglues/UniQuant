@@ -53,6 +53,13 @@ jobs:
         # into one process, so a stray `HOME` write silently changed which
         # real-data tests ran (it skipped 5 of them). Guarded by
         # `tests/test_no_import_time_env_mutation.py`.
+        #
+        # Also note: `czsc` is not a declared dependency, so it is absent here.
+        # Four modules guard themselves with `pytest.importorskip("czsc")` and
+        # are therefore not collected in CI (30 cases), while
+        # `tests/test_brain_boundary_qa.py` skips 9 more. That is expected, and
+        # it is why CI's pass/skip counts differ from a developer machine — see
+        # report §7.9 before "correcting" those counts.
         run: |
           set +e
           pytest tests/ -q --tb=short > /tmp/pytest.log 2>&1
@@ -77,18 +84,23 @@ jobs:
   coverage:
     # Separate job so the fast `test` job above still gives quick feedback.
     # `--cov-fail-under` is a *regression floor*. Two measurements are on record:
-    #   * 75.57% (26,247 stmts / 6,411 missed) — CI-faithful environment, i.e.
-    #     no data lake, so the `requires_*` real-data tests skip;
-    #   * 76.05% (26,247 stmts / 6,285 missed) — developer machine WITH the
-    #     local data lake, where those tests actually run.
-    # (A `-n 8` run of the first measurement once reported 6,412 missed; the
-    # 1-statement spread is xdist scheduling jitter — the percentage is 75.57%
-    # either way.)
+    #   * 74.57% (26,268 stmts / 6,681 missed) — CI-faithful environment: no data
+    #     lake (so the `requires_*` real-data tests skip) AND only the declared
+    #     install `pip install -e ".[all,dev]"`. The latter matters: `czsc` is
+    #     NOT a declared dependency, so CI never installs it, which leaves the
+    #     four `pytest.importorskip("czsc")` modules uncollected and
+    #     `brain/czsc/czsc_engine.py` entirely uncovered. Always measure with the
+    #     same dependency set as CI — see report §7.9.
+    #   * 76.08% (26,268 stmts / 6,284 missed) — developer machine WITH the local
+    #     data lake and the manually installed (undeclared) `czsc`, where the
+    #     skipped tests actually run.
+    # The floor (74) sits ~0.57 points below the *lower* (CI-faithful)
+    # measurement. That margin is thin: adding uncovered production code will
+    # most likely trip this gate, and the correct response is to add tests, not
+    # to lower the floor.
     # See `.coveragerc` and
-    # docs/analysis/POST_SIMPLIFICATION_ARCHITECTURE_TRADING_EVALUATION_20261016.md §7.
-    # The floor sits ~1.6 points below the *lower* (CI-faithful) measurement so
-    # that minor environment differences cannot produce a spurious failure,
-    # while a real regression (dropping >400 uncovered statements) still fails.
+    # docs/analysis/POST_SIMPLIFICATION_ARCHITECTURE_TRADING_EVALUATION_20261016.md
+    # §7.6 / §7.8 / §7.9.
     # The repository coding standard's 80% aspiration is still unmet — this gate
     # only guarantees coverage never silently drops.
     runs-on: ubuntu-latest

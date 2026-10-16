@@ -226,9 +226,11 @@ def main() -> int:
         "output_dir": str(output_dir),
         "fingerprint_file": str(fingerprint_path),
         "import_result": {
-            "parse_success_files": success,
-            "parse_skipped_files": skipped,
-            "parse_failed_files": failed,
+            # §7.4 #3: 第三项现为「失败总数」= 解析失败 + 阶段2写入失败
+            # （按规则跳过不计入失败，故不再是纯 parse 口径）。
+            "success_files": success,
+            "skipped_files": skipped,
+            "failed_files": failed,
         },
         "failed_source_files": failed_sources,
         "quality": quality,
