@@ -9,7 +9,7 @@ CANSLIM 与平均足 (Heikin-Ashi) 动量沙盒适配器 (CANSLIMStrategySandbox
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
+from typing import List
 
 import numpy as np
 import pandas as pd

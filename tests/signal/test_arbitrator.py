@@ -30,6 +30,14 @@ def _sig_no_ts(action: str, reason: str = "", confidence: float = 0.5) -> Tradin
 
 
 class TestSignalArbitrator:
+    def test_lppl_is_telemetry_priority_not_top(self):
+        """P2: LPPL 零预测力 → 已从最高优先级降为遥测层，不再优先于决策引擎。"""
+        from uniquant.signal.arbitrator import ENGINE_PRIORITY
+
+        assert ENGINE_PRIORITY["lppl"] >= 99
+        assert ENGINE_PRIORITY["lppl"] > ENGINE_PRIORITY["fsm"]
+        assert ENGINE_PRIORITY["lppl"] > ENGINE_PRIORITY["czsc"]
+
     def test_empty_signals(self):
         arb = SignalArbitrator()
         assert arb.arbitrate([], symbol="000001.SZ") == []

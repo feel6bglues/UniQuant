@@ -15,7 +15,6 @@ import pandas as pd
 
 from uniquant.brain.factors.cscv_pbo_analyzer import (
     CSCVAndPBOAnalyzer,
-    CSCVPBOResult,
 )
 
 

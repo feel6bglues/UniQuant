@@ -126,3 +126,49 @@ class TestCostConfig:
         from uniquant.shared.cost_model import CostConfig
         cfg = CostConfig(sell_fee_pct=0.0003, stamp_tax_pct=0.0005, transfer_fee_pct=0.00001)
         assert_almost_equal(cfg.cost_sell, 0.00081)
+
+
+class TestTransferFeeUnified:
+    """过户费全市场统一口径（2022-04-29 中国结算新规）。
+
+    沪深北 A 股统一 0.01‰ 双向收取；修复历史缺陷：漏 688（科创板），且误判深市免收。
+    """
+
+    def test_sh_main_and_star_charge_fee(self):
+        from uniquant.shared.cost_model import _has_transfer_fee
+        assert _has_transfer_fee("600519.SH") is True       # 沪市主板
+        assert _has_transfer_fee("688981.SH") is True       # 科创板（历史遗漏）
+        assert _has_transfer_fee("689009.SH") is True
+
+    def test_sz_boards_charge_fee(self):
+        from uniquant.shared.cost_model import _has_transfer_fee
+        assert _has_transfer_fee("000001.SZ") is True       # 深市主板
+        assert _has_transfer_fee("002594.SZ") is True       # 中小板
+        assert _has_transfer_fee("300750.SZ") is True       # 创业板
+        assert _has_transfer_fee("301001.SZ") is True
+
+    def test_bj_boards_charge_fee(self):
+        from uniquant.shared.cost_model import _has_transfer_fee
+        assert _has_transfer_fee("832000.BJ") is True
+        assert _has_transfer_fee("920001.BJ") is True
+
+    def test_non_stock_instruments_exempt(self):
+        from uniquant.shared.cost_model import _has_transfer_fee
+        assert _has_transfer_fee("510300.SH") is False      # 沪市 ETF
+        assert _has_transfer_fee("159915.SZ") is False      # 深市 ETF
+        assert _has_transfer_fee("000001.SH") is False      # 上证指数
+        assert _has_transfer_fee("399001.SZ") is False      # 深证成指
+        assert _has_transfer_fee("") is False
+
+    def test_vectorized_mask_matches_scalar(self):
+        from uniquant.shared.cost_model import _has_transfer_fee, has_transfer_fee_mask
+        symbols = ["600519.SH", "688981.SH", "000001.SZ", "510300.SH", "920001.BJ", ""]
+        mask = has_transfer_fee_mask(symbols)
+        assert list(mask) == [_has_transfer_fee(s) for s in symbols]
+
+    def test_calculate_total_cost_includes_fee_for_star(self):
+        from uniquant.shared.cost_model import calculate_total_cost
+        # 深市与科创板现在均含过户费（此前为 0）
+        assert calculate_total_cost(100000.0, is_sell=False, symbol="688981.SH") > calculate_total_cost(
+            100000.0, is_sell=False, symbol="510300.SH"
+        )

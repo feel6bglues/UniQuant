@@ -259,18 +259,21 @@ def test_halt_volume_zero_rejected():
     assert fill.executed_shares[0] == 0, "Rejected buy must have 0 shares"
 
 
-def test_transfer_fee_sz_exempt():
+def test_transfer_fee_all_market_unified():
+    """2022-04-29 起中国结算对沪深北 A 股统一按 0.01‰ 双向收取过户费（含科创板 688）。"""
     eng = UnifiedMatchingEngine(min_commission=5.0)
-    px = np.array([10.0, 10.0, 10.0], dtype=np.float64)
-    sh = np.array([100, 100, 100], dtype=np.int64)
-    ca = np.array([2000.0, 2000.0, 2000.0], dtype=np.float64)
-    pc = np.array([9.8, 9.8, 9.8], dtype=np.float64)
-    sym = np.array(["000001.SZ", "300001.SZ", "600001.SH"])
-    ts = np.array(["2024-01-02"] * 3, dtype=object)
-    vol = np.array([1000000, 1000000, 1000000], dtype=np.float64)
-    adv = np.array([5000000, 5000000, 5000000], dtype=np.float64)
+    px = np.array([10.0, 10.0, 10.0, 10.0, 10.0, 10.0], dtype=np.float64)
+    sh = np.array([100, 100, 100, 100, 100, 100], dtype=np.int64)
+    ca = np.array([2000.0] * 6, dtype=np.float64)
+    pc = np.array([9.8] * 6, dtype=np.float64)
+    # 前 4 只为 A 股（含深市 000/300 与沪市 60/688），后 2 只为 ETF（不缴过户费）
+    sym = np.array(["000001.SZ", "300001.SZ", "600001.SH", "688001.SH", "510300.SH", "159915.SZ"])
+    ts = np.array(["2024-01-02"] * 6, dtype=object)
+    vol = np.array([1000000.0] * 6, dtype=np.float64)
+    adv = np.array([5000000.0] * 6, dtype=np.float64)
 
     fill = eng.fill_buy(px, sh, ca, pc, sym, ts, vol, adv)
-    assert fill.transfer_fees[0] == 0.0, "SZ 00xxxx should have no transfer fee"
-    assert fill.transfer_fees[1] == 0.0, "SZ 30xxxx should have no transfer fee"
-    assert fill.transfer_fees[2] > 0.0, "SH 60xxxx should have transfer fee"
+    for i in range(4):
+        assert fill.transfer_fees[i] > 0.0, f"{sym[i]} (A 股) 应统一缴纳过户费"
+    assert fill.transfer_fees[4] == 0.0, "ETF 510300.SH 不缴过户费"
+    assert fill.transfer_fees[5] == 0.0, "ETF 159915.SZ 不缴过户费"

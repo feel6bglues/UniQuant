@@ -3,7 +3,8 @@
 在多引擎并行输出场景下, 仲裁器按优先级规则选择最终信号:
   1. SELL 始终优先于 BUY (LPPL 不可覆盖)
   2. 同方向信号取最高 confidence
-  3. 引擎优先级: LPPL > FSM > CZSC > Wyckoff > Regime > NTF > Alpha
+  3. 引擎优先级: FSM > CZSC > Wyckoff > Regime > NTF > Alpha > MA
+     (LPPL 已经 Monte-Carlo 证伪为零预测力，降为遥测层，不再参与方向决策/强制平仓)
 
 设计原则:
   - 不修改原始信号列表 (不可变)
@@ -25,8 +26,11 @@ from ..shared.time_provider import get_time_provider
 logger = get_logger(__name__)
 
 # 引擎优先级 (数值越小优先级越高)
+# ⚠️ LPPL 已降为**遥测层**：经 Monte-Carlo 证伪其零预测力（93% GBM 噪声可拟合 R²>0.3），
+#    默认不再产 SELL（适配器 diagnostic_only=True），此处亦降至最低优先级（99=未知引擎级），
+#    避免其残留成为“一票否决强平”的来源；如需风控否决请显式配置并有质量门兜底。
 ENGINE_PRIORITY: Dict[str, int] = {
-    "lppl": 0,
+    "lppl": 99,
     "fsm": 1,
     "czsc": 2,
     "wyckoff": 3,

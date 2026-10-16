@@ -19,12 +19,24 @@ from uniquant.shared.interfaces import TradingSignal
 
 class TestLPPLAdapter:
     def _adapt(
-        self, risk: str = "Safe", confidence: float = 0.0, **kwargs
+        self, risk: str = "Safe", confidence: float = 0.0, diagnostic_only: bool = False, **kwargs
     ) -> Optional[TradingSignal]:
-        adapter = LPPLAdapter()
+        # 默认构造 diagnostic_only=False 以单独验证 SELL 逻辑；默认遥测行为另测。
+        adapter = LPPLAdapter(diagnostic_only=diagnostic_only)
         raw: Dict[str, Any] = {"risk_level": risk, "confidence": confidence, "price": 10.0}
         raw.update(kwargs)
         return adapter.adapt(raw, "000001.SZ", timestamp=datetime.datetime(2024, 6, 1))
+
+    def test_default_is_diagnostic_only_telemetry(self):
+        """默认构造必须为遥测模式：Danger 不产 SELL，仅记录诊断特征。"""
+        adapter = LPPLAdapter()
+        assert adapter.diagnostic_only is True
+        sig = adapter.adapt(
+            {"risk_level": "Danger", "confidence": 0.9, "price": 10.0}, "000001.SZ"
+        )
+        assert sig is not None
+        assert sig.action == "HOLD"
+        assert sig.metadata["diagnostic_only"] is True
 
     def test_danger_high_conf_sells(self):
         sig = self._adapt("Danger", 0.8)
@@ -51,7 +63,7 @@ class TestLPPLAdapter:
         assert sig is None
 
     def test_uses_risk_fallback_key(self):
-        sig = LPPLAdapter().adapt(
+        sig = LPPLAdapter(diagnostic_only=False).adapt(
             {"risk": "Danger", "bubble_confidence": 0.7, "price": 10.0},
             "000001.SZ", timestamp=datetime.datetime(2024, 6, 1),
         )
@@ -76,7 +88,7 @@ class TestLPPLAdapter:
         assert sig.metadata["diagnostic_only"] is True
 
     def test_min_r2_gate_downgrades_poor_fits(self):
-        adapter = LPPLAdapter(min_r2=0.5, min_oos_r2=0.0)
+        adapter = LPPLAdapter(min_r2=0.5, min_oos_r2=0.0, diagnostic_only=False)
         # Poor in-sample R²
         sig = adapter.adapt(
             {"risk_level": "Danger", "confidence": 0.85, "price": 10.0, "r_squared": 0.3},

@@ -11,7 +11,7 @@ import numpy as np
 import pandas as pd
 
 from ...shared.constants import BacktestConstants, MarketConstants
-from ...shared.cost_model import TRANSFER_FEE_PCT, get_stamp_tax_pct
+from ...shared.cost_model import TRANSFER_FEE_PCT, get_stamp_tax_pct, has_transfer_fee_mask
 from ...shared.limit_checker import get_board_type
 from ...shared.market_rules import get_board_rule
 from ...shared.slippage_model import SlippageModel
@@ -203,8 +203,8 @@ class UnifiedMatchingEngine:
 
         values = exec_prices * shares_requested
         commissions = np.maximum(values * self.commission_rate, self.min_commission)
-        sh_mask = np.array([s.startswith("60") for s in symbols], dtype=bool)  # 向量化版。标量版在 cost_model.py:48
-        transfer_fees = np.where(sh_mask, values * TRANSFER_FEE_PCT, 0.0)  # 过户费(仅沪市)
+        fee_mask = has_transfer_fee_mask(symbols)  # 过户费(全市场 A 股统一 0.01‰)。标量版在 cost_model.py
+        transfer_fees = np.where(fee_mask, values * TRANSFER_FEE_PCT, 0.0)
         total_costs = values + commissions + transfer_fees
 
         cash_shortfall = total_costs > cash_available
@@ -223,7 +223,7 @@ class UnifiedMatchingEngine:
 
         values = exec_prices * shares_adj
         commissions = np.maximum(values * self.commission_rate, self.min_commission)
-        transfer_fees = np.where(sh_mask, values * TRANSFER_FEE_PCT, 0.0)
+        transfer_fees = np.where(fee_mask, values * TRANSFER_FEE_PCT, 0.0)
         total_costs = values + commissions + transfer_fees
 
         rejected_mask = limit_rejected | volume_zero | (shares_adj <= 0)
@@ -292,8 +292,8 @@ class UnifiedMatchingEngine:
         date_to_rate = {d: get_stamp_tax_pct(d) for d in unique_dates}
         rates = np.array([date_to_rate[d.date()] for d in stamp_dates])
         stamp_duties = values * rates
-        sh_mask = np.array([s.startswith("60") for s in symbols], dtype=bool)  # 向量化版。标量版在 cost_model.py:48
-        transfer_fees = np.where(sh_mask, values * TRANSFER_FEE_PCT, 0.0)  # 过户费(仅沪市)
+        fee_mask = has_transfer_fee_mask(symbols)  # 过户费(全市场 A 股统一 0.01‰)。标量版在 cost_model.py
+        transfer_fees = np.where(fee_mask, values * TRANSFER_FEE_PCT, 0.0)
 
         rejected = limit_rejected | volume_zero | t1_violation | (shares_clamped <= 0)
 

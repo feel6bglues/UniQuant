@@ -11,7 +11,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 import numpy as np
 import scipy.stats as stats
 
@@ -201,6 +201,12 @@ class ClassBEvaluator:
         size_corr_series: np.ndarray,
         top_industry_weights: np.ndarray,
     ) -> Tuple[bool, GateResult]:
+        # 防御性归一：调用方可能传入 Python list / 序列，直接 `** 2` 会抛
+        # TypeError: unsupported operand type(s) for ** or pow(): 'list' and 'int'
+        top_industry_weights = np.asarray(top_industry_weights, dtype=np.float64).ravel()
+        if top_industry_weights.size == 0:
+            top_industry_weights = np.zeros(1, dtype=np.float64)
+
         pure_ic_mean = float(np.mean(pure_ic_series))
         pure_ic_nw_t = float(
             pure_ic_mean / max(np.std(pure_ic_series) / np.sqrt(len(pure_ic_series)), 1e-8)
@@ -437,55 +443,89 @@ class AlphaTierEngine:
         daily_returns: Optional[List[float]] = None,
         turnover_series: Optional[List[float]] = None,
         audit_metadata: Optional[Dict[str, Any]] = None,
+        *,
+        residual_ic_series: Optional[Sequence[float]] = None,
+        pbo_value: Optional[float] = None,
+        gate_inputs: Optional[Dict[str, Dict[str, Any]]] = None,
     ) -> PromotionReport:
-        """简化版统一候选因子/策略四阶门禁评估"""
-        audit_metadata = audit_metadata or {}
+        """统一候选因子/策略四阶门禁评估（诚实版，**禁止捷径伪造**）。
+
+        与 :meth:`promote_candidate` 的区别仅在于本方法以候选的 IC / 收益 / 换手序列
+        为输入起点，但绝不伪造防过拟合门禁所需的真实量：
+
+        * **Class A**：动量残差 IC 与 PBO 必须由调用方以真实计算结果显式提供
+          （``residual_ic_series`` / ``pbo_value``）。缺失时判定为 ``TIER_UNRATED``
+          并附明确拒绝原因，**绝不**回退到"原始 IC 自比 + 硬编码 PBO"的捷径。
+        * **Class B/C/D**：真实指标须经 ``gate_inputs``（键 ``b`` / ``c`` / ``d``）
+          提供；某级缺失即在该级终止，**绝不**以常量填充。
+
+        历史缺陷（已修复）：捷径路径曾把 ``residual_ic_series=ic_series``、
+        ``pbo_value=0.15``、``calculated_capacity=5e8``、``cleanroom_rank_corr=0.9995``
+        等常量灌入 B/C/D，使 A 股最关键的"动量残差门 + PBO 过拟合门"形同虚设，
+        并因 ``top_industry_weights`` 传入 Python list 而在 ``list ** 2`` 处崩溃。
+        """
+        audit_metadata = {
+            **(audit_metadata or {}),
+            "evaluated_via": "evaluate_candidate",
+        }
+
+        # ---- 诚实门禁：拒绝任何捷径 / 伪造输入 ----
+        missing: List[str] = []
+        if residual_ic_series is None:
+            missing.append("residual_ic_series（真实动量残差 IC 序列）")
+        if pbo_value is None:
+            missing.append("pbo_value（真实 Bootstrap PBO 值）")
+        if missing:
+            return PromotionReport(
+                factor_name=factor_name,
+                final_tier=AlphaTier.TIER_UNRATED,
+                rejection_reason=(
+                    "Class A 捷径已禁用：必须提供 " + "、".join(missing)
+                    + "。禁止以原始 IC 自比或硬编码 PBO 绕过动量残差门与 PBO 过拟合门。"
+                ),
+                audit_metadata={
+                    "evaluated_at": datetime.now(timezone.utc).isoformat(),
+                    "platform_cumulative_trials": self.ledger.total_trials,
+                    **audit_metadata,
+                },
+            )
+
         search_space = SearchSpaceSpec(name=f"search_space_{factor_name}", dimension=1)
 
-        ic_arr = np.array(ic_series, dtype=np.float64) if ic_series else np.array([0.0], dtype=np.float64)
-        if len(ic_arr) == 0:
-            ic_arr = np.array([0.0], dtype=np.float64)
+        ic_arr = (
+            np.asarray(ic_series, dtype=np.float64)
+            if len(ic_series)
+            else np.array([0.0], dtype=np.float64)
+        )
+        res_arr = np.asarray(residual_ic_series, dtype=np.float64)
 
         data_a = {
             "ic_series": ic_arr,
-            "residual_ic_series": ic_arr,
-            "pbo_value": 0.15,
+            "residual_ic_series": res_arr,
+            "pbo_value": float(pbo_value),
             "forecast_horizon": 5,
         }
 
-        data_b = {
-            "pure_ic_series": ic_arr,
-            "r2_series": np.full(len(ic_arr), 0.05),
-            "size_corr_series": np.zeros(len(ic_arr)),
-            "top_industry_weights": [0.08, 0.07, 0.05],
-        }
+        gate_inputs = gate_inputs or {}
+        data_b = gate_inputs.get("b")
+        data_c = gate_inputs.get("c")
+        data_d = gate_inputs.get("d")
 
-        rets = np.array(daily_returns, dtype=np.float64) if daily_returns else np.array([0.0], dtype=np.float64)
-        mean_ret = float(np.mean(rets)) if len(rets) > 0 else 0.0
-        std_ret = float(np.std(rets)) if len(rets) > 1 else 1e-6
-        ann_cagr = mean_ret * 252
-        ann_sharpe = (mean_ret / max(std_ret, 1e-6)) * np.sqrt(252)
-        turnover = float(np.mean(turnover_series)) if turnover_series else 0.05
-
-        data_c = {
-            "net_cagr": ann_cagr,
-            "net_sharpe": ann_sharpe,
-            "gross_sharpe": ann_sharpe,
-            "net_mdd": -0.10,
-            "daily_turnover": turnover,
-            "regime_sharpes": {"bull": ann_sharpe * 1.1, "bear": ann_sharpe * 0.9},
-            "portfolio_median_adv": 50_000_000.0,
-            "calculated_capacity": 500_000_000.0,
-        }
-
-        data_d = {
-            "cleanroom_rank_corr": 0.9995,
-            "is_sharpe": ann_sharpe,
-            "quarantine_oos_sharpe": ann_sharpe * 0.9,
-            "adversarial_sharpe": ann_sharpe * 0.85,
-            "sharpe_variance": 0.25,
-            "sample_length_t": len(rets),
-        }
+        # Class C 的收益派生量（净年化 / 夏普 / 换手）可由真实日收益序列诚实推算，
+        # 其余（回撤 / Regime / 容量）必须由调用方提供。此处仅以真实收益序列补全
+        # 缺省值，不做任何常量伪造。
+        if data_c:
+            data_c = dict(data_c)
+            rets = np.asarray(daily_returns or [0.0], dtype=np.float64)
+            mean_ret = float(np.mean(rets)) if rets.size > 0 else 0.0
+            std_ret = float(np.std(rets)) if rets.size > 1 else 1e-6
+            data_c.setdefault("net_cagr", mean_ret * 252.0)
+            data_c.setdefault("net_sharpe", (mean_ret / max(std_ret, 1e-6)) * np.sqrt(252.0))
+            data_c.setdefault("gross_sharpe", data_c["net_sharpe"])
+            data_c.setdefault(
+                "daily_turnover",
+                float(np.mean(turnover_series)) if turnover_series else 0.0,
+            )
 
         rep = self.promote_candidate(
             factor_name=factor_name,
@@ -505,9 +545,9 @@ class AlphaTierEngine:
         family_id: str,
         search_space: SearchSpaceSpec,
         data_a: Dict[str, Any],
-        data_b: Dict[str, Any],
-        data_c: Dict[str, Any],
-        data_d: Dict[str, Any],
+        data_b: Optional[Dict[str, Any]] = None,
+        data_c: Optional[Dict[str, Any]] = None,
+        data_d: Optional[Dict[str, Any]] = None,
     ) -> PromotionReport:
         report = PromotionReport(
             factor_name=factor_name,
@@ -538,6 +578,9 @@ class AlphaTierEngine:
         report.final_tier = AlphaTier.TIER_A
 
         # ---------------- Gate 2: Class B ----------------
+        if not data_b:
+            report.rejection_reason = "缺少 Class B 真实输入（禁止捷径伪造，未评估）"
+            return report
         passed_b, res_b = ClassBEvaluator.evaluate(
             raw_ic_mean=res_a.metrics["mean_ic"],
             pure_ic_series=data_b["pure_ic_series"],
@@ -553,6 +596,9 @@ class AlphaTierEngine:
         report.final_tier = AlphaTier.TIER_B
 
         # ---------------- Gate 3: Class C ----------------
+        if not data_c:
+            report.rejection_reason = "缺少 Class C 真实输入（禁止捷径伪造，未评估）"
+            return report
         passed_c, res_c = ClassCEvaluator.evaluate(
             net_cagr=data_c["net_cagr"],
             net_sharpe=data_c["net_sharpe"],
@@ -571,6 +617,9 @@ class AlphaTierEngine:
         report.final_tier = AlphaTier.TIER_C
 
         # ---------------- Gate 4: Class D ----------------
+        if not data_d:
+            report.rejection_reason = "缺少 Class D 真实输入（禁止捷径伪造，未评估）"
+            return report
         passed_d, res_d = ClassDEvaluator.evaluate(
             cleanroom_rank_corr=data_d["cleanroom_rank_corr"],
             is_sharpe=data_d["is_sharpe"],

@@ -12,9 +12,7 @@ from __future__ import annotations
 
 import argparse
 import sys
-from decimal import Decimal
 from pathlib import Path
-from typing import Dict
 
 # 注入 UniQuant 源码路径
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
@@ -124,7 +122,7 @@ def main():
     print(f"    - 华泰证券 PB: {fut['pb_htsc_pb_contracts']} 手 (利用率: {fut['pb_htsc_pb_contracts']/1200*100:.2f}%)")
     print(f"    - 占用保证金: {fut['margin_required_cny']:,.2f} CNY (15% 保证金率)")
 
-    print(f"\n[4] 事前风控签证结果 (Pre-Trade Compliance Verdict):")
+    print("\n[4] 事前风控签证结果 (Pre-Trade Compliance Verdict):")
     print(f"    - 审查结论: {pack.compliance_report.verdict}")
     print(f"    - SHA-256 签名: {pack.manifest_hash}")
     print(f"    - 导出落盘目录: {pack.output_dir}")

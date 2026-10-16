@@ -9,12 +9,11 @@ LPPL 临界泡沫拟合器沙盒适配器 (LPPLStrategySandbox)
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
+from typing import List
 
 import numpy as np
 import pandas as pd
 
-from ...brain.lppl.calculator import lppl_func
 from .base_sandbox import BaseStrategySandbox, SandboxSignalEvaluation
 
 
@@ -51,7 +50,6 @@ class LPPLStrategySandbox(BaseStrategySandbox):
         # 模拟计算 LPPL 泡沫风险评分
         # 在真实计算中调用 calculator.py 拟合，沙盒内使用特征二阶曲率与对数周期震荡特征代理
         log_p = np.log(closes)
-        t = np.arange(n)
         
         # 简化滑窗高阶幂律曲率检测
         bubble_scores = np.zeros(n)

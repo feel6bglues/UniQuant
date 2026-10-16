@@ -20,7 +20,10 @@ def _write_min_all_stock_codes(data_dir) -> None:
     from pathlib import Path
     import pandas as pd
 
-    path = Path(data_dir) / "all_stock_codes.csv"
+    # 防御干净环境：父目录可能不存在（历史上依赖开发机残留 /tmp 目录 → 假绿）
+    root = Path(data_dir)
+    root.mkdir(parents=True, exist_ok=True)
+    path = root / "all_stock_codes.csv"
     if not path.exists():
         pd.DataFrame({
             "code": ["sh.600000"], "name": ["浦发银行"], "代码": ["600000"],

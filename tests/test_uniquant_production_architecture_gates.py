@@ -18,7 +18,6 @@ CNMM RESEARCH OS v3.0 & UniQuant: 作战单元 C 生产级工程与数理门禁�
 import os
 import ast
 import sys
-import json
 import time
 import shutil
 import logging
@@ -39,16 +38,12 @@ CNNM_SCRATCH = CNNM_ROOT / "scratch"
 if str(CNNM_SCRATCH) not in sys.path:
     sys.path.insert(0, str(CNNM_SCRATCH))
 
-from uniquant.services.portfolio_service import PortfolioService
-from uniquant.shared.exceptions import PortfolioServiceError
-from order_state_machine import (
+from uniquant.services.portfolio_service import PortfolioService  # noqa: E402
+from order_state_machine import (  # noqa: E402
     SQLiteWALOrderStateMachine,
-    ParentOrder,
-    ChildSlice,
     ParentOrderStatus,
     ChildSliceStatus,
     OrderSide,
-    AlgoType,
 )
 
 

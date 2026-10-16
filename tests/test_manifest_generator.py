@@ -13,7 +13,6 @@ import pandas as pd
 import pytest
 
 from uniquant.risk.compliance_engine import (
-    ComplianceReport,
     PreTradeComplianceEngine,
 )
 from uniquant.services.manifest_generator import ManifestGenerator, ManifestPack

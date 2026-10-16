@@ -32,6 +32,14 @@ def _index_df(n: int = 900, seed: int = 11) -> pd.DataFrame:
     })
 
 
+class TestLiquidityFloor:
+    def test_production_amount_floor_is_20m(self):
+        """P2: H-A 生产主版本必须启用 2000 万 ADV 地板（无地板仅研究对照）。"""
+        from scripts.canslim import daily_signal_ha as runner
+
+        assert runner.AMOUNT_FLOOR == 20_000_000.0
+
+
 class TestStateCanonicalConsistency:
     def test_matches_canonical_pit_states(self):
         idx = _index_df()

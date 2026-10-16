@@ -4,7 +4,9 @@
     python3 scripts/canslim/daily_signal_ha.py [--as-of YYYY-MM-DD]
 
 输出: results/h_a_signals/{date}.json  状态 + (在场时) 目标组合
-参数与预注册一致 (P7/P8/D+10 冻结); AMOUNT_FLOOR=None 主版本 / 2e7 回撤敏感变体。
+参数与预注册一致 (P7/P8/D+10 冻结); 生产主版本启用 ADV 地板块 (AMOUNT_FLOOR=2e7)。
+D+10/D+13 容量与环境对账实测: 无约束的极端微盘会因市场冲击吞噬收益 (全市场转负、回撤>50%),
+故生产默认带 2000 万 ADV 地板; 无地板口径仅作研究对照, 不作为可交易形态。
 """
 
 from __future__ import annotations
@@ -22,7 +24,9 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
 TOP_N = 30
-AMOUNT_FLOOR = None
+# 流动性地板 (ADV, 元)：D+10/D+13 实测无地板极端微盘摩擦吞噬收益 → 生产主版本启用 2000 万地板。
+# 无地板 (None) 口径仅为研究对照，非可交易形态。
+AMOUNT_FLOOR = 20_000_000.0
 LIMIT_UP_PCT = 0.095
 MA_WINDOW = 200
 VOL_PIT_WINDOW = 750

@@ -45,11 +45,48 @@ def get_stamp_tax_pct(trade_date: datetime.date) -> float:
     return STAMP_TAX_PCT if trade_date >= _STAMP_TAX_CUTOFF else STAMP_TAX_PCT_OLD
 
 
+def _symbol_parts(symbol: str) -> "tuple[str, str]":
+    if "." in symbol:
+        code, exch = symbol.split(".", 1)
+        return code, exch.upper()
+    return symbol, ""
+
+
+# 过户费股票代码前缀（2022-04-29 起中国结算对沪深北 A 股统一 0.01‰ 双向收取）
+_SH_STOCK_PREFIXES = ("60", "68")                                    # 沪市主板 + 科创板(688/689)
+_SZ_STOCK_PREFIXES = ("000", "001", "002", "003", "300", "301", "302")  # 深市主板/中小板 + 创业板
+_BJ_STOCK_PREFIXES = ("43", "83", "87", "88", "920")                # 北交所（含新代码段 920xxx）
+
+
 def _has_transfer_fee(symbol: str) -> bool:
-    """沪市(60xxxx)收过户费，深市免收。
-    # 标量版。向量化版在 unified_matching_engine.py:186(buy),275(sell)
+    """A 股过户费征收判定（**全市场统一**口径）。
+
+    自 2022-04-29 起，中国结算对沪深北 A 股统一按成交金额 0.01‰（万0.1）**双向**收取过户费：
+
+    * 沪市主板 ``60xxxx`` 与**科创板** ``688/689xxx`` 均征收（修复历史实现漏掉 688 科创板的缺陷）；
+    * 深市 ``000/001/002/003/300/301/302xxx`` 与沪市同标准征收（废止旧"深市免收"口径）；
+    * 北交所 ``43/83/87/88/920xxx`` 征收。
+
+    非股票标的（指数 / ETF / 可转债等）不征收。无交易所后缀时按代码前缀推断。
+
+    标量版；向量化版 :func:`has_transfer_fee_mask` 供撮合引擎使用。
     """
-    return symbol.startswith("60")
+    if not symbol:
+        return False
+    code, exch = _symbol_parts(symbol)
+    if exch == "SH":
+        return code.startswith(_SH_STOCK_PREFIXES)
+    if exch == "SZ":
+        return code.startswith(_SZ_STOCK_PREFIXES)
+    if exch == "BJ":
+        return code.startswith(_BJ_STOCK_PREFIXES)
+    return code.startswith(_SH_STOCK_PREFIXES + _SZ_STOCK_PREFIXES + _BJ_STOCK_PREFIXES)
+
+
+def has_transfer_fee_mask(symbols) -> np.ndarray:
+    """向量化过户费掩码（供撮合引擎使用），语义与 :func:`_has_transfer_fee` 完全一致。"""
+
+    return np.array([_has_transfer_fee(str(s)) for s in symbols], dtype=bool)
 
 
 def calculate_total_cost(

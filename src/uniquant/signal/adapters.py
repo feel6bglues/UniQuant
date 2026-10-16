@@ -68,6 +68,12 @@ class LPPLAdapter(EngineAdapter):
 
     输入 keys: risk_level, confidence, bubble_confidence
     输出: SELL (Danger) / HOLD (Safe/Warning) — 从不产生 BUY
+
+    默认 ``diagnostic_only=True``（**遥测优先**）：LPPL 已被 Monte-Carlo 证伪为零预测力
+    引擎（93% GBM 噪声即可拟合 R²>0.3），故默认仅把风险等级作为遥测特征记入 metadata，
+    **不参与一票否决强平**。若确需 LPPL 行使风控否决，显式传 ``diagnostic_only=False``
+    并配合 ``min_r2`` / ``min_oos_r2`` 质量门使用。
+
     支持:
     - min_oos_r2 / min_r2 样本外拟合质量门：R² 破损时降级为 HOLD 诊断模式，杜绝虚假强平
     - diagnostic_only 诊断模式：作为遥测特征记录在 metadata，避免一票否决强平
@@ -75,7 +81,7 @@ class LPPLAdapter(EngineAdapter):
 
     def __init__(
         self,
-        diagnostic_only: bool = False,
+        diagnostic_only: bool = True,
         min_r2: Optional[float] = None,
         min_oos_r2: Optional[float] = None,
     ) -> None:
@@ -488,7 +494,8 @@ def create_default_registry() -> AdapterRegistry:
     """创建包含所有内置适配器的注册表
     docs: docs/reference/signal_types.md — 8 个引擎适配器"""
     registry = AdapterRegistry()
-    registry.register("lppl", LPPLAdapter())
+    # LPPL：零预测力（MC 证伪）→ 默认遥测（diagnostic_only=True），不产 SELL 强平
+    registry.register("lppl", LPPLAdapter(diagnostic_only=True))
     registry.register("czsc", CZSCAdapter())
     registry.register("wyckoff", WyckoffAdapter())
     registry.register("fsm", FSMAdapter())
