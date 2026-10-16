@@ -43,7 +43,26 @@ jobs:
         # `requires_gbbq` markers (tests/conftest.py) and skip with an explicit
         # reason rather than failing — or worse, passing vacuously on an empty
         # frame. Everything else must pass for real here.
-        run: pytest tests/ -q --tb=short
+        run: |
+          set +e
+          pytest tests/ -q --tb=short > /tmp/pytest.log 2>&1
+          rc=$?
+          cat /tmp/pytest.log
+          if [ "$rc" -ne 0 ]; then
+            # Publish a bounded digest as check-run annotations. A collection
+            # error aborts the session with "Interrupted: N errors during
+            # collection" and a tiny log, which is hard to triage from the
+            # Checks tab alone; these annotations make the root cause visible
+            # without downloading step logs.
+            {
+              grep -E 'Interrupted|errors? during collection' /tmp/pytest.log | head -3
+              grep -E '^E   ' /tmp/pytest.log | head -12
+              grep -E '^(ERROR|FAILED) ' /tmp/pytest.log | head -10
+            } 2>/dev/null | awk '!seen[$0]++' | head -20 \
+              | sed -e 's/%/%25/g' -e 's/\r//g' \
+              | while IFS= read -r line; do echo "::error title=pytest-digest::${line}"; done
+          fi
+          exit $rc
 
   coverage:
     # Separate job so the fast `test` job above still gives quick feedback.
