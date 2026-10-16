@@ -639,6 +639,7 @@ pytest **在收集期整体中断**。pytest 退出码语义：`0` 全过 / `1` 
 | 本机（含数据湖，`HOME` 污染修复生效） | 同上，skip 明细 | 仅 **2** 个 backtrader 缺依赖 skip；**此前 7 个**（多出的 5 个 = gbbq 真实数据用例被静默跳过） |
 | `ruff check src/uniquant/ tests/ scripts/` | — | **All checks passed!** |
 | 守卫正对照 ×2 | `test_guard_detects_*` | **pass**（两守卫均非空转；另有植入违规文件的端到端反证） |
+| **已绿化验证（真实 GitHub Actions，非本地等价）** | push `a434d68` → CI run **`38870946347`** | `test` 作业**全 8 步 success**（含此前长期被 skip 的 **`Lint with ruff`** 与 **`Test with pytest`**，后者 ~2.5 min 真跑：`Audit dependencies`/`Lint with ruff`/`Verify evidence manifest`/`Test with pytest` 全绿）；`coverage` 作业 **`Test with coverage gate` success**（~112 s ⇒ CI 上 `--cov-fail-under=74` 达标）；`Security Audit` run **`38870946235`** success → **三条 check-run 全绿**。这是自 `7509c2a` 以来 CI **首次全绿** |
 
 **附带发现（同一失败类：导入期全局状态改写 `HOME`）**：复现过程中本机全量套件出现 **7** 个 skip
 而非预期的 **2** 个——多出的 5 个正是 `test_tdx_parser_gbbq_mapping.py` 的真实数据用例。根因**实测定位**：

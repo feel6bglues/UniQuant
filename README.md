@@ -160,6 +160,7 @@ P2-3 数据湖/results 可复现性      ✅ 完成（证据白名单 + SHA-256 
 第四轮 CI 数据湖依赖收口          ✅ 完成（requires_lake/futures_lake/gbbq 三标记 + 集中跳过钩子）
 第五轮 CI 收集期中断修复          ✅ 完成（硬编码开发机兄弟仓路径 → 仓库内相对定位 + 防回归守卫）
 第五轮 测试导入期 HOME 污染修复    ✅ 完成（静默跳过 5 个真实数据用例 → 删除 + 第二条防回归守卫）
+第五轮 CI 首次全绿（自 7509c2a）   ✅ 完成（run 38870946347：test 全 8 步 + coverage + pip-audit 三绿）
 ```
 
 **闭环验证（2026-10-16 第三轮实测，本机含数据湖）**：`pytest tests/` **3226 passed / 2 skipped / 0 failed**（收集 3228）；
@@ -174,6 +175,10 @@ P2-3 数据湖/results 可复现性      ✅ 完成（证据白名单 + SHA-256 
 覆盖率 **75.57%**（26,247 语句 / 6,411 未覆盖）≥ 门限 74%。真实数据用例依赖的本地数据湖
 （`data/lake/**`）、GBBQ 基线（`data/fq/gbbq.parquet`）与本地通达信客户端均不进版本库，
 CI 上由 `requires_lake` / `requires_futures_lake` / `requires_gbbq` 三标记**声明式跳过**（非静默通过）。
+
+**✅ CI 已全绿（2026-10-16 第五轮实测，真实 GitHub Actions）**：push `a434d68` → run **`38870946347`** —— `test` 作业全 8 步 success（含此前长期被 skip 的
+`Lint with ruff` 与 `Test with pytest`，后者 ~2.5 min 真跑）、`coverage` 作业 `Test with coverage gate` success（~112 s ⇒ CI 上 74% 门限达标）、
+`Security Audit` run `38870946235` success → **三条 check-run 全绿**。这是自 `7509c2a` 以来 CI 首次全绿。
 
 > ⚠️ **CI 曾长期红的三个串联成因**（第四轮曾单因归因于数据湖，已更正）：① `ruff` lint 失败（使 pytest 步骤被
 > skip）；② **测试收集期中断**——`tests/test_uniquant_production_architecture_gates.py` 硬编码开发机兄弟仓
