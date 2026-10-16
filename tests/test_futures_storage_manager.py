@@ -60,6 +60,7 @@ def test_get_contract():
     assert c_cont.multiplier == 200.0
 
 
+@pytest.mark.requires_futures_lake
 def test_contract_chain_and_dominant():
     mgr = FuturesStorageManager()
     dt = pd.Timestamp("2024-03-15")
@@ -76,6 +77,7 @@ def test_contract_chain_and_dominant():
     assert dom in symbols
 
 
+@pytest.mark.requires_futures_lake
 def test_dynamic_basis_surface():
     mgr = FuturesStorageManager()
     dt = pd.Timestamp("2024-03-15")
@@ -94,6 +96,7 @@ def test_dynamic_basis_surface():
         assert c["futures_settle"] > 0
 
 
+@pytest.mark.requires_futures_lake
 def test_mlsi_hedge_ratio():
     mgr = FuturesStorageManager()
     dt = pd.Timestamp("2024-03-15")
@@ -104,6 +107,7 @@ def test_mlsi_hedge_ratio():
     assert pytest.approx(sum(weights.values())) == 1.0
 
 
+@pytest.mark.requires_futures_lake
 def test_im0_parquet_lake_integrity():
     """验证 IM0 数据湖完备性 (解决 IM 完全空白缺陷 + 结算价非零 + 2017-2026 全覆盖)"""
     mgr = FuturesStorageManager()
@@ -119,6 +123,7 @@ def test_im0_parquet_lake_integrity():
     assert len(splice_sub) >= 4
 
 
+@pytest.mark.requires_futures_lake
 def test_quarterly_contracts_replenished():
     """验证 2025Q2 至 2026Q3 的 6 个季度合约全部就绪且 settle 具备真实数据"""
     mgr = FuturesStorageManager()

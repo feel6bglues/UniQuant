@@ -13,6 +13,7 @@ from __future__ import annotations
 from pathlib import Path
 import numpy as np
 import pandas as pd
+import pytest
 
 from uniquant.hands.backtest.unified_engine import (
     UnifiedBacktestEngine,
@@ -59,10 +60,14 @@ class TestExecutionBenchmark:
             assert "stamp_duty" in trade
             assert "pnl" in trade
 
+    @pytest.mark.requires_lake
     def test_execution_replay_zero_regression(self):
         """
         确定性回放回归：在 2023 冻结历史区间重跑 UnifiedBacktestEngine，
         断言成交数、收益率、最终现金、逐笔 TradeRecord 与资金曲线 100% 零回归。
+
+        注: 标的数据来自本地数据湖 (data/lake/, gitignored)。湖缺失时由
+        `requires_lake` 标记声明式跳过 (非静默); 湖存在而标的缺失仍会硬失败。
         """
         assert BASELINE_FILE.exists()
         baseline_df = pd.read_parquet(BASELINE_FILE).set_index("symbol")

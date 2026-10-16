@@ -36,16 +36,27 @@ jobs:
         run: python scripts/maintenance/evidence_manifest.py verify
 
       - name: Test with pytest
+        # Real-data regression tests read the local, gitignored data lake
+        # (data/lake/**), the GBBQ baseline (data/fq/gbbq.parquet) and/or the
+        # local TDX client; none of these exist on a CI runner. They declare
+        # that dependency via the `requires_lake` / `requires_futures_lake` /
+        # `requires_gbbq` markers (tests/conftest.py) and skip with an explicit
+        # reason rather than failing — or worse, passing vacuously on an empty
+        # frame. Everything else must pass for real here.
         run: pytest tests/ -q --tb=short
 
   coverage:
     # Separate job so the fast `test` job above still gives quick feedback.
-    # `--cov-fail-under` is a *regression floor*: the measured full-package
-    # coverage at the time of writing is 76.05% (see `.coveragerc` and
-    # docs/analysis/POST_SIMPLIFICATION_ARCHITECTURE_TRADING_EVALUATION_20261016.md §7).
-    # The floor is set ~2 points below the measurement so that minor
-    # environment differences cannot produce a spurious failure, while a real
-    # regression (dropping >500 uncovered statements) still fails the build.
+    # `--cov-fail-under` is a *regression floor*. Two measurements are on record:
+    #   * 75.57% (26,247 stmts / 6,412 missed) — CI-faithful environment, i.e.
+    #     no data lake, so the `requires_*` real-data tests skip;
+    #   * 76.05% (26,247 stmts / 6,285 missed) — developer machine WITH the
+    #     local data lake, where those tests actually run.
+    # See `.coveragerc` and
+    # docs/analysis/POST_SIMPLIFICATION_ARCHITECTURE_TRADING_EVALUATION_20261016.md §7.
+    # The floor sits ~1.6 points below the *lower* (CI-faithful) measurement so
+    # that minor environment differences cannot produce a spurious failure,
+    # while a real regression (dropping >400 uncovered statements) still fails.
     # The repository coding standard's 80% aspiration is still unmet — this gate
     # only guarantees coverage never silently drops.
     runs-on: ubuntu-latest

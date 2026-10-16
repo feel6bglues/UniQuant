@@ -9,6 +9,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+import pytest
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(PROJECT_ROOT))
@@ -194,6 +195,7 @@ class TestBuildReconciliation:
 # ─── build_holdings_map 5 日再平衡鞍律回归 (P13 修复) ────────────────────────
 
 
+@pytest.mark.requires_lake
 class TestHoldingsMapCadence:
     def test_five_day_cadence_not_daily_rebuild(self):
         """Top30 应只在再平衡日重建, 非再平衡热日沿用旧持仓 (修复每日重建 bug)。"""

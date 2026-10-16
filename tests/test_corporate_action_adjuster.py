@@ -2,17 +2,20 @@
 
 import numpy as np
 import pandas as pd
+import pytest
 
 from uniquant.data.corporate_action import get_corporate_action_adjuster
 from scripts.factor_mining.data_loader import load_universe
 
 
+@pytest.mark.requires_gbbq
 def test_corporate_action_adjuster_initialization():
     adjuster = get_corporate_action_adjuster()
     assert adjuster._is_loaded is True
     assert len(adjuster._events_by_code) > 5000
 
 
+@pytest.mark.requires_lake
 def test_adjust_dataframe_qfq_yunnan_baiyao():
     """验证云南白药 (000538.SZ) 2022-05-05 10送4派16元真实经济收益。"""
     adjuster = get_corporate_action_adjuster()
@@ -35,6 +38,7 @@ def test_adjust_dataframe_qfq_yunnan_baiyao():
     assert np.isclose(ret, 0.027372, atol=1e-4)
 
 
+@pytest.mark.requires_lake
 def test_adjust_dataframe_qfq_pingan_bank():
     """验证平安银行 (000001.SZ) 1991 年原始上市价 49 元复权至 0.21 元。"""
     adjuster = get_corporate_action_adjuster()
@@ -54,6 +58,7 @@ def test_adjust_dataframe_qfq_pingan_bank():
     assert np.isclose(latest_row["close"], df.sort_values("date").iloc[-1]["close"])
 
 
+@pytest.mark.requires_lake
 def test_adjust_dataframe_hfq():
     """验证后复权 (HFQ) 首日因子为 1.0，最新日价格放大。"""
     adjuster = get_corporate_action_adjuster()
@@ -67,6 +72,7 @@ def test_adjust_dataframe_hfq():
     assert last_factor > 15.0  # 云南白药后复权累积倍数超过 15 倍
 
 
+@pytest.mark.requires_lake
 def test_adjust_dataframe_none():
     adjuster = get_corporate_action_adjuster()
     df = pd.read_parquet("data/lake/quotes/daily/000538.SZ.parquet")
@@ -75,6 +81,7 @@ def test_adjust_dataframe_none():
     pd.testing.assert_frame_equal(df, df_none)
 
 
+@pytest.mark.requires_gbbq
 def test_stock_with_no_events():
     adjuster = get_corporate_action_adjuster()
     dates = pd.bdate_range("2024-01-02", periods=10)
@@ -90,6 +97,7 @@ def test_stock_with_no_events():
     assert np.allclose(adjusted["adj_factor"], 1.0)
 
 
+@pytest.mark.requires_lake
 def test_load_universe_with_qfq():
     df_raw = load_universe(symbols=["000538.SZ"], min_days=100)
     df_qfq = load_universe(symbols=["000538.SZ"], min_days=100, adjust="qfq")

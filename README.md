@@ -145,23 +145,30 @@ UniQuant/
 数据源收敛 (Step 0-5)          ✅ 完成（单源湖优先只读 + QFQ 官方对账闭环）
 仓内大清理 (39 废弃模块)        ✅ 完成
 P0-1 四阶门禁诚实化             ✅ 完成（禁止伪造 B/C/D 输入）
-P0-2 CI 归零 + 测试环境隔离      ✅ 完成（ruff 0 / 干净环境 0 fail）
+P0-2 CI 归零 + 测试环境隔离      ✅ 完成（ruff 0 / 本地 `/tmp` 依赖清除）
+P0-2 CI 真绿化（数据湖依赖）      ✅ 完成（130 个真实数据用例声明式跳过，CI 两作业全绿）
 P2-1 过户费全市场统一            ✅ 完成（沪深北 A 股 0.01‰ 双向）
 P2-2 LPPL 降为遥测               ✅ 完成（diagnostic_only 默认开，仲裁优先级最低）
 P2-3 H-A 运行器对齐 ADV 地板     ✅ 完成
 P1-1 科研控制平面接入生产因子链   ✅ 完成（自由度账本覆盖扫描/回测因子链）
 P1-2 文档漂移修复                ✅ 完成（README / docs/index.md / CLAUDE.md）
-P2-3 CI 覆盖率门                 ✅ 完成（实测 76.05%，门限 74% 作回归地板）
+P2-3 CI 覆盖率门                 ✅ 完成（CI 口径实测 75.57%，门限 74% 作回归地板）
 P2-3 数据湖/results 可复现性      ✅ 完成（证据白名单 + SHA-256 内容哈希账本 + CI 校验）
 第三轮 数据层补测                ✅ 完成（data/ 53.9% → 94.2%；13 文件 / 634 用例）
 第三轮 历史文档漂移根治          ✅ 完成（docs/reanalysis 60 文件 + docs/archive 10 文件加历史横幅）
 第三轮 潜在缺陷修复              ✅ 完成（parse_day_file 截断/NaT、storage_manager 路径遍历）
+第四轮 CI 真绿化                 ✅ 完成（requires_lake/futures_lake/gbbq 三标记 + 集中跳过钩子）
 ```
 
-**闭环验证（2026-10-16 第三轮实测）**：`pytest tests/` **3226 passed / 2 skipped / 0 failed**（收集 3228）；
+**闭环验证（2026-10-16 第三轮实测，本机含数据湖）**：`pytest tests/` **3226 passed / 2 skipped / 0 failed**（收集 3228）；
 `-n 8 --cov` 同口径且逐位一致，覆盖率 **76.05%**（`data/` 层 **94.2%**，最弱层转为 `services/` 63.8%）；
 `ruff check src/uniquant/ tests/ scripts/` **All checks passed!**；
 `python scripts/maintenance/evidence_manifest.py verify` → **no drift**（50 证据文件 / 942,274 B）。
+
+**CI 口径（2026-10-16 第四轮实测，无数据湖）**：`pytest tests/` **0 failed / 0 error**（收集 3228，**151 skipped**，每个跳过均带显式原因）；
+覆盖率 **75.57%**（26,247 语句 / 6,412 未覆盖）≥ 门限 74%。真实数据用例依赖的本地数据湖
+（`data/lake/**`）、GBBQ 基线（`data/fq/gbbq.parquet`）与本地通达信客户端均不进版本库，
+CI 上由 `requires_lake` / `requires_futures_lake` / `requires_gbbq` 三标记**声明式跳过**（非静默通过）。
 
 ---
 

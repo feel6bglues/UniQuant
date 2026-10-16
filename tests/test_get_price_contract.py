@@ -11,6 +11,7 @@ import inspect
 from unittest.mock import MagicMock, patch
 
 import pandas as pd
+import pytest
 
 from uniquant.data.data_fetcher import (
     GET_PRICE_LAKE_COLUMNS,
@@ -310,6 +311,7 @@ class TestGetPriceContract:
         assert share["amount"].iloc[0] == 10.0 * 100.0
 
     # ⑪ fetch_stock_daily 默认 adjust="qfq" 保持不变 + 内部改走 get_price 切片
+    @pytest.mark.requires_gbbq  # 默认 qfq 需 GBBQ 基线 (data/fq/gbbq.parquet, gitignored)
     def test_fetch_stock_daily_routes_through_get_price(self, tmp_path):
         sig = inspect.signature(DataFetcher.fetch_stock_daily)
         assert sig.parameters["adjust"].default == "qfq"

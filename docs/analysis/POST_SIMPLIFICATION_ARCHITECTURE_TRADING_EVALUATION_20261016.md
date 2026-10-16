@@ -179,6 +179,13 @@ OSError: Cannot save file into a non-existent directory: '/tmp/test_df_lake_firs
 在干净环境**必红**。手工 `mkdir -p` 后该文件 5/5 通过。
 
 > 结论：当前 CI 的"绿"是**假绿**，不可作为回归可信证据。
+>
+> **⚠️ 2026-10-16 口径更正（第四轮）**：第一轮把这条收敛为"干净环境 0 fail"，但那只清除了
+> **`/tmp` 残留目录**这一项环境依赖。**真实 CI 仍然红**——因为另有一类依赖从未被处理：
+> 约 **130 个"真实数据"用例**硬依赖本地、**gitignored** 的数据湖
+> （`data/lake/**`）、GBBQ 基线（`data/fq/gbbq.parquet`）与本地通达信客户端，而 CI 三者皆无。
+> 详见 §7.6（CI 真绿化）。下文 "(b)" 的 `2526 passed / 4 failed` 数字**仅**描述 `/tmp` 问题；
+> CI 真实的失败面是 **130**。
 
 ---
 
@@ -456,6 +463,90 @@ def _has_transfer_fee(symbol: str) -> bool:
 
 ---
 
+## 7.6 第四轮：CI 真绿化（本地数据湖依赖声明式跳过）
+
+**触发**：推送 `3cf39ac` 后 CI **`test` 作业失败**（run `38858639286`）。同期 origin 上 2026-10-13 的
+`7509c2a` 也是**失败**——即 CI 自那之后**一直是红的**，与本次推送无关。
+
+**根因（实测，非推断）**：`7509c2a`（"扩充执行基线覆盖…并消除静默 skip 硬化守护"）在
+`tests/benchmark/test_benchmark_execution.py` 里加了硬断言
+`assert quote_path.exists(), "执行基线标的数据文件缺失 (严禁静默 skip 掩盖)"`，指向
+`data/lake/quotes/daily/000001.SZ.parquet`——**该目录整个 gitignored，CI 上永远不存在**。
+同类的"真实数据"用例还有一批：它们读 `data/lake/**`、`data/fq/gbbq.parquet`（GBBQ 基线）
+或**本机 Wine 通达信客户端**（`~/.local/share/tdxcfv`）。CI runner 三者皆无 → 必红。
+
+> 即：第一轮 P0-2 只清掉了 **`/tmp` 残留目录**这一项环境依赖，而**数据湖依赖**从未处理；
+> 当时"干净环境 0 fail"的结论**不完整**（§3 P0-2 已加更正）。
+
+**复现方法（可复现，且不改动真实 `data/`）**：本机无 root，用**私有 mount 命名空间**
+把 CI 的数据环境"套"到工作树上——将 CI 仅有的 `data/`（2 个 tracked CSV）bind-mount 覆盖真实
+`data/`，并把本地通达信目录 bind-mount 到空目录：
+
+```bash
+REPO=/home/james/Documents/Project/UniQuant
+rm -rf /tmp/opencode/ci_data /tmp/opencode/ci_empty && mkdir -p /tmp/opencode/ci_data /tmp/opencode/ci_empty
+cp $REPO/data/all_stock_codes.csv $REPO/data/qualified_universe.csv /tmp/opencode/ci_data/
+unshare -rm --propagation private sh -c '
+  mount --bind /tmp/opencode/ci_data  '"$REPO"'/data
+  mount --bind /tmp/opencode/ci_empty /home/james/.local/share/tdxcfv
+  cd '"$REPO"' && .venv/bin/python -m pytest tests/ -q --tb=short -p no:cacheprovider
+'
+# 离开命名空间后 mount 自动消失，真实 data/ 与通达信目录未被触碰
+```
+
+> 注：`git clone` 到别处**不能**复现 CI——editable 安装（`.pth` → 真实仓库 `src/`）会让
+> `mootdx_local` 兜底读到本机通达信，掩盖缺失数据湖。必须同时屏蔽**数据湖**与**本地通达信**。
+
+**修复（纪律：只动测试，不改生产语义）**：`tests/conftest.py` 增三类**声明式标记** +
+集中跳过钩子 `pytest_collection_modifyitems`，缺数据时挂**显式 skip 原因**（点名缺失物与
+重建脚本），而非让它失败、更非让它**在空表上静默通过**：
+
+| 标记 | 判定 | 缺失时原因 |
+|---|---|---|
+| `requires_lake` | `data/lake/**` 存在任一 parquet | 本地数据湖未生成（gitignored） |
+| `requires_futures_lake` | `data/lake/futures/**` 存在 parquet | 期货数据湖未生成 |
+| `requires_gbbq` | `data/fq/gbbq.parquet` 存在 | GBBQ 基线缺失，附重建命令 |
+
+标记面（共 **130** 个用例）：
+
+| 文件 | 用例数 | 标记 |
+|---|---:|---|
+| `tests/test_csi300_qfq_smoke.py` | 109 | `requires_lake` + `requires_gbbq`（模块级） |
+| `tests/test_corporate_action_adjuster.py` | 5 + 2 | 5 × `requires_lake`；2 × `requires_gbbq`（初始化/无事件） |
+| `tests/test_futures_storage_manager.py` | 5 | `requires_futures_lake` |
+| `tests/test_cnmm_qar_strategy_and_backtest.py` | 4（2 类） | `requires_lake` |
+| `tests/scripts/test_ha_engineering.py` | 2 | `requires_lake`（`TestHoldingsMapCadence`） |
+| `tests/benchmark/test_benchmark_execution.py` | 1 | `requires_lake`（**保留**原"严禁静默 skip"断言：湖在而标的缺失仍硬失败） |
+| `tests/test_storage_freshness_sla.py` | 1 | `requires_lake` |
+| `tests/test_get_price_contract.py` | 1 | `requires_gbbq`（默认 qfq 路径） |
+
+同环境**修复前**的失败清单（实测，与上表逐项对应）：`test_csi300_qfq_smoke` 109、
+`test_corporate_action_adjuster` 7、`test_futures_storage_manager` 5、`test_ha_engineering` 2、
+`test_cnmm_qar_strategy_and_backtest` 4（2 类）、`test_benchmark_execution` 1、
+`test_get_price_contract` 1、`test_storage_freshness_sla` 1 = **130**。
+
+**验证（同一私有命名空间，逐项实测）**：
+
+| 口径 | 命令 | 结果 |
+|---|---|---|
+| **修复前**（守卫 stash 掉，同一命名空间） | `pytest tests/ -q --tb=no --junit-xml=…` | **126 failed / 4 error** = 失败面 **130**（同环境 21 skip）→ `errors="4" failures="126" skipped="21" tests="3228"` |
+| **修复后** `test` 作业 | 同上 | **0 failed / 0 error**（`errors="0" failures="0" skipped="151" tests="3228"`） |
+| **修复后** `coverage` 作业 | `pytest -n 8 --timeout=900 --cov --cov-fail-under=74` | **0 failed / 0 error**，**75.57%**（26,247 语句 / 6,412 未覆盖）→ **Required test coverage of 74% reached** |
+| 本机（含数据湖） | `pytest tests/ -q -n 8` | **3226 passed / 2 skipped / 0 failed**（标记在本机为 no-op，全部真跑） |
+| `ruff check src/uniquant/ tests/ scripts/` | — | **All checks passed!** |
+
+**覆盖率口径（重要）**：CI 口径 **75.57%** < 本机口径 **76.05%**，差额 **127 statements**
+正是被跳过的真实数据用例所覆盖的部分（`corporate_action.py` / `data_fetcher` qfq 路径 /
+`futures_storage_manager` / `storage_manager.validate_freshness` / `unified_engine`）。
+门限 **74** 相对 **CI 口径** 留 ~1.6 点余量；`.github/workflows/test.yml` 注释已同步记录两套口径。
+
+**残余诚实说明**：CI 上有 **151** 个 skip（130 个本次新增 + 21 个既有环境守卫，如
+`test_tdx_parser_gbbq_mapping` 依赖本机通达信路径）。跳过**不等于**验证——这些用例的
+回归保护只在持有本地数据湖的开发机上生效；这是本仓"数据湖不可入版本库"这一前提的
+**必然代价**，而非可消除的缺陷。
+
+---
+
 ## 附录 A：可复现命令
 
 ```bash
@@ -504,6 +595,27 @@ grep -rn "register_factor_trials\|research_ledger\|ledger_enabled" --include='*.
     -n 8 --timeout=900 --cov --cov-report=term:skip-covered --cov-fail-under=68
 # 反向验证门限确实生效（小样本 + 高阈值 → 必红）
 .venv/bin/python -m pytest tests/scripts/test_evidence_manifest.py --cov --cov-report= --cov-fail-under=68; echo $?   # → 1
+
+# 10) 第四轮 CI 真绿化：在私有 mount 命名空间里复现 CI 的数据环境
+#     （CI 上只有 2 个 tracked CSV，没有 data/lake、data/fq、本地通达信）
+REPO=/home/james/Documents/Project/UniQuant
+rm -rf /tmp/opencode/ci_data /tmp/opencode/ci_empty && mkdir -p /tmp/opencode/ci_data /tmp/opencode/ci_empty
+cp $REPO/data/all_stock_codes.csv $REPO/data/qualified_universe.csv /tmp/opencode/ci_data/
+# 10a) CI `test` 作业口径 → 期望 0 failed / 0 error（151 skipped）
+unshare -rm --propagation private sh -c '
+  mount --bind /tmp/opencode/ci_data  '"$REPO"'/data
+  mount --bind /tmp/opencode/ci_empty /home/james/.local/share/tdxcfv
+  cd '"$REPO"' && .venv/bin/python -m pytest tests/ -q --tb=short -p no:cacheprovider
+'
+# 10b) CI `coverage` 作业口径 → 期望 75.57% ≥ 74
+unshare -rm --propagation private sh -c '
+  mount --bind /tmp/opencode/ci_data  '"$REPO"'/data
+  mount --bind /tmp/opencode/ci_empty /home/james/.local/share/tdxcfv
+  cd '"$REPO"' && .venv/bin/python -m pytest tests/ -q -n 8 --timeout=900 \
+    --cov --cov-report=term:skip-covered --cov-fail-under=74 -p no:cacheprovider
+'
+# 标记面（本机含数据湖时为 no-op，用例全部真跑）
+grep -rn "requires_lake\|requires_futures_lake\|requires_gbbq" tests/ --include='*.py'
 ```
 
 ---
@@ -513,13 +625,14 @@ grep -rn "register_factor_trials\|research_ledger\|ledger_enabled" --include='*.
 | 声明来源 | 声明 | 实测 |
 |---|---|---|
 | `AGENTS.md` | ruff 0（src+tests+scripts） | **31 错** |
-| 提交 `7509c2a` | pytest 2530 passed, 0 failed | 干净环境 **4 failed** |
+| 提交 `7509c2a` | pytest 2530 passed, 0 failed | 干净环境 **4 failed**；**真实 CI ~130 failed**（数据湖依赖） |
 | `AGENTS.md`（顶部指令） | 先读根目录 `CLAUDE.md`（10 条规则） | **文件不存在** |
 | `README.md` | v0.3 / 44 文件 / 12.6K LOC | 实际 **234 文件 / 58.8K LOC** |
 | `QTR_OS_REFACTORING_BLUEPRINT` | LPPL 从仲裁优先级/FORCE_EXIT 切除 | `arbitrator.py:29` 仍 `lppl:0` |
 | `QTR_OS_REFACTORING_BLUEPRINT` | 四级门禁"完成落地并验证通过" | 捷径路径伪造输入且崩溃 |
 
-> **更新（2026-10-16）**：上表第 1、2、5、6 行涉及的偏差**已在第一轮修复**——`ruff` 归零、干净环境全量测试 0 fail、`ENGINE_PRIORITY["lppl"]` 降为 99、四级门禁改为诚实拒绝伪造输入。第 3、4 行（缺失 `CLAUDE.md`、`README.md` 漂移）**已在第二轮 P1-2 修复**——根因是根 `.gitignore` 的 `/*.md` 静默忽略根级 markdown（故该文件"曾经写过却从未提交"），现已补 `!/CLAUDE.md` 并新建**逐条标注出处**的规则文件；`README.md` 已整体重写、`docs/index.md` 已更新口径。详见 §6。
+> **更新（2026-10-16）**：上表第 1、2、5、6 行涉及的偏差**已在第一轮修复**——`ruff` 归零、`ENGINE_PRIORITY["lppl"]` 降为 99、四级门禁改为诚实拒绝伪造输入。第 3、4 行（缺失 `CLAUDE.md`、`README.md` 漂移）**已在第二轮 P1-2 修复**——根因是根 `.gitignore` 的 `/*.md` 静默忽略根级 markdown（故该文件"曾经写过却从未提交"），现已补 `!/CLAUDE.md` 并新建**逐条标注出处**的规则文件；`README.md` 已整体重写、`docs/index.md` 已更新口径。详见 §6。
+> **第二轮/第三轮的"CI 已绿"表述不成立**：真正的 CI 失败面直到**第四轮**才被定位——`/tmp` 依赖（4 例）只是其中一小部分，主体是约 **130** 个硬依赖本地数据湖/GBBQ/本地通达信的用例。第四轮以 `requires_lake` / `requires_futures_lake` / `requires_gbbq` 三标记 + 集中跳过钩子收口，CI 两个作业**实测全绿**（见 §7.6）。
 
 ---
 

@@ -19,6 +19,11 @@ import pytest
 from uniquant.data.corporate_action import get_corporate_action_adjuster
 from uniquant.data.data_fetcher import DataFetcher, GET_PRICE_ADJUSTED_COLUMNS
 
+# 本文件为真实数据冒烟守卫: 行情来自本地数据湖 (data/lake/, gitignored),
+# 前复权事件来自 GBBQ 基线 (data/fq/gbbq.parquet, gitignored)。两者缺失时
+# 声明式跳过 (CI), 而非以空表静默"通过"。
+pytestmark = [pytest.mark.requires_lake, pytest.mark.requires_gbbq]
+
 TEST_STOCKS = [
     # Era 1 (Pre-2006, 34只)
     ("000001.SZ", "平安银行", "Era 1"),

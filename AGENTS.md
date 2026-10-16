@@ -4,6 +4,14 @@
 >
 > UniQuant: A-share quantitative research and trading platform.
 >
+> **Updated 2026-10-16 (第四轮：CI 真绿化 —— 本地数据湖/GBBQ 依赖声明式跳过；纪律=只动测试与文档)**: 推送后 CI `test` 作业失败（run `38858639286`），且 origin 上 2026-10-13 的 `7509c2a` 亦为失败 → **CI 自那之后一直是红的**。根因**实测定位**：`7509c2a` 在 `tests/benchmark/test_benchmark_execution.py` 加的硬断言 `assert quote_path.exists(), "…(严禁静默 skip 掩盖)"` 指向 `data/lake/quotes/daily/000001.SZ.parquet`——**整个 `data/lake/` 都是 gitignored，CI 上永不存在**；同类"真实数据"用例共 **130** 个，分别依赖 `data/lake/**`、`data/fq/gbbq.parquet`（GBBQ 基线）或**本机 Wine 通达信**（`~/.local/share/tdxcfv`）。**第一轮 P0-2 只清掉了 `/tmp` 残留目录依赖，未处理数据湖依赖**——故当时"干净环境 0 fail"的结论不完整（报告 §3 P0-2 与附录 B 已更正）。
+> **(1) 修复（不改生产语义）**：`tests/conftest.py` 增 `DATA_LAKE_AVAILABLE` / `FUTURES_LAKE_AVAILABLE` / `GBBQ_AVAILABLE` 判定 + `pytest_configure` 注册 **`requires_lake` / `requires_futures_lake` / `requires_gbbq`** 三标记 + `pytest_collection_modifyitems` 集中挂**显式 skip 原因**（点名缺失物与重建脚本）。**关键纪律**：是"声明式跳过"而**非**"静默通过"——绝不允许真实数据用例在空表上假绿。标记面：`test_csi300_qfq_smoke.py`(109，模块级双标记) + `test_corporate_action_adjuster.py`(5 lake + 2 gbbq) + `test_futures_storage_manager.py`(5) + `test_cnmm_qar_strategy_and_backtest.py`(2 类/4 例) + `test_ha_engineering.py`(2) + `test_benchmark_execution.py`(1，**保留**原硬断言：湖在而标的缺失仍硬失败) + `test_storage_freshness_sla.py`(1) + `test_get_price_contract.py`(1，默认 qfq 需 GBBQ) = **130**。
+> **(2) 复现方法（可复现、零副作用）**：`git clone` **不能**复现 CI（editable `.pth` 指向真实仓库 `src/`，`mootdx_local` 兜底会读到本机通达信而掩盖缺失湖）。改用**私有 mount 命名空间**：`unshare -rm` 内 bind-mount CI 仅有的 `data/`（2 个 tracked CSV）覆盖真实 `data/`，并把本地通达信目录 bind-mount 到空目录；退出命名空间即自动还原，真实 `data/` 未被触碰。
+> **(3) 实测（同一命名空间）**：修复前 `pytest tests/ -q --tb=short` → **126 failed / 4 error**（失败面 **130**，junit `errors="4" failures="126" skipped="21" tests="3228"`）；修复后 → **0 failed / 0 error**（junit `skipped="151" tests="3228"`，每个跳过带原因；151 = 本次 130 + 既有环境守卫 21）。CI `coverage` 作业口径 `-n 8 --cov --cov-fail-under=74` → **75.57%**（26,247 statements / 6,412 missed）**≥ 74**（CI 口径低于本机口径 76.05%，差额 127 statements 正是被跳过用例所覆盖的部分）。
+> **(4) 文档同步**：`.github/workflows/test.yml` 两处注释（`test` 作业说明跳过契约；`coverage` 作业记录 **CI 口径 75.57% / 本机口径 76.05%** 两套实测 + 门限 74 的 ~1.6 点余量）；报告新增 **§7.6**；`AGENTS.md` 当前状态表拆为"本机口径 / CI 口径"两行（新增覆盖率 CI 行）；`README.md` 完成清单增第四轮 + CI 口径段落；`docs/index.md` 头部增 CI 口径。
+> **验证**：本机（含数据湖）`pytest tests/ -q -n 8` **3226 passed / 2 skipped / 0 failed**（标记在本机为 no-op，用例全部真跑）；`ruff check src/uniquant/ tests/ scripts/` **All checks passed!**。
+> **残余诚实说明**：CI 上 **151** 个 skip 意味着这些用例的回归保护**仅在本机生效**——这是"数据湖不可入版本库"前提下的**必然代价**，非可消除缺陷。**仍未绿化验证**：需 GitHub Actions 实际运行确认（本地为等价复现）。
+>
 > **Updated 2026-10-16 (第三轮：数据层补测 53.9%→94.2% + 历史文档漂移根治 + 潜在缺陷修复 + 覆盖率门 68→74)**: 收口第二轮遗留的两项开放项（`data/` 层覆盖最低、历史文档失效口径未清理），纪律为**只补测试与文档、不改生产语义**：
 > **(1) 数据层补测**：新增/扩充 **13 个测试文件 / 634 用例**（`tests/data/` 全量 **634 passed**；三路并行子代理 + 主线协同）——`_baostock_client` 19.8→**100%**、`mootdx_online` 22.1→100%、`market_data_coordinator` 35.1→**100%**、`normalizer` 31.9→**100%**、`futures_storage_manager` 76.3→100%、`import_financial` 44.3→99%、`baostock_cache_manager` 7.4→93.8%、`lppl_data_service` 13.3→96.8%、`trade_calendar_manager` 67.1→97.4%、`stock_metadata_manager` 77.2→99%、`akshare_wrapper` 0→高覆盖（假 `time`/`random` + `sys.modules` 注入假 akshare，**不触网**）、`data_fetcher`/`storage_manager`/`tdx_parser`/`data_pipeline_service` 深度补测。
 > **(2) 历史文档漂移根治**：新建 `docs/reanalysis/README.md` + 59 个 `docs/reanalysis/*.md` 追加历史横幅（共 60 文件）；`docs/archive/` 补齐剩余 **10 个**无横幅文件（其余 24 已带）。全部**脚本化、仅插入**，并逐文件对 `git show HEAD:<path>` 做**字节级校验**——除新增横幅块外正文逐字节不变。横幅样式统一声明"已归档/历史快照，不代表当前代码状态"并指向 `docs/index.md` + `AGENTS.md`。
@@ -20,7 +28,7 @@
 >
 > **Updated 2026-10-16 (第一轮：简化后全栈评估落地：四阶门禁诚实化 + CI 归零 + 过户费全市场统一 + LPPL 降为遥测 + H-A ADV 地板对齐)**: 依据只读实测报告 `docs/analysis/POST_SIMPLIFICATION_ARCHITECTURE_TRADING_EVALUATION_20261016.md`（用户核验与物理代码库 100% 吻合）与用户认可的优先级（P0-1 → P0-2 → P2）落地五项，全部以当前工作树实测验证：
 > **(1) P0-1 四阶门禁诚实化**（`research/gates/alpha_tier_engine.py` + `research/sandboxes/base_sandbox.py`）：`evaluate_candidate` 删除"捷径伪造"——缺 `residual_ic_series` / `pbo_value` 即判 `TIER_UNRATED` 并给明确拒绝原因（**禁止**以原始 IC 自比或硬编码 PBO 绕过动量残差门与 PBO 过拟合门）；Class B/C/D 真实指标须由 `gate_inputs={"b","c","d"}` 提供，缺即在当级早退，绝不以常量填充；`ClassBEvaluator` 对 `top_industry_weights` 做 `np.asarray(...,float64)` 防御（消灭 `list ** 2` 崩溃）；`promote_candidate` 四门参数改可选 + 逐级早退；沙盒 `SandboxSignalEvaluation` 增 `residual_ic_series`/`pbo_value`/`gate_inputs` 并透传真实输入。附录 A #4 复现命令由 **TypeError 崩溃 → 诚实 `TIER_UNRATED`**；新增 `TestAlphaTierHonestGate`（真实四门全通过 → `TIER_D`）。
-> **(2) P0-2 CI 归零 + 测试环境隔离**：`ruff check --fix`（27 自动 + 3 人工：F841 `lppl_sandbox.py`、E402 `# noqa` ×2）→ `ruff check src/uniquant/ tests/ scripts/` **All checks passed!**；`tests/test_data_fetcher_init_fault_tolerance.py::_write_min_all_stock_codes` 增 `root.mkdir(parents=True, exist_ok=True)`，消除对开发机残留 `/tmp` 目录的依赖 → 干净环境 4 fail → 0（历史"2530 passed"属环境依赖假绿）。
+> **(2) P0-2 CI 归零 + 测试环境隔离**：`ruff check --fix`（27 自动 + 3 人工：F841 `lppl_sandbox.py`、E402 `# noqa` ×2）→ `ruff check src/uniquant/ tests/ scripts/` **All checks passed!**；`tests/test_data_fetcher_init_fault_tolerance.py::_write_min_all_stock_codes` 增 `root.mkdir(parents=True, exist_ok=True)`，消除对开发机残留 `/tmp` 目录的依赖 → 干净环境 4 fail → 0（历史"2530 passed"属环境依赖假绿）。**⚠️ 第四轮更正**：本条只清除了 **`/tmp` 残留目录**这一项环境依赖，**未处理数据湖依赖**；真实 CI 另有约 **130** 个真实数据用例必红（第三/四轮已由 `requires_lake`/`requires_futures_lake`/`requires_gbbq` 声明式跳过收口，见下"第四轮"）。
 > **(3) P2-1 过户费全市场统一**（`shared/cost_model.py` + `unified_matching_engine.py`）：依 2022-04-29 中国结算通知，`_has_transfer_fee` 重写为**沪深北 A 股统一 0.01‰ 双向**（SH 60/68 主板+**科创板**、SZ 000/001/002/003/300/301/302、BJ 43/83/87/88/920），指数/ETF/可转债豁免；新增向量化 `has_transfer_fee_mask`（语义与标量版严格一致），撮合引擎三处 `sh_mask` → `fee_mask`。**废止历史"P1-01 深市免收"口径**，并修复其漏掉 688 科创板的缺陷。
 > **(4) P2-2 LPPL 降为遥测**（`signal/adapters.py` + `signal/arbitrator.py`）：`LPPLAdapter` 默认 `diagnostic_only=True`（危险态仅写 metadata、**不产 SELL**）；`ENGINE_PRIORITY["lppl"] 0 → 99`（与未知引擎同级=最低），文档串同步——LPPL 不再优先于决策引擎、亦不具强制平仓能力（呼应 QTR-OS 蓝图与 walk-forward"LPPL 零预测力"实证）。
 > **(5) P2-3 H-A 运行器对齐 ADV 地板**（`scripts/canslim/daily_signal_ha.py`）：`AMOUNT_FLOOR: None → 20_000_000.0`，无地板口径降为研究对照、非可交易形态。
@@ -104,7 +112,7 @@ The repository is past the historical "migration target" phase. The eight declar
 
 `shared -> data -> brain/risk/signal -> hands -> services -> ui`
 
-Current worktree snapshot (**2026-10-16**, live measurement after the post-simplification P0/P1/P2 remediation + 第三轮数据层补测 / 文档漂移根治):
+Current worktree snapshot (**2026-10-16**, live measurement after the post-simplification P0/P1/P2 remediation + 第三轮数据层补测 / 文档漂移根治 + 第四轮 CI 真绿化):
 
 | Metric | Current value |
 |---:|---:|
@@ -113,9 +121,11 @@ Current worktree snapshot (**2026-10-16**, live measurement after the post-simpl
 | Declared runtime layers | 8 (`shared → data → brain/risk/signal → hands → services → ui`) + `research/` control plane |
 | Test files under `tests/` | 206 |
 | Test functions | 2,869 |
-| Tests passing | 3,226 passed / 2 skipped / 0 failed (collected 3,228) |
+| Tests passing (dev machine **with** the gitignored data lake) | 3,226 passed / 2 skipped / 0 failed (collected 3,228) |
+| Tests passing (CI, **no** data lake) | 3,077 passed / **151 skipped** / 0 failed / 0 error (collected 3,228) |
 | Ruff issues | 0 (src + tests + scripts) |
-| Test coverage (whole package, `ui/` omitted) | **76.05%** (26,247 statements / 6,285 missed) |
+| Test coverage — dev machine (whole package, `ui/` omitted) | **76.05%** (26,247 statements / 6,285 missed) |
+| Test coverage — CI-faithful (real-data tests skip) | **75.57%** (26,247 statements / 6,412 missed) — coverage floor `--cov-fail-under=74` |
 | `except Exception:` total (src) | 145 |
 | `except:` (bare) total | 0 |
 | Archived / dead code | 0 (physically removed — no `archive/` dirs remain) |

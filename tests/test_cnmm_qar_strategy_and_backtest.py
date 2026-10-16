@@ -30,6 +30,7 @@ from scripts.qar.cnmm_qar_strategy import CNMMQARStrategy  # noqa: E402
 from scripts.backtest.run_cnmm_purged_long_horizon import CNMMPurgedLongHorizonBacktestEngine  # noqa: E402
 
 
+@pytest.mark.requires_lake
 class TestCNMMQARStrategyAssembly:
     """CNMM-QAR 策略总装与治理账本单元测试"""
 
@@ -71,6 +72,7 @@ class TestCNMMQARStrategyAssembly:
             assert w <= Decimal("0.025") + Decimal("0.0001"), f"单票超标: {s}={w}"
 
 
+@pytest.mark.requires_lake
 class TestPurgedLongHorizonBenchmarkReplication:
     """2000-2025 25 年长周期洁净回测原生复现与数理基准核验"""
 

@@ -281,6 +281,7 @@ class TestStorageFreshnessSLA:
         assert len(res["details"]["read_errors"]) >= 1
         assert any("000001.SZ.parquet" in err for err in res["details"]["read_errors"])
 
+    @pytest.mark.requires_lake
     def test_freshness_real_environment_smoke(self):
         """冒烟测试: 在项目真实数据湖上运行 validate_freshness"""
         sm = StorageManager()
