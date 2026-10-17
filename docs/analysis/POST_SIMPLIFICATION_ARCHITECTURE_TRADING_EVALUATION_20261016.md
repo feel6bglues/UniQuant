@@ -30,7 +30,7 @@
 | 🟡 P2-2 | LPPL 仍占仲裁最高优先级且无质量门 | 唯一经证伪"零预测力"的引擎仍可触发虚警强平 SELL |
 | 🟡 P2-3 | 覆盖率门缺失；数据湖/results 全 gitignore | 80% 覆盖率未被 CI 校验；实证结论仓库内不可复现 |
 
-> **✅ 落地状态（2026-10-16）**：P0-1、P0-2、P2-1、P2-2、P2-3（ADV 地板部分）**已修复并验证**；P1-1、P1-2 与 CI 覆盖率门仍开放。详见 [§6 实施落地记录](#6-实施落地记录remediation-log--2026-10-16)。
+> **✅ 落地状态（第八轮后，2026-10-17）**：**P0-1、P0-2、P1-1、P1-2、P2-1、P2-2、P2-3 全部关闭**（P1-1/P1-2 与 CI 覆盖率门在第二轮关闭；覆盖率门在第七轮把余量抬到 +3.47pt）。详见 [§6 实施落地记录](#6-实施落地记录remediation-log--2026-10-16)。
 
 ---
 
@@ -365,7 +365,7 @@ def _has_transfer_fee(symbol: str) -> bool:
 | P2-3 剩余：CI 覆盖率门 | ✅ 关单 | 独立 `coverage` 作业 + `--cov-fail-under=68`（实测 70.55%） |
 | P2-3 剩余：数据湖/results 可复现 | ✅ 关单 | 证据白名单 + 内容哈希账本 + CI 校验 |
 
-> **仍开放（不属本报告 §5 范围，供后续决策）**：① 策略容量受限于 ≈2850 万元（H-A 的固有属性，非工程缺陷）；② `services/` 层覆盖率 63.8% 为当前最薄弱面（`data/` 层已于第三轮补齐，见 §7）。
+> **仍开放（不属本报告 §5 范围，供后续决策）**：① 策略容量受限于 ≈2850 万元（H-A 的固有属性，非工程缺陷）；② 层覆盖率最弱面逐轮收敛——`services/` 63.8%（第二轮口径）已由**第七轮**关闭（79.69%）、`hands/` 64.19%（第七轮口径）已由**第八轮**关闭（**99.81%**，见 §7.11）→ **现最薄弱面为 `brain/`**（CI 口径 **69.13%** / 开发机 71.94%；次之 `risk/` 73.14%），列为后续补测目标。
 
 ---
 
@@ -875,6 +875,231 @@ stdlib `logging` 做 `msg % args`：消息里没有 `%` 转换符而多出 2 个
 
 ---
 
+## 7.11 第八轮：`hands/` 死簇剪除 + 层覆盖率抬升 + 三个真 bug（其中一个曾被新测试"钉死"为伪回归）（2026-10-17）
+
+本轮目标（用户指定）：第七轮把 `services/` 抬到 79.34% 后，**最弱层变成了 `hands/` 64.19%**
+——剪除其中的**死簇**，再把**在线残余**的覆盖率抬起来。纪律沿用第六/七轮：
+**每项改动 = 定向测试 + 明确理由 + 书面裁决**；剪除须有**零调用方**证据。
+
+### 7.11.1 `hands/` 死簇剪除（11 文件；`hands/` 33 → **22** 文件；整包 232 → **221**）
+
+**簇 A —— 零引用孤岛**（AST 全仓扫描 `src/` + `tests/` + `scripts/`：**零导入方**）
+
+| 文件 | 语句 | 覆盖 |
+|---|---:|---:|
+| `backtest/report_generator.py` | 117 | 0%（全文未覆盖） |
+| `backtest/trade_analysis/analyzer.py` | 90 | 0% |
+| `backtest/trade_analysis/statistics.py` | 80 | 0% |
+| `backtest/trade_analysis/__init__.py` | 3 | 0% |
+| `backtest/benchmark.py` | 47 | 0% |
+| **小计** | **337** | **0%** |
+
+**职责已被在线路径取代**：回测报告生成由**在线的** `services/analysis/report_generator_engine.py`
+（服务层适配器）承接；结果落盘与汇总由 `hands/results_manager.py` + `hands/reporter.py` 承接。
+**删壳不删能力，无回归面。**
+
+**簇 B —— 类式（backtrader）策略子集：真实分支永久不可达**
+
+| 文件 | 语句 | 覆盖 |
+|---|---:|---:|
+| `strategies/base.py` | 69 | 42.0% |
+| `strategies/regime_strategy.py` | 76 | 9.2% |
+| `strategies/wyckoff_strategy.py` | 58 | 12.1% |
+| `strategies/reversal_strategy.py` | 61 | 11.5% |
+| `strategies/ma_atr_strategy.py` | 40 | 17.5% |
+| `strategies/fsm_strategy.py` | 35 | 20.0% |
+| **小计** | **339** | **18.9%** |
+
+**证据**：`backtrader` **既未声明于 `pyproject.toml` 任何依赖集、也从未被安装**，
+故 `HAS_BACKTRADER` 在 **CI 与开发机上恒为 `False`** → 所有 `if HAS_BACKTRADER:` 分支
+**永久不可达**（长期只跑 Mock 回退，故覆盖恒在 9–42% 区间打转）；生产/研究链路均无消费者，
+**唯一暴露点是 `hands/strategies/__init__.py` 的 `__getattr__` 兼容垫片**。
+
+**保留（不剪）**：**函数式策略注册表 `STRATEGY_MAP`**（`ma_atr` / `ma_cross` / `regime` /
+`reversal` / `str_reversal` / `wyckoff`）——它是在线路径，本轮**改为补测**而非删除（见 §7.11.2）。
+
+**垫片收窄**：`hands/strategies/__init__.py` 由"导出类式策略 + 兼容垫片"改为
+**惰性 `__getattr__` 仅暴露 `STRATEGY_MAP`**（`__all__ = ["STRATEGY_MAP"]`），
+避免 `import` 本包即触发 pandas / 指标计算副作用。
+
+**同步删除的测试**（均**只**针对已删模块，非"削弱既有断言"）：
+`tests/test_hands_strategies.py`（对已删类式策略 **100% 永久 skip**）、
+`tests/hands/strategies/test_strategy_boundaries.py`。
+
+**防复发守卫**：新增 `tests/test_round8_pruned_modules_absent.py`（**46 用例**）——
+"**路径不存在 + 模块不可导入 + 垫片不再暴露类**"三重断言，
+并附**正对照**（幸存模块可导入、`STRATEGY_MAP` 已填充且全部可调用）以防守卫空转。
+
+**剪除后无新增孤儿（AST 复核）**：`hands/` 全部 22 个模块均仍有消费者
+（唯一"零入边"的是顶层包 `uniquant.hands` 自身，由子模块隐式导入，非孤儿）。
+
+### 7.11.2 `hands/` 层覆盖率补测（6 个新测试文件 / 169 用例；不改生产语义）
+
+剪除后 `hands/` 只剩 **22 个在线模块**（2,134 语句 / 4 未覆盖）。本轮把该层覆盖率
+**64.19% → 99.81%**（开发机口径；层内语句 2,818 → 2,134）。
+
+**逐模块 before → after**（同一口径，按增幅排序）
+
+| 模块 | 第七轮 | 第八轮 | Δ |
+|---|---:|---:|---:|
+| `strategies/wyckoff.py` | 13.7% | **100.0%** | +86 |
+| `hands/__init__.py` | 16.1% | **100.0%** | +84 |
+| `strategies/__init__.py` | 21.4% | **100.0%** | +79 |
+| `backtest/result.py` | 45.5% | **100.0%** | +55 |
+| `backtest/unified_matching_engine.py` | 81.4% | **100.0%** | +19 |
+| `results_manager.py` | 83.0% | **100.0%** | +17 |
+| `strategies/regime.py` | 84.2% | **100.0%** | +16 |
+| `strategies/str_reversal.py` | 82.9% | 97.6% | +15 |
+| `reporter.py` | 86.5% | **100.0%** | +14 |
+| `backtest/sensitivity_analyzer.py` | 87.9% | **100.0%** | +12 |
+| `backtest/unified_engine.py` | 88.3% | 99.5% | +11 |
+| `backtest/robustness_checker.py` | 91.4% | **100.0%** | +9 |
+| `strategies/ma_cross.py` | 90.2% | 97.6% | +7 |
+| `backtest/cffex_engine.py` | 94.5% | **100.0%** | +6 |
+| `backtest/monte_carlo.py` | 95.6% | **100.0%** | +4 |
+| `backtest/overfitting_detector.py` | 96.0% | **100.0%** | +4 |
+| `backtest/institutional_fee_ledger.py` | 97.2% | **100.0%** | +3 |
+| `backtest/saga_compensator.py` | 97.4% | **100.0%** | +3 |
+| `backtest/twap_execution_slicer.py` | 97.4% | **100.0%** | +3 |
+| `backtest/__init__.py`、`strategies/indicators.py`、`strategies/registry.py` | 100.0% | 100.0% | 0 |
+
+**新增测试文件**（全部合成数据：不触网、不读数据湖、不依赖 `czsc` / `backtrader`）
+
+| 文件 | 用例 | 主要覆盖对象 |
+|---|---:|---|
+| `tests/hands/backtest/test_backtest_core_unit.py` | 47 | `BacktestResult` 全套 API/比较/元数据、`unified_engine` 主路径 |
+| `tests/hands/backtest/test_robustness_and_matching_unit.py` | 36 | `sensitivity_analyzer` / `monte_carlo` / `overfitting_detector` / `robustness_checker` / `institutional_fee_ledger` / `saga_compensator` / `unified_matching_engine` |
+| `tests/hands/strategies/test_strategy_functions_unit.py` | 28 | `ma_cross` / `str_reversal` / `regime` 三分支（止盈、止损、持有到期） |
+| `tests/hands/strategies/test_wyckoff_strategy_unit.py` | 28 | `strategies/wyckoff.py` 全分支（阈值门 / 春季冻结 / regime 过滤 / 退出模拟）+ **真实配置接线** |
+| `tests/hands/test_hands_package_and_reporting_unit.py` | 24 | `hands/__init__` / `reporter` / `results_manager` |
+| `tests/hands/backtest/test_cffex_core_unit.py` | 6 | `cffex_engine` 残余分支 |
+| **小计** | **169** | |
+
+**剩余 4 行未覆盖 —— 全部为"永不可达的防御性守卫"，书面裁决 = 不修、也不写"强行命中"的测试**
+
+| 位置 | 代码 | 为何不可达 |
+|---|---|---|
+| `strategies/ma_cross.py:22` | `if len(ph) < 25: return None` | `ph = df[…].tail(30).head(25)`，且上一行已保证 `len(h) >= 25` → `len(ph) == 25` 恒成立 |
+| `strategies/str_reversal.py:31` | `if atr <= 0: atr = entry * 0.02` | `calc_atr` 对正价格序列恒 `> 0`；`entry` 为真实开盘价恒 `> 0` |
+| `backtest/unified_engine.py:146` | `_safe_sub` 的 `if a is None and b is None: return 0.0` | `BacktestResult.compare()` 两侧指标同为 `float \| None`，实践中不会**同时**为 `None` |
+| `backtest/unified_engine.py:795` | `if total_cost > cash_available: return None, cash_available` | 上游费用计算与持仓裁剪已保证现金充足（**A 股铁律关键路径，防御必须保留**） |
+
+**纪律说明**：第六轮已定义"**伪回归**"= 把 bug 当成正确行为锁死（见 §7.11.3）。与之对称的另一陷阱是
+**为不可达分支伪造可达性**（例如人为构造 `ATR = 0` 或把 `compare()` 两侧同时置 `None`）——
+那只会把"死守卫"伪装成"活代码"，掩盖真实的死代码面。本轮明确**不做**，如实登记为已知残余。
+
+### 7.11.3 本轮真 bug（3 个；其中 1 个曾被新测试"钉死"为伪回归）
+
+第八轮的补测在 `hands/` 层暴露了**三个真 bug**（都在**在线**代码里），已按第六轮纪律
+"**逐项定位 → 定向回归测试 → 明确理由 → 书面裁决**"处置。
+
+> **影响面（如实界定，不夸大）**：`hands/strategies/registry.STRATEGY_MAP` 当前在 `src/` 内
+> **无运行时消费者**（唯一消费者是测试与研究/回测脚本），因此 Bug ①/② 的爆炸半径 =
+> "**注册在册的策略函数对其任何调用方产生错误结果**"，而非"拖垮生产流水线"。
+> 但它们确实是**在线注册表内的失效成员**（`docs/packages/hands.md`、`docs/guides/strategies.md`
+> 均将其列为可用策略），且与"死代码"不同 —— 它们**被文档承诺为可用能力**。
+
+**Bug ① `hands/strategies/wyckoff.py:32` —— 配置路径算错 → 策略恒为死代码（已修）**
+
+`load_wyckoff_params()` 用 `Path(__file__).resolve().parents[2] / "config" / "trading.yaml"`。
+本文件位于 `src/uniquant/hands/strategies/`，故
+
+- `parents[0]`=`…/hands/strategies`、`parents[1]`=`…/hands`、**`parents[2]`=`…/uniquant`**
+- 解析结果 = `src/uniquant/config/trading.yaml` —— **该路径不存在**（真实配置在**仓库根** `config/trading.yaml`）
+
+`FileNotFoundError` 随即被 `trade_wyckoff` 的 `except Exception`（第 54–56 行）吞掉 →
+**`trade_wyckoff` 对任何 ≥100 根 K 线的输入恒返回 `None`**。实测（修复前）：
+
+```
+load_wyckoff_params RAISED: FileNotFoundError '…/src/uniquant/config/trading.yaml'
+trade_wyckoff -> None
+```
+
+**修复**：改用仓库根 SSOT `shared.constants.path.PROJECT_ROOT`（`PROJECT_ROOT / "config" / "trading.yaml"`）；
+实测修复后 `load_wyckoff_params() == (400, 120, 40, 'B')`，引擎被真正调用。
+
+**⚠️ 伪回归（本轮最重要的一课）**：覆盖率子代理为此函数写的两个用例，
+通过 `monkeypatch.setattr(wyckoff, "__file__", "<tmp>/pkg/sub/mod.py")` **伪造两级目录布局**，
+使 `parents[2]` "恰好"指向临时目录 —— 这等于**把生产 bug 固化成"正确行为"**
+（正是第六轮定义的"伪回归"）。修复后这两条用例**必然变红**，已按正确行为重写
+（`PROJECT_ROOT` 断言 + 读**真实** `config/trading.yaml`），并新增
+`TestTradeWyckoffRealConfigWiring::test_engine_is_invoked_with_real_config`
+（**不 mock** `load_wyckoff_params`，断言引擎确实被调用）——修复前该用例必红。
+
+**Bug ② `hands/strategies/str_reversal.py:42` —— 笔误把退出天数写进 `sl`（已修）**
+
+```python
+if hi >= tp:  ep, ed = tp, i + 1;  break     # 止盈分支（正确）
+if lo <= sl:  ep, sl = sl, i + 1;  break     # 止损分支：应为 ep, ed = …
+```
+
+后果：止损退出时 `ed` 保留初始值 `len(fut)` → 返回的 `days` **恒为该标的可用前向天数**
+而非真实持仓天数（`ret` 正确，只有 `days` 错）。修复为 `ep, ed = sl, i + 1`，
+与止盈分支对称；锁定错误行为的用例 `test_stop_loss_exit_on_first_bar` 已翻转为 `days == 1`。
+
+**Bug ③ 同类兄弟清剿 —— `shared/loader.py:9` 与 `shared/cost_model.py:157`（已修）**
+
+同一缺陷类（硬编码 `parents[2]`），同一轮扫描发现：
+
+| 位置 | 影响 | 裁决 |
+|---|---|---|
+| `shared/loader.py:9` `load_strategy_weights()` | `parents[2]` → `src/config/trading.yaml`（不存在）→ **静默返回 `None`** | **修**（改用 `PROJECT_ROOT`） |
+| `shared/cost_model.py:157` `CostConfig.from_yaml()` | 同上 → 异常被 `except Exception` 吞掉 → **静默退回硬编码默认值**（`config/trading.yaml` 的 `execution` 段从未生效） | **修**（改用 `PROJECT_ROOT`） |
+
+两者当前**无生产调用方**（仅在测试中被调用）→ 属**潜伏**缺陷；但同一个"路径算错"根因，
+且修好后语义严格更正确（实测 `from_yaml()` 读到的值 == 默认值，**行为不变**；`load_strategy_weights()`
+因 `config/trading.yaml` **本就没有 `strategy_weights` 键**而仍返回 `None`，此为**独立观察项**：
+该函数实质无消费者、目标键亦不存在）。
+
+`config/trading.yaml` 为**仓库内 tracked 文件**，故修复后可被 CI 稳定读取。
+
+**修复后全仓同规则扫描**：`grep -rn "parents\[" src/` → **0 处代码命中**（该缺陷类仅此三处、无遗漏；仅剩 6 行本轮新增的修复说明注释）。
+
+### 7.11.4 本轮"不修"裁决（书面，含理由与留存证据）
+
+第六/七轮确立的纪律是"**修与不修都要有书面裁决**"。以下是本轮**判定不修**的项：
+
+| 项 | 位置 | 裁决 | 理由 |
+|---|---|---|---|
+| TWAP 尾单再平衡分支 | `backtest/twap_execution_slicer.py:362-365` | **不修**（保留并已覆盖） | 该分支处理"切分后残余股数与 lot 边界"，实测以**穷举 125,000 组**（数量 × 手数 × 切片数 × 边界偏移）对照参考实现 → **0 处不一致**；保留为防御性代码，现已 **100% 覆盖** |
+| 建仓现金终检 | `backtest/unified_engine.py:795` | **不修** | A 股铁律关键路径（防线 D）；上游虽已保证现金充足，但**删除该检查 = 用"推理正确"替换"运行期防御"**，不可接受。保持未覆盖并登记 |
+| `compare()` 双侧 `None` | `backtest/unified_engine.py:146` | **不修** | 同上，纯防御；不便为它伪造输入（见 §7.11.2 末"纪律说明"） |
+| 两处不可达守卫 | `strategies/ma_cross.py:22`、`strategies/str_reversal.py:31` | **不修** | 见 §7.11.2 表末（上一行已保证前置条件，删除反而降低可读性/防御性） |
+| `load_strategy_weights()` 契约 | `shared/loader.py`（**路径已修**） | **不修契约**（独立观察项） | 修复后默认路径可解析，但 `config/trading.yaml` **本就没有 `strategy_weights` 键**（其权重以 `strategies.<name>.weight` 形式内联）→ 函数仍返回 `None`；该函数**无生产消费者**（唯一调用者是测试）。**不**新增配置键（会引入一个无人消费的配置面），**不**改返回契约（会破坏既有两态测试） |
+
+**与第六轮处置的一致性**：本轮"不修"项全部属于
+①**防御性守卫**（删了会降低 ST 铁律/资金安全防线）或 ②**无消费者的契约面**（改了会增加未验证行为），
+与第六轮 `trade_calendar_manager` 的 re-raise（正确 fail-fast）、`handle_errors`（文档化）同类。
+
+### 7.11.5 第八轮验证（本工作树实测）
+
+> **第六轮纪律**：任何"CI 口径"数字都必须**连同解释器依赖集一起报**。下表三行分别给出
+> 三套口径，互不混用。
+
+| 验证项 | 命令 / 口径 | 结果 |
+|---|---|---|
+| 开发机全量（含 gitignored 数据湖 + 未声明的 `czsc`） | `pytest tests/ -n 8` | **3,653 passed / 0 skipped / 0 failed**（收集 3,653；147 s） |
+| **真实 CI 口径**（三 mount 屏蔽数据湖 / 通达信 / 开发机兄弟仓 + 依赖集 `pip install -e ".[all,dev]"`，**无 `czsc`**） | `pytest tests/ -n 8 --cov` | **3,467 passed / 163 skipped / 0 failed / 0 error**（收集 3,630；82 s） |
+| CI 数据环境 + 本机完整依赖（含 `czsc`） | 同上，换本机 `.venv` | **3,504 passed / 149 skipped / 0 failed / 0 error**（收集 3,653） |
+| 覆盖率（开发机） | `--cov`（`.coveragerc`：`source = src/uniquant`，omit `ui/`） | **82.20%**（25,171 语句 / 4,480 未覆盖） |
+| 覆盖率（**真实 CI**） | 同上 | **80.91%**（25,171 / 4,805）→ 门限 **78**（本轮由 74 上调）**余量 +2.91pt** |
+| 层覆盖率（**真实 CI**，最弱在前） | 同上 | `brain` **69.13%** · `risk` 73.14% · `services` 79.34% · `shared` 87.66% · `signal` 91.06% · `data` 92.95% · `research` 94.32% · **`hands` 99.81%** |
+| 剪除守卫 | `pytest tests/test_round8_pruned_modules_absent.py` | **46 passed** |
+| 新增测试（补测 + 定点回归） | `pytest tests/hands/ tests/test_cost_model.py tests/shared/test_optimal_params.py` | **214 passed** |
+| 静态检查 | `ruff check src/uniquant/ tests/ scripts/` | **All checks passed!**（0 报告） |
+| 无新增孤儿（AST 复核） | 全仓 import 图 | `hands/` **22** 个模块全部仍有消费者 |
+| 证据链完整性 | `python scripts/maintenance/evidence_manifest.py verify` | **no drift** |
+| SSOT 未被污染 | `data/all_stock_codes.csv` | `mtime` 保持 **2026-08-19 12:21:53**（8,879 行未变） |
+
+**规模变化（整包）**：语句 **25,854 → 25,171**（−683）；未覆盖 **5,501 → 4,480**（开发机，−1,021）。
+其中 `hands/` 自身 **2,818 → 2,134**（−684）、覆盖率 **64.19% → 99.81%**。
+
+**测试面变化**：开发机收集 **3,466 → 3,653**（净 **+187**）＝**新增 219**（169 补测 + 46 剪除守卫 + 4 定点回归）
+**− 删除 32**（`test_hands_strategies.py` 2 个长期 100% skip + `test_strategy_boundaries.py` 30 个，均只针对已删模块）。
+CI 跳过数 **165 → 163**（正好少掉被删的 2 个 backtrader skip）。
+
+---
+
 ## 附录 A：可复现命令
 
 ```bash
@@ -980,6 +1205,28 @@ ls src/uniquant/services/analysis/*.py
 # 端到端反证：把 validation_service.py:93 的 %s 改回 {} → 守卫必红并点名 file:line；恢复后复绿
 #      `sed -i 's/calculated=%s, expected=%s/calculated={}, expected={}/' src/uniquant/services/validation_service.py`（仅第 93 行那处）
 # 13e) 全量（本机 / CI 等价）与覆盖率；期望见 §7.10.4（dev 3464 passed / CI 3278 passed；dev 78.72% / CI 77.47%）
+
+# 14) 第八轮：`hands/` 死簇剪除 + 层覆盖率抬升 + 两个真 bug（2026-10-17）
+# 14a) 剪除后 11 个文件应全部不复存在且不可导入（46 用例守卫，含正对照）
+.venv/bin/python -m pytest tests/test_round8_pruned_modules_absent.py -q -p no:cacheprovider
+git log --oneline -1 -- src/uniquant/hands/backtest/report_generator.py   # → 仅历史提交（文件已删）
+# 14b) `hands/` 层只剩 22 个模块；`hands/strategies/__init__` 只暴露 STRATEGY_MAP（无类泄漏）
+find src/uniquant/hands -name '*.py' -not -path '*/__pycache__/*' | wc -l   # → 22
+.venv/bin/python -c "from uniquant.hands.strategies import STRATEGY_MAP as m; print(sorted(m))"
+# 14c) 缺陷类根除：`parents[2]` 硬编码在 src/ 下应为 0 处**代码**命中（余下仅本届新增的修复说明注释）
+rg -n 'parents\[' src/ | grep -v '第八轮修复' || echo "0 code hits"
+# 14d) bug 修复的端到端反证（不 mock 配置加载，断言在线引擎确被调用）
+.venv/bin/python -m pytest tests/hands/strategies/test_wyckoff_strategy_unit.py -q -p no:cacheprovider
+# 14e) 覆盖率补测（169 例）与层覆盖率（期望 hands/ 99.81%，剩余 4 行全为书面"不修"的死守卫）
+.venv/bin/python -m pytest tests/hands/ -q -p no:cacheprovider
+.venv/bin/python -m pytest tests/ -n 8 --cov -q -p no:cacheprovider
+# 14f) 全量三套口径（第六轮纪律：必须连同依赖集一起报）——期望见 §7.11.5
+#   dev（含湖 + czsc）              → 3,653 passed / 0 skipped / 收集 3,653 / coverage 82.20%
+#   真实 CI（.[all,dev]，无 czsc）   → 3,467 passed / 163 skipped / 收集 3,630 / coverage 80.91%（门限 78，余量 +2.91pt）
+#   CI 数据环境 + 本机完整依赖       → 3,504 passed / 149 skipped / 收集 3,653
+#   复现装置：`unshare -rm` 内 bind-mount 空目录覆盖 `data/`、`~/.local/share/tdxcfv` 与开发机兄弟仓 `CNNM`
+# 安全关键：确认 SSOT 未被测试污染（mtime 应保持 2026-08-19）
+ls -l --time-style=full-iso data/all_stock_codes.csv
 ```
 
 ---
@@ -1013,6 +1260,17 @@ ls src/uniquant/services/analysis/*.py
 > 门限 74 的余量由 **+0.57 pt 升至 +3.47 pt**。同时更正一处**"本地绿、CI 红"**的隐藏缺陷：
 > `services/validation_service.py` 的 6 处 `{}`-当-`%`-参数日志在 CI 解释器上会使校验失败路径**返回空 `results`**
 > （本机被捕获 handler 掩盖）——已修复并加 AST 守卫锁死（§7.10.3）。**层间最弱层由 `services/` 变为 `hands/` 64.19%**。
+>
+> **⚠️ 第八轮更正（2026-10-17）**：第七轮记录的"**3,278 passed / 165 skipped / 收集 3,443**、coverage **77.47%**、
+> 门限 74 余量 +3.47 pt"是本轮之前的真值；第八轮剪除 `hands/` 两个死簇（整包语句 25,854 → **25,171**）并补测
+> **169** 个用例后，**真实 CI 口径变为 3,467 passed / 163 skipped / 0 failed / 0 error（收集 3,630）、coverage 80.91%**；
+> CI 覆盖率门由 74 上调至 **78**（余量 +2.91 pt，恢复第三轮"留 ~2 点环境余量"的政策——**余量过大同样使地板失效**）。
+> 同轮更正三处**策略配置路径缺陷**（`hands/strategies/wyckoff.py:32`、`shared/loader.py:9`、`shared/cost_model.py:157`
+> 均用 `parents[2]`，指向**不存在的** `src/uniquant/config/trading.yaml`，真实配置在仓库根）→
+> `trade_wyckoff` 对任何输入恒返回 `None`（**注册在册的策略在生产中永久失效**），已统一改用仓库根 SSOT `PROJECT_ROOT`，
+> `rg 'parents\[' src/` 现 **0 命中**。**本轮最有价值的一课**：一个既有覆盖率测试曾用 `monkeypatch __file__` 伪造目录层级，
+> 把该 bug **钉死成"正确行为"**（第六轮定义的**伪回归**）——说明**"覆盖率 100%"本身不构成正确性证据**。
+> **层间最弱层由 `hands/` 变为 `brain/`**（CI 口径 69.13%，开发机 71.94%）。详见 §7.11。
 
 ---
 

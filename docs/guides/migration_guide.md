@@ -13,7 +13,7 @@ UniQuant 经历了多次重构。本文档列出所有已弃用（deprecated）�
 | `BacktestEngine` (`hands/backtest/engine.py`) | `UnifiedBacktestEngine` (`hands/backtest/unified_engine.py`) | 输入从 `signal_generator` 函数改为 `List[TradingSignal]` |
 | `PortfolioEngine` (`hands/backtest/portfolio_engine.py`) | `UnifiedBacktestEngine` | 同上 + 多标的支持在 `UnifiedBacktestEngine` 外部循环实现 |
 | `hands/strategies/backtest` | `ResearchPipeline` (`services/research_pipeline.py`) | 一键化：分析→信号→回测 |
-| `BaseStrategy` (`hands/strategies/`) | `STRATEGY_MAP` (`hands/strategies/registry.py`) | 注册表模式替代继承 |
+| `BaseStrategy` (`hands/strategies/`) | `STRATEGY_MAP` (`hands/strategies/registry.py`) | 注册表模式替代继承（⚠️ 2026-10-17 第八轮：`BaseStrategy` 已物理删除，直接使用 `STRATEGY_MAP`） |
 
 ### 迁移示例: BacktestEngine → UnifiedBacktestEngine
 

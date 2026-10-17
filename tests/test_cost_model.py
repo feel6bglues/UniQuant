@@ -172,3 +172,52 @@ class TestTransferFeeUnified:
         assert calculate_total_cost(100000.0, is_sell=False, symbol="688981.SH") > calculate_total_cost(
             100000.0, is_sell=False, symbol="510300.SH"
         )
+
+
+# ── CostConfig.from_yaml default-path resolution (round-8 regression guard) ──
+
+
+class TestCostConfigFromYamlDefaultPath:
+    """第八轮修复回归守卫：``from_yaml()`` 默认路径原为
+    ``Path(__file__).parents[2]`` → ``src/config/trading.yaml``（不存在）
+    → 异常被 ``except Exception`` 吞掉 → 静默退回硬编码默认值。
+    现改为仓库根 SSOT ``PROJECT_ROOT``。"""
+
+    def test_default_path_uses_project_root(self, tmp_path, monkeypatch):
+        import uniquant.shared.cost_model as cm
+
+        (tmp_path / "config").mkdir()
+        (tmp_path / "config" / "trading.yaml").write_text(
+            "execution:\n"
+            "  buy_fee_pct: 0.001\n"
+            "  sell_fee_pct: 0.002\n"
+            "  stamp_tax_pct: 0.003\n"
+            "  slippage_pct: 0.004\n"
+            "  min_commission: 7.0\n"
+            "  transfer_fee_pct: 0.00005\n"
+        )
+        monkeypatch.setattr(cm, "PROJECT_ROOT", tmp_path)
+
+        cfg = cm.CostConfig.from_yaml()
+        assert cfg.buy_fee_pct == 0.001
+        assert cfg.sell_fee_pct == 0.002
+        assert cfg.stamp_tax_pct == 0.003
+        assert cfg.slippage_pct == 0.004
+        assert cfg.min_commission == 7.0
+        assert cfg.transfer_fee_pct == 0.00005
+
+    def test_default_path_reads_real_repo_execution_section(self):
+        import pytest
+
+        import uniquant.shared.cost_model as cm
+        from uniquant.shared.constants.path import PROJECT_ROOT
+
+        assert cm.PROJECT_ROOT == PROJECT_ROOT
+        assert (PROJECT_ROOT / "config" / "trading.yaml").exists()
+
+        cfg = cm.CostConfig.from_yaml()
+        assert cfg.buy_fee_pct == pytest.approx(0.0003)
+        assert cfg.sell_fee_pct == pytest.approx(0.0003)
+        assert cfg.stamp_tax_pct == pytest.approx(0.0005)
+        assert cfg.slippage_pct == pytest.approx(0.0005)
+        assert cfg.transfer_fee_pct == pytest.approx(0.00001)

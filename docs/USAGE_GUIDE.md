@@ -587,46 +587,23 @@ engine.reset()
 ```python
 from uniquant.hands.strategies import STRATEGY_MAP
 
-# 查看所有已注册策略
+# 查看所有已注册策略（函数式 signal_generator）
 print(STRATEGY_MAP.keys())
-# → dict_keys(['fsm', 'wyckoff', 'regime', 'reversal', 'ma_atr'])
-
-# 每个策略的 __init__ 签名:
-#   FSMStrategy(*args, **kwargs)
-#   WyckoffStrategy(*args, **kwargs)
-#   RegimeStrategy(*args, **kwargs)
-#   ReversalStrategy(*args, **kwargs)
-#   MaAtrStrategy(*args, **kwargs)
+# → dict_keys(['wyckoff', 'ma_atr', 'ma_cross', 'reversal', 'str_reversal', 'regime'])
 ```
+
+> **2026-10-17（第八轮）**：类式（Backtrader）策略 `FSMStrategy` / `WyckoffStrategy` / `RegimeStrategy` / `ReversalStrategy` / `MaAtrStrategy` 已物理删除（`backtrader` 从未声明/安装，真实分支永久不可达）。策略现为**函数式**：`trade_wyckoff` / `trade_ma` / `trade_str_reversal` / `trade_regime`。
 
 ### 7.3 自定义策略
 
 ```python
-from uniquant.hands.strategies import BaseStrategy
+# 函数式 signal_generator 协议（推荐）：
+def my_strategy(df, as_of_date, cost_buy=None, cost_sell=None, csi=None, mode="backtest", **kwargs):
+    # 返回 {"ret": 收益率(%), "days": 持有天数} 或 None（无信号）
+    return {"ret": 2.5, "days": 10}
 
-class MyStrategy(BaseStrategy):
-    def __init__(self):
-        super().__init__()
-        self.ma_short = 5
-        self.ma_long = 20
-
-    def start(self):
-        pass
-
-    def stop(self):
-        pass
-
-    def calculate_position_size(self, stop_price):
-        return 1000
-
-    def notify_order(self, order):
-        pass
-
-    def notify_trade(self, trade):
-        pass
-
-    def log(self, txt, dt=None):
-        print(f"{dt}: {txt}")
+from uniquant.hands.strategies.registry import STRATEGY_MAP
+STRATEGY_MAP["my_strategy"] = my_strategy
 ```
 
 ### 7.4 Reporter / ResultsManager

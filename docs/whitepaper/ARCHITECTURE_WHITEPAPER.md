@@ -971,19 +971,19 @@ class UnifiedMatchingEngine:
 
 | 模块 | 文件 | 说明 |
 |------|------|------|
-| `PortfolioEngine` | `hands/backtest/portfolio_engine.py` | 组合级回测引擎 |
+| `UnifiedBacktestEngine` | `hands/backtest/unified_engine.py` | 统一回测引擎（强类型 TradingSignal + A 股防线） |
+| `UnifiedMatchingEngine` | `hands/backtest/unified_matching_engine.py` | 向量化撮合引擎 |
 | `MonteCarloSimulator` | `hands/backtest/monte_carlo.py` | 蒙特卡洛模拟 |
 | `OverfittingDetector` | `hands/backtest/overfitting_detector.py` | 过拟合检测 |
 | `RobustnessChecker` | `hands/backtest/robustness_checker.py` | 鲁棒性检验 |
 | `SensitivityAnalyzer` | `hands/backtest/sensitivity_analyzer.py` | 敏感性分析 |
-| `SignalIntegrator` | `hands/backtest/signal_integrator.py` | 多信号整合 |
-| `ReportGenerator` | `hands/backtest/report_generator.py` | 回测报告生成 |
 | `BacktestResult` | `hands/backtest/result.py` | 回测结果数据类 |
 | `TradeRecord` | `hands/backtest/result.py` | 交易记录数据类 |
-| `strategies/` | `hands/strategies/` | 策略库目录 |
-| `tuning/` | `hands/tuning/` | 参数调优目录 |
+| `strategies/` | `hands/strategies/` | 策略库目录（函数式注册表 `STRATEGY_MAP`） |
 | `reporter.py` | `hands/reporter.py` | 报告器 |
 | `results_manager.py` | `hands/results_manager.py` | 结果管理器 |
+
+> **2026-10-17（第八轮）剪除**：`hands/backtest/report_generator.py`、`hands/backtest/benchmark.py`、`hands/backtest/trade_analysis/`（零引用）与类式（backtrader）策略子集已物理删除；`portfolio_engine.py`、`signal_integrator.py`、`tuning/` 为更早已删除的历史条目。
 
 ### 7.4 BacktestResult & TradeRecord — `result.py`
 

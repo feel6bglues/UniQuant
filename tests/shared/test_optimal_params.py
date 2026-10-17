@@ -31,6 +31,26 @@ class TestLoader:
         from uniquant.shared.loader import load_strategy_weights
         assert load_strategy_weights("/nonexistent/path.yaml") is None
 
+    def test_default_path_uses_project_root(self, tmp_path, monkeypatch):
+        """第八轮修复回归守卫：默认路径原为 ``Path(__file__).parents[2]``
+        → ``src/config/trading.yaml``（不存在）→ 恒静默返回 ``None``。
+        现改为仓库根 SSOT ``PROJECT_ROOT``。"""
+        import uniquant.shared.loader as loader
+
+        (tmp_path / "config").mkdir()
+        (tmp_path / "config" / "trading.yaml").write_text(
+            "strategy_weights:\n  wyckoff: 0.4\n  regime: 0.6\n"
+        )
+        monkeypatch.setattr(loader, "PROJECT_ROOT", tmp_path)
+        assert loader.load_strategy_weights() == {"wyckoff": 0.4, "regime": 0.6}
+
+    def test_default_path_points_at_real_repo_config(self):
+        import uniquant.shared.loader as loader
+        from uniquant.shared.constants.path import PROJECT_ROOT
+
+        assert loader.PROJECT_ROOT == PROJECT_ROOT
+        assert (PROJECT_ROOT / "config" / "trading.yaml").exists()
+
 
 class TestMarketConstants:
     def test_import(self):

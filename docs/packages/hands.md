@@ -1,64 +1,24 @@
 # hands -- 回测与策略
 
-> **状态:** ✅ 已就绪 | **当前文件:** 34 | **说明:** UnifiedBacktestEngine 是当前主力回测引擎；BacktestEngine 已弃用
+> **状态:** ✅ 已就绪 | **当前文件:** 22 | **说明:** UnifiedBacktestEngine 是当前主力回测引擎
 
-`uniquant.hands` 模块是 UniQuant 的策略执行与回测子系统，约 4.7K LOC。该模块提供完整的回测引擎、统一撮合引擎、组合回测引擎、策略框架及内置策略，并包含丰富的回测分析工具（Monte Carlo 模拟、过拟合检测、稳健性检查、敏感性分析）。
+`uniquant.hands` 模块是 UniQuant 的策略执行与回测子系统。该模块提供统一回测引擎、统一撮合引擎、函数式策略框架及内置策略，并包含回测分析工具（Monte Carlo 模拟、过拟合检测、稳健性检查、敏感性分析）。
+
+> **2026-10-17（第八轮）**：`hands/backtest/report_generator.py`、`hands/backtest/benchmark.py`、`hands/backtest/trade_analysis/`（零引用）与类式（backtrader）策略子集（`strategies/base.py` + 5 个 `*_strategy.py`）已物理删除。旧 `BacktestEngine`（`hands/backtest/engine.py`）与 `PortfolioEngine`（`hands/backtest/portfolio_engine.py`）为更早已删除的历史条目，本页保留归档说明。
 
 模块通过 `__init__.py` 延迟导入 `Reporter`、`ResultsManager` 和 `strategies`，避免循环依赖。
 
 ---
 
-## BacktestEngine 回测引擎 (已弃用)
+## ~~BacktestEngine 回测引擎~~（历史条目，已删除）
 
-> **⚠️ 已弃用**: `BacktestEngine` (位于 `hands.backtest.engine`) 已标记为 DEPRECATED，文件头部标注"请使用 UnifiedBacktestEngine"。新项目应直接使用 [`UnifiedBacktestEngine`](https://github.com/uniquant/uniquant/blob/main/src/uniquant/hands/backtest/unified_engine.py)。
->
-> 以下文档保留供维护旧代码参考，新开发请跳至下方 UnifiedMatchingEngine 和 UnifiedBacktestEngine 章节。
-
-`BacktestEngine` 位于 `hands.backtest.engine`，是单资产回测的历史核心入口。支持 4 种回测模式：
-
-### 构造函数
-
-```python
-BacktestEngine(
-    initial_capital: float = BacktestConstants.DEFAULT_INITIAL_CAPITAL,
-    commission_rate: float = BacktestConstants.DEFAULT_COMMISSION_RATE,
-    stamp_duty_rate: float = BacktestConstants.DEFAULT_STAMP_DUTY_RATE,
-    slippage_rate: float = BacktestConstants.DEFAULT_SLIPPAGE_RATE,
-    min_commission: float = BacktestConstants.DEFAULT_MIN_COMMISSION,
-    trade_calendar: Optional[TradeCalendarManager] = None,
-    matching_engine: Optional[UnifiedMatchingEngine] = None,
-)
-```
-
-内部状态包括 `cash`、`position`、`position_cost`、`trades`、`equity_curve`、`daily_returns`。每次运行前通过 `reset()` 重置状态。
-
-### 信号生成器协议
-
-回测引擎通过 `StrategyProtocol` 定义信号生成器接口：
-
-```python
-class StrategyProtocol(Protocol):
-    def generate_signal(self, df: pd.DataFrame, idx: int) -> Dict[str, Any]: ...
-```
-
-`run_backtest` 接受的 `signal_generator` 签名为 `Callable[[pd.DataFrame, int, Dict[str, Any]], Dict[str, Any]]`，返回字典包含 `action`（"BUY"/"SELL"/"HOLD"）和 `reason` 字段。信号在第 `idx` 日生成，以下一日开盘价执行。
-
-### 四种回测模式
-
-| 方法 | 说明 | 返回值 |
-|------|------|--------|
-| `run_backtest(df, signal_generator, symbol, position_size)` | 标准单次回测。遍历 K 线数据，信号在 T 日生成，T+1 日开盘执行。 | `BacktestResult` |
-| `run_rolling_backtest(df, signal_generator, symbol, position_size, train_window=252, test_window=63)` | 滚动窗口回测。以 `train_window` 为训练期、`test_window` 为测试期滑动。 | `List[BacktestResult]` |
-| `run_walk_forward(df, signal_generator_factory, symbol, position_size, train_window=252, test_window=63)` | Walk-forward 验证。`signal_generator_factory` 接收训练数据返回信号生成器，在样本外测试。 | `List[BacktestResult]` |
-| `run_stress_test(df, signal_generator, symbol, position_size, scenarios)` | 压力测试。基于 `RiskCalculationConstants.CRASH_SCENARIOS` 对价格施加冲击后回测。 | `Dict[str, BacktestResult]` |
-
-买卖执行委托给 `UnifiedMatchingEngine`，通过 `execute_buy` 和 `execute_sell` 方法完成。
+> **⚠️ 已删除**: `BacktestEngine`（原位于 `hands.backtest.engine`）已在早期清理轮次中物理删除（连同 `PortfolioEngine`、`SignalBacktestIntegrator`）。请直接使用 [`UnifiedBacktestEngine`](https://github.com/uniquant/uniquant/blob/main/src/uniquant/hands/backtest/unified_engine.py)。本章节保留为归档说明。
 
 ---
 
 ## UnifiedMatchingEngine 统一撮合引擎
 
-`UnifiedMatchingEngine` 位于 `hands.backtest.unified_matching_engine`，是全系统强制使用的撮合核心，`BacktestEngine` 和 `PortfolioEngine` 均通过它执行交易。
+`UnifiedMatchingEngine` 位于 `hands.backtest.unified_matching_engine`，是全系统强制使用的撮合核心，`UnifiedBacktestEngine` 通过它执行交易。
 
 ### 设计特点
 
@@ -113,40 +73,11 @@ class FillResult:
 
 ---
 
-## PortfolioEngine 组合回测引擎
+## ~~PortfolioEngine 组合回测引擎~~（历史条目，已删除）
 
-`PortfolioEngine` 位于 `hands.backtest.portfolio_engine`，支持多资产组合级别的回测。
-
-### 构造函数
-
-```python
-PortfolioEngine(
-    initial_capital: float = BacktestConstants.DEFAULT_INITIAL_CAPITAL,
-    max_positions: int = 5,
-    commission_rate: float = BacktestConstants.DEFAULT_COMMISSION_RATE,
-    stamp_duty_rate: float = 0.0005,
-    slippage_rate: float = BacktestConstants.DEFAULT_SLIPPAGE_RATE,
-    min_commission: float = BacktestConstants.DEFAULT_MIN_COMMISSION,
-    risk_free_rate: float = 0.03,
-    trade_calendar: Optional[TradeCalendarManager] = None,
-)
-```
-
-### 核心特性
-
-- **最大持仓限制**：`max_positions` 控制同时持有的最大股票数量，`can_open_new_position()` 检查是否允许开新仓。
-- **批量操作**：`batch_open_positions` 和 `batch_close_positions` 通过 `UnifiedMatchingEngine` 向量化撮合多只股票的买卖。
-- **待执行信号队列**：`_pending_signals` 列表保存当日产生的信号，延迟到下一交易日执行，模拟真实交易的 T+1 信号延迟。
-- **仓位管理**：`Position` 数据类记录 `symbol`、`shares`、`cost_basis`、`entry_price`、`entry_time`。
-
-### 主要方法
-
-| 方法 | 说明 |
-|------|------|
-| `batch_open_positions(signals, prices, pre_closes, timestamps, ...)` | 批量开仓。`signals` 为 `{symbol: score}` 字典，正值触发买入。支持 `sizing_fraction` 比例仓位和固定股数两种模式。 |
-| `batch_close_positions(signals, prices, pre_closes, timestamps, ...)` | 批量平仓。`signals` 中负值触发卖出。返回成功平仓数量。 |
-| `run(signals, price_data, pre_close_data, ...)` | 完整组合回测。输入 DataFrame 按日期迭代，管理信号队列和权益计算，返回含 `equity` 和 `daily_return` 的 DataFrame。 |
-| `calculate_metrics(equity_curve)` | 计算组合绩效指标：总收益率、年化收益率、波动率、Sharpe 比率、最大回撤、Calmar 比率、胜率、盈亏比。 |
+> **⚠️ 已删除**: `PortfolioEngine`（原位于 `hands.backtest.portfolio_engine`）已在早期清理轮次中物理删除。多标的组合回测现通过 `UnifiedBacktestEngine` 在外层循环 + `UnifiedMatchingEngine` 批量撮合实现。本章节保留为归档说明。
+>
+> 历史上的 `PortfolioEngine` 能力（`max_positions` 最大持仓限制、`batch_open_positions`/`batch_close_positions` 批量开平仓、`_pending_signals` T+1 信号延迟队列、`Position` 数据类、`calculate_metrics` 组合绩效指标）均已在删除该引擎时随测试一并移除。
 
 ---
 
@@ -167,26 +98,15 @@ STRATEGY_MAP = {
 }
 ```
 
-### BaseStrategy 基类
+### ~~BaseStrategy 基类~~（2026-10-17 第八轮删除）
 
-位于 `hands.strategies.base`，可选依赖 `backtrader`。当 `backtrader` 已安装时继承 `bt.Strategy`，否则提供 Mock 实现。
+原位于 `hands.strategies.base`，以 `backtrader` 为可选依赖（未安装时退化为 Mock）。
 
-关键特性：
-- 参数：`verbose`（日志开关）、`risk_pct`（风险百分比，默认 0.05）、`stop_atr_n`（ATR 止损倍数，默认 2.0）
-- `calculate_position_size(stop_price)` 调用 `PositionSizer` 计算仓位
-- `notify_order` / `notify_trade` 处理订单和交易通知
+**已剪除**：`backtrader` 既未声明于 `pyproject.toml` 的任何依赖集、也从未安装 → `HAS_BACKTRADER` 恒为 `False`，`if HAS_BACKTRADER:` 的真实分支在 CI 与开发机上**永久不可达**；生产/研究链路无消费者。连同 `fsm_strategy` / `ma_atr_strategy` / `regime_strategy` / `reversal_strategy` / `wyckoff_strategy` 一并物理删除。类式策略的功能对应物是本页的**函数式策略注册表 `STRATEGY_MAP`**。
 
-### StrategyResult 数据类
+### ~~StrategyResult 数据类~~（2026-10-17 第八轮删除）
 
-```python
-@dataclass
-class StrategyResult:
-    ret: float = 0.0       # 收益率
-    days: int = 0           # 持仓天数
-    exit_reason: str = ""   # 退出原因
-    entry_price: float = 0.0
-    exit_price: float = 0.0
-```
+原定义于 `hands/strategies/base.py`（`@dataclass class StrategyResult: ret/days/exit_reason/entry_price/exit_price`），随类式（backtrader）策略子集一并物理删除。函数式策略直接返回 `{"ret": float, "days": int}` 字典（见下「策略协议」）。
 
 ### 策略协议
 
@@ -252,31 +172,17 @@ def trade_xxx(
 - **卖出逻辑**：以次日开盘价入场，设置 ATR 倍数（2.0）的止盈和止损，最长持有 5 日。
 - **参数**：回看 10 根 K 线判断反转信号，ATR 窗口 14 日。
 
-### FSM (FSMStrategy)
+### ~~FSM (FSMStrategy)~~（2026-10-17 第八轮删除）
 
-位于 `hands.strategies.fsm_strategy`，基于 `backtrader` 框架实现。
-
-- **买入条件**（两种入场模式）：
-  - SIGNAL 状态：价格从下方突破 MA60（`close[0] > MA60[0]` 且 `close[-1] <= MA60[-1]`）
-  - PROBE 状态：MA20 > MA60 且价格回调至 MA20 附近（偏离 < 2%）
-- **卖出条件**：价格跌破 MA60（`close[0] < MA60[0]`）
-- **参数**：`ma_short=20`、`ma_long=60`
-- **仓位计算**：调用 `calculate_position_size(stop_price=MA60[0])` 确定买入股数
+原位于 `hands.strategies.fsm_strategy`，基于 `backtrader` 框架实现。**已随类式（backtrader）策略子集一并物理删除**（理由见「~~BaseStrategy 基类~~」）。
 
 ---
 
 ## 回测分析工具
 
-### TradeAnalyzer 交易分析器
+### ~~TradeAnalyzer 交易分析器~~（2026-10-17 第八轮删除）
 
-位于 `hands.backtest.trade_analysis.analyzer`，提供全面的交易统计分析。
-
-| 方法 | 说明 |
-|------|------|
-| `analyze(trades)` | 综合分析：盈亏统计、时间分布、交易汇总。 |
-| `win_loss_analysis(trades)` | 盈亏分析：胜率、平均盈利/亏损、盈亏比（profit_ratio）、数学期望（expectancy）。 |
-| `time_analysis(trades)` | 时间维度分析：按年/月/星期几/小时分布统计交易次数和盈亏。 |
-| `market_regime_analysis(trades, regime)` | 市场状态分析：统计不同 regime 下的交易次数、总盈亏、胜率、盈亏比。 |
+原位于 `hands.backtest.trade_analysis.analyzer`（连同 `trade_analysis/statistics.py` 整包）。**已剪除**：AST 核验在 `src/` + `tests/` + `scripts/` 中**零引用**（同批删除的还有 `hands.backtest.report_generator` 与 `hands.backtest.benchmark`）——其职责已由**在线的** `services/analysis/report_generator_engine.py` + `hands/results_manager.py` + `hands/reporter.py` 承接。
 
 ### BacktestResult 回测结果
 

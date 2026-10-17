@@ -179,37 +179,30 @@ hands/
 ├── results_manager.py                  — 计算结果管理器，管理分析结果的存储、读取和报告生成
 │
 ├── backtest/
-│   ├── __init__.py                     — 导出 BacktestEngine, BacktestResult, TradeRecord, SignalBacktestIntegrator, PortfolioEngine, MonteCarloSimulator, OverfittingDetector, RobustnessChecker, SensitivityAnalyzer, BenchmarkComparator, BacktestReportGenerator
-│   ├── engine.py                       — 回测引擎核心，基于策略协议驱动逐日回测并生成绩效统计
-│   ├── result.py                       — 回测结果数据结构，定义 TradeRecord 和 BacktestResult
+│   ├── __init__.py                     — 导出 UnifiedBacktestEngine/BacktestResult/TradeRecord + 机构对冲与执行中枢 (CFFEX / TWAP / SAGA / FeeLedger)
+│   ├── unified_engine.py               — 统一回测引擎 (强类型 TradingSignal 输入，A 股防线)
 │   ├── unified_matching_engine.py      — 统一向量化撮合引擎，强制 T+1、涨跌停、印花税、滑点等 A 股约束
-│   ├── portfolio_engine.py             — 投资组合回测引擎，使用 UnifiedMatchingEngine 强制 A 股约束
-│   ├── signal_integrator.py            — 信号回测集成器，将信号系统与回测引擎对接
-│   ├── benchmark.py                    — 基准比较器，计算 CAPM Alpha/Beta、跟踪误差、信息比率
+│   ├── result.py                       — 回测结果数据结构，定义 TradeRecord 和 BacktestResult
+│   ├── cffex_engine.py                 — 中金所跨资产撮合与风险引擎 (保证金 / 逐日盯市结算)
+│   ├── twap_execution_slicer.py        — TWAP 执行切片器与微结构订单簿仿真
+│   ├── saga_compensator.py             — cross-asset SAGA 补偿协调器 + SQLite WAL 状态机
+│   ├── institutional_fee_ledger.py     — 机构费用账本 (佣金 / 费用快照)
 │   ├── monte_carlo.py                  — Monte Carlo 回测模拟器，提供随机排列和 Bootstrap 重采样
 │   ├── overfitting_detector.py         — 过拟合检测器，实现 Deflated Sharpe Ratio 和最大回撤显著性检验
 │   ├── robustness_checker.py           — 策略稳健性检查器，检查不同市场条件下的表现稳健性
-│   ├── sensitivity_analyzer.py         — 参数敏感性分析器，提供 OAT 分析和龙卷风图数据
-│   ├── report_generator.py             — 回测报告生成器，生成 HTML 格式的回测报告
-│   │
-│   └── trade_analysis/
-│       ├── __init__.py                 — 导出 TradeAnalyzer, TradeStatistics
-│       ├── analyzer.py                 — 交易分析器，提供盈亏分析、时间维度分析、市场状态分析
-│       └── statistics.py               — 交易统计计算器，计算盈亏比、平均收益、最大连续亏损等指标
+│   └── sensitivity_analyzer.py         — 参数敏感性分析器，提供 OAT 分析和龙卷风图数据
 │
 └── strategies/
-    ├── __init__.py                     — 导出所有策略: BaseStrategy, FSMStrategy, run_backtest, STRATEGY_MAP, trade_wyckoff, trade_ma, trade_str_reversal 等
-    ├── base.py                         — 策略基类，定义 StrategyResult 数据类，可选依赖 backtrader
-    ├── backtest.py                     — 回测运行器，负责加载数据、并行执行策略、汇总结果
-    ├── fsm_strategy.py                 — FSM 策略 (backtrader)，基于 MA20/MA60 趋势分析的买卖策略
+    ├── __init__.py                     — 策略包初始化 (惰性暴露 STRATEGY_MAP)
+    ├── registry.py                     — 策略注册表，映射策略名称到执行函数 (STRATEGY_MAP)
     ├── indicators.py                   — 策略级指标计算工具函数 (ATR 等)
     ├── ma_cross.py                     — 均线交叉策略，基于短期/长期均线金叉死叉信号
     ├── regime.py                       — 市场状态判断函数，基于 MA120/MA60 划分牛/熊/震荡
-    ├── registry.py                     — 策略注册表，映射策略名称到执行函数 (STRATEGY_MAP)
     ├── str_reversal.py                 — 反转策略，基于短期超卖反弹逻辑
-    ├── wyckoff.py                      — Wyckoff 策略 (v1)，基于 WyckoffEngine 信号的交易策略
-    └── wyckoff_strategy.py             — Wyckoff 策略 (v2)，改进版 Wyckoff 交易策略
+    └── wyckoff.py                      — Wyckoff 策略，基于 WyckoffEngine 信号的交易策略
 ```
+
+> **2026-10-17（第八轮）剪除**：`backtest/benchmark.py`、`backtest/report_generator.py`、`backtest/trade_analysis/` 整包（`src/`+`tests/`+`scripts/` 零引用），以及类式（backtrader）策略 `strategies/base.py` / `fsm_strategy.py` / `ma_atr_strategy.py` / `regime_strategy.py` / `reversal_strategy.py` / `wyckoff_strategy.py`（`backtrader` 从未声明/安装，真实分支永久不可达）已物理删除。上文 `backtest/engine.py`、`portfolio_engine.py`、`signal_integrator.py`、`strategies/backtest.py` 等更早已于历史轮次删除。
 
 ### 2.4 services/ — 服务层 (业务编排与协调)
 

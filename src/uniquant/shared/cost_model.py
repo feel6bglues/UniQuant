@@ -16,8 +16,8 @@ import datetime
 import os
 
 from uniquant.shared.logger_factory import get_logger
+from uniquant.shared.constants.path import PROJECT_ROOT
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Dict, Optional
 
 import numpy as np
@@ -154,7 +154,11 @@ class CostConfig:
         The yaml stores slippage_pct as a decimal (e.g. 0.0005 for 0.05%).
         """
         if yaml_path is None:
-            yaml_path = str(Path(__file__).resolve().parents[2] / "config" / "trading.yaml")
+            # 第八轮修复: 原为 `Path(__file__).resolve().parents[2]`，本文件位于
+            # src/uniquant/shared/，parents[2] 指向 src/ 而非仓库根，解析出的
+            # src/config/trading.yaml 不存在 → 异常被下方 except 吞掉 →
+            # 静默退回硬编码默认值（yaml execution 段从未生效）。
+            yaml_path = str(PROJECT_ROOT / "config" / "trading.yaml")
         try:
             with open(yaml_path) as f:
                 import yaml as _yaml

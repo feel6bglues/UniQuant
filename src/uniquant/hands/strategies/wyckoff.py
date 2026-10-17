@@ -1,5 +1,4 @@
 from functools import lru_cache
-from pathlib import Path
 from typing import Dict, Optional
 
 import pandas as pd
@@ -12,6 +11,7 @@ except ImportError:
 
 from uniquant.shared.logger_factory import get_logger
 from uniquant.shared.cost_model import COST_BUY, COST_SELL
+from uniquant.shared.constants.path import PROJECT_ROOT
 from uniquant.hands.strategies.indicators import calc_atr
 from uniquant.hands.strategies.regime import get_regime
 from uniquant.brain.wyckoff.engine import WyckoffEngine
@@ -29,7 +29,12 @@ REGIME_PARAMS = {
 @lru_cache(maxsize=1)
 def load_wyckoff_params():
     """从 config/trading.yaml 加载 WyckoffEngine 参数和置信度阈值"""
-    p = Path(__file__).resolve().parents[2] / "config" / "trading.yaml"
+    # 第八轮修复: 原为 `Path(__file__).resolve().parents[2]`，本文件位于
+    # src/uniquant/hands/strategies/，parents[2] 指向 src/uniquant/ 而非仓库根，
+    # 解析出的 src/uniquant/config/trading.yaml 不存在 → FileNotFoundError 被上层
+    # 宽泛的 ``except``（第 59 行）吞掉 → trade_wyckoff 恒返回 None（策略永久失效）。
+    # 统一改用 shared.constants.path.PROJECT_ROOT（仓库根 SSOT）。
+    p = PROJECT_ROOT / "config" / "trading.yaml"
     with open(p) as f:
         cfg = yaml.safe_load(f)
     w = cfg["strategies"]["wyckoff"]

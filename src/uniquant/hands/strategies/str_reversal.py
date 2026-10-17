@@ -39,7 +39,10 @@ def trade_str_reversal(df: pd.DataFrame, as_of_date: str,
             ep, ed = tp, i + 1
             break
         if lo <= sl:
-            ep, sl = sl, i + 1
+            # 第八轮修复: 原为 `ep, sl = sl, i + 1`（笔误，把退出天数写进了 sl，
+            # 使 ed 在止损退出时保留 len(fut)）→ 返回的 days 恒为该标的可用前向
+            # 天数而非真实持仓天数。与上方止盈分支保持对称。
+            ep, ed = sl, i + 1
             break
         ep, ed = c, i + 1
     tr = (ep - entry) / entry * 100

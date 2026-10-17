@@ -68,6 +68,11 @@ UnifiedBacktestEngine.run(df, signals, symbol)
 | `trade_analysis/analyzer.py` | — | 交易分析 | ✅ |
 | `trade_analysis/statistics.py` | — | 交易统计 | ✅ |
 
+> **⚠️ 上表为 2026-06-29 快照，部分条目此后已被删除**：
+> `engine.py` / `portfolio_engine.py` / `signal_integrator.py` / `param_validator.py` 已在早期清理轮次删除；
+> `benchmark.py` / `report_generator.py` / `trade_analysis/` 于 **2026-10-17（第八轮）** 删除（AST 核验零引用）。
+> 当前 `hands/backtest/` 的有效模块以 `docs/packages/hands.md` 与源码为准。
+
 ---
 
 ## 3. UnifiedBacktestEngine (`unified_engine.py`)

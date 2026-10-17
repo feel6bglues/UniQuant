@@ -1007,21 +1007,19 @@ src/uniquant/
 
   hands/            # 应用层 - 回测与执行
     backtest/       #   回测引擎
-      engine.py     #     核心回测引擎
+      unified_engine.py           # 统一回测引擎 (强类型信号 + A 股防线)
       unified_matching_engine.py  # 向量化撮合
-      portfolio_engine.py         # 组合回测
+      result.py                   # 回测结果数据结构
       monte_carlo.py              # 蒙特卡洛模拟
       overfitting_detector.py     # 过拟合检测
       robustness_checker.py       # 稳健性检验
       sensitivity_analyzer.py     # 敏感性分析
-      trade_analysis/             # 交易分析
-    strategies/     #   策略库
-      base.py       #     策略基类
-      fsm_strategy.py    # FSM 策略
+    strategies/     #   策略库 (函数式)
+      registry.py        # 策略注册中心 (STRATEGY_MAP)
       wyckoff.py         # Wyckoff 策略
       ma_cross.py        # 均线交叉
       regime.py          # 状态策略
-      registry.py        # 策略注册中心
+      str_reversal.py    # 反转策略
 
   services/         # 应用层 - 服务编排
     service_container.py  # DAG 依赖注入容器

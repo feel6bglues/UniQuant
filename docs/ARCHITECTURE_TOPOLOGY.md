@@ -388,13 +388,14 @@ CacheCoordinator ──→ ServiceContainer
 
 **违反**: 依赖倒置原则 (DIP) — 上层不应依赖下层具体实现。
 
-### 3.3 HIGH: hands → brain 跨层直接依赖 (3 处)
+### 3.3 HIGH: hands → brain 跨层直接依赖 (2 处)
 
 | hands 文件 | 导入的 brain 具体类 |
 |------------|---------------------|
 | `strategies/wyckoff.py` | `brain.wyckoff.engine.WyckoffEngine` |
 | `strategies/wyckoff.py` | `brain.wyckoff.models.ConfidenceLevel` |
-| `strategies/regime_strategy.py` | `brain.regime_detector.RegimeDetector` |
+
+> **2026-10-17（第八轮）更新**：原第 3 处 `strategies/regime_strategy.py → brain.regime_detector.RegimeDetector` 已随该文件被物理删除而消失——类式（backtrader）策略子集因 `backtrader` 从未声明/安装、真实分支永久不可达而被剪除（详见 §3.10）。
 
 **问题**: hands 层 (Layer 3) 直接导入 brain 层 (Layer 2) 的具体实现类。按 DAG 规则，hands 应只通过 signal 层或 Protocol 接口与 brain 通信。
 
@@ -474,9 +475,9 @@ STRATEGY_MAP = {"wyckoff": trade_wyckoff, "ma_atr": trade_ma, ...}
 
 **问题**: 顶层 import 触发所有策略模块加载（包括 `wyckoff.py` 对 brain 的硬依赖），无延迟注册。
 
-### 3.10 MEDIUM: BaseStrategy 可选依赖 backtrader
+### 3.10 ✅ RESOLVED (2026-10-17): BaseStrategy 可选依赖 backtrader
 
-**文件**: `hands/strategies/base.py`
+**原文件**: `hands/strategies/base.py`（已删除）
 
 ```python
 try:
@@ -487,7 +488,9 @@ except ImportError:
     bt = None
 ```
 
-**问题**: `BaseStrategy(bt.Strategy)` 继承 backtrader，但回测引擎 (`BacktestEngine`) 完全不使用 backtrader。两套并行的回测体系增加了维护成本。
+**原问题**: `BaseStrategy(bt.Strategy)` 继承 backtrader，但回测引擎 (`BacktestEngine`) 完全不使用 backtrader。两套并行的回测体系增加了维护成本。
+
+**处置（第八轮）**: `backtrader` 既未声明于 `pyproject.toml` 的任何依赖集、也从未安装，故 `HAS_BACKTRADER` 在 CI 与开发机上**恒为 `False`**——`if HAS_BACKTRADER:` 的真实分支永久不可达（长期只运行 Mock 回退）。生产/研究链路无消费者，唯一暴露点是 `hands.strategies.__getattr__` 兼容垫片。该子集（`base` + `fsm_strategy` + `ma_atr_strategy` + `regime_strategy` + `reversal_strategy` + `wyckoff_strategy`）已连同垫片**物理删除**；函数式策略注册表 `registry.STRATEGY_MAP` 保留不变。
 
 ### 3.11 LOW: 跨层常量耦合
 

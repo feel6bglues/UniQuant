@@ -2,10 +2,9 @@
 
 ## 策略体系概览
 
-UniQuant 的策略系统位于 `uniquant.hands.strategies` 模块，采用**注册表模式**管理所有策略。系统提供两种策略形态：
+UniQuant 的策略系统位于 `uniquant.hands.strategies` 模块，采用**注册表模式**管理所有策略。策略形态为**信号生成函数 (signal_generator)**：轻量级函数，接收行情数据和日期，输出交易结果字典，用于回测扫描。
 
-1. **信号生成函数 (signal_generator)**：轻量级函数，接收行情数据和日期，输出交易结果字典。用于回测扫描。
-2. **BaseStrategy 类**：基于 Backtrader 框架的完整策略类，支持实时信号生成、仓位管理和订单追踪。
+> **2026-10-17（第八轮）**：原第 2 种形态 **`BaseStrategy` 类（基于 Backtrader）** 已物理删除——`backtrader` 从未声明为依赖、也从未安装，`HAS_BACKTRADER` 恒为 `False`，真实分支在 CI 与开发机上永久不可达。类式策略的替代物是本页下方的 `STRATEGY_MAP` 函数式注册表。
 
 **核心协议：**
 
@@ -66,56 +65,9 @@ STRATEGY_MAP["my_strategy"] = my_strategy
 
 ---
 
-## BaseStrategy
+## ~~BaseStrategy~~（2026-10-17 第八轮删除）
 
-`BaseStrategy` 是基于 Backtrader 的策略基类，提供订单管理、交易日志和仓位计算等基础功能。
-
-### 条件导入
-
-系统通过条件导入支持 Backtrader 的可选依赖：
-
-```python
-try:
-    import backtrader as bt
-    HAS_BACKTRADER = True
-except ImportError:
-    HAS_BACKTRADER = False
-```
-
-当 Backtrader 未安装时，`BaseStrategy` 退化为 Mock 实现，仅提供日志输出功能。
-
-### 核心参数
-
-```python
-params = (
-    ("verbose", True),      # 是否输出详细日志
-    ("risk_pct", 0.05),     # 单次交易风险比例
-    ("stop_atr_n", 2.0),    # ATR 止损倍数
-)
-```
-
-### 关键方法
-
-| 方法 | 说明 |
-|------|------|
-| `log(txt, dt)` | 输出带日期的策略日志 |
-| `notify_order(order)` | 订单状态回调：处理成交、取消、拒绝等事件 |
-| `notify_trade(trade)` | 交易完成回调：输出毛利润和净利润 |
-| `calculate_position_size(stop_price)` | 根据止损价和风险比例计算仓位大小（依赖 PositionSizer） |
-| `start()` | 策略启动回调 |
-| `stop()` | 策略停止回调 |
-
-### StrategyResult 数据类
-
-```python
-@dataclass
-class StrategyResult:
-    ret: float = 0.0          # 收益率 (%)
-    days: int = 0             # 持有天数
-    exit_reason: str = ""     # 退出原因
-    entry_price: float = 0.0  # 入场价格
-    exit_price: float = 0.0   # 出场价格
-```
+原 `BaseStrategy` 是基于 Backtrader 的策略基类（`hands/strategies/base.py`，含 `StrategyResult` 数据类），提供订单管理、交易日志和仓位计算。该文件连同 `fsm_strategy.py` / `ma_atr_strategy.py` / `regime_strategy.py` / `reversal_strategy.py` / `wyckoff_strategy.py` 已**物理删除**：`backtrader` 从未声明于 `pyproject.toml` 任何依赖集、也从未安装 → `HAS_BACKTRADER` 恒为 `False`，`if HAS_BACKTRADER:` 的真实分支在 CI 与开发机上永久不可达；生产/研究链路无消费者。请使用上面的 `STRATEGY_MAP` 函数式策略。
 
 ---
 
@@ -280,37 +232,9 @@ reversal:
 
 ---
 
-### FSM (FSMStrategy)
+### ~~FSM (FSMStrategy)~~（2026-10-17 第八轮删除）
 
-**策略名称**：FSMStrategy（Backtrader 策略类，非 signal_generator 函数）
-
-**策略逻辑**：基于有限状态机（Finite State Machine）的趋势策略，使用 MA20/MA60 双均线系统。
-
-- **SIGNAL 状态（突破入场）**：价格从 MA60 下方上穿 MA60
-- **PROBE 状态（回踩入场）**：MA20 > MA60 且价格回踩至 MA20 附近（偏离 < 2%）
-- **退出条件**：价格跌破 MA60
-
-**策略参数**：
-
-```python
-params = (
-    ("ma_short", 20),   # 短期均线周期
-    ("ma_long", 60),    # 长期均线周期
-)
-```
-
-**使用示例**（需安装 Backtrader）：
-
-```python
-import backtrader as bt
-from uniquant.hands.strategies.fsm_strategy import FSMStrategy
-
-cerebro = bt.Cerebro()
-cerebro.addstrategy(FSMStrategy, ma_short=20, ma_long=60)
-cerebro.adddata(data_feed)
-cerebro.broker.setcash(100000.0)
-results = cerebro.run()
-```
+原为 `hands.strategies.fsm_strategy.FSMStrategy`（Backtrader 策略类，非 signal_generator 函数），基于 MA20/MA60 双均线有限状态机（SIGNAL 突破入场 / PROBE 回踩入场 / 跌破 MA60 退出）。**已随类式（backtrader）策略子集一并物理删除**（理由见上「~~BaseStrategy~~」）——它从来无法在 CI 或开发机上真正运行（`backtrader` 未安装）。
 
 ---
 
