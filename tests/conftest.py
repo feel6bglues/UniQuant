@@ -9,6 +9,31 @@ import numpy as np
 np.random.seed(42)
 
 
+# ─── Third-party config-dir race guard ────────────────────────────────────────
+# ``mootdx.utils.get_config_path()`` is invoked at *import* time through the
+# ``@file_cache`` decorators in ``mootdx.utils.adjust`` / ``mootdx.utils.holiday``
+# and does, with no ``exist_ok``:
+#
+#     Path(pathname).exists() or Path(pathname).mkdir(parents=True)
+#
+# On a fresh runner (e.g. GitHub CI) where ``~/.mootdx`` does not yet exist, two
+# pytest-xdist workers can both pass the ``exists()`` check and one then dies
+# with ``FileExistsError: ... '/home/runner/.mootdx'`` *during collection*, which
+# takes the worker down and surfaces as
+# ``Different tests were collected between gw0 and gw1`` (observed on the CI
+# ``coverage`` job, 2026-10-17).  Pre-create the library's own config dirs here,
+# at conftest import time (i.e. before any test module is imported by a worker),
+# so its ``exists()`` check short-circuits.  Race-safe because ``exist_ok=True``
+# swallows the concurrent-creation ``FileExistsError``; a no-op once the dirs
+# exist (developer machines that have used mootdx).
+_MOOTDX_HOME = os.path.join(os.path.expanduser("~"), ".mootdx")
+for _sub in ("", "caches", "xdxr"):
+    try:
+        os.makedirs(os.path.join(_MOOTDX_HOME, _sub), exist_ok=True)
+    except OSError:
+        pass
+
+
 # ─── Local (gitignored) data availability guards ──────────────────────────────
 # The market data lake under data/lake/, the GBBQ baseline under data/fq/, and
 # bulk research output are gitignored: they exist only on a machine that has run

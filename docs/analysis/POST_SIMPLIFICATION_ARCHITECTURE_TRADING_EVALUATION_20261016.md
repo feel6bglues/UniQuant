@@ -1232,6 +1232,41 @@ CI 收集 **3,630 → 3,936**（+306）；CI 跳过数 **163 → 163**（不变�
 （第八轮已就这一点把 74 上调为 78）。故按同一政策上调至 **84**（余量 **+2.04 pt**，
 与第三轮 76.05%→74 的 2.05 pt 先例一致）。**保留 78 反而不合规**——它不是回归探测器。
 
+### 7.12.6 第九轮附带修复：一个第三方库的 TOCTOU 使 CI `coverage` 作业**收集期**崩掉
+
+第九轮推送（`3292000`）后，**`test` 作业绿、`pip-audit` 绿，但 `coverage` 作业红**——
+且**不是**卡在 `--cov-fail-under=84`，而是**收集期**就崩了（这正是第五轮教训的同型信号：
+"一个用例都没跑"）。check-run 注解（免鉴权读取，仓库为 public）逐字给出：
+
+```text
+ERROR gw0 - Different tests were collected between gw1 and gw0. The difference is:
+ERROR tests/brain/lppl/test_computation_regression.py - FileExistsError: [Errno 17] File exists: '/home/runner/.mootdx'
+E   FileExistsError: [Errno 17] File exists: '/home/runner/.mootdx'
+FAIL Required test coverage of 84% not reached. Total coverage: 25.81%
+```
+
+**根因：第三方库 `mootdx` 的 TOCTOU**（**不是**本轮剪除引入）。`mootdx.utils.get_config_path()`
+在 `mootdx.utils.adjust` / `mootdx.utils.holiday` 的 `@file_cache` 装饰器里**在导入期**被调用，其实现为：
+
+```python
+Path(pathname).exists() or Path(pathname).mkdir(parents=True)   # 无 exist_ok
+```
+
+在**全新 runner**（`~/.mootdx` 尚不存在）+ **`pytest-xdist` 多 worker 并发**下，两个 worker 可同时通过
+`exists()` 检查、随后一个 `mkdir` 抛出 `FileExistsError` → **该 worker 在收集期死亡** → 各 worker 收集集
+不一致（`gw0 != gw1`）→ 覆盖率只覆盖到残跑（**25.81%**）→ 门限失败。**为何本机复现不出**：开发机
+`~/.mootdx` 早已存在（`exists()` 恒真），故竞争窗口不存在；这是**环境依赖的 flaky**（第八轮 CI 只是运气好）。
+
+**处置（确定性、可审计）**：在 `tests/conftest.py` **导入期**（早于任何测试模块被 worker 导入）以
+`os.makedirs(path, exist_ok=True)` 预建 `~/.mootdx` + `~/.mootdx/caches` + `~/.mootdx/xdxr`
+（该库在导入期会请求的三个父目录）→ 其 `exists()` 短路、**永不走那条 racy 的 `mkdir`**。
+`exist_ok=True` 使预建本身对并发安全（吞掉并发创建 `FileExistsError`）；目录已存在时为 **no-op**。
+**未改任何生产代码、未改 `mootdx` 本体、未在 workflow 里塞魔法命令**——修的是"测试环境自身的不确定性"。
+
+**验证**：新增 `tests/test_mootdx_config_dir_guard.py`（**2 用例**：目录确由 conftest 预建 / 预建幂等且并发安全）——
+`HOME=/tmp/opencode/fakehome2 pytest tests/test_mootdx_config_dir_guard.py` 在**假 HOME**下实测**三个目录被建出**、
+真 HOME 下亦 pass；3 个 AST 守卫 + 本轮剪除守卫 **28 passed**；`ruff` **All checks passed**。
+
 ---
 
 ## 附录 A：可复现命令
@@ -1382,6 +1417,12 @@ fit_single_window_task|get_optimal_workers|performance_monitor" src tests script
     tests/brain/wyckoff/test_events_coverage.py -q -p no:cacheprovider
 # 15e) 层覆盖率：`brain/` 期望 CI 82.66% / dev 85.52%；剪除后无 `computation.py`/`trading.py`
 .venv/bin/python -m pytest tests/ -n 8 --cov -q -p no:cacheprovider
+# 15g) 附带修复：mootdx 导入期 TOCTOU（`exists() or mkdir` 无 exist_ok）在全新 runner + 并行下
+#      于收集期抛 FileExistsError → 覆盖率作业假红。conftest 预建其配置目录（幂等、并发安全）。
+#      用假 HOME 端到端证明三个目录确被预建：
+rm -rf /tmp/fakehome_r9 && mkdir -p /tmp/fakehome_r9
+HOME=/tmp/fakehome_r9 .venv/bin/python -m pytest tests/test_mootdx_config_dir_guard.py -q -p no:cacheprovider
+find /tmp/fakehome_r9 -maxdepth 3 -type d | sort   # → 含 .mootdx / .mootdx/caches / .mootdx/xdxr
 # 15f) 全量三套口径（第六轮纪律：必须连同依赖集一起报）——期望见 §7.12.5
 #   dev（含湖 + czsc）              → 3,959 passed / 0 skipped / 收集 3,959 / coverage 87.33%
 #   真实 CI（.[all,dev]，无 czsc）   → 3,773 passed / 163 skipped / 收集 3,936 / coverage 86.04%（门限 84，余量 +2.04pt）

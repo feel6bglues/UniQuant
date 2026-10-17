@@ -174,6 +174,7 @@ P2-3 数据湖/results 可复现性      ✅ 完成（证据白名单 + SHA-256 
 第九轮 brain/ 覆盖率抬升          ✅ 完成（69.13% → 82.66%；12 文件 / 306 用例）
 第九轮 @njit 覆盖率盲区回收       ✅ 完成（`CPUDispatcher.py_func` 驱动同一内核 + 与 JIT 路径 allclose 对照）
 第九轮 CI 覆盖率门 78 → 84        ✅ 完成（真实 CI 86.04%，余量 +2.04pt）
+第九轮 第三方 mootdx TOCTOU 附带修复  ✅ 完成（收集期 FileExistsError 假红 → conftest 预建配置目录 + 2 用例守卫）
 ```
 
 **闭环验证（2026-10-16 第三轮实测，本机含数据湖）**：`pytest tests/` **3226 passed / 2 skipped / 0 failed**（收集 3228）；
