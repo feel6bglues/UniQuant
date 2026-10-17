@@ -92,33 +92,35 @@ jobs:
   coverage:
     # Separate job so the fast `test` job above still gives quick feedback.
     # `--cov-fail-under` is a *regression floor*. Two measurements are on record
-    # (round 8, 2026-10-17 — the `hands/` dead-cluster prune (−676 statements)
-    # plus 169 new coverage tests lifted the lower figure by another ~3.4 points):
-    #   * 80.91% (25,171 stmts / 4,805 missed) — CI-faithful environment: no data
+    # (round 9, 2026-10-17 — the `brain/` dead-cluster prune (−291 statements:
+    # `lppl/computation.py` 242 + `wyckoff/trading.py` 49) plus 306 new tests
+    # (285 coverage + 21 prune guard) lifted the lower figure by ~5.1 points):
+    #   * 86.04% (24,880 stmts / 3,474 missed) — CI-faithful environment: no data
     #     lake (so the `requires_*` real-data tests skip) AND only the declared
     #     install `pip install -e ".[all,dev]"`. The latter matters: `czsc` is
     #     NOT a declared dependency, so CI never installs it, which leaves the
     #     four `pytest.importorskip("czsc")` modules uncollected and
-    #     `brain/czsc/czsc_engine.py` entirely uncovered. Always measure with the
-    #     same dependency set as CI — see report §7.9.
-    #   * 82.20% (25,171 stmts / 4,480 missed) — developer machine WITH the local
+    #     `brain/czsc/czsc_engine.py` entirely uncovered (241 stmts — a
+    #     structural gap, deliberately not chased; see report §7.12.4).
+    #     Always measure with the same dependency set as CI — see report §7.9.
+    #   * 87.33% (24,880 stmts / 3,152 missed) — developer machine WITH the local
     #     data lake and the manually installed (undeclared) `czsc`, where the
     #     skipped tests actually run.
-    # Round 8 raised the floor 74 -> 78: it now sits ~2.9 points below the *lower*
-    # (CI-faithful) measurement, restoring the ~2-point environmental margin
-    # policy set in round 3 — instead of the 6.9-point slack the round-8 jump
-    # would otherwise have left (a 6.9-point floor is no longer a regression
-    # detector). Keep the floor a floor: if a future change trips it, add tests,
-    # do not lower it.
-    # Layer coverage (round 8, CI-faithful; weakest first): brain 69.13%,
-    # risk 73.14%, services 79.34%, shared 87.66%, signal 91.06%, data 92.95%,
-    # research 94.32%, hands 99.81% — `brain/` replaces `hands/` as the weakest
-    # layer (round 8 lifted `hands/` 64.19% -> 99.81%).
+    # Round 9 raised the floor 78 -> 84: it again sits ~2.0 points below the
+    # *lower* (CI-faithful) measurement, holding the round-3 "~2-point
+    # environmental margin" policy. Leaving it at 78 would give ~8 points of
+    # slack, and a floor with 8 points of slack is no longer a regression
+    # detector (the same reasoning that moved 74 -> 78 in round 8). Keep the
+    # floor a floor: if a future change trips it, add tests, do not lower it.
+    # Layer coverage (round 9, CI-faithful; weakest first): risk 73.14%,
+    # services 79.34%, brain 82.66%, shared 87.66%, signal 91.06%, data 92.95%,
+    # research 94.32%, hands 99.81% — round 9 lifted `brain/` 69.13% -> 82.66%,
+    # so `risk` (untouched) becomes the weakest layer.
     # See `.coveragerc` and
     # docs/analysis/POST_SIMPLIFICATION_ARCHITECTURE_TRADING_EVALUATION_20261016.md
-    # §7.6 / §7.8 / §7.9 / §7.10 / §7.11.
+    # §7.6 / §7.8 / §7.9 / §7.10 / §7.11 / §7.12.
     # The repository coding standard's 80% aspiration is now MET on both
-    # measurements (80.91% CI-faithful / 82.20% dev); this gate still only
+    # measurements (86.04% CI-faithful / 87.33% dev); this gate still only
     # guarantees coverage never silently drops.
     runs-on: ubuntu-latest
 
@@ -141,7 +143,7 @@ jobs:
             --timeout=900 \
             --cov \
             --cov-report=term:skip-covered \
-            --cov-fail-under=78 > /tmp/pytest_cov.log 2>&1
+            --cov-fail-under=84 > /tmp/pytest_cov.log 2>&1
           rc=$?
           cat /tmp/pytest_cov.log
           if [ "$rc" -ne 0 ]; then

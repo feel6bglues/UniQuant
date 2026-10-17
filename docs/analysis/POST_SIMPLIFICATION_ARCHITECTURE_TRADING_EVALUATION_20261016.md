@@ -30,7 +30,7 @@
 | 🟡 P2-2 | LPPL 仍占仲裁最高优先级且无质量门 | 唯一经证伪"零预测力"的引擎仍可触发虚警强平 SELL |
 | 🟡 P2-3 | 覆盖率门缺失；数据湖/results 全 gitignore | 80% 覆盖率未被 CI 校验；实证结论仓库内不可复现 |
 
-> **✅ 落地状态（第八轮后，2026-10-17）**：**P0-1、P0-2、P1-1、P1-2、P2-1、P2-2、P2-3 全部关闭**（P1-1/P1-2 与 CI 覆盖率门在第二轮关闭；覆盖率门在第七轮把余量抬到 +3.47pt）。详见 [§6 实施落地记录](#6-实施落地记录remediation-log--2026-10-16)。
+> **✅ 落地状态（第九轮后，2026-10-17）**：**P0-1、P0-2、P1-1、P1-2、P2-1、P2-2、P2-3 全部关闭**（P1-1/P1-2 与 CI 覆盖率门在第二轮关闭；覆盖率门余量在第七轮 +3.47pt、第八轮 +2.91pt、**第九轮 +2.04pt**）。详见 [§6 实施落地记录](#6-实施落地记录remediation-log--2026-10-16)。
 
 ---
 
@@ -365,7 +365,7 @@ def _has_transfer_fee(symbol: str) -> bool:
 | P2-3 剩余：CI 覆盖率门 | ✅ 关单 | 独立 `coverage` 作业 + `--cov-fail-under=68`（实测 70.55%） |
 | P2-3 剩余：数据湖/results 可复现 | ✅ 关单 | 证据白名单 + 内容哈希账本 + CI 校验 |
 
-> **仍开放（不属本报告 §5 范围，供后续决策）**：① 策略容量受限于 ≈2850 万元（H-A 的固有属性，非工程缺陷）；② 层覆盖率最弱面逐轮收敛——`services/` 63.8%（第二轮口径）已由**第七轮**关闭（79.69%）、`hands/` 64.19%（第七轮口径）已由**第八轮**关闭（**99.81%**，见 §7.11）→ **现最薄弱面为 `brain/`**（CI 口径 **69.13%** / 开发机 71.94%；次之 `risk/` 73.14%），列为后续补测目标。
+> **仍开放（不属本报告 §5 范围，供后续决策）**：① 策略容量受限于 ≈2850 万元（H-A 的固有属性，非工程缺陷）；② 层覆盖率最弱面逐轮收敛——`services/` 63.8%（第二轮口径）已由**第七轮**关闭（79.69%）、`hands/` 64.19%（第七轮口径）已由**第八轮**关闭（**99.81%**，见 §7.11）、`brain/` 69.13%（第八轮口径）已由**第九轮**关闭（**82.66%**，见 §7.12）→ **现最薄弱面为 `risk/`**（CI 口径 **73.14%**，两口径一致；次之 `services/` 79.34%），列为后续补测目标。
 
 ---
 
@@ -1100,6 +1100,140 @@ CI 跳过数 **165 → 163**（正好少掉被删的 2 个 backtrader skip）。
 
 ---
 
+## 7.12 第九轮：`brain/` 死簇剪除 + 层覆盖率抬升（69.13% → 82.66%）+ 一个"覆盖率工具的盲区"被诚实回收（2026-10-17）
+
+**任务**（第八轮登记"最弱层"后的续作）：第八轮把最弱层从 `hands/`（64.19%）送到 99.81%，
+最弱层随之变成 **`brain/`（CI 口径 69.13%）**。本轮对 `brain/` 做**同款两件套**——
+先剪除零引用死簇，再补齐其覆盖率——并按第八轮纪律：**每项都有取证 + 定向测试 + 书面裁决**。
+
+### 7.12.1 `brain/` 死簇剪除（2 文件；`brain/` 62 → **60**；整包 221 → **219**）
+
+**取证方式**：AST/文本全仓导入图复核，范围含 `src/` + `tests/` + `scripts/` + **入库的 `scratch/`**
+（第五轮教训：`scratch/` 是 tracked 的，不能被漏掉）+ 逐个符号的跨仓检索。
+
+| 剪除文件 | 语句 | 覆盖 | 职责 | 为何是死簇（证据） |
+|---|---:|---:|---|---|
+| `brain/lppl/computation.py` | 242 | **0%** | LPPL 多进程并行批量拟合外壳（`LPPLComputation` / `fit_single_window_task` / `get_optimal_workers` / `performance_monitor`） | 全仓**零导入方**；其职责在第五轮 P0-B 已由**在线**的 L-BFGS-B 直调路径承接（`lppl/engine._process_window` → `multifit`/`core`）。`LPPLComputation` **已不在** `lppl/__init__.py` 的导出（`__all__` 无此名），故无稳定的再导出面被破坏 |
+| `brain/wyckoff/trading.py` | 49 | **0%** | 威科夫交易模拟工具函数（`calculate_wyckoff_return` 等） | 全仓**零导入方**（`calculate_wyckoff_return` 跨仓零命中）；回测/成交模拟职责由在线的 `hands/backtest/*` 承接 |
+
+**新增守卫** `tests/test_round9_pruned_modules_absent.py`（**21 用例**）：断言语径不存在 + 不可导入 +
+残留符号（`LPPLComputation` / `calculate_wyckoff_return` / `fit_single_window_task` / `get_optimal_workers`）
+在 `brain`/`lppl`/`wyckoff` 包命名空间中不可见 + **正对照**（存活模块的符号仍可用，证明守卫非空转）。
+
+> **一个易踩的坑（已核实）**：`tests/brain/lppl/test_computation_regression.py` 名字里带 `computation`，
+> 但它**不是** `computation.py` 的导入方——它测的是 `calculator` / `cluster` / `engine` / `multifit` / `regime`。
+> 仅凭文件名判定导入方会"几乎误伤"，故本轮**以 AST 导入图为准，不以文件名为准**。
+
+### 7.12.2 `brain/` 层覆盖率补测（12 个新测试文件 / **306 用例**；不改生产语义）
+
+全部为**合成数据**：不触网、不读数据湖、不依赖 `czsc` / `backtrader`。下表为**真实 CI 口径**前后对比：
+
+| 模块 | 语句 | 第八轮 CI | 第九轮 CI | 剩余未覆盖行为 |
+|---|---:|---:|---:|---|
+| `factors/neutralizer.py` | 26 | 19.2% | **100.0%** | 0 |
+| `indicators/indicators.py` | 222 | 68.5% | **100.0%** | 0 |
+| `alpha_decoupler/alpha_decoupler.py` | 151 | 65.6% | **100.0%** | 0 |
+| `lppl/multifit.py` | 106 | 51.9% | **100.0%** | 0 |
+| `lppl/numba_optimizer.py` | 201 | 5.5% | **96.5%** | 7 行，全为不可达/无 numba 回退（§7.12.4） |
+| `lppl/core.py` | 129 | 49.6% | **97.7%** | 3 行，无 numba 回退（§7.12.4） |
+| `lppl/visualizer.py` | 80 | 20.0% | **100.0%** | 0 |
+| `wyckoff/image_engine.py` | 168 | 13.7% | **100.0%** | 0 |
+| `wyckoff/fusion_engine.py` | 171 | 14.0% | **100.0%** | 0 |
+| `wyckoff/reporting.py` | 124 | 14.5% | **100.0%** | 0 |
+| `wyckoff/events.py` | 353 | 66.6% | **98.6%** | 5 行不可达守卫（§7.12.4） |
+| `brain/__init__.py` | 29 | 48.3% | **100.0%** | 0 |
+| **`brain/` 层合计** | **9,174** | **69.13%** | **82.66%** | 1,591 行，其中 **241** 行是 `czsc/czsc_engine.py`（结构性，见下） |
+
+**新增测试文件清单**
+
+| 文件 | 用例 | 主要覆盖对象 |
+|---|---:|---|
+| `tests/test_round9_pruned_modules_absent.py` | 21 | 剪除守卫（路径/导入/符号 + 正对照） |
+| `tests/brain/test_factor_neutralizer_coverage.py` | 9 | `neutralizer`（MAD winsorize + 行业/对数市值残差化） |
+| `tests/brain/test_indicators_coverage.py` | 24 | `indicators`（MA/EMA/MACD/RSI/BOLL/ATR 等全分支） |
+| `tests/brain/test_alpha_decoupler_coverage.py` | 20 | `alpha_decoupler`（信号/漂移解耦全分支） |
+| `tests/brain/lppl/test_lppl_multifit_coverage.py` | 23 | `multifit`（三层拟合 + 失败降级） |
+| `tests/brain/lppl/test_lppl_numba_optimizer_coverage.py` | 15 | `numba_optimizer` 三内核（经 `.py_func`，见 §7.12.3） |
+| `tests/brain/lppl/test_lppl_core_coverage.py` | 31 | `core`（模型/代价函数/单窗拟合/输入校验三层内核） |
+| `tests/brain/test_lppl_visualizer_coverage.py` | 5 | `visualizer`（拟合图 + 风险矩阵 + 内层 `except` 兜底） |
+| `tests/brain/wyckoff/test_image_engine_coverage.py` | 63 | `image_engine`（图表扫描/视觉证据/周期识别） |
+| `tests/brain/wyckoff/test_fusion_reporting_coverage.py` | 82 | `fusion_engine` + `reporting`（融合冲突裁决 + MD/HTML/CSV/JSON 报告） |
+| `tests/brain/wyckoff/test_events_coverage.py` | 11 | `events`（SC/SOS/ST/LPS 四内核 + 可达分支） |
+| `tests/brain/test_brain_package_exports_coverage.py` | 2 | `brain/__init__` 的 6 条 `except ImportError` 回退 |
+
+### 7.12.3 本轮方法论发现：`@njit` 函数体对覆盖率追踪器**不可见**——用 `CPUDispatcher.py_func` 诚实回收
+
+`brain/` 的数值热路径大量使用 `@njit(cache=True)`（`lppl/numba_optimizer.py` 3 处、
+`lppl/core.py` 3 处、`wyckoff/events.py` 3 处）。**实测结论（numba 0.66.0）**：
+
+- `@njit` 装饰的函数在**首次调用时编译为机器码**，之后执行**不再经过 CPython 的 frame tracer**
+  → 即便内核被真实调用，源码行也被 coverage.py 记为 **missing**。这就是 `numba_optimizer.py`
+  第八轮"只有 5.5%"以及 `events.py` 四个内核整块空白的**根本原因，而非它们没被测到**。
+- `CPUDispatcher` 会保留原纯 Python 函数于 **`.py_func`**。调用 `.py_func(...)` **执行的是同一份数值内核源码**
+  且**可被追踪**。
+
+**处置（并明确其边界）**：在三处内核测试中经 `.py_func` 驱动，并**同输入对照 JIT 路径**
+（`np.allclose(jit(**x), py_func(**x))`）——即被追踪的路径与生产实际走的路径**逐位一致**才算通过。
+**这不是"刷指标"**：它回收的是"工具盲区"导致的假阴性，且用一致性断言把两条路径钉在一起；
+若两路径出现数值分歧，测试会红。这一发现同时解释了为何 `events.py` 的四内核此前被误读为"不可达"。
+
+### 7.12.4 本轮"不修"裁决（不可达/结构性，**不写"强行命中"的测试**）
+
+沿用第八轮纪律：**测试不得为不可达守卫伪造输入**——否则等于把"死守卫"伪装成"活代码"。
+
+| 位置 | 未覆盖行 | 裁决 | 理由 |
+|---|---|---|---|
+| `wyckoff/events.py` | `:124`（`i < 5`）、`:165`（`i < 2`） | **不修** | 内核循环起点为 `max(n-60, 5)` / `max(n-20, 20)`，**恒 ≥ 5 / ≥ 20**，故 `i < 5` / `i < 2` 在进入循环时恒假 → 数学上不可达 |
+| `wyckoff/events.py` | `:323`、`:405`（`i >= n`） | **不修** | 所在循环上界**就是** `n`，`i` 取值域为 `range(..., n)` → 不可达 |
+| `wyckoff/events.py` | `:450`（`i < 20`） | **不修** | 起点 `max(n-20, 20)` 恒 ≥ 20 → 不可达 |
+| `lppl/numba_optimizer.py` | `:8-11` | **不修** | numba **缺失**时的 `ImportError` 回退；本环境装有 numba（已声明依赖），生产不会走到 |
+| `lppl/numba_optimizer.py` | `:45`、`:47` | **不修** | 位于 `tc > t[-1] + 0.5` 提前返回之后，`tau` 守卫在此**已不可能为负** → 不可达 |
+| `lppl/numba_optimizer.py` | `:96` | **不修** | `sse < 0` 的**数值**防御（浮点残差平方和理论上非负）；无合法输入可构造 |
+| `lppl/core.py` | `:52-54` | **不修** | 同上，numba 缺失回退 |
+| `brain/czsc/czsc_engine.py` | CI 241 行 | **不追**（结构性） | `czsc` **未在 `pyproject.toml` 声明**（本机是手工装的 `rs_czsc` 带入）→ 真实 CI 从不导入该模块，故其语句**全额计入未覆盖**。**不把 `czsc` 塞进 `[all]`**（会引入 `ta-lib` 系统级 C 库依赖，用更大的安装风险换更小的数字收益——第六轮已裁决）。**合理解读**：剥掉 `czsc` 结构性缺口后，`brain/` 的 CI 口径为 **1,350 / 8,928 = 84.9%** |
+
+**两个"开卷裁决"（本轮定为"保留 + 覆盖"，并登记为下轮候选）**：
+
+| 模块 | 事实 | 裁决 |
+|---|---|---|
+| `lppl/numba_optimizer.py` | 生产侧**无导入方**（L-BFGS-B 轨已取代），但 `tests/test_refactoring_validation.py` 仍导入它 | **保留 + 覆盖**（不是"零导入方"，且裁剪需连带改动既有测试，超出本轮"覆盖率"范围；登记为下轮裁剪候选） |
+| `lppl/visualizer.py` | 被**在线** `brain/lppl/__init__.py` 再导出，但真实使用的是 `ui/lppl_visualizer.py`（另一实现） | **保留 + 覆盖**（再导出面在线，属"可达"；裁剪会动在线包命名空间，超范围） |
+
+### 7.12.5 第九轮验证（本工作树实测）
+
+> **第六轮纪律**：任何"CI 口径"数字都必须**连同解释器依赖集一起报**。下表三行分别给出三套口径。
+
+| 验证项 | 命令 / 口径 | 结果 |
+|---|---|---|
+| 开发机全量（含 gitignored 数据湖 + 未声明的 `czsc`） | `pytest tests/ -n auto` | **3,959 passed / 0 skipped / 0 failed**（收集 3,959；276 s） |
+| **真实 CI 口径**（三 mount 屏蔽数据湖 / 通达信 / 开发机兄弟仓 + 依赖集 `pip install -e ".[all,dev]"`，**无 `czsc`**） | `pytest tests/ -n 8 --cov` | **3,773 passed / 163 skipped / 0 failed / 0 error**（收集 3,936；66 s） |
+| CI 数据环境 + 本机完整依赖（含 `czsc`） | 同上，换本机 `.venv` | **3,810 passed / 149 skipped / 0 failed / 0 error**（收集 3,959） |
+| 覆盖率（开发机） | `--cov`（`.coveragerc`：`source = src/uniquant`，omit `ui/`） | **87.33%**（24,880 语句 / 3,152 未覆盖） |
+| 覆盖率（**真实 CI**） | 同上 | **86.04%**（24,880 / 3,474）→ 门限 **84**（本轮由 78 上调）**余量 +2.04 pt** |
+| 层覆盖率（**真实 CI**，最弱在前） | 同上 | **`risk` 73.14%** · `services` 79.34% · **`brain` 82.66%** · `shared` 87.66% · `signal` 91.06% · `data` 92.95% · `research` 94.32% · `hands` 99.81% |
+| 剪除守卫 | `pytest tests/test_round9_pruned_modules_absent.py` | **21 passed** |
+| 新增覆盖率补测 | `pytest tests/brain/` | **340 passed**（含 `tests/brain/` 既有回归 + 本轮 285 例） |
+| 静态检查 | `ruff check src/uniquant/ tests/ scripts/` | **All checks passed!**（0 报告） |
+| 无新增孤儿（AST 复核） | 全仓 import 图（含 tracked `scratch/`） | 剪除的 2 模块**零导入方**；`brain/` 60 模块均有消费者或明确登记 |
+| 证据链完整性 | `python scripts/maintenance/evidence_manifest.py verify` | **no drift** |
+| SSOT 未被污染 | `data/all_stock_codes.csv` | `mtime` 保持 **2026-08-19 12:21:53**（8,879 行未变） |
+
+**规模变化（整包）**：语句 **25,171 → 24,880**（−291 = `computation.py` 242 + `trading.py` 49）；
+未覆盖 **CI 4,805 → 3,474**（−1,331）、**开发机 4,480 → 3,152**（−1,328）——**增量全部落在 `brain/`**。
+
+**层间变化**：`brain/` 语句 **9,465 → 9,174**（−291）；覆盖率 **CI 69.13% → 82.66%**、**开发机 71.94% → 85.52%**。
+**最弱层由 `brain/` 变为 `risk` 73.14%**（本轮未动 `risk`）。
+
+**测试面变化**：开发机收集 **3,653 → 3,959**（净 **+306**，全部为新增；**本轮零删除**）。
+CI 收集 **3,630 → 3,936**（+306）；CI 跳过数 **163 → 163**（不变）。
+
+**覆盖率门更新 78 → 84**：第三轮确立的政策是"门限距实测**留 ~2 点环境余量**作为回归地板"。
+本轮实测 CI 口径 **86.04%**，若沿用 78 则余量达 **8.04 pt**——**余量过大同样使地板失效**
+（第八轮已就这一点把 74 上调为 78）。故按同一政策上调至 **84**（余量 **+2.04 pt**，
+与第三轮 76.05%→74 的 2.05 pt 先例一致）。**保留 78 反而不合规**——它不是回归探测器。
+
+---
+
 ## 附录 A：可复现命令
 
 ```bash
@@ -1229,6 +1363,35 @@ rg -n 'parents\[' src/ | grep -v '第八轮修复' || echo "0 code hits"
 ls -l --time-style=full-iso data/all_stock_codes.csv
 ```
 
+> **第十五组（第九轮，2026-10-17）**：`brain/` 死簇剪除 + 层覆盖率补测 + `@njit` 盲区回收。
+
+```bash
+# 15) 第九轮：`brain/` 死簇剪除 + 层覆盖率抬升（2026-10-17）
+# 15a) 剪除后 2 个文件应全部不复存在且不可导入（21 用例守卫，含正对照）
+.venv/bin/python -m pytest tests/test_round9_pruned_modules_absent.py -q -p no:cacheprovider
+ls src/uniquant/brain/lppl/computation.py src/uniquant/brain/wyckoff/trading.py   # → 均 No such file
+# 15b) 零导入方取证（范围含 tracked `scratch/`；第五轮教训）
+rg -n "lppl\.computation|wyckoff\.trading|LPPLComputation|calculate_wyckoff_return|\
+fit_single_window_task|get_optimal_workers|performance_monitor" src tests scripts scratch
+#     → 仅命中本轮新增的守卫测试注释；`tests/brain/lppl/test_computation_regression.py`
+#       名字带 computation 但**不是**导入方（它测 calculator/cluster/engine/multifit/regime）
+# 15c) 覆盖率补测（285 例 + 21 例守卫 = 306）
+.venv/bin/python -m pytest tests/brain/ -q -p no:cacheprovider
+# 15d) `@njit` 盲区：经 CPUDispatcher.py_func 回收，并与 JIT 路径 np.allclose 对照
+.venv/bin/python -m pytest tests/brain/lppl/test_lppl_numba_optimizer_coverage.py \
+    tests/brain/wyckoff/test_events_coverage.py -q -p no:cacheprovider
+# 15e) 层覆盖率：`brain/` 期望 CI 82.66% / dev 85.52%；剪除后无 `computation.py`/`trading.py`
+.venv/bin/python -m pytest tests/ -n 8 --cov -q -p no:cacheprovider
+# 15f) 全量三套口径（第六轮纪律：必须连同依赖集一起报）——期望见 §7.12.5
+#   dev（含湖 + czsc）              → 3,959 passed / 0 skipped / 收集 3,959 / coverage 87.33%
+#   真实 CI（.[all,dev]，无 czsc）   → 3,773 passed / 163 skipped / 收集 3,936 / coverage 86.04%（门限 84，余量 +2.04pt）
+#   CI 数据环境 + 本机完整依赖       → 3,810 passed / 149 skipped / 收集 3,959
+#   复现装置：`unshare -rm` 内 bind-mount 空目录覆盖 `data/`、`~/.local/share/tdxcfv` 与开发机兄弟仓 `CNNM`
+#   报告脚本：/tmp/opencode/run_ci_r9.sh（civenv，无 czsc）与 /tmp/opencode/run_ci_r9_devdeps.sh
+# 安全关键：确认 SSOT 未被测试污染（mtime 应保持 2026-08-19）
+ls -l --time-style=full-iso data/all_stock_codes.csv
+```
+
 ---
 
 ## 附录 B：与历史文档的冲突声明
@@ -1271,6 +1434,18 @@ ls -l --time-style=full-iso data/all_stock_codes.csv
 > `rg 'parents\[' src/` 现 **0 命中**。**本轮最有价值的一课**：一个既有覆盖率测试曾用 `monkeypatch __file__` 伪造目录层级，
 > 把该 bug **钉死成"正确行为"**（第六轮定义的**伪回归**）——说明**"覆盖率 100%"本身不构成正确性证据**。
 > **层间最弱层由 `hands/` 变为 `brain/`**（CI 口径 69.13%，开发机 71.94%）。详见 §7.11。
+>
+> **⚠️ 第九轮更正（2026-10-17）**：第八轮记录的"**3,467 passed / 163 skipped / 收集 3,630**、coverage **80.91%**、
+> 门限 78 余量 +2.91 pt"是本轮之前的真值；第九轮剪除 `brain/` 两个零引用死簇
+> （`lppl/computation.py` 242 语句 + `wyckoff/trading.py` 49 语句，整包语句 25,171 → **24,880**）并补测
+> **306** 个用例（285 覆盖率补测 + 21 剪除守卫）后，**真实 CI 口径变为 3,773 passed / 163 skipped /
+> 0 failed / 0 error（收集 3,936）、coverage 86.04%**；CI 覆盖率门由 78 上调至 **84**（余量 +2.04 pt）。
+> **`brain/` 由最弱层跃升为 82.66%**（开发机 85.52%），**最弱层变为 `risk` 73.14%**。
+> 本轮最有价值的方法论收获：**`@njit` 编译后的函数体对覆盖率追踪器不可见**——此前 `numba_optimizer.py`
+> 的"5.5%"与 `wyckoff/events.py` 四内核的整块空白**不是"没被测到"，而是"测到了但工具看不见"**；
+> 本轮经 `CPUDispatcher.py_func` 驱动同一份纯 Python 内核并与 JIT 路径 `np.allclose` 对照后诚实回收
+> （§7.12.3）。同时把 **7 处不可达守卫 + `czsc` 结构性缺口（CI 241 行）** 书面裁决为"不修/不追"，
+> 明确**不写"强行命中"的测试**以免把死守卫伪装成活代码（§7.12.4）。详见 §7.12。
 
 ---
 

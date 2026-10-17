@@ -4,6 +4,14 @@
 >
 > UniQuant: A-share quantitative research and trading platform.
 >
+> **Updated 2026-10-17 (第九轮：`brain/` 死簇剪除 + 层覆盖率 69.13%→82.66%（CI）/71.94%→85.52%（dev）+ 发现"覆盖率工具的盲区"并诚实回收；纪律=每项都有证据+定向测试+裁决)**: 任务为上一轮登记的"**剪除 `brain/`（第八轮后最弱层）死簇 + 抬升其覆盖率**"。取证：AST/文本全仓导入图复核（范围含 `src/` + `tests/` + `scripts/` + **入库的 `scratch/`**，第五轮教训）+ 直接复读源码 + 逐符号跨仓检索。
+> **(1) 剪除 2 个零引用死模块（`brain/` 62→60 文件；整包 221→219 文件；语句 25,171→24,880，−291）**：① `brain/lppl/computation.py`（**242 语句，0% 覆盖**）——LPPL 多进程并行批量拟合外壳（`LPPLComputation`/`fit_single_window_task`/`get_optimal_workers`/`performance_monitor`），全仓**零导入方**，职责已由**在线**的 L-BFGS-B 直调路径（`lppl/engine._process_window` → `multifit`/`core`，第五轮 P0-B 切换）承接，且 `LPPLComputation` **早已不在** `lppl/__init__.py` 的 `__all__`（无稳定再导出面被破坏）；② `brain/wyckoff/trading.py`（**49 语句，0% 覆盖**）——威科夫交易模拟工具函数（`calculate_wyckoff_return`），全仓零命中，职责由在线 `hands/backtest/*` 承接。新增守卫 `tests/test_round9_pruned_modules_absent.py`（**21 用例**：路径不存在 + 不可导入 + 残留符号在 `brain`/`lppl`/`wyckoff` 命名空间不可见，含正对照）。**⚠️ 一个易踩的坑**：`tests/brain/lppl/test_computation_regression.py` 文件名带 `computation` 但**不是** `computation.py` 的导入方（它测 `calculator`/`cluster`/`engine`/`multifit`/`regime`）——故本轮**以 AST 导入图为准，不以文件名为准**，否则几乎误伤。
+> **(2) `brain/` 覆盖率 CI 69.13% → 82.66%、开发机 71.94% → 85.52%**（12 个新测试文件 / **306 用例**；全部合成数据，不触网/不读湖/不依赖 `czsc`/`backtrader`）：`neutralizer` 19.2→100、`indicators` 68.5→**100**、`alpha_decoupler` 65.6→**100**、`lppl/multifit` 51.9→100、`lppl/numba_optimizer` 5.5→**96.5**、`lppl/core` 49.6→**97.7**、`lppl/visualizer` 20.0→100、`wyckoff/image_engine` 13.7→100、`wyckoff/fusion_engine` 14.0→100、`wyckoff/reporting` 14.5→100、`wyckoff/events` 66.6→**98.6**、`brain/__init__` 48.3→100。**剩余未覆盖全部有书面裁决（§7.12.4）**：`events.py` 5 处不可达守卫（`124`/`165`/`323`/`405`/`450`，循环起点/上界数学上排除）+ `numba_optimizer.py` 7 行（`8-11` 无 numba 回退、`45`/`47` 在 `tc>t[-1]+0.5` 提前返回后不可达、`96` `sse<0` 数值防御）+ `core.py` `52-54`（无 numba 回退）+ `czsc/czsc_engine.py` **241 行结构性缺口**（`czsc` 未声明，真实 CI 从不导入；**不**塞进 `[all]`——会引入 `ta-lib` 系统级 C 库依赖）→ **剥离该缺口后 `brain/` CI 口径为 1,350/8,928 = 84.9%**。
+> **(3) ⚠️ 本轮方法论发现：`@njit` 编译后的函数体对覆盖率追踪器「不可见」**——`brain/` 热路径大量 `@njit`（`lppl/numba_optimizer.py` 3 处、`lppl/core.py` 3 处、`wyckoff/events.py` 3 处，实测 numba 0.66.0）：首次调用编译为机器码后**不再经过 CPython frame tracer**，故源码行即便真实执行也被记为 missing——**这才是 `numba_optimizer.py`"只有 5.5%"与 `events.py` 四内核整块空白的真因，而不是"没被测到"**。**处置**：经 `CPUDispatcher.py_func`（保留的纯 Python 原函数，**同一份数值内核源码、可追踪**）驱动，并**同输入对照 JIT 路径** `np.allclose(jit(**x), py_func(**x))` 把两条路径逐位钉在一起。**这不是刷指标**——回收的是工具盲区造成的假阴性，且两路径若分歧测试必红。
+> **(4) 两个"开卷裁决"（本轮定为"保留+覆盖"，登记为下轮裁剪候选）**：`lppl/numba_optimizer.py`（生产侧**无导入方**，但 `tests/test_refactoring_validation.py` 仍导入它 → 非"零导入方"，裁剪需连带改既有测试，超出本轮"覆盖率"范围）；`lppl/visualizer.py`（被**在线** `brain/lppl/__init__.py` 再导出，但真实使用的是 `ui/lppl_visualizer.py` → 再导出面在线，属"可达"）。
+> **(5) ⚠️ CI 覆盖率门 78 → 84**：第九轮把 CI 口径覆盖率抬到 **86.04%**（若沿用 78 则余量 **8.04pt**——**余量过大同样使地板失效**，第八轮已就 6.9pt 余量把 74 上调为 78），按第三轮"留 ~2 点环境余量"政策上调至 **84**（余量 **+2.04pt**，与第三轮 76.05%→74 的 2.05pt 先例一致）。**不改**其它门限。
+> **(6) 实测（本工作树）**：开发机全量（含湖 + `czsc`）**3,959 passed / 0 skipped / 0 failed**（收集 3,959；276 s；第八轮 3,653 → **+306**，全部新增、**本轮零删除**）；**真实 CI 依赖集**（三 mount + `.[all,dev]`，**无** `czsc`）**3,773 passed / 163 skipped / 0 failed / 0 error**（收集 3,936；66 s）；CI 数据环境 + 本机完整依赖 **3,810 passed / 149 skipped / 0 failed**（收集 3,959）；**本机覆盖率 87.33%**（24,880/3,152）、**真实 CI 覆盖率 86.04%**（24,880/3,474；门限 84 → **余量 +2.04pt**）；层间（CI 口径，最弱在前）**`risk` 73.14%（现最弱，本轮未动）** / `services` 79.34% / **`brain` 82.66%** / `shared` 87.66% / `signal` 91.06% / `data` 92.95% / `research` 94.32% / `hands` 99.81%；`ruff` **All checks passed!**；`evidence_manifest.py verify` **no drift**；SSOT `data/all_stock_codes.csv` **未被污染**（mtime 保持 `2026-08-19 12:21:53`）。**规模/覆盖面**：整包语句 25,171→24,880（−291，全为 `brain/`）；未覆盖 **CI 4,805→3,474（−1,331）/ dev 4,480→3,152（−1,328）**——增量**全部落在 `brain/`**。文档同步：报告新增 **§7.12**（剪除表 + 覆盖率 before/after 表 + `@njit` 盲区发现 + "不修/不追"裁决表 + 验证表）、§0 落地状态行、附录 A 新增第十五组、附录 B 增第九轮更正段；本块（含顶部表）；`README.md` / `docs/index.md`；`docs/development/project_structure.md`（删 `computation.py`/`trading.py` 行与 `LPPLComputation` 导出）；`.github/workflows/test.yml` coverage 作业注释 + 门限。**纪律延续**：任何"CI 口径"数字必须连同解释器依赖集一起报（§7.9）。
+>
 > **Updated 2026-10-17 (第八轮：`hands/` 死簇剪除 + 层覆盖率 64.19%→99.81% + 两个真 bug（其中一个曾被既有测试"钉死"成伪回归）；纪律=每项都有证据+定向测试+裁决)**: 任务为上一轮登记的"**剪除 `hands/`（第七轮后最弱层）死簇 + 抬升其覆盖率**"。取证：AST 全仓（`src/` + `tests/` + `scripts/`）导入图复核 + 直接复读源码。
 > **(1) 剪除 11 个死文件（`hands/` 33→22 文件；整包 232→221 文件 / 58,475→56,904 行；语句 25,854→25,171，−683）**：① **簇 A 零引用孤岛** `backtest/{report_generator.py,benchmark.py}` + `backtest/trade_analysis/{__init__,analyzer,statistics}.py`（**337 语句，0% 覆盖**，全仓零导入方；职责已由**在线的** `services/analysis/report_generator_engine.py` + `hands/results_manager.py` + `hands/reporter.py` 承接）；② **簇 B 类式 backtrader 策略子集** `strategies/{base,fsm_strategy,ma_atr_strategy,regime_strategy,reversal_strategy,wyckoff_strategy}.py`（**339 语句，18.9% 覆盖**；`backtrader` **既未声明于 `pyproject.toml` 也未安装** → `HAS_BACKTRADER` 恒 `False` → 真实分支**永久不可达**，长期只跑 Mock 回退）。**保留**函数式注册表 `STRATEGY_MAP`（在线路径，本轮补测而非删除）；`hands/strategies/__init__.py` 收窄为惰性 `__getattr__` 仅暴露 `STRATEGY_MAP`。删除只针对已删模块的测试（`test_hands_strategies.py` 2 例长期 100% skip + `test_strategy_boundaries.py` 30 例）。新增守卫 `tests/test_round8_pruned_modules_absent.py`（**46 用例**：路径不存在 + 不可导入 + 垫片不暴露类，含正对照）。
 > **(2) `hands/` 覆盖率 64.19% → 99.81%**（开发机与 CI 口径一致，该层不依赖数据湖/`czsc`）：6 个新测试文件 / **169 用例**（合成数据，不触网/不读湖/不依赖 `czsc`/`backtrader`）——`backtest/result.py` 45.5→100、`unified_matching_engine` 81.4→100、`hands/__init__` 16.1→100、`strategies/__init__` 21.4→100、`strategies/wyckoff.py` 13.7→100、`results_manager` 83.0→100、`reporter` 86.5→100 等 22 个模块。**剩余 4 行**（`ma_cross.py:22`、`str_reversal.py:31`、`unified_engine.py:146`、`:795`）经裁决为**永不可达的防御性守卫 → 不修、也不写"强行命中"的测试**（否则等于把死守卫伪装成活代码）。
@@ -139,22 +147,22 @@ The repository is past the historical "migration target" phase. The eight declar
 
 `shared -> data -> brain/risk/signal -> hands -> services -> ui`
 
-Current worktree snapshot (**2026-10-17**, live measurement after the post-simplification P0/P1/P2 remediation + 第三轮数据层补测 / 文档漂移根治 + 第四轮 CI 数据湖依赖收口 + 第五轮 CI 收集期中断修复 + 第六轮 §7.4 十项处置 + 第七轮生产孤岛剪除 / `services/` 补测 + **第八轮 `hands/` 死簇剪除 / 层覆盖率抬升**):
+Current worktree snapshot (**2026-10-17**, live measurement after the post-simplification P0/P1/P2 remediation + 第三轮数据层补测 / 文档漂移根治 + 第四轮 CI 数据湖依赖收口 + 第五轮 CI 收集期中断修复 + 第六轮 §7.4 十项处置 + 第七轮生产孤岛剪除 / `services/` 补测 + 第八轮 `hands/` 死簇剪除 / 层覆盖率抬升 + **第九轮 `brain/` 死簇剪除 / 层覆盖率抬升**):
 
 | Metric | Current value |
 |---:|---:|
-| Python files under `src/uniquant/` (active) | 221 |
-| Python active LOC under `src/uniquant/` | 56,904 |
+| Python files under `src/uniquant/` (active) | 219 |
+| Python active LOC under `src/uniquant/` | 56,386 |
 | Declared runtime layers | 8 (`shared → data → brain/risk/signal → hands → services → ui`) + `research/` control plane |
-| Test files under `tests/` | 219 (tracked 215; `tests/archive/` 4 个 gitignored 不入库) |
-| Test functions | 3,240 (tracked 3,192；`tests/archive/` 48) |
-| Tests passing (dev machine **with** the gitignored data lake + undeclared `czsc`) | 3,653 passed / 0 skipped / 0 failed (collected 3,653) |
-| Tests passing (**true CI**: dependency set = `pip install -e ".[all,dev]"`, i.e. **no** `czsc`; **no** data lake / no TDX / **no dev sibling repo**) | 3,467 passed / **163 skipped** / 0 failed / 0 error (collected 3,630) |
-| Tests passing (CI data env but full local deps, incl. `czsc`) | 3,504 passed / 149 skipped / 0 failed / 0 error (collected 3,653) |
+| Test files under `tests/` | 231 (tracked 227; `tests/archive/` 4 个 gitignored 不入库) |
+| Test functions | 3,487 (tracked 3,439；`tests/archive/` 48) |
+| Tests passing (dev machine **with** the gitignored data lake + undeclared `czsc`) | 3,959 passed / 0 skipped / 0 failed (collected 3,959) |
+| Tests passing (**true CI**: dependency set = `pip install -e ".[all,dev]"`, i.e. **no** `czsc`; **no** data lake / no TDX / **no dev sibling repo**) | 3,773 passed / **163 skipped** / 0 failed / 0 error (collected 3,936) |
+| Tests passing (CI data env but full local deps, incl. `czsc`) | 3,810 passed / 149 skipped / 0 failed / 0 error (collected 3,959) |
 | Ruff issues | 0 (src + tests + scripts) |
-| Test coverage — dev machine (whole package, `ui/` omitted) | **82.20%** (25,171 statements / 4,480 missed) |
-| Test coverage — **true CI** (real-data tests skip **and** no `czsc`) | **80.91%** (25,171 statements / 4,805 missed) — coverage floor `--cov-fail-under=78` (**margin +2.91 pt**) |
-| Layer coverage, true CI (weakest first) | `brain` **69.13%** · `risk` 73.14% · `services` **79.34%** · `shared` 87.66% · `signal` 91.06% · `data` 92.95% · `research` 94.32% · `hands` **99.81%** |
+| Test coverage — dev machine (whole package, `ui/` omitted) | **87.33%** (24,880 statements / 3,152 missed) |
+| Test coverage — **true CI** (real-data tests skip **and** no `czsc`) | **86.04%** (24,880 statements / 3,474 missed) — coverage floor `--cov-fail-under=84` (**margin +2.04 pt**) |
+| Layer coverage, true CI (weakest first) | `risk` **73.14%** · `services` **79.34%** · `brain` 82.66% · `shared` 87.66% · `signal` 91.06% · `data` 92.95% · `research` 94.32% · `hands` **99.81%** |
 | `except Exception:` total (src) | 146 |
 | `except:` (bare) total | 0 |
 | Archived / dead code | 0 (physically removed — no `archive/` dirs remain) |
@@ -895,7 +903,7 @@ Historical architecture and migration documents under `docs/` are useful backgro
 |---|---:|---:|---:|
 | `shared` | `src/uniquant/shared/` | 42 | Protocols/contracts, constants, config (+loader/validator/schema), exceptions, cache, logging, A-share rules (`limit_checker`/`market_rules`), `cost_model`, `slippage_model`, `time_provider`, `event_bus`/`event_types`, `kill_switch`, `result_store`, `secret_manager`, DI container. |
 | `data` | `src/uniquant/data/` | 32 | Lake-first single-source ingestion (mootdx local/online), corporate-action adjustment (single track `CorporateActionAdjuster`), gbbq/main-data managers, parsers, cleaners, validators, GBBQ/calendar writers. |
-| `brain` | `src/uniquant/brain/` | 62 | Strategy and research engines: FSM, CZSC, LPPL, NTF, Regime, Wyckoff, indicators, factors, screener, alpha decoupler. |
+| `brain` | `src/uniquant/brain/` | 60 | Strategy and research engines: FSM, CZSC, LPPL, NTF, Regime, Wyckoff, indicators, factors, screener, alpha decoupler. |
 | `signal` | `src/uniquant/signal/` | 8 | Standard signal models, adapters, normalization, aggregation, arbitration, quality checks. |
 | `hands` | `src/uniquant/hands/` | 22 | Backtesting, A-share matching, function-based strategy registry (`STRATEGY_MAP`), reports, robustness and sensitivity tools (CFFEX cross-asset/TWAP/SAGA included). |
 | `risk` | `src/uniquant/risk/` | 8 | Position sizing, drawdown, EVT, structural risk, portfolio optimizer, sparse convex optimizer, compliance engine. |

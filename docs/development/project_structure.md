@@ -57,10 +57,9 @@ brain/
 │   └── indicators.py                   — 技术指标计算器，提供 MA/EMA/MACD/RSI/布林带/ATR 等指标计算
 │
 ├── lppl/
-│   ├── __init__.py                     — 导出 LPPLCalculator, lppl_func, LPPLConfig, fit_multi_window, SignalClusterDetector, MarketRegimeDetector, LPPLComputation, LPPLDataManager, LPPLVisualizer
+│   ├── __init__.py                     — 导出 LPPLConfig, LPPLEngine, LPPLCalculator, lppl_func, LPPLDataManager, LPPLVisualizer
 │   ├── calculator.py                   — LPPL 计算器，基于差分进化算法拟合 LPPL 模型参数
 │   ├── cluster.py                      — 三层 LPPL 系统 Layer 2: 信号聚类检测 (30 天内 danger 信号累积判定)
-│   ├── computation.py                  — LPPL 并行计算引擎，基于多进程 ProcessPoolExecutor 批量拟合
 │   ├── core.py                         — LPPL 底层数值核心，提供模型函数、代价函数、单窗口拟合、输入校验
 │   ├── data_manager.py                 — LPPL 数据管理器，负责数据获取、验证和清洗
 │   ├── engine.py                       — LPPL 工业级引擎，包含 Numba 加速算子、多窗口拟合、风险判定、峰值检测
@@ -91,8 +90,7 @@ brain/
     ├── models.py                       — Wyckoff 数据模型定义 (WyckoffPhase, WyckoffSignal, WyckoffReport, TradingPlan 等)
     ├── reporting.py                    — 威科夫报告生成器，输出 Markdown / HTML / CSV / JSON 报告
     ├── rules.py                        — v3.0 规则执行器，10 条规则的独立验证层
-    ├── state.py                        — Wyckoff 状态管理器，分析状态持久化、连续性追踪和 Spring 冷冻期管理
-    └── trading.py                      — Wyckoff 交易模拟工具函数，正确模拟入场价、止损、止盈逻辑
+    └── state.py                        — Wyckoff 状态管理器，分析状态持久化、连续性追踪和 Spring 冷冻期管理
 ```
 
 ### 2.2 data/ — 数据层 (获取、存储、清洗、导入)
