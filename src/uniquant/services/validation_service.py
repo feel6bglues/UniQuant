@@ -54,7 +54,7 @@ class ValidationService:
                     if not valid:
                         all_valid = False
                         logger.warning(
-                            "VaR validation failed for {}: calculated={}, expected={}", var_key, calc_value, exp_value
+                            "VaR validation failed for %s: calculated=%s, expected=%s", var_key, calc_value, exp_value
                         )
 
             # 验证CVaR值
@@ -73,7 +73,7 @@ class ValidationService:
                     if not valid:
                         all_valid = False
                         logger.warning(
-                            "CVaR validation failed for {}: calculated={}, expected={}", cvar_key, calc_value, exp_value
+                            "CVaR validation failed for %s: calculated=%s, expected=%s", cvar_key, calc_value, exp_value
                         )
 
             # 验证最大回撤
@@ -91,7 +91,7 @@ class ValidationService:
                 if not valid:
                     all_valid = False
                     logger.warning(
-                        "Max drawdown validation failed: calculated={}, expected={}", calc_value, exp_value
+                        "Max drawdown validation failed: calculated=%s, expected=%s", calc_value, exp_value
                     )
 
             # 验证市场状态
@@ -105,7 +105,7 @@ class ValidationService:
                 if not valid:
                     all_valid = False
                     logger.warning(
-                        "Regime validation failed: calculated={}, expected={}", calculated['regime'], expected['regime']
+                        "Regime validation failed: calculated=%s, expected=%s", calculated['regime'], expected['regime']
                     )
 
             return {"all_valid": all_valid, "results": validation_results}
@@ -225,7 +225,7 @@ class ValidationService:
                 if not valid:
                     all_valid = False
                     logger.warning(
-                        "Signal strength validation failed: calculated={}, expected={}", calc_value, exp_value
+                        "Signal strength validation failed: calculated=%s, expected=%s", calc_value, exp_value
                     )
 
             # 验证止损和止盈价格
@@ -244,7 +244,7 @@ class ValidationService:
                     if not valid:
                         all_valid = False
                         logger.warning(
-                            "Price validation failed for {}: calculated={}, expected={}", price_key, calc_value, exp_value
+                            "Price validation failed for %s: calculated=%s, expected=%s", price_key, calc_value, exp_value
                         )
 
             return {"all_valid": all_valid, "results": validation_results}

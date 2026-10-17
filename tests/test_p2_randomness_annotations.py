@@ -23,8 +23,8 @@ def test_runtime_network_and_mock_randomness_is_annotated():
 
 
 def test_macro_mock_randomness_remains_seeded_and_explicit():
+    # 第七轮: macro_service.py 门面类已剪除；mock 随机性契约保留在实时引擎
     files = [
-        "src/uniquant/services/analysis/macro_service.py",
         "src/uniquant/services/analysis/macro_analysis_engine.py",
     ]
 

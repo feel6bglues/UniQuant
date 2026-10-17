@@ -385,39 +385,13 @@ class ScanConfig:
 
 ---
 
-## TechnicalService
+## 已剪除的服务门面（第七轮 2026-10-16）
 
-`TechnicalAnalysisService` 位于 `services.analysis.technical_service`，封装技术分析相关的计算。
+`services.analysis` 下的三个历史 `*Service` 门面类已被物理删除 —— 它们在生产路径零引用
+（由 `analysis_service_v2.AnalysisService` + `AnalysisEngineFactory` 的引擎适配器取代）：
 
-### 核心方法
+- `macro_service.py` (`MacroAnalysisService`) —— 由 `macro_analysis_engine.py` 取代
+- `technical_service.py` (`TechnicalAnalysisService`) —— 由 `czsc_analysis_engine.py` 取代
+- `signal_service.py` (`SignalAnalysisService`) —— 由 FSM 引擎适配器 + `signal/adapters.py` 取代
 
-| 方法 | 说明 |
-|------|------|
-| `run_czsc_analysis(symbol, df)` | 运行缠论分析，调用 `CZSCEngine.get_czsc_signals`。支持缓存（2 小时 TTL）和降级处理。返回信号状态、趋势、支撑/阻力位、笔数等。 |
-| `_fallback_czsc_analysis(symbol, df)` | 降级方案：使用 MA 均线交叉和价格动量判断趋势和信号。 |
-| `detect_czsc_signals(ticker, data_pack)` | 检测 CZSC 信号并写入 data_pack（`is_3rd_buy`、`bi_count`）。 |
-| `calculate_ma_status(data_pack)` | 计算 MA 均线状态（MA20 vs MA60），写入 `data_pack["ma_status"]`。 |
-| `calculate_price_and_stop(data_pack)` | 计算当前价格和 ATR 止损价格，写入 `data_pack["price"]` 和 `data_pack["atr_stop"]`。 |
-
-支持内存缓存和磁盘缓存的双级缓存策略。
-
----
-
-## SignalService
-
-`SignalAnalysisService` 位于 `services.analysis.signal_service`，负责信号层面的分析。
-
-### 核心方法
-
-| 方法 | 说明 |
-|------|------|
-| `run_fsm_analysis(symbol, df)` | 运行有限状态机分析。调用 `DecisionBrain.make_decision`，输出信号强度、推荐操作、止损/止盈价格。支持缓存和降级。 |
-| `_fallback_fsm_analysis(symbol, df)` | 降级方案：使用 MA 短/中/长期均线排列判断多空信号。 |
-| `_map_decision_to_recommendation(decision)` | 将 FSM 决策映射为中文推荐操作（通过 `AnalysisServiceConstants.RECOMMENDATION_MAP`）。 |
-| `analyze_alpha(data_pack)` | 运行 `AlphaDecoupler` 分析，计算 alpha 评分。基准数据（沪深 300）使用每日缓存。 |
-| `calculate_returns(data_pack)` | 计算日收益率序列，写入 `data_pack["returns"]`。 |
-| `make_decision(data_pack)` | 调用 FSM 引擎进行决策。 |
-
-### _get_fsm_engine
-
-按需创建 `DecisionBrain` 实例。若未提供 `brain` 参数，自动初始化 `EVTRisk` 和 `PositionSizer` 后构造。
+各引擎的失败降级语义仍由对应 `*_analysis_engine` 的测试覆盖。

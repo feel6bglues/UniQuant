@@ -4,7 +4,7 @@
 
 * ``MarketDataCoordinator`` 是 ``DataFetcher`` 的市场级数据代理 ——
   ``fetch_index_daily`` 被 ``data_access_service``(data_type=="index")、
-  ``macro_service``、``macro_analysis_engine`` 消费; ``fetch_sector_daily``
+  ``macro_analysis_engine`` 消费; ``fetch_sector_daily``
   被 ``data_service`` 消费。指数/板块不在数据湖内, 故此处为 **akshare 实盘兜底**。
 * ``DataPipelineService`` 是清洗 → 校验 → 单轨复权 (``CorporateActionAdjuster``)
   的编排入口。

@@ -60,7 +60,6 @@ graph TD
         container["ServiceContainer<br/>DAG 单例容器"]
         factory["AnalysisEngineFactory<br/>9 引擎延迟注册"]
         analysis_svc["AnalysisService"]
-        macro_svc["MacroAnalysisService"]
     end
 
     subgraph L5["Layer 5: ui — 展示层"]

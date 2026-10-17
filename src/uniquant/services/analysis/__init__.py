@@ -1,21 +1,19 @@
 """
 Analysis Services Package
 
-Phase 0 修复: 仅导入已存在的模块。
-signal_service.py 和 wyckoff_analysis_engine.py 尚未迁移。
+本包承载单一职责的分析引擎适配器，由 ``AnalysisEngineFactory``
+(``engine_factory.py``) 按需惰性实例化：
 
-拆分后的分析服务模块：
-- MacroAnalysisService: 宏观分析 (LPPL, Regime, NTF)
-- TechnicalAnalysisService: 技术分析 (CZSC)
+- ``fsm_analysis_engine`` / ``czsc_analysis_engine`` / ``lppl_analysis_engine``
+- ``regime_analysis_engine`` / ``ntf_analysis_engine`` / ``macro_analysis_engine``
+- ``report_generator_engine`` / ``wyckoff_analysis_engine``
+
+第七轮 (2026-10-17) 剪除：生产孤岛 ``macro_service.py`` / ``technical_service.py`` /
+``signal_service.py`` 三个 ``*Service`` 门面类 —— 已被 ``analysis_service_v2.AnalysisService``
+与 ``AnalysisEngineFactory`` 的引擎适配器取代，生产路径零引用（仅本包 ``__init__`` 的
+历史导出与测试保留其存续）；引擎本体的失败降级语义在其各自的 ``*_analysis_engine``
+中由测试覆盖。
 """
 
-from .macro_service import MacroAnalysisService
-from .technical_service import TechnicalAnalysisService
+__all__: list[str] = []
 
-__all__ = [
-    "MacroAnalysisService",
-    "TechnicalAnalysisService",
-    # 待迁移: 以下模块尚未创建
-    # "SignalAnalysisService",
-    # "WyckoffAnalysisEngine",
-]

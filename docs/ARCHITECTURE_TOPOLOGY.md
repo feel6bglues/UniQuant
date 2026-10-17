@@ -77,8 +77,6 @@ graph TD
         SVC_WYCK[analysis/wyckoff_analysis_engine.py]
         SVC_REG[analysis/regime_analysis_engine.py]
         SVC_NTF[analysis/ntf_analysis_engine.py]
-        SVC_MACRO[analysis/macro_service.py]
-        SVC_TECH[analysis/technical_service.py]
         SVC_SCAN[scan_service.py<br/>ScanPipeline]
         SVC_PORT[portfolio_service.py]
     end
@@ -123,8 +121,6 @@ graph TD
     SVC_EF --> SVC_WYCK
     SVC_EF --> SVC_REG
     SVC_EF --> SVC_NTF
-    SVC_EF --> SVC_MACRO
-    SVC_EF --> SVC_TECH
 
     %% === services 编排 ===
     SVC_ASVC --> SVC_EF
@@ -155,11 +151,6 @@ graph TD
     SVC_WYCK -.->|hard import| B_WYCK
     SVC_REG -.->|hard import| B_REG
     SVC_NTF -.->|hard import| B_NTF
-    SVC_MACRO -.->|hard import| B_LPPL
-    SVC_MACRO -.->|hard import| B_REG
-    SVC_MACRO -.->|hard import| B_NTF
-    SVC_TECH -.->|hard import| B_CZSC
-    SVC_TECH -.->|hard import| B_IND
 
     %% === hands → brain 违规 (红色虚线) ===
     H_STRAT -.->|hard import| B_WYCK
@@ -389,9 +380,6 @@ CacheCoordinator ──→ ServiceContainer
 | `analysis/wyckoff_analysis_engine.py` | `brain.wyckoff.WyckoffEngine` |
 | `analysis/regime_analysis_engine.py` | `brain.regime.RegimeDetector` |
 | `analysis/ntf_analysis_engine.py` | `brain.ntf.NTFEngine` |
-| `analysis/signal_service.py` | `brain.fsm.FSM` + `brain.alpha_decoupler.AlphaDecoupler` |
-| `analysis/macro_service.py` | `brain.lppl.LPPLEngine` + `brain.regime.RegimeDetector` + `brain.ntf.NTFEngine` |
-| `analysis/technical_service.py` | `brain.czsc.CZSCEngine` + `brain.indicators.Indicators` |
 | `analysis/engine_factory.py` | `brain.fsm.DecisionBrain` |
 | `scan_service.py` | `brain.factors.*` + `brain.screener.StockScreener` + `brain.indicators.Indicators` |
 | `health_service.py` | `brain.fsm.DecisionBrain` |

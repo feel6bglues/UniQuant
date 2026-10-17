@@ -9,7 +9,6 @@ import pytest
 from uniquant.brain.factors.registry import FactorRegistry
 from uniquant.hands.backtest.monte_carlo import MonteCarloSimulator
 from uniquant.services.analysis.macro_analysis_engine import MacroAnalysisEngine
-from uniquant.services.analysis.macro_service import MacroAnalysisService
 
 
 def test_data_aligner_removed_leading_suspension_no_backfill():
@@ -41,22 +40,6 @@ def test_factor_registry_config_loader_failure_is_not_silent(monkeypatch):
         assert FactorRegistry.get_factor("broken_factor") is None
     finally:
         FactorRegistry.set_mode(saved_mode)
-
-
-def test_macro_service_empty_real_returns_does_not_generate_random_fallback(monkeypatch):
-    service = MacroAnalysisService()
-    monkeypatch.setattr(service, "get_macro_returns", lambda window=200: pd.Series(dtype=float))
-
-    def fail_if_random_is_used(*args, **kwargs):
-        raise AssertionError("random fallback should not be used")
-
-    monkeypatch.setattr("numpy.random.normal", fail_if_random_is_used)
-
-    result = service.analyze_macro_health()
-
-    assert result["status"] == "failed"
-    assert result["error"] == "DATA_UNAVAILABLE"
-    assert result["regime"] == "UNKNOWN"
 
 
 class _MacroEngineOrchestrator:

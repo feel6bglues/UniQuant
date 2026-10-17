@@ -229,18 +229,15 @@ services/
 ├── validation_service.py               — 验证服务，与标准计算方法的对比和验证
 │
 └── analysis/
-    ├── __init__.py                     — 导出 MacroAnalysisService, TechnicalAnalysisService, SignalAnalysisService, WyckoffAnalysisEngine
+    ├── __init__.py                     — 空包（引擎适配器由 AnalysisEngineFactory 惰性加载）
     ├── czsc_analysis_engine.py         — 缠论 (CZSC) 分析引擎，封装 CZSCEngine 的服务层调用
     ├── engine_factory.py               — 分析引擎工厂，延迟初始化各分析引擎实例
     ├── fsm_analysis_engine.py          — 有限状态机 (FSM) 分析引擎，封装 FSM 的服务层调用
     ├── lppl_analysis_engine.py         — LPPL 分析引擎，封装 LPPL 模型拟合与风险判定的服务层调用
     ├── macro_analysis_engine.py        — 宏观分析引擎，整合 LPPL / Regime / NTF 的综合宏观分析
-    ├── macro_service.py                — 宏观分析服务，LPPL 泡沫检测 / 市场状态检测 / 国家队干预检测
     ├── ntf_analysis_engine.py          — 国家队干预 (NTF) 检测引擎，封装 NTFEngine 的服务层调用
     ├── regime_analysis_engine.py       — 市场状态 (Regime) 检测引擎，封装 RegimeDetector 的服务层调用
     ├── report_generator_engine.py      — 研究报告生成与读取引擎
-    ├── signal_service.py               — 信号分析服务，FSM 决策分析 / Alpha 分析 / 收益率计算
-    ├── technical_service.py            — 技术分析服务，CZSC 缠论分析 / MA 均线 / ATR 止损
     └── wyckoff_analysis_engine.py      — 威科夫分析引擎，封装 WyckoffEngine 的服务层调用
 ```
 
@@ -463,7 +460,7 @@ tests/
 ├── test_final_service_regressions.py               — CacheCoordinator / DataQualityService / PortfolioService 回归测试
 ├── test_limit_checker.py                           — 涨跌停检查功能测试
 ├── test_macro_and_fsm_engine_regressions.py        — MacroAnalysisEngine / FsmAnalysisEngine 回归测试
-├── test_macro_and_scan_regressions.py              — MacroAnalysisService / ScanPipeline 回归测试
+├── test_scan_service_regressions.py                — ScanPipeline 回归测试
 ├── test_more_analysis_engine_regressions.py        — Czsc / LPPL / Regime 分析引擎回归测试
 ├── test_report_and_ntf_regressions.py              — NTF / 报告生成引擎回归测试
 ├── test_report_paths.py                            — 报告路径与输出目录测试

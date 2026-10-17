@@ -761,6 +761,120 @@ pytest **在收集期整体中断**。pytest 退出码语义：`0` 全过 / `1` 
 
 ---
 
+## 7.10 第七轮：生产孤岛剪除 + `services/` 层覆盖率补测 + 一个只在 CI 解释器暴露的真 bug（2026-10-17）
+
+本轮目标（用户指定）：**剪除生产孤岛**（`services/analysis/` 下三个零调用方的 `*Service` 门面类）+
+**抬升在线 `services/` 模块覆盖率**。两条都要求"有证据 + 有裁决"，故沿用第六轮纪律：
+**每项改动 = 定向测试 + 明确理由 + 书面裁决**。
+
+### 7.10.1 生产孤岛剪除（3 文件；整包语句 26,268 → 25,854，−414）
+
+| 文件 | 裁决 |
+|---|---|
+| `services/analysis/macro_service.py` | **剪除**（−120 未覆盖语句） |
+| `services/analysis/technical_service.py` | **剪除**（−118） |
+| `services/analysis/signal_service.py` | **剪除**（−59） |
+
+**证据**（三路并行**只读** `explore` 子代理 + 主线直接复读源码）：
+
+1. **生产零调用方**：`src/` 内除 `services/analysis/__init__.py` 的历史导出外**无任何 import**；`scripts/` 亦无。
+2. **职责已被在线路径取代**：三者是早期"每个引擎配一个门面"的遗留壳，其职责已由
+   `analysis_service_v2.AnalysisService`（主编排）+ `services/analysis/engine_factory.AnalysisEngineFactory`
+   （引擎适配器）承接；对应**在线**引擎是 `analysis/{macro,regime,ntf,lppl,fsm,report_generator,czsc}_analysis_engine.py`。
+3. **其唯一独有安全属性在剪除后仍受保护（不产生回归面）**：`macro_service` 曾被测试锁定
+   "空返回时**不得**用 `np.random.random` 兜底"。该契约在**在线的** `analysis/macro_analysis_engine.py` 上
+   同样有测试（本轮补齐后 100% 覆盖；随机性契约另见 `tests/test_p2_randomness_annotations.py` 的在线化改写）。
+   → **删壳不删守卫**。
+4. 全仓仅 **3 个测试文件**引用它们，均已相应处置：删除 `tests/test_technical_and_signal_regressions.py`（4 例全针对已删门面）；
+   `tests/test_macro_and_scan_regressions.py` → `git mv` 为 `tests/test_scan_service_regressions.py`（仅保留在线
+   `ScanPipeline.load_data` 用例，4 → 1）；`tests/test_phase4_1_remediation.py` 删 1 例（`macro_service` 空返回契约，已在线化）；
+   `tests/test_p2_randomness_annotations.py` 扫描清单去掉已删路径。
+
+**附带清理**：`services/analysis/__init__.py` 改为 `__all__ = []` + 理由 docstring；`services/__init__.py` 引擎清单 docstring 同步；
+5 篇文档（`docs/packages/services.md`、`docs/ARCHITECTURE_TOPOLOGY.md`、`docs/development/project_structure.md`、
+`docs/whitepaper/ARCHITECTURE_WHITEPAPER.md`、`docs/whitepaper/DEPLOYMENT_ARCHITECTURE.md`）删除对应 mermaid 节点/边
++ 正文引用（含"已剪除"注记）。
+
+### 7.10.2 `services/` 层覆盖率补测（6 个新测试文件 / 215 测试函数）
+
+全部为**新增测试文件**，**不改生产语义**；`ruff check` 干净。逐模块实测（**本机口径**，before = 同一份代码 + 第六轮末测试集）：
+
+| 模块 | 测试数 | before | after |
+|---|---:|---|---|
+| `services/data_quality_service.py` | 34 | 145/122 = **16%** | 145/0 = **100%** |
+| `services/stock_query_service.py` | 26 | 111/61 = **45%** | 111/0 = **100%** |
+| `services/validation_service.py` | 27 | 189/52 = **72%** | 189/0 = **100%** |
+| `services/health_service.py` | 42 | 263/137 = **48%** | 263/0 = **100%** |
+| `services/data_access_service.py` | 30 | 174/54 = **69%** | 174/0 = **100%** |
+| `analysis/regime_analysis_engine.py` | ↓ 56 例共覆盖 | 39/21 = **46%** | 39/0 = **100%** |
+| `analysis/ntf_analysis_engine.py` | 同上 | 40/21 = **48%** | 40/0 = **100%** |
+| `analysis/lppl_analysis_engine.py` | 同上 | 54/15 = **72%** | 54/0 = **100%** |
+| `analysis/fsm_analysis_engine.py` | 同上 | 88/23 = **74%** | 88/2 = **98%** |
+| `analysis/report_generator_engine.py` | 同上 | 81/27 = **67%** | 81/0 = **100%** |
+| `analysis/macro_analysis_engine.py` | 同上 | 66/13 = **80%** | 66/0 = **100%** |
+| `analysis/czsc_analysis_engine.py` | 同上 | 74/20 = **73%** | 74/2 = **97%** |
+| **`services/` 层合计（剪除后文件集）** | | 3,979/1,370 = **65.57%** | 3,979/808 = **79.69%** |
+
+新增文件：`tests/test_data_quality_service_unit.py`(34)、`tests/test_stock_query_service_unit.py`(26)、
+`tests/test_validation_service_coverage.py`(27)、`tests/test_health_service_unit.py`(42)、
+`tests/test_data_access_service_unit.py`(30)、`tests/test_analysis_engine_adapters_unit.py`(56)。
+**注**：`data_access_service` 的写湖护栏用例为**新增非重复**场景（护栏本身未被削弱）；7 个分析引擎适配器沿
+`tests/test_more_analysis_engine_regressions.py` 既有的 orchestrator-stub 模式（不触网、不读真实数据湖）。
+
+**层间格局变化**：`services/` 由**历史最弱层**（第三轮口径 63.8%）升至 **79.3–79.7%** →
+**当前最弱层变为 `hands/` 64.19%**（两口径一致）。
+
+### 7.10.3 真 bug：`{}` 风格占位符被当作 `%` 风格参数（6 处，同一文件）
+
+**发现方式**：Agent A 新增的 `validation_service` 用例在**本机 `.venv` 全绿**，在**CI 等价解释器上 5 例失败**。
+这是"本地绿、CI 红"的又一实例（延续 §7.7 的主题），故按第六轮纪律取证、修复、加守卫。
+
+**根因**：`services/validation_service.py` 的 6 处告警把 **`{}` 风格**当成了 **`%` 风格**参数：
+
+```python
+logger.warning("Max drawdown validation failed: calculated={}, expected={}", calc_value, exp_value)
+```
+
+stdlib `logging` 做 `msg % args`：消息里没有 `%` 转换符而多出 2 个参数 → `TypeError: not all arguments converted during string formatting`。
+
+**两重后果**：
+1. **与解释器无关的生产后果**：本该打印"哪一项校验失败"的告警，被替换成 stderr 上的 `--- Logging error ---` 回溯（告警丢失）。
+2. **可升级为功能缺陷**：若 handler 让格式化异常向上冒泡（**捕获型/结构化 handler 即如此**——这正是 CI 解释器上的表现），
+   异常会被该方法自身的 `except (ValueError, KeyError, TypeError)` 吞掉并走通用错误分支 →
+   **恰好在校验失败时 `results` 变成空字典**，调用方再也拿不到逐项诊断。
+
+**为何本机绿**：本机 pytest 捕获 handler 吞掉了格式化异常，代码"看起来"正常。**缺陷一直在，只是被环境掩盖。**
+
+**修复**：6 处 `{}` → `%s`（消息文本逐字不变）；**不改**其它语义、**不改** `except` 分支。
+
+**防复发守卫**（新增 `tests/test_no_logging_format_mismatch.py`，AST 静态扫描 `src/uniquant/**`）：
+取日志方法（`debug/info/warning/warn/error/critical/exception`）的**第一个位置参数**，若是字符串**字面量**则统计
+`%` 转换符数量并与其余位置参数数量比较，**不相等即失败**；含**正对照**（必须命中 `{}`-当-参数的原型）
+与**负对照 9 例**（`%%` 转义、`%.2f`、`%(name)s` 映射键、`"Progress: 50% of universe"` 这类文本百分号、
+`exc_info=` 关键字、`logger.log(level, msg, …)` 消息在第 2 位 → 不误报）。
+**端到端反证**：把 `validation_service.py` 第 93 行临时改回 `{}` → 守卫**必红并点名** `validation_service.py:93 -> logger.warning() placeholders=0 args=2`；恢复后复绿。
+
+**同类兄弟清剿**：以同一规则扫描全 `src/` → 修复后 **0 命中**（该缺陷类**仅**存在于这一个文件，无遗漏）。
+
+### 7.10.4 第七轮验证（本工作树实测）
+
+| 口径 | 命令 | 结果 |
+|---|---|---|
+| 本机全量（含数据湖 + `czsc`） | `.venv/bin/python -m pytest tests/ -q -o addopts="" -n auto --timeout=900` | **3,464 passed / 2 skipped / 0 failed / 0 error**（收集 3,466；第六轮 3,240 → **+224**） |
+| CI 等价（三 mount；`.[all,dev]` **真实依赖集**，**无** `czsc`） | 见 §7.6 配方三个 `mount --bind` + `/tmp/opencode/civenv/bin/python` | **3,278 passed / 165 skipped / 0 failed / 0 error**（收集 3,443；第六轮 3,052 → **+226**）——**这才是真实 CI 的数字** |
+| 本机覆盖率 | `-n auto --cov` | **78.72%**（25,854 / 5,501）（第六轮 76.08% → 剪除 76.55% → 补测 **78.72%**） |
+| CI 等价覆盖率（`.[all,dev]` 依赖集） | `-n auto --cov --cov-fail-under=74` | **77.47%**（25,854 / 5,824）≥ 74 → **余量 +3.47 pt**（第六轮仅 **+0.57 pt**，§7.9 的风险提示已解除） |
+| 层间覆盖率（CI 口径） | 同上报告聚合 | `services` **79.34%** / `data` 92.95% / `signal` 91.06% / `research` 94.32% / `shared` 87.11% / `risk` 73.14% / `brain` 69.17% / **`hands` 64.19%（现最弱）** |
+| 定向：新增测试 | `pytest tests/test_{data_quality,stock_query,validation}_service*.py tests/test_health_service_unit.py tests/test_data_access_service_unit.py tests/test_analysis_engine_adapters_unit.py` | **215 passed** |
+| 防复发守卫 | `pytest tests/test_no_logging_format_mismatch.py` | **3 passed**（含正/负对照） |
+| `ruff` | `ruff check src/uniquant/ tests/ scripts/` | **All checks passed!** |
+| 证据链 | `python scripts/maintenance/evidence_manifest.py verify` | **no drift** |
+| SSOT 未被测试污染 | `ls -l --time-style=full-iso data/all_stock_codes.csv` | `2026-08-19 12:21:53`，**未变** |
+
+**新增测试纪律**：本轮新增 215 个用例全在**新文件**中，未削弱任何既有断言；删除的用例仅针对**已剪除**的门面类。
+
+---
+
 ## 附录 A：可复现命令
 
 ```bash
@@ -818,15 +932,15 @@ mkdir -p /tmp/opencode/ci_data /tmp/opencode/ci_empty /tmp/opencode/ci_empty_cnn
 cp $REPO/data/all_stock_codes.csv $REPO/data/qualified_universe.csv /tmp/opencode/ci_data/
 # 10a) CI `test` 作业口径 → 期望 0 failed / 0 error
 #      ⚠️ 必须用与 CI 相同的依赖集（`.[all,dev]`，**不含未声明的 czsc**）才等价：
-#        .venv 含手工装的 czsc → 151 skipped / 收集 3242（**非** CI 口径）
-#        真实 CI 依赖集       → 164 skipped / 收集 3216（见 §7.9 更正）
+#        .venv 含手工装的 czsc → 2 skipped / 收集 3466（**非** CI 口径；第七轮）
+#        真实 CI 依赖集       → 165 skipped / 收集 3443（见 §7.9 更正 + §7.10.4）
 unshare -rm --propagation private sh -c '
   mount --bind /tmp/opencode/ci_data       '"$REPO"'/data
   mount --bind /tmp/opencode/ci_empty      /home/james/.local/share/tdxcfv
   mount --bind /tmp/opencode/ci_empty_cnnm /home/james/Documents/Project/CNNM
   cd '"$REPO"' && /tmp/opencode/civenv/bin/python -m pytest tests/ -q --tb=short
 '
-# 10b) CI `coverage` 作业口径 → 期望 74.57% ≥ 74（真实 CI 依赖集；见 §7.9）
+# 10b) CI `coverage` 作业口径 → 期望 77.47% ≥ 74（真实 CI 依赖集；第七轮，余量 +3.47 pt）
 unshare -rm --propagation private sh -c '
   mount --bind /tmp/opencode/ci_data       '"$REPO"'/data
   mount --bind /tmp/opencode/ci_empty      /home/james/.local/share/tdxcfv
@@ -850,6 +964,22 @@ ls -l --time-style=full-iso data/all_stock_codes.csv
 # §7.9：证明真实 CI 依赖集里没有 czsc（故其 4 个测试模块不被收集）
 .venv/bin/pip show czsc | grep -E "^(Required-by)"      # → Required-by: rs_czsc（未被本项目声明）
 grep -n "czsc" pyproject.toml                            # → 仅一条 ruff per-file-ignore，无依赖声明
+
+# 13) 第七轮：生产孤岛剪除 + `services/` 层覆盖率补测 + 日志格式化真 bug（2026-10-17）
+# 13a) 剪除后生产孤岛应为零残留（仅剩 __init__ 的理由注记与测试注释）
+rg -n "macro_service|technical_service|signal_service|MacroService|TechnicalService|SignalService" src/ tests/ scripts/
+.venv/bin/python -c "import uniquant.services.analysis as a; print(a.__all__)"   # → []
+# 13b) 已剪除文件在 HEAD 中仍可取证（HEAD~1 侧），确认"功能已由在线引擎承接"
+ls src/uniquant/services/analysis/*.py
+# 13c) 覆盖率补测（215 例，全在新文件）
+.venv/bin/python -m pytest tests/test_data_quality_service_unit.py tests/test_stock_query_service_unit.py \
+    tests/test_validation_service_coverage.py tests/test_health_service_unit.py \
+    tests/test_data_access_service_unit.py tests/test_analysis_engine_adapters_unit.py -q -p no:cacheprovider
+# 13d) 日志格式化守卫（含正/负对照）
+.venv/bin/python -m pytest tests/test_no_logging_format_mismatch.py -q -p no:cacheprovider
+# 端到端反证：把 validation_service.py:93 的 %s 改回 {} → 守卫必红并点名 file:line；恢复后复绿
+#      `sed -i 's/calculated=%s, expected=%s/calculated={}, expected={}/' src/uniquant/services/validation_service.py`（仅第 93 行那处）
+# 13e) 全量（本机 / CI 等价）与覆盖率；期望见 §7.10.4（dev 3464 passed / CI 3278 passed；dev 78.72% / CI 77.47%）
 ```
 
 ---
@@ -876,6 +1006,13 @@ grep -n "czsc" pyproject.toml                            # → 仅一条 ruff pe
 > 真实 CI 执行 `pip install -e ".[all,dev]"`，**没有 `czsc`** → 4 个 `importorskip("czsc")` 模块整块不被收集（少 30 例）、
 > `test_brain_boundary_qa.py` 再跳 9 例 → **3,052 passed / 164 skipped / 0 failed / 0 error（收集 3,216）、coverage 74.57%**。
 > **教训**：报"CI 口径"必须连同**依赖集**一起报；只报"CI 等价"而隐含"本机装了什么"是会骗人的。详见 §7.9。
+>
+> **⚠️ 第七轮更正（2026-10-17）**：第六轮记录的"**3,052 passed / 164 skipped / 收集 3,216**、coverage **74.57%**"
+> 是本轮之前的真值；第七轮剪除 3 个生产孤岛（整包语句 26,268 → **25,854**）并新增 **215** 个覆盖用例后，
+> **真实 CI 口径变为 3,278 passed / 165 skipped / 0 failed / 0 error（收集 3,443）、coverage 77.47%**，
+> 门限 74 的余量由 **+0.57 pt 升至 +3.47 pt**。同时更正一处**"本地绿、CI 红"**的隐藏缺陷：
+> `services/validation_service.py` 的 6 处 `{}`-当-`%`-参数日志在 CI 解释器上会使校验失败路径**返回空 `results`**
+> （本机被捕获 handler 掩盖）——已修复并加 AST 守卫锁死（§7.10.3）。**层间最弱层由 `services/` 变为 `hands/` 64.19%**。
 
 ---
 

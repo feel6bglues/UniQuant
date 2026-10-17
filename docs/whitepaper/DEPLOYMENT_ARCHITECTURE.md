@@ -398,8 +398,6 @@ data/lake/
 | `UnifiedResearchPipeline` | `services.research_pipeline.UnifiedResearchPipeline` | 端到端投研流水线 |
 | `ScanPipeline` | `services.scan_service.ScanPipeline` | 全市场扫描: 因子→IC/IR→评分→报告 |
 | `PortfolioService` | `services.portfolio_service.PortfolioService` | 投资组合构建与管理 |
-| `TechnicalAnalysisService` | `services.analysis.technical_service.TechnicalAnalysisService` | 技术分析计算 |
-| `SignalAnalysisService` | `services.analysis.signal_service.SignalAnalysisService` | 信号层面分析 |
 
 ### 2.5 展示层 (L5)
 

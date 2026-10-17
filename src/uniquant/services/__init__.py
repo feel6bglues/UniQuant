@@ -5,7 +5,7 @@ DAG 依赖注入 + 服务编排。
 核心服务: ServiceContainer (DI容器), AnalysisService (分析编排), DataService (数据), HealthService (健康检查),
           CacheCoordinator (缓存), ScanPipeline (扫描), PortfolioService (组合), StockQueryService (股票查询),
           ValidationService (验证), ResearchPipeline (研究管道)
-分析引擎 (analysis/): CZSC, FSM, LPPL, NTF, Regime, Wyckoff, Macro, Technical, ReportGenerator, SignalService
+分析引擎 (analysis/): FSM, CZSC, LPPL, Regime, NTF, Macro, ReportGenerator, Wyckoff (由 AnalysisEngineFactory 惰性实例化)
 """
 
 __all__ = [

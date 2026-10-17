@@ -2,8 +2,8 @@
 
 该模块是**在生产链路上**的: ``MarketDataCoordinator.fetch_index_daily`` →
 ``akshare_wrapper.fetch_index_daily``, 而 ``fetch_index_daily`` 被
-``data_access_service`` (data_type=="index")、``macro_service``、
-``macro_analysis_engine`` 调用; ``fetch_sector_daily`` 被 ``data_service`` 调用。
+``data_access_service`` (data_type=="index")、``macro_analysis_engine``
+调用; ``fetch_sector_daily`` 被 ``data_service`` 调用。
 
 覆盖点: 初始化/重初始化、请求头轮换、速率控制、方法级统计、``call`` 的错误与
 重试分支、以及对 ``market_service`` 的 10 个薄委托方法。

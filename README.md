@@ -35,17 +35,17 @@ research/  —— 横切科研控制平面（自由度账本 · 四阶门禁 · 
 ## 项目状态
 
 > 数据源收敛迁移（Step 0–5）与仓内大清理已完成；项目已越过"迁移目标"阶段，处于**生产加固 + 研究收敛**阶段。
-> 当前树实测：`src/uniquant/` **236** 个 Python 文件 / **59,594** LOC；`tests/` **194** 个测试文件 / **2,359** 个测试函数；`ruff` 0。
+> 当前树实测：`src/uniquant/` **232** 个 Python 文件 / **58,475** LOC；`tests/` **214** 个测试文件 / **3,093** 个测试函数；`ruff` 0。
 > 权威状态与实测口径见 [`AGENTS.md`](AGENTS.md)；架构与交易可落地性评估见
 > [`docs/analysis/POST_SIMPLIFICATION_ARCHITECTURE_TRADING_EVALUATION_20261016.md`](docs/analysis/POST_SIMPLIFICATION_ARCHITECTURE_TRADING_EVALUATION_20261016.md)。
 
 | 层 | 文件数 | LOC | 说明 |
 |----|-------|-----|------|
 | `brain/` | 62 | 20,046 | FSM、CZSC、LPPL、NTF、Regime、Wyckoff、indicators、factors、screener |
-| `shared/` | 42 | 6,994 | 常量、异常、缓存、配置、成本模型、A 股规则、接口契约 |
-| `data/` | 32 | 6,496 | 湖优先单源、managers、parsers、cleaners、validators、复权 |
-| `hands/` | 33 | 6,254 | 回测引擎、向量化撮合、策略框架、报告 |
-| `services/` | 29 | 9,122 | 服务容器、分析编排、数据服务、科研管线、扫描、健康检查 |
+| `shared/` | 42 | 6,999 | 常量、异常、缓存、配置、成本模型、A 股规则、接口契约 |
+| `data/` | 32 | 6,577 | 湖优先单源、managers、parsers、cleaners、validators、复权 |
+| `hands/` | 33 | 6,257 | 回测引擎、向量化撮合、策略框架、报告 |
+| `services/` | 26 | 8,246 | 服务容器、分析编排、数据服务、科研管线、扫描、健康检查 |
 | `research/` | 12 | 1,877 | 自由度账本、四阶门禁、策略沙盒（已接入生产因子链） |
 | `signal/` | 8 | 2,813 | 适配器、归一化、聚合、质量检查、typed signal |
 | `ui/` | 8 | 3,400 | Streamlit 仪表盘、健康检查、manager logic、LPPL 可视化 |
@@ -163,6 +163,9 @@ P2-3 数据湖/results 可复现性      ✅ 完成（证据白名单 + SHA-256 
 第五轮 CI 首次全绿（自 7509c2a）   ✅ 完成（run 38870946347：test 全 8 步 + coverage + pip-audit 三绿）
 第六轮 §7.4 十项疑似缺陷处置       ✅ 完成（8 修 / 2 书面不修；含 4 个"钉住 bug"的用例反转 + 1 个同类兄弟缺陷）
 第六轮 "CI 口径"自我打假           ✅ 完成（真实 CI 缺未声明的 czsc → 真实 CI 口径 74.57% / 164 skipped）
+第七轮 生产孤岛剪除 + services 补测  ✅ 完成（3 个零调用方门面类剪除；215 用例；services 65.6% → 79.7%）
+第七轮 CI 解释器专属日志格式化真 bug  ✅ 完成（6 处 `{}`→`%s`；AST 防复发守卫 + 端到端反证）
+第七轮 CI 覆盖率门余量解除          ✅ 完成（真实 CI 77.47%，门限 74 余量由 +0.57pt 升至 +3.47pt）
 ```
 
 **闭环验证（2026-10-16 第三轮实测，本机含数据湖）**：`pytest tests/` **3226 passed / 2 skipped / 0 failed**（收集 3228）；
@@ -170,15 +173,23 @@ P2-3 数据湖/results 可复现性      ✅ 完成（证据白名单 + SHA-256 
 `ruff check src/uniquant/ tests/ scripts/` **All checks passed!**；
 `python scripts/maintenance/evidence_manifest.py verify` → **no drift**（50 证据文件 / 942,274 B）。
 
-**本机口径（2026-10-16 第六轮实测，含数据湖 + 手工装的未声明 `czsc`）**：`pytest tests/ -q -n 8`
-**3240 passed / 2 skipped / 0 failed**（收集 3242；仅 2 个 backtrader 缺依赖 skip；`requires_*` 标记在本机为 no-op，用例全部真跑）；
-覆盖率 **76.08%**（26,268 语句 / 6,284 未覆盖）。
+**本机口径（2026-10-17 第七轮实测，含数据湖 + 手工装的未声明 `czsc`）**：`pytest tests/ -q -n auto`
+**3464 passed / 2 skipped / 0 failed / 0 error**（收集 3466；仅 2 个 backtrader 缺依赖 skip；`requires_*` 标记在本机为 no-op，用例全部真跑）；
+覆盖率 **78.72%**（25,854 语句 / 5,501 未覆盖）。
 
-**真实 CI 口径（2026-10-16 第六轮实测并更正；依赖集 = `pip install -e ".[all,dev]"`）**：
-`pytest tests/` **3052 passed / 164 skipped / 0 failed / 0 error**（收集 3216，每个跳过均带显式原因）；
-覆盖率 **74.57%**（26,268 语句 / 6,681 未覆盖）≥ 门限 74（**余量仅 +0.57 个百分点**）。
+**真实 CI 口径（2026-10-17 第七轮实测并更正；依赖集 = `pip install -e ".[all,dev]"`）**：
+`pytest tests/` **3278 passed / 165 skipped / 0 failed / 0 error**（收集 3443，每个跳过均带显式原因）；
+覆盖率 **77.47%**（25,854 语句 / 5,824 未覆盖）≥ 门限 74（**余量 +3.47 个百分点**——第六轮仅 +0.57，见下）。
 真实数据用例依赖的本地数据湖（`data/lake/**`）、GBBQ 基线（`data/fq/gbbq.parquet`）与本地通达信客户端
 均不进版本库，CI 上由 `requires_lake` / `requires_futures_lake` / `requires_gbbq` 三标记**声明式跳过**（非静默通过）。
+
+> **第七轮做了什么（2026-10-17）**：① **剪除 3 个生产孤岛**（`services/analysis/{macro,technical,signal}_service.py`，
+> 零调用方、职责已被在线 `AnalysisService` + `AnalysisEngineFactory` 承接；整包语句 26,268 → 25,854）；
+> ② **`services/` 层补测 215 用例**（`services/` 65.57% → **79.69%**，**不再是历史最弱层；现最弱层为 `hands/` 64.19%**）；
+> ③ **修复一个只在 CI 解释器暴露的真 bug**：`services/validation_service.py` 6 处把 `{}` 风格当 `%` 风格参数
+> （`logger.warning("… {}", a, b)`）→ stdlib 做 `msg % args` 抛 `TypeError`；本机被 pytest 捕获 handler 掩盖，
+> **CI 上会让校验失败路径返回空 `results`、丢失逐项诊断**。已改 `{}`→`%s`（消息文本逐字不变），并加 AST 守卫
+> `tests/test_no_logging_format_mismatch.py`（含正/负对照 + 端到端反证）。详见报告 §7.10。
 
 > ⚠️ **"CI 口径"必须连同依赖集一起报（第六轮更正）**：第四/五轮记录的 CI 口径
 > `3,081 passed / 151 skipped / coverage 75.57%` 是在**装了 `czsc`** 的解释器上测得的。
@@ -208,9 +219,13 @@ P2-3 数据湖/results 可复现性      ✅ 完成（证据白名单 + SHA-256 
 > 第四/五轮测出的 `151 skipped / 75.57%` 是在装了 `czsc` 的 `.venv` 里得到的，而 `czsc` **并非本仓声明依赖**
 > （CI 只装 `.[all,dev]`）→ 真实 CI 为 `164 skipped / 74.57%`。**只报"CI 等价"而不报"装了什么"是会骗人的。**
 
-> ⚠️ **CI 覆盖率门余量偏薄（留给下一轮）**：门限 `--cov-fail-under=74` 相对**真实 CI 口径 74.57%**
-> 仅余 **+0.57 个百分点**。本轮**不动门限**（降门限=掩盖问题）；若后续新增未覆盖的生产模块，**大概率会把 CI 打红**——
-> 届时正确做法是**补测**，不是降门限。
+> ⚠️ **CI 覆盖率门余量（第六轮登记 → 第七轮解除）**：第六轮时门限 `--cov-fail-under=74` 相对**真实 CI 口径 74.57%**
+> 仅余 **+0.57 个百分点**，登记为"留给下一轮"的风险项。**第七轮通过剪除孤岛 + 补测 215 用例将其抬到 77.47%（余量 +3.47pt）**，
+> 风险解除。**门限始终未动**（降门限=掩盖问题）；若后续新增未覆盖的生产模块再次逼近门限，正确做法仍是**补测**，不是降门限。
+
+> ⚠️ **第七轮新增教训（"本地绿、CI 红"的又一个来源：解释器 handler 行为差异）**：同一个 `logger.warning` 调用，
+> 格式化异常在本机被 pytest 的捕获 handler **吞掉**、在 CI 的解释器/配置上**冒泡**——于是缺陷本地不可见、CI 才现形。
+> 与 §7.7 的收集期中断同族：**缺陷一直在，只是被环境掩盖**。故本轮为这类"日志格式化 arity 不匹配"加了静态守卫。
 
 ---
 
