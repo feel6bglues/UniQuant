@@ -4,6 +4,22 @@
 >
 > UniQuant: A-share quantitative research and trading platform.
 >
+> **Updated 2026-10-24 (第十三轮：实盘风控与对账监控器 Task 4.2 落地 + 对账表 12 轨全覆盖与口径澄清；纪律=全量实测+按环境三口径报告)**: 落地 Phase 4 实盘监控关键模块，闭环三项审计备忘，并补齐端到端风控对账流水线：
+> **(1) 生产级实盘风控与持仓对账监控器落地（`scripts/monitoring/reconcile_qar.py`）**：
+> ① 现货头寸逐标的对账与漂移检测（`drift_tol_pp=0.5%`，精准分类 `MATCH`/`DRIFT`/`MISSING`/`EXTRA`）；
+> ② 中金所期指空头对冲合约与 3 PB 账户穿透对账（对冲偏差 $\le 1$ 手）；
+> ③ 宏观资产配置三元结构（75% 多头 / 75% 期指空头 / 25% 现金）与净市场风险敞口 Net Beta 穿透计算（$|Net\ Beta| > 0.10$ 触发非对冲告警，现金比率 $< 12\%$ 触发追保预警，$< 8\%$ 触发熔断强平预警）；
+> ④ 托管行公布估值净值 vs 理论公允净值对账（偏差 $> 5$ bps 报警）；
+> ⑤ 综合风控评级状态机（`GREEN` / `YELLOW` / `RED`），`exit 0` 与 `exit 1` 报警联动，生成标准化 JSON 报告；
+> ⑥ 补齐全套 10 项单元与集成测试（`tests/scripts/test_reconcile_qar.py`，**10 passed**）。
+> **(2) 对账存证报表 12 轨 100% 全覆盖与三项备忘闭环（`scripts/backtest/run_cnmm_purged_long_horizon.py` 与 `tests/test_cnmm_qar_strategy_and_backtest.py`）**：
+> ① 闭环备忘 2：将机构合规实盘轨 `strategy_6_cnmm_75_25_ih_pct`（10.23% / 4.31x / 9.42%）与 LP 费后实盘轨 `lp_net_75_25_pct`（6.69% / 2.64x / 12.13%）正式纳入 `legacy_baseline`，实现 12 条策略轨 100% 全覆盖对账；
+> ② 闭环备忘 1：新增 `daily_mdd_scope` 口径列，清晰区分 `2010-2025 (Modern Futures)` 与 `2000-2025 (Full Horizon)`，彻底消除回撤时段歧义；
+> ③ 闭环备忘 3：将 `self.pit_universe` 升级为 `@property` 惰性加载接口，消除非必要初始化；
+> ④ 测试守卫：`test_purged_pit_authentic_metrics_audit` 新增对 75/25 轨与 LP-75/25 轨在对账表中真实数值的硬断言。
+> **(3) 实测质量门禁（本工作树）**：
+> 全仓收集用例突破四千大关：**4,003 tests collected**（净增 **+10** 用例，全量 0 skipped / 0 failed）；8 文件核心专项套件 **64 passed in 68s**；AST 规范安全守卫（零绝对路径、核心模块零宽泛异常）全绿；`ruff check src/ tests/ scripts/` **All checks passed!**；`evidence_manifest.py verify` **no drift**；SSOT `data/all_stock_codes.csv` **未被污染**。
+>
 > **Updated 2026-10-24 (第十一轮：独立法医审计全项核实与 P0/P1 全链路闭环整改 + 指标真实回归与定性去漂移；纪律=每项都有证据+定向测试+裁决)**: 响应并落实独立法医审计报告 `docs/analysis/QAR_STRATEGY_AND_DATA_ACCURACY_FORENSIC_AUDIT_20261024.md` 全部核实结论与 §7 修复路线图，并对存证数据与指标表完成去漂移和全面真实化整改：
 > **(1) 幻影两份报告彻底归仓与文档去漂移**：将 `QAR_PRODUCTION_AND_ENGINEERING_OPTIMIZATION_ACTION_PLAN.md` 与 `UNIQUANT_SYSTEM_AND_QAR_FORENSIC_EVALUATION_REPORT.md` 正式归档至 `docs/analysis/`，消除文档悬空与历史幻影引用。
 > **(2) 回测宇宙定性诚实降级与因果去伪（`scripts/backtest/run_cnmm_purged_long_horizon.py`）**：

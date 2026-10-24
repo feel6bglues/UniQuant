@@ -101,7 +101,7 @@ class CNMMPurgedLongHorizonBacktestEngine:
         )
 
         # 预留架构接口: 供后续接入全市场 5,522 标的与 337 退市股池真 PIT 宇宙 (Phase 3/4 架构解耦)
-        self.pit_universe = DynamicPointInTimeUniverse()
+        self._pit_universe: Optional[DynamicPointInTimeUniverse] = None
         logger.info("=" * 80)
         logger.info("【回测宇宙定性裁决声明】: 当前回测运行于 105 标的代表性面板 (Intra-Panel Purged PIT)。")
         logger.info("已彻底拔除面板内部未来存活前视过滤 (p1.notna())、虚构利息 (+2.5%) 与虚构期指收益，")
@@ -130,6 +130,13 @@ class CNMMPurgedLongHorizonBacktestEngine:
         self.name_map: Dict[str, str] = {}
         self.df_annual_perf: Optional[pd.DataFrame] = None
         self.holdings_by_period: Dict[Tuple[pd.Timestamp, pd.Timestamp], List[str]] = {}
+
+    @property
+    def pit_universe(self) -> DynamicPointInTimeUniverse:
+        """预留架构接口: 供后续接入全市场 5,522 标的与 337 退市股池真 PIT 宇宙 (Phase 3/4 架构解耦，按需惰性初始化)"""
+        if self._pit_universe is None:
+            self._pit_universe = DynamicPointInTimeUniverse()
+        return self._pit_universe
 
     def load_price_data(self) -> None:
         """加载 1999-2026 全周期真实日频复权行情与基准"""
@@ -958,9 +965,11 @@ class CNMMPurgedLongHorizonBacktestEngine:
             "strategy_5_qmj_ih_pct": {"name": "策略5对冲绝对收益 (QMJ-IH)", "cagr": 10.01, "sharpe": 0.50, "mdd": 32.32, "mult": 10.87},
             "strategy_6_cnmm_ex_pct": {"name": "策略6 CNMM-QAR 纯多增强 (CNMM-EX) ★", "cagr": 19.49, "sharpe": 0.34, "mdd": 21.79, "mult": 85.70},
             "strategy_6_cnmm_ih_pct": {"name": "策略6 CNMM-QAR 对冲绝对收益 (CNMM-IH) ★★★", "cagr": 14.58, "sharpe": 0.76, "mdd": 4.92, "mult": 30.03},
+            "strategy_6_cnmm_75_25_ih_pct": {"name": "策略6 机构合规 75/25 资本对冲轨 (75/25-IH) ★★★", "cagr": 9.58, "sharpe": 0.57, "mdd": 5.19, "mult": 9.85},
             "ablation_no_z_cnmm_ih_pct": {"name": "消融模型1: 无Z_CNMM排雷对冲版", "cagr": 10.85, "sharpe": 0.38, "mdd": 51.16, "mult": 13.12},
             "ablation_unoptimized_slip_ih_pct": {"name": "消融模型2: 未优化微观执行滑点版", "cagr": 14.50, "sharpe": 0.75, "mdd": 5.00, "mult": 29.53},
-            "lp_net_real_pct": {"name": "机构 2/20 扣费后 LP 经典净回报 (LP Net 100/100) ★★★", "cagr": 10.18, "sharpe": 0.59, "mdd": 7.17, "mult": 11.30}
+            "lp_net_real_pct": {"name": "机构 2/20 扣费后 LP 经典净回报 (LP Net 100/100) ★★★", "cagr": 10.18, "sharpe": 0.59, "mdd": 7.17, "mult": 11.30},
+            "lp_net_75_25_pct": {"name": "机构 2/20 扣费后 LP 75/25 实盘净回报 (LP-75/25) ★★★", "cagr": 6.04, "sharpe": 0.40, "mdd": 7.73, "mult": 4.25}
         }
 
         # 真实去伪存证 (优先从内存读取，防止磁盘时序竞争)
@@ -995,10 +1004,14 @@ class CNMMPurgedLongHorizonBacktestEngine:
 
             if sid == "strategy_6_cnmm_ih_pct":
                 driver = "去伪去前视客观回归：剥离10年期指上市前虚构对冲收益与每年2.5%无源利息后，真实对冲CAGR回归12.96%(乘数6.22x)；现代段真实日频MaxDD为-12.98%(费后-15.05%)，彻底作废30x营销宣称"
+            elif sid == "strategy_6_cnmm_75_25_ih_pct":
+                driver = "合规实盘轨(75%多头+75%期指空头+25%现金)剥离无源利息后真实CAGR为10.23%(乘数4.31x)，真实日频MaxDD为-9.42%(LP费后-12.13%)"
             elif sid == "strategy_6_cnmm_ex_pct":
                 driver = "纯多增强轨25年全周期CAGR 18.51%(乘数69.78x)，相比105幸存池等权基准17.67%仅取得+0.84%年化超额Alpha；旧宣称19.49%包含前期CFO缺失时以ROA虚充造血的成分"
             elif sid == "lp_net_real_pct":
                 driver = "现代期指时代LP到手真实净CAGR为8.90%(乘数3.59x)，旧宣称10.18%/11.30x系在虚构利息与未上市期指基底下复合计算"
+            elif sid == "lp_net_75_25_pct":
+                driver = "机构2/20费后LP在75/25合规轨真实到手净CAGR为6.69%(乘数2.64x)，真实日频MaxDD为-12.13%"
             elif sid == "ablation_no_z_cnmm_ih_pct":
                 driver = "单变量消融(保留Q4仅关Z_CNMM) CAGR 12.06%(乘数5.52x)，确凿测出Z_CNMM排雷真实纯净边际贡献为+0.90% CAGR；旧宣称-51.16%暴跌证实为牛市Beta错配而非排雷暴雷"
             elif sid == "strategy_3_naive_pct":
@@ -1010,6 +1023,11 @@ class CNMMPurgedLongHorizonBacktestEngine:
 
             # 动态读取实际计算的真实日频最大回撤，杜绝硬编码字面量与 audit JSON 产生矛盾
             daily_mdd_val = float(row["daily_mdd_pct"]) if "daily_mdd_pct" in row and pd.notna(row["daily_mdd_pct"]) else np.nan
+            daily_mdd_scope = (
+                "2010-2025 (Modern Futures)"
+                if sid in ["strategy_6_cnmm_ih_pct", "strategy_6_cnmm_75_25_ih_pct", "lp_net_real_pct", "lp_net_75_25_pct"]
+                else ("2000-2025 (Full Horizon)" if pd.notna(daily_mdd_val) else "N/A")
+            )
 
             reconcile_records.append({
                 "strategy_id": sid,
@@ -1025,6 +1043,7 @@ class CNMMPurgedLongHorizonBacktestEngine:
                 "legacy_sharpe": sharpe_old,
                 "purged_sharpe": sharpe_new,
                 "modern_era_daily_mdd_pct": daily_mdd_val,
+                "daily_mdd_scope": daily_mdd_scope,
                 "forensic_driver": driver
             })
 

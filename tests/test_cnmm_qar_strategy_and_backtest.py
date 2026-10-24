@@ -221,6 +221,17 @@ class TestPurgedPITAuthenticBacktest:
         assert np.isclose(float(ex_recon["purged_wealth_mult"]), 69.78, atol=0.05), "对账表 EX 真实乘数必须为 69.78x"
         assert np.isclose(float(ex_recon["modern_era_daily_mdd_pct"]), 69.06, atol=0.05), "对账表 EX 真实日频 MaxDD 必须为 69.06%"
 
+        # 6. 核验 75/25 合规实盘轨与 LP 费后实盘净回报在对账表中的真实指标
+        s6_75_recon = df_recon[df_recon["strategy_id"] == "strategy_6_cnmm_75_25_ih_pct"].iloc[0]
+        assert np.isclose(float(s6_75_recon["purged_authentic_cagr_pct"]), 10.23, atol=0.05), "对账表 75/25 真实 CAGR 必须为 10.23%"
+        assert np.isclose(float(s6_75_recon["purged_wealth_mult"]), 4.31, atol=0.05), "对账表 75/25 真实乘数必须为 4.31x"
+        assert np.isclose(float(s6_75_recon["modern_era_daily_mdd_pct"]), 9.42, atol=0.05), "对账表 75/25 真实日频 MaxDD 必须为 9.42%"
+
+        lp_75_recon = df_recon[df_recon["strategy_id"] == "lp_net_75_25_pct"].iloc[0]
+        assert np.isclose(float(lp_75_recon["purged_authentic_cagr_pct"]), 6.69, atol=0.05), "对账表 LP-75/25 真实 CAGR 必须为 6.69%"
+        assert np.isclose(float(lp_75_recon["purged_wealth_mult"]), 2.64, atol=0.05), "对账表 LP-75/25 真实乘数必须为 2.64x"
+        assert np.isclose(float(lp_75_recon["modern_era_daily_mdd_pct"]), 12.13, atol=0.05), "对账表 LP-75/25 真实日频 MaxDD 必须为 12.13%"
+
 
 class TestASTForensicExceptionAudit:
     """AST 静态语法树法医级审计：验证全链路核心重构代码绝无裸 except 或 except Exception"""
@@ -232,6 +243,7 @@ class TestASTForensicExceptionAudit:
         PROJECT_ROOT / "src" / "uniquant" / "brain" / "factors" / "forensics" / "z_cnmm_calculator.py",
         PROJECT_ROOT / "scripts" / "qar" / "cnmm_qar_strategy.py",
         PROJECT_ROOT / "scripts" / "backtest" / "run_cnmm_purged_long_horizon.py",
+        PROJECT_ROOT / "scripts" / "monitoring" / "reconcile_qar.py",
     ]
 
     def test_ast_scan_zero_broad_exceptions_in_core_modules(self):
