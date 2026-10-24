@@ -49,12 +49,12 @@ class DynamicPointInTimeUniverse:
             elif parts[1].lower() in ["sh", "sz"]:
                 return f"{parts[0].zfill(6)}.{parts[1].upper()}"
         code_digits = "".join(ch for ch in s if ch.isdigit()).zfill(6)
-        if code_digits.startswith(("6", "9")):
+        if code_digits.startswith("920") or code_digits.startswith(("4", "8")):
+            return f"{code_digits}.BJ"
+        elif code_digits.startswith(("6", "9")):
             return f"{code_digits}.SH"
         elif code_digits.startswith(("0", "2", "3")):
             return f"{code_digits}.SZ"
-        elif code_digits.startswith(("4", "8")):
-            return f"{code_digits}.BJ"
         return f"{code_digits}.SH"
 
     def _load_metadata(self) -> None:
@@ -118,6 +118,9 @@ class DynamicPointInTimeUniverse:
         cond_seasoned = days_listed >= req_listing_days
 
         # 3. 风险警示 ST/退市过滤
+        # 注意: SSOT data/all_stock_codes.csv 中的 name 为当前最新名称快照。
+        # 在生产日常选股中可直接用于过滤当下 ST 股；在历史深度回测中，若需彻底消除
+        # 未来名称回溯前视，可设 exclude_st=False，交由 Z_CNMM/Q4 财务造假与亏损法医指标纯因果排雷。
         if exclude_st:
             cond_not_st = ~df["name"].str.contains(r"\*ST|ST|PT|退市|退", case=False, regex=True)
         else:

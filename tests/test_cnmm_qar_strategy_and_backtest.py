@@ -78,17 +78,16 @@ class TestPurgedLongHorizonBenchmarkReplication:
 
     @pytest.fixture(scope="class")
     def backtest_results(self):
-        engine = CNMMPurgedLongHorizonBacktestEngine()
+        engine = CNMMPurgedLongHorizonBacktestEngine(mode="legacy_panel_105")
         engine.load_price_data()
         engine.load_fundamentals_and_forensics()
         df_full, df_sub = engine.run_long_horizon_backtest()
         engine.build_daily_nav_series()
-        df_recon = engine.generate_reconciliation_report()
-        return df_full, df_sub, df_recon
+        return df_full, df_sub
 
     def test_25year_benchmark_cagr_sharpe_mdd(self, backtest_results):
         """核验 25 年年化 CAGR、夏普与真实回撤 (双轨运行与 Z_CNMM 真实边际贡献)"""
-        df_full, df_sub, _ = backtest_results
+        df_full, df_sub = backtest_results
         s6_row = df_full[df_full["strategy_id"] == "strategy_6_cnmm_ih_pct"].iloc[0]
 
         # 严格对账指标 (CNMM-IH 经典对冲轨)
@@ -122,7 +121,7 @@ class TestPurgedLongHorizonBenchmarkReplication:
 
     def test_lp_net_real_institutional_metrics(self, backtest_results):
         """核验私募 2/20 扣费后 LP 真实到手收益 (经典轨 vs 75/25 合规轨双轨对账)"""
-        df_full, _, _ = backtest_results
+        df_full, _ = backtest_results
         lp_row = df_full[df_full["strategy_id"] == "lp_net_real_pct"].iloc[0]
 
         lp_cagr = float(lp_row["cagr_pct"])
@@ -139,6 +138,88 @@ class TestPurgedLongHorizonBenchmarkReplication:
         lp_75_row = df_full[df_full["strategy_id"] == "lp_net_75_25_pct"].iloc[0]
         assert np.isclose(float(lp_75_row["cagr_pct"]), 6.04, atol=0.05)
         assert np.isclose(float(lp_75_row["max_drawdown_pct"]), 7.73, atol=0.05)
+
+
+@pytest.mark.requires_lake
+class TestPurgedPITAuthenticBacktest:
+    """去伪纯化版 PIT 回测与真实多空对冲验证 (零前视、零无源利息、真日频净值)"""
+
+    @pytest.fixture(scope="class")
+    def pit_backtest_results(self):
+        engine = CNMMPurgedLongHorizonBacktestEngine(mode="purged_pit")
+        engine.load_price_data()
+        engine.load_fundamentals_and_forensics()
+        df_full, df_sub = engine.run_long_horizon_backtest()
+        df_daily = engine.build_daily_nav_series()
+        df_recon = engine.generate_reconciliation_report()
+        return engine, df_full, df_sub, df_daily, df_recon
+
+    def test_purged_pit_hedged_math_and_daily_nav(self, pit_backtest_results):
+        """核验去伪版回测在 2010 年前无虚构对冲，且日频 NAV 真实反映策略持仓"""
+        engine, df_full, df_sub, df_daily, _ = pit_backtest_results
+        df_ann = engine.df_annual_perf
+        assert df_ann is not None
+
+        # 1. 2010 年前 (期指未上市) 对冲轨收益必须为 NaN，严禁虚构期指收益
+        pre_2010 = df_ann[df_ann["rebalance_year"] < 2010]
+        assert pre_2010["strategy_6_cnmm_ih_pct"].isna().all(), "2010 年前不应存在虚构对冲收益"
+        assert pre_2010["strategy_6_cnmm_75_25_ih_pct"].isna().all()
+
+        # 2. 2010 年后现代期指对冲轨必须存在有效收益
+        post_2010 = df_ann[df_ann["rebalance_year"] >= 2010]
+        assert post_2010["strategy_6_cnmm_ih_pct"].notna().all()
+
+        # 3. 验证真实策略日频净值存在且非空
+        assert df_daily is not None
+        assert len(df_daily) > 5000
+        assert "cnmm_fair_net_nav" in df_daily.columns
+        assert df_daily["cnmm_fair_net_nav"].iloc[-1] > 0.0
+
+        # 4. 验证期指上市前 (2010-04-16 前) 对冲日频净值严格落空 (NaN)，严禁虚构期指净值
+        pre_futures_daily = df_daily[df_daily["date"] < pd.to_datetime("2010-04-16")]
+        assert pre_futures_daily["cnmm_hedged_nav"].isna().all()
+        assert pre_futures_daily["cnmm_fair_net_nav"].isna().all()
+
+    def test_purged_pit_authentic_metrics_audit(self, pit_backtest_results):
+        """法医核验去伪版真实指标：现代对冲段 CAGR 12.96% / 乘数 6.22x / 日频 MaxDD 12.98% / 纯多 Alpha +0.84%"""
+        engine, df_full, df_sub, df_daily, df_recon = pit_backtest_results
+
+        # 1. 现代期指对冲实战全时代 (2010-2025, 15年)
+        futures_era = df_sub[df_sub["subperiod"].str.contains("期指对冲实战全时代")]
+        s6_ih = futures_era[futures_era["strategy_id"] == "strategy_6_cnmm_ih_pct"].iloc[0]
+
+        assert np.isclose(float(s6_ih["cagr_pct"]), 12.96, atol=0.05), "经典对冲现代真实 CAGR 期望 12.96%"
+        assert np.isclose(float(s6_ih["wealth_multiplier"]), 6.22, atol=0.05), "经典对冲现代真实财富乘数 期望 6.22x"
+        assert np.isclose(float(s6_ih["daily_mdd_pct"]), 12.98, atol=0.05), "经典对冲现代真实日频 MaxDD 期望 12.98%"
+
+        # 2. LP 净回报真实指标
+        lp_net = futures_era[futures_era["strategy_id"] == "lp_net_real_pct"].iloc[0]
+        assert np.isclose(float(lp_net["cagr_pct"]), 8.90, atol=0.05), "LP 经典净回报真实 CAGR 期望 8.90%"
+        assert np.isclose(float(lp_net["wealth_multiplier"]), 3.59, atol=0.05), "LP 经典净回报真实财富乘数 期望 3.59x"
+        assert np.isclose(float(lp_net["daily_mdd_pct"]), 15.05, atol=0.05), "LP 费后真实日频 MaxDD 期望 15.05%"
+
+        # 3. 纯多增强全周期 (25年) Alpha 验算
+        s6_ex = df_full[df_full["strategy_id"] == "strategy_6_cnmm_ex_pct"].iloc[0]
+        bm_ew = df_full[df_full["strategy_id"] == "equal_weight_pct"].iloc[0]
+        alpha = float(s6_ex["cagr_pct"]) - float(bm_ew["cagr_pct"])
+        assert np.isclose(alpha, 0.84, atol=0.05), f"纯多相对 105 面板等权超额 Alpha 期望 ~+0.84%, 实际 {alpha:.2f}%"
+
+        # 4. 单变量消融模型 1: 真实边际贡献 ~0.90%
+        abl1 = futures_era[futures_era["strategy_id"] == "ablation_no_z_cnmm_ih_pct"].iloc[0]
+        z_cnmm_marginal = float(s6_ih["cagr_pct"]) - float(abl1["cagr_pct"])
+        assert np.isclose(z_cnmm_marginal, 0.90, atol=0.05), f"Z_CNMM 真实边际 Alpha 期望 ~0.90%, 实际 {z_cnmm_marginal:.2f}%"
+
+        # 5. 核验对账报表未被测试执行顺序污染，且严格为真实去伪纯化指标 (防时序污染守卫)
+        assert df_recon is not None and not df_recon.empty
+        ih_recon = df_recon[df_recon["strategy_id"] == "strategy_6_cnmm_ih_pct"].iloc[0]
+        assert np.isclose(float(ih_recon["purged_authentic_cagr_pct"]), 12.96, atol=0.05), "对账表 IH 真实 CAGR 必须为 12.96%"
+        assert np.isclose(float(ih_recon["purged_wealth_mult"]), 6.22, atol=0.05), "对账表 IH 真实乘数必须为 6.22x"
+        assert np.isclose(float(ih_recon["modern_era_daily_mdd_pct"]), 12.98, atol=0.05), "对账表 IH 真实日频 MaxDD 必须为 12.98%"
+
+        ex_recon = df_recon[df_recon["strategy_id"] == "strategy_6_cnmm_ex_pct"].iloc[0]
+        assert np.isclose(float(ex_recon["purged_authentic_cagr_pct"]), 18.51, atol=0.05), "对账表 EX 真实 CAGR 必须为 18.51%"
+        assert np.isclose(float(ex_recon["purged_wealth_mult"]), 69.78, atol=0.05), "对账表 EX 真实乘数必须为 69.78x"
+        assert np.isclose(float(ex_recon["modern_era_daily_mdd_pct"]), 69.06, atol=0.05), "对账表 EX 真实日频 MaxDD 必须为 69.06%"
 
 
 class TestASTForensicExceptionAudit:

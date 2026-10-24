@@ -30,6 +30,7 @@ from decimal import Decimal
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+import numpy as np
 import pandas as pd
 
 # 注入 UniQuant 源码路径
@@ -226,24 +227,18 @@ class CNMMQARStrategy:
             logger.warning(f"GBBQ file not found at {self.gbbq_path}, proceeding without splits.")
             self.events = pd.DataFrame(columns=["code", "date", "factor"])
 
-        # 2. 定位面板与负债表数据文件 (支持 UniQuant data/backtest/ 与 CNNM 备选路径)
+        # 2. 定位面板与负债表数据文件 (标准 UniQuant 仓内路径)
         p_path = None
-        cnnm_panel_alt = Path.home() / "Documents" / "Project" / "CNNM" / "scratch" / "data" / "large_sample_100_panel_processed.csv"
         if panel_path and Path(panel_path).exists():
             p_path = Path(panel_path)
         elif (self.root_dir / "data" / "backtest" / "large_sample_100_panel_processed.csv").exists():
             p_path = self.root_dir / "data" / "backtest" / "large_sample_100_panel_processed.csv"
-        elif cnnm_panel_alt.exists():
-            p_path = cnnm_panel_alt
 
         b_path = None
-        cnnm_balance_alt = Path.home() / "Documents" / "Project" / "CNNM" / "data_raw" / "large_sample_100_balance_raw.csv"
         if balance_raw_path and Path(balance_raw_path).exists():
             b_path = Path(balance_raw_path)
         elif (self.root_dir / "data" / "backtest" / "large_sample_100_balance_raw.csv").exists():
             b_path = self.root_dir / "data" / "backtest" / "large_sample_100_balance_raw.csv"
-        elif cnnm_balance_alt.exists():
-            b_path = cnnm_balance_alt
 
         if not p_path or not b_path:
             raise FileNotFoundError(
@@ -364,9 +359,9 @@ class CNMMQARStrategy:
         if cfo_records:
             df_cfo = pd.DataFrame(cfo_records).drop_duplicates(subset=["stock_code", "year"])
             ann = pd.merge(ann, df_cfo, on=["stock_code", "year"], how="left")
-            ann["cfo_yi"] = ann["cfo_yi"].fillna(ann["net_profit_yi"])
+            # 严格因果去伪: 缺失 CAS 31 经营现金流的年份严禁以净利润顶替，保持为 NaN
         else:
-            ann["cfo_yi"] = ann["net_profit_yi"]
+            ann["cfo_yi"] = np.nan
 
         ann["cip_ratio"] = ann["cip_yi"] / ann["total_assets_yi"].clip(lower=1.0)
         ann["oth_rec_ratio"] = ann["oth_rec_yi"] / ann["total_assets_yi"].clip(lower=1.0)
@@ -444,14 +439,26 @@ class CNMMQARStrategy:
 
         sub_ann = self.df_ann[self.df_ann["year"] == fiscal_year].set_index("stock_code")
 
+        # 截面标准化因果 Alpha 打分 (消除 5.0 任意放大倍数，缺失现金流年度赋予中性分 0.0)
+        m_series = mom_60.loc[mom_60.index.intersection(candidate_universe)].dropna()
+        m_mean = float(m_series.mean()) if not m_series.empty else 0.0
+        m_std = float(m_series.std()) if len(m_series) > 1 and float(m_series.std()) > 1e-8 else 1.0
+
+        cfo_series = sub_ann.loc[sub_ann.index.intersection(candidate_universe), "cfo_proxy"].dropna()
+        has_cfo = len(cfo_series) >= 5
+        cfo_mean = float(cfo_series.mean()) if has_cfo else 0.0
+        cfo_std = float(cfo_series.std()) if (has_cfo and len(cfo_series) > 1 and float(cfo_series.std()) > 1e-8) else 1.0
+
         alpha_scores: Dict[str, float] = {}
         for c in candidate_universe:
-            m_val = mom_60.get(c, 0.0)
-            cfo_val = 0.0
-            if c in sub_ann.index and pd.notna(sub_ann.loc[c, "cfo_proxy"]):
-                cfo_val = float(sub_ann.loc[c, "cfo_proxy"])
-            # Alpha 综合加权
-            alpha_scores[c] = float(0.5 * m_val + 0.5 * (cfo_val * 5.0))
+            m_raw = mom_60.get(c, np.nan)
+            m_z = (float(m_raw) - m_mean) / m_std if pd.notna(m_raw) else 0.0
+            if has_cfo and c in sub_ann.index and pd.notna(sub_ann.loc[c, "cfo_proxy"]):
+                c_z = (float(sub_ann.loc[c, "cfo_proxy"]) - cfo_mean) / cfo_std
+            else:
+                c_z = 0.0  # 缺失现金流时保持中性，严禁用净利润顶替
+            # 因果综合加权 (各 50%)
+            alpha_scores[c] = float(0.5 * m_z + 0.5 * c_z)
 
         return alpha_scores
 
@@ -476,10 +483,11 @@ class CNMMQARStrategy:
         alpha_scores = self.compute_alpha_scores(safe_candidates, as_of_date, fiscal_year)
         sorted_candidates = sorted(alpha_scores.items(), key=lambda x: x[1], reverse=True)
 
-        target_n = max(
+        calc_n = max(
             self.config.portfolio_size_min,
             min(self.config.portfolio_size_max, int(len(sorted_candidates) * self.config.top_quantile)),
         )
+        target_n = min(calc_n, len(sorted_candidates))
 
         # 3. 贪心配资：施加行业集中度 (权重 <= 10% 且 持股 <= 4 只)
         selected_stocks: List[str] = []

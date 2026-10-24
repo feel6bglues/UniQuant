@@ -16,6 +16,7 @@ CNMM-QAR 生产级日常信号生成与对冲指令调度器 (Daily Signal QAR P
 from __future__ import annotations
 
 import argparse
+import glob
 import json
 import sys
 from datetime import datetime, timezone
@@ -72,8 +73,15 @@ def run_daily_pipeline(
     )
     logger.info(f"[PIT 候选池] 评估日 {as_of_str}: 合规标的 {len(eligible_candidates)} 只")
 
-    # 2. 策略引擎装配与排雷选股
-    fiscal_year = as_of_dt.year - 1
+    # 2. 策略引擎装配与排雷选股 (严格 PIT 财报披露保护)
+    if as_of_dt.month >= 5:
+        fiscal_year = as_of_dt.year - 1
+    else:
+        fiscal_year = as_of_dt.year - 2
+        logger.info(
+            f"[PIT 披露保护] 评估日 {as_of_str} 处于年报法定披露期内 (1-4月)，上一年度年报未完全披露，"
+            f"根据保守点在时原则采用最新已完全披露的基准年报 FY{fiscal_year}"
+        )
     qar_config = CNMMQARConfig(track=target_track)
     strategy = CNMMQARStrategy(config=qar_config)
     strategy.initialize_data_lake()
@@ -94,23 +102,71 @@ def run_daily_pipeline(
     orchestrator = InstitutionalExecutionOrchestrator(config=orch_config)
     cap_alloc = orchestrator.allocate_capital(aum_rmb)
 
+    # 真实期指基准合约现货点位提取
+    futures_idx_file = PROJECT_ROOT / "data" / "lake" / "quotes" / "index" / "000300.SH.parquet"
+    futures_price_points = 4000.0
+    if futures_idx_file.exists():
+        try:
+            df_idx = pd.read_parquet(futures_idx_file)
+            df_idx["date"] = pd.to_datetime(df_idx["date"])
+            sub_idx = df_idx[df_idx["date"] <= as_of_dt].sort_values("date")
+            if not sub_idx.empty:
+                futures_price_points = float(sub_idx.iloc[-1]["close"])
+        except Exception as e:
+            logger.warning(f"读取期指对冲基准价格失败，采用兜底价: {e}")
+
     hedge_structure = orchestrator.plan_futures_hedging_structure(
         equity_long_notional=cap_alloc["equity_long_value"],
-        futures_price_points=4000.0,
+        futures_price_points=futures_price_points,
         num_pb_accounts=3,
     )
 
-    # 4. 微观执行滑点与参与率评估
-    rebalance_orders = [
-        {
-            "symbol": f"{code}.SH" if code.startswith("6") else f"{code}.SZ",
-            "volume_shares": int((cap_alloc["equity_long_value"] * float(weight)) / 50.0),
-            "price": 50.0,
-        }
-        for code, weight in target_portfolio["stock_weights"].items()
-    ]
-    # 模拟 ADV 数据
-    adv_map = {o["symbol"]: float(o["volume_shares"] * 12.0) for o in rebalance_orders}
+    # 4. 微观执行滑点与参与率评估 (接入数据湖真实收盘价与近 20 日真实 ADV)
+    quotes_dir = PROJECT_ROOT / "data" / "lake" / "quotes" / "daily"
+    rebalance_orders = []
+    adv_map = {}
+
+    for code, weight in target_portfolio["stock_weights"].items():
+        code_str = str(code).zfill(6)
+        if code_str.startswith("920") or code_str.startswith(("4", "8")):
+            symbol = f"{code_str}.BJ"
+        elif code_str.startswith(("6", "9")):
+            symbol = f"{code_str}.SH"
+        else:
+            symbol = f"{code_str}.SZ"
+
+        # 尝试从数据湖获取真实价与真实 ADV
+        real_price = 50.0
+        real_adv = 100_000_000.0
+        q_files = glob.glob(str(quotes_dir / f"{code_str}.*.parquet"))
+        if q_files:
+            try:
+                df_q = pd.read_parquet(q_files[0])
+                df_q["date"] = pd.to_datetime(df_q["date"])
+                sub_q = df_q[df_q["date"] <= as_of_dt].sort_values("date")
+                if not sub_q.empty:
+                    last_close = float(sub_q.iloc[-1]["close"])
+                    if last_close > 0:
+                        real_price = last_close
+                    trailing_adv = sub_q.tail(20)["amount"].mean()
+                    if pd.notna(trailing_adv) and trailing_adv > 0:
+                        real_adv = float(trailing_adv)
+            except Exception as e:
+                logger.debug("读取个股真实行情失败 %s: %s", symbol, e)
+
+        target_notional = cap_alloc["equity_long_value"] * float(weight)
+        # 按 A 股 100 股一手向下整手计算
+        volume_shares = int(target_notional / real_price // 100) * 100
+        if volume_shares == 0:
+            volume_shares = 100
+
+        rebalance_orders.append({
+            "symbol": symbol,
+            "volume_shares": volume_shares,
+            "price": round(real_price, 2),
+        })
+        adv_map[symbol] = real_adv
+
     exec_eval = orchestrator.evaluate_rebalance_execution(
         orders=rebalance_orders,
         adv_map=adv_map,
