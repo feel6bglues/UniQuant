@@ -43,9 +43,19 @@ class TestPhase2InstitutionalExecutionGates:
 
     @pytest.fixture
     def fresh_kill_switch(self):
-        ks = SharedKillSwitch()
-        ks.reset()
-        return ks
+        # 必须绕过 SharedKillSwitch 的进程级单例 (__new__ 缓存 _instance):
+        # 直接 SharedKillSwitch() 拿到的是全局单例——本文件 saga/cffex 熔断用例
+        # 会把它 kill 且无 teardown 复位, 毒化同进程内后续所有消费
+        # get_kill_switch() 的测试 (arbitrator/e2e/health), 全量跑时曾致
+        # 28+ 例连锁假失败 (CI 0c2f604/7b51635 红)。此处构造真正隔离的临时实例。
+        ks = object.__new__(SharedKillSwitch)
+        ks._killed = False
+        ks._reason = ""
+        ks._hooks = []
+        ks._initialized = True
+        yield ks
+        # 防御性兜底: 若被测代码内部改触全局单例, 离场时一律复位, 严禁泄漏熔断态
+        SharedKillSwitch().reset()
 
     # =========================================================================
     # 1. 任务 2.1 门禁测试: 资本配置三轨与利息核算

@@ -40,7 +40,7 @@ def test_adjust_dataframe_qfq_yunnan_baiyao():
 
 @pytest.mark.requires_lake
 def test_adjust_dataframe_qfq_pingan_bank():
-    """验证平安银行 (000001.SZ) 1991 年原始上市价 49 元复权至 0.21 元。"""
+    """验证平安银行 (000001.SZ) 1991 年原始上市价 49 元经全历史除权链复权。"""
     adjuster = get_corporate_action_adjuster()
     df = pd.read_parquet("data/lake/quotes/daily/000001.SZ.parquet")
     df_qfq = adjuster.adjust(df, "000001.SZ", adjust_type="qfq")
@@ -50,10 +50,13 @@ def test_adjust_dataframe_qfq_pingan_bank():
 
     # 原始未复权早期价格为 49 元
     assert np.isclose(df.sort_values("date").iloc[0]["close"], 49.00)
-    # 前复权价格应约为 0.207~0.212 元（随最新除权事件动态调整）
+    # 前复权价格应约为 0.147 元 (qfq 以最新收盘为锚, 该值随湖内新纳入分红事件单调下移:
+    # 2026-10-24 复核 = 0.1471, 含 gbbq 2026-10-14 resync 的 2025/2026 年度分红)。
+    # ⚠️ 维护指令: 每次 sync_gbbq 纳入新年度分红事件后, 必须用本测试实测值重新钉带,
+    #             旧带 0.20~0.22 (0.2073, 钉于 2026-10-16 之前) 已随锚点漂移作废。
     assert earliest_row["close"] < 1.0
-    assert 0.20 < earliest_row["close"] < 0.22
-    assert np.isclose(earliest_row["close"], 0.2073, atol=5e-3)
+    assert 0.14 < earliest_row["close"] < 0.16
+    assert np.isclose(earliest_row["close"], 0.1471, atol=5e-3)
     # 最新一日前复权价格应等于原始价格
     assert np.isclose(latest_row["close"], df.sort_values("date").iloc[-1]["close"])
 

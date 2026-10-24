@@ -98,6 +98,7 @@ class TestPhase3DataGovernanceGates:
     # 2. 任务 3.1 门禁: 337 只退市股票入湖与 Schema 契约
     # =========================================================================
 
+    @pytest.mark.requires_lake
     def test_delisted_stocks_100pct_coverage(self, delisted_ingestor):
         """验证数据湖中历史退市股票覆盖率达到 100% (337/337)"""
         scan = delisted_ingestor.scan_delisted_coverage()
@@ -105,6 +106,7 @@ class TestPhase3DataGovernanceGates:
         assert scan["existing_in_lake"] == 337
         assert scan["missing_in_lake"] == 0
 
+    @pytest.mark.requires_lake
     def test_delisted_stock_parquet_schema_integrity(self):
         """验证退市股票 Parquet 遵循标准 9 列物理契约且数值合法"""
         sample_path = PROJECT_ROOT / "data" / "lake" / "quotes" / "daily" / "600001.SH.parquet"
@@ -125,6 +127,7 @@ class TestPhase3DataGovernanceGates:
     # 3. 任务 3.3 门禁: 沪深 300 全收益指数与股息剪刀差
     # =========================================================================
 
+    @pytest.mark.requires_lake
     def test_total_return_benchmark_series_generation(self, tr_adapter):
         """验证沪深 300 全收益指数生成与单调递增超越关系 (TR >= PR)"""
         df_tr = tr_adapter.generate_total_return_series("000300.SH", "000300TR.SH", persist=True)
@@ -138,6 +141,7 @@ class TestPhase3DataGovernanceGates:
         base_final = float(df_base["close"].iloc[-1] / df_base["close"].iloc[0])
         assert tr_final > base_final
 
+    @pytest.mark.requires_lake
     def test_dividend_leakage_spread_quantification(self, tr_adapter):
         """验证股息剪刀差年化在 2.0%~2.5% 区间，符合 A 股真实分红水平"""
         spread = tr_adapter.calculate_dividend_leakage_spread("000300.SH", "000300TR.SH")

@@ -372,8 +372,10 @@ class TestCalculateGuards:
         out = SmartFactorCalculatorV15().calculate(df, events)
         assert out["factor"].iloc[1] == pytest.approx(1.0)
 
-    def test_implausible_event_with_tiny_real_drop_is_skipped(self):
-        # factor ~2.0 but the ex-date open barely moved -> treated as non-event.
+    def test_implausible_event_with_tiny_real_drop_is_applied(self):
+        # 第十轮 QAR 法医审计已拔除 "actual_drop < expected_drop * 0.3 假死跳过" 后门:
+        # 即便除权日开盘几乎未动, 公司行动事件也必须如实计入复权因子 (factor ~2.0),
+        # 严禁以价格未确认理由静默跳过真实除权 (格力 2016 分红 / 中兴 2005 股改)。
         df = pd.DataFrame(
             {
                 "date": pd.to_datetime(["2025-01-01", "2025-01-02", "2025-01-03"]),
@@ -383,7 +385,7 @@ class TestCalculateGuards:
         )
         events = _event("2025-01-03", split=1.0)
         out = SmartFactorCalculatorV15().calculate(df, events)
-        assert out["factor"].iloc[2] == pytest.approx(1.0)
+        assert out["factor"].iloc[2] == pytest.approx(2.0)
 
     def test_zero_pre_close_with_split_multiplies_by_ratio(self):
         # close[0] == 0 -> pre_close guard (pre_close <= 0) multiplies by 1+split+rights

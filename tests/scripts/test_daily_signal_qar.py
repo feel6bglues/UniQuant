@@ -14,6 +14,10 @@ import pytest
 
 from scripts.canslim.daily_signal_qar import run_daily_pipeline
 
+# 流水线经 TotalReturnBenchmarkAdapter 读取 data/lake/quotes/index/000300.SH.parquet
+# 与个股行情湖——CI 无数据湖环境声明式跳过 (禁静默假绿)。
+pytestmark = pytest.mark.requires_lake
+
 
 class TestDailySignalQARPipeline:
     """CNMM-QAR 生产级日常调度流水线测试"""
