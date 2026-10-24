@@ -19,6 +19,7 @@ from pathlib import Path
 from typing import Dict, List, Tuple
 
 TESTS_ROOT = Path(__file__).resolve().parent
+SRC_ROOT = TESTS_ROOT.parent / "src" / "uniquant"
 
 # 绝对家目录路径：POSIX `/home/<user>/…`、`/Users/<user>/…`；Windows `C:\Users\<user>\…`
 _HOME_ABSOLUTE_RE = re.compile(r"^(?:/(?:home|Users)|[A-Za-z]:\\{1,2}Users)[/\\][^/\\]+[/\\]")
@@ -31,6 +32,15 @@ def _iter_test_sources() -> List[Path]:
     return [
         path
         for path in sorted(TESTS_ROOT.rglob("*.py"))
+        if not (_SKIP_DIR_NAMES & set(path.parts))
+    ]
+
+
+def _iter_src_sources() -> List[Path]:
+    """Yield every Python source under ``src/uniquant/``."""
+    return [
+        path
+        for path in sorted(SRC_ROOT.rglob("*.py"))
         if not (_SKIP_DIR_NAMES & set(path.parts))
     ]
 
@@ -74,6 +84,28 @@ def test_no_hardcoded_dev_absolute_paths() -> None:
         "测试代码出现硬编码的开发机绝对路径；这类写法在 CI 上会以收集期 "
         "ModuleNotFoundError 中断整个测试作业。请改为基于 `Path(__file__)` 的仓库内"
         "相对定位，或 `Path.home()` / 环境变量兜底。违规处：\n"
+        + "\n".join(
+            f"  {rel}:{line} -> {literal!r}"
+            for rel, hits in sorted(offenders.items())
+            for line, literal in hits
+        )
+    )
+
+
+def test_no_hardcoded_dev_absolute_paths_in_src() -> None:
+    """No production module in src/uniquant/ may bake in a developer-machine absolute home path."""
+    offenders: Dict[Path, List[Tuple[int, str]]] = {}
+    for path in _iter_src_sources():
+        try:
+            source = path.read_text(encoding="utf-8")
+        except (UnicodeDecodeError, OSError):  # pragma: no cover - defensive
+            continue
+        hits = _absolute_home_literals(source, str(path))
+        if hits:
+            offenders[path.relative_to(SRC_ROOT)] = hits
+
+    assert not offenders, (
+        "生产代码 (src/uniquant/) 出现硬编码的开发机绝对路径。违规处：\n"
         + "\n".join(
             f"  {rel}:{line} -> {literal!r}"
             for rel, hits in sorted(offenders.items())

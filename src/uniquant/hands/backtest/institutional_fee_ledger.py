@@ -140,6 +140,7 @@ class InstitutionalFeeLedger:
         date_col: str = "date",
         nav_col: str = "raw_nav",
         crystallization_dates: Optional[Set[pd.Timestamp] | List[pd.Timestamp | str]] = None,
+        recursive: bool = False,
     ) -> pd.DataFrame:
         """
         批量核算净值时序数据
@@ -149,10 +150,19 @@ class InstitutionalFeeLedger:
             date_col: 日期列名
             nav_col: 毛净值列名
             crystallization_dates: 法定结算日集合 (默认每年最后一个交易日)
+            recursive: 是否采用连续状态机递归复利计提 (默认 False 保持单日切片兼容)
             
         Returns:
             DataFrame 包含完整费用与公允净值全明细
         """
+        if recursive:
+            return self.process_continuous_nav_series(
+                df_nav=df_nav,
+                date_col=date_col,
+                nav_col=nav_col,
+                crystallization_dates=crystallization_dates,
+            )
+
         df = df_nav.copy()
         df[date_col] = pd.to_datetime(df[date_col])
         df = df.sort_values(date_col).reset_index(drop=True)
@@ -182,6 +192,118 @@ class InstitutionalFeeLedger:
                 "hurdle_nav": snap.hurdle_nav,
                 "is_crystallized": snap.is_crystallized,
                 "crystallized_carry": snap.crystallized_carry,
+            })
+
+        return pd.DataFrame(records)
+
+    def process_continuous_nav_series(
+        self,
+        df_nav: pd.DataFrame,
+        date_col: str = "date",
+        nav_col: str = "raw_nav",
+        crystallization_dates: Optional[Set[pd.Timestamp] | List[pd.Timestamp | str]] = None,
+    ) -> pd.DataFrame:
+        """
+        以连续递归复利状态机批量核算净值时序 (Institutional Recursive State Machine)
+        
+        标准机构托管会计逻辑:
+        1. 资本底座 net_base_nav 逐日按标的资产毛收益率滚动复利;
+        2. 每日扣除 ACT/365 管理费并累加到已付管理费总额;
+        3. 期间计提业绩报酬准备金 (根据距上次结算日自然日线性 Hurdle 门槛);
+        4. 法定结算日业绩报酬结晶固化，实际划转 (从资本底座中实质扣减，并成为下一轮高水位线)。
+        """
+        df = df_nav.copy()
+        df[date_col] = pd.to_datetime(df[date_col])
+        df = df.sort_values(date_col).reset_index(drop=True)
+
+        if crystallization_dates is None:
+            crys_set = set()
+            df["_year"] = df[date_col].dt.year
+            for _, grp in df.groupby("_year"):
+                crys_set.add(grp[date_col].iloc[-1])
+        else:
+            crys_set = {pd.Timestamp(d) for d in crystallization_dates}
+
+        records = []
+        net_base_nav = self.initial_nav
+        self.crystallized_hwm = self.initial_nav
+        self.last_crys_date = self.start_date
+        self.last_date = self.start_date
+        self.cumulative_mgmt_fee = 0.0
+        self.cumulative_crystallized_carry = 0.0
+        self.history = []
+
+        last_gross_nav = df[nav_col].iloc[0] if len(df) > 0 else 1.0
+
+        for idx, row in df.iterrows():
+            curr_dt = row[date_col]
+            gross_val = float(row[nav_col])
+            is_crys = curr_dt in crys_set
+
+            if idx == 0:
+                gross_ret = 0.0
+            else:
+                gross_ret = (gross_val / last_gross_nav - 1.0) if last_gross_nav > 0 else 0.0
+            last_gross_nav = gross_val
+
+            # 1. ACT/365 自然日管理费计提
+            cal_days = max(1, (curr_dt - self.last_date).days)
+            daily_mgmt_rate = (self.mgmt_fee_rate / 365.0) * cal_days
+            nav_pre_mgmt = net_base_nav * (1.0 + gross_ret)
+            mgmt_fee = nav_pre_mgmt * daily_mgmt_rate
+            nav_after_mgmt = nav_pre_mgmt - mgmt_fee
+            self.cumulative_mgmt_fee += mgmt_fee
+
+            # 2. Hurdle 门槛净值计算 (基于固化 HWM 线性累加)
+            days_since_crys = max(0, (curr_dt - self.last_crys_date).days)
+            hurdle_nav = self.crystallized_hwm * (1.0 + self.hurdle_rate * (days_since_crys / 365.0))
+
+            # 3. 业绩报酬准备金暂估
+            if nav_after_mgmt > hurdle_nav:
+                carry_accrual = self.carry_rate * (nav_after_mgmt - hurdle_nav)
+            else:
+                carry_accrual = 0.0
+
+            published_nav = nav_after_mgmt - carry_accrual
+            crystallized_carry = 0.0
+
+            # 4. 法定结算日结转固化
+            if is_crys and carry_accrual > 0.0:
+                crystallized_carry = carry_accrual
+                self.cumulative_crystallized_carry += crystallized_carry
+                # 固化后：实际划转扣减，资本底座缩减为划转后公布净值，成为下一轮高水位
+                self.crystallized_hwm = published_nav
+                net_base_nav = published_nav
+                self.last_crys_date = curr_dt
+                carry_accrual = 0.0
+            else:
+                # 非固化日：准备金为或有负债，投资运作资本底座为扣费后资产
+                net_base_nav = nav_after_mgmt
+
+            self.last_date = curr_dt
+
+            snapshot = FeeSnapshot(
+                date=curr_dt,
+                gross_nav=round(gross_val, 6),
+                net_nav=round(published_nav, 6),
+                mgmt_fee_accrued=round(mgmt_fee, 6),
+                carry_accrued=round(carry_accrual, 6),
+                crystallized_hwm=round(self.crystallized_hwm, 6),
+                hurdle_nav=round(hurdle_nav, 6),
+                is_crystallized=bool(is_crys and crystallized_carry > 0.0),
+                crystallized_carry=round(crystallized_carry, 6),
+            )
+            self.history.append(snapshot)
+            records.append({
+                "date": snapshot.date,
+                "gross_nav": snapshot.gross_nav,
+                "net_nav": snapshot.net_nav,
+                "mgmt_fee_accrued": snapshot.mgmt_fee_accrued,
+                "carry_accrued": snapshot.carry_accrued,
+                "crystallized_hwm": snapshot.crystallized_hwm,
+                "hurdle_nav": snapshot.hurdle_nav,
+                "is_crystallized": snapshot.is_crystallized,
+                "crystallized_carry": snapshot.crystallized_carry,
             })
 
         return pd.DataFrame(records)

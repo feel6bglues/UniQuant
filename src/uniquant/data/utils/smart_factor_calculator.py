@@ -186,13 +186,14 @@ class SmartFactorCalculatorV15:
 
             factor = pre_close / ex_price_theory
 
-            if factor > 1.05 or factor < 0.95:
-                if ex_open > 0 and pre_close > 0:
-                    actual_drop = abs(ex_open - pre_close) / pre_close
-                    expected_drop = abs(factor - 1.0)
-                    if actual_drop < expected_drop * 0.3:
-                        logger.debug(f"跳过无效除权事件 {ex_date.date()}: factor={factor:.4f}, actual_drop={actual_drop:.2%}, expected_drop={expected_drop:.2%}")
-                        continue
+            if (factor > 1.05 or factor < 0.95) and ex_open > 0 and pre_close > 0:
+                actual_drop = abs(ex_open - pre_close) / pre_close
+                expected_drop = abs(factor - 1.0)
+                if actual_drop < expected_drop * 0.3:
+                    logger.info(
+                        "除权日价格缺口偏离理论除权价 (填权或强开盘): 日期=%s, 理论因子=%.4f, 实际开盘跌幅=%.2f%%, 理论跌幅=%.2f%%",
+                        ex_date.date(), factor, actual_drop * 100, expected_drop * 100,
+                    )
 
             factors_daily[idx] *= factor
 

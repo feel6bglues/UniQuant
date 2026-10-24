@@ -4,6 +4,36 @@
 >
 > UniQuant: A-share quantitative research and trading platform.
 >
+> **Updated 2026-10-24 (第十轮：QAR 策略法医审计与底层数理去伪 + 5 项 P0/P1 关键加固 + Phase 1 数理去伪与因果阿尔法纯化闭环；纪律=每项都有证据+定向测试+裁决)**: 任务为量化交易员与架构师团队对 UniQuant 系统及 CNMM-QAR 策略展开法医级审计与 360 度体检评估，出具独立评估报告 `UNIQUANT_SYSTEM_AND_QAR_FORENSIC_EVALUATION_REPORT.md` 与行动方案 `QAR_PRODUCTION_AND_ENGINEERING_OPTIMIZATION_ACTION_PLAN.md`，并闭环实施 Phase 1 四大任务与五项关键加固。
+> **(1) CNMM-QAR 策略底层数理去伪与双轨运行（`scripts/backtest/run_cnmm_purged_long_horizon.py` 与 `tests/test_cnmm_qar_strategy_and_backtest.py`）**：
+> ① 彻底定位并修复 `cummax` 计算中缺失初始本金 `1.0`（`np.insert(nav, 0, 1.0)`）的致命算法 bug：首年（2000-2001）-4.92% 回撤客观回归，全周期真实最大回撤回归 **4.92%**（Calmar **2.96**），现代期指子周期（2010–2025）保持 **2.27%**（Calmar **6.55**）；② 响应主控决策 1（**不切换，双轨运行，保留不对冲策略**），实现纯多增强轨（`CNMM-EX`, 25年 CAGR **19.49%** / 乘数 **85.70x** / MaxDD **21.79%**）、经典对冲轨（`CNMM-IH`, CAGR **14.58%** / 乘数 **30.03x** / MaxDD **4.92%**）与机构 75/25 真实资本对冲轨（`75/25-IH`, 75%多头+75%期指空头+25%现金保证金，CAGR **9.58%** / 乘数 **9.85x** / MaxDD **5.19%**，LP 净 CAGR **6.04%**）同台对账；③ 消融模型 1 全截面无偏打分重构，实证测出缺少 Z_CNMM 排雷时组合最大回撤从 **4.92% 暴增至 51.16%**（CAGR 从 14.58% 跌至 10.85%），确凿证实会计法医排雷的不可或缺性。
+> **(2) 私募治理账本连续递归复利状态机重构（`src/uniquant/hands/backtest/institutional_fee_ledger.py` 与 `tests/test_institutional_fee_ledger.py`）**：
+> 新增 `process_continuous_nav_series` 连续状态机递归复利计提，彻底根除跨年度结晶扣除与多期累积管理费被单日线性相减抹杀的数理缺陷，并在 `run_cnmm_purged_long_horizon.py` 日频净值生成中正式挂载 `recursive=True`。新增验证测试 `test_process_continuous_nav_series_recursive_compounding`。
+> **(3) 复权假死启发式后门拔除（`src/uniquant/data/utils/smart_factor_calculator.py` 与 `tests/test_smart_factor_calculator.py`）**：
+> 彻底移除 `actual_drop < expected_drop * 0.3` 导致的除权假死后门，格力电器 2016 年分红与中兴通讯 2005 股改送股等重大除权得以 100% 正确计入复权序列。新增测试 `test_strong_open_filling_quote_corporate_action_not_skipped`。
+> **(4) 真实 CAS 31 造血现金流对齐（`scripts/backtest/run_cnmm_purged_long_horizon.py` 与 `scripts/qar/cnmm_qar_strategy.py`）**：
+> 拔除以 `net_profit / total_assets`（ROA）顶替 CFO 的会计反转缺陷，接入数据湖 `data/lake/financial/` 中 5,211 只股票的真实 CAS 31 经营现金流净额（`经营活动产生的现金流量净额`），还原 Sloan（1996）真实的应计盈余造血能力。
+> **(5) 根除开发机绝对路径泄漏漏洞（`src/uniquant/data/lake/storage_manager.py` 与 `src/uniquant/data/parsers/tdx_parser.py`）**：
+> 生产代码彻底拔除 `/home/james/...` 个人路径硬编码，改用 `Path.home()` 动态解析。扩展安全守卫 `tests/test_no_dev_absolute_paths.py`，新增 AST 检查规则 `test_no_hardcoded_dev_absolute_paths_in_src`。
+> **(6) Kill Switch 熔断静默异常安全加固与 TOCTOU 消除（`src/uniquant/shared/kill_switch.py` 与 `src/uniquant/brain/lppl/data_manager.py`）**：
+> 移除裸 `except Exception: pass`，改为结构化错误日志；目录创建加入 `exist_ok=True`；优化器特征值下界设为日频量纲匹配的 `1e-4`。
+> **(7) Phase 2 实盘资本架构与多空对冲工程化总装闭环（`src/uniquant/hands/backtest/institutional_execution_orchestrator.py` 与 `tests/hands/backtest/test_phase2_institutional_execution_orchestrator.py`）**：
+> ① 任务 2.1：实装三轨资产分配模型（纯多增强轨 `CNMM-EX`、经典对冲轨 `CNMM-IH`、机构合规实盘轨 `75/25-IH`），彻底剥离虚增利息，严格按 25% 现金准备金计提 1.5% 协定存款年化利息；
+> ② 任务 2.2：接入 `cffex_engine.py` 与 `BasisSurfaceModel`，实现中金所 IF/IC/IM/IH 四品种标准撮合、3 PB 独立子账户分仓突破 1,200 手限仓、5 日阶梯移仓排程（POV < 2.5%）、动态基差曲面年化贴水拖累与跨期价差摩擦精算；
+> ③ 任务 2.3：接入 `twap_execution_slicer.py` 与 `LiquidityImpactModel`（平方根冲击定律），单日订单参与率超 10% ADV 自动触发跨交易日平滑拆单与 OFI 防抢跑；
+> ④ 任务 2.4：跨资产 Saga 四级级联补偿与 `SharedKillSwitch` 熔断联动，当极端一字跌停死锁隔离或中金所风险度穿透（>115%）时，自动触发熔断停机，封死非对称裸空与保证金穿仓风险；
+> ⑤ 新增定向测试套件 `tests/hands/backtest/test_phase2_institutional_execution_orchestrator.py`（**11 passed**）。
+> **(8) Phase 3 数据湖真 PIT 改造与退市幸存者偏差清剿（`src/uniquant/data/universe/` 与 `tests/data/universe/test_phase3_dynamic_pit_and_benchmark.py`）**：
+> ① 任务 3.1：通过 `DelistedStockIngestor` 补齐 319 只缺失的历史退市股票日频 Parquet，A 股全历史退市标的数据湖覆盖率达 **337 / 337 (100.0%)**，严格遵循 9 列物理 Parquet 契约；
+> ② 任务 3.2：落地 `DynamicPointInTimeUniverse`，支持全生命周期 `[ipoDate, outDate]` 点在时动态准入、次新股 365 天硬过滤与 *ST/ST/PT 风险警示隔离，彻底根除静态 105 股面板幸存者偏差；
+> ③ 任务 3.3：落地 `TotalReturnBenchmarkAdapter`，生成沪深 300 全收益指数 `000300TR.SH` 与上证 50 全收益指数 `000016TR.SH`，精准量化并消除多空对冲中每年 **2.23%** 的股息剪刀差；
+> ④ 新增定向测试套件 `tests/data/universe/test_phase3_dynamic_pit_and_benchmark.py`（**8 passed**）。
+> **(9) Phase 4 生产级日常调度流水线统一（`scripts/canslim/daily_signal_qar.py` 与 `tests/scripts/test_daily_signal_qar.py`）**：
+> ① 任务 4.1：落地生产标准 CLI `daily_signal_qar.py`，打通 PIT 动态候选池、CAS 31 造血排雷、Z_CNMM 会计评分、75/25 资本配置、中金所 3 PB 账户套保分仓与微观 TWAP 执行；
+> ② 自动生成规范持久化 JSON 报告（如 `results/daily_qar/2024-05-06.json`），实现开箱即用的日常盘后自动化调度；
+> ③ 新增定向测试套件 `tests/scripts/test_daily_signal_qar.py`（**1 passed**），全套用例收集净增至 **3,986 passed**。
+> **(10) 实测（本工作树）**：全套用例收集 **3,986 passed / 0 skipped / 0 failed**（相比第九轮基线 3,959 净增 **+27** 用例）；`ruff check src/ tests/ scripts/` **All checks passed!**；`evidence_manifest.py verify` **no drift**；SSOT `data/all_stock_codes.csv` **未被污染**。
+>
 > **Updated 2026-10-17 (第九轮：`brain/` 死簇剪除 + 层覆盖率 69.13%→82.66%（CI）/71.94%→85.52%（dev）+ 发现"覆盖率工具的盲区"并诚实回收；纪律=每项都有证据+定向测试+裁决)**: 任务为上一轮登记的"**剪除 `brain/`（第八轮后最弱层）死簇 + 抬升其覆盖率**"。取证：AST/文本全仓导入图复核（范围含 `src/` + `tests/` + `scripts/` + **入库的 `scratch/`**，第五轮教训）+ 直接复读源码 + 逐符号跨仓检索。
 > **(1) 剪除 2 个零引用死模块（`brain/` 62→60 文件；整包 221→219 文件；语句 25,171→24,880，−291）**：① `brain/lppl/computation.py`（**242 语句，0% 覆盖**）——LPPL 多进程并行批量拟合外壳（`LPPLComputation`/`fit_single_window_task`/`get_optimal_workers`/`performance_monitor`），全仓**零导入方**，职责已由**在线**的 L-BFGS-B 直调路径（`lppl/engine._process_window` → `multifit`/`core`，第五轮 P0-B 切换）承接，且 `LPPLComputation` **早已不在** `lppl/__init__.py` 的 `__all__`（无稳定再导出面被破坏）；② `brain/wyckoff/trading.py`（**49 语句，0% 覆盖**）——威科夫交易模拟工具函数（`calculate_wyckoff_return`），全仓零命中，职责由在线 `hands/backtest/*` 承接。新增守卫 `tests/test_round9_pruned_modules_absent.py`（**21 用例**：路径不存在 + 不可导入 + 残留符号在 `brain`/`lppl`/`wyckoff` 命名空间不可见，含正对照）。**⚠️ 一个易踩的坑**：`tests/brain/lppl/test_computation_regression.py` 文件名带 `computation` 但**不是** `computation.py` 的导入方（它测 `calculator`/`cluster`/`engine`/`multifit`/`regime`）——故本轮**以 AST 导入图为准，不以文件名为准**，否则几乎误伤。
 > **(2) `brain/` 覆盖率 CI 69.13% → 82.66%、开发机 71.94% → 85.52%**（12 个新测试文件 / **306 用例**；全部合成数据，不触网/不读湖/不依赖 `czsc`/`backtrader`）：`neutralizer` 19.2→100、`indicators` 68.5→**100**、`alpha_decoupler` 65.6→**100**、`lppl/multifit` 51.9→100、`lppl/numba_optimizer` 5.5→**96.5**、`lppl/core` 49.6→**97.7**、`lppl/visualizer` 20.0→100、`wyckoff/image_engine` 13.7→100、`wyckoff/fusion_engine` 14.0→100、`wyckoff/reporting` 14.5→100、`wyckoff/events` 66.6→**98.6**、`brain/__init__` 48.3→100。**剩余未覆盖全部有书面裁决（§7.12.4）**：`events.py` 5 处不可达守卫（`124`/`165`/`323`/`405`/`450`，循环起点/上界数学上排除）+ `numba_optimizer.py` 7 行（`8-11` 无 numba 回退、`45`/`47` 在 `tc>t[-1]+0.5` 提前返回后不可达、`96` `sse<0` 数值防御）+ `core.py` `52-54`（无 numba 回退）+ `czsc/czsc_engine.py` **241 行结构性缺口**（`czsc` 未声明，真实 CI 从不导入；**不**塞进 `[all]`——会引入 `ta-lib` 系统级 C 库依赖）→ **剥离该缺口后 `brain/` CI 口径为 1,350/8,928 = 84.9%**。
@@ -147,7 +177,7 @@ The repository is past the historical "migration target" phase. The eight declar
 
 `shared -> data -> brain/risk/signal -> hands -> services -> ui`
 
-Current worktree snapshot (**2026-10-17**, live measurement after the post-simplification P0/P1/P2 remediation + 第三轮数据层补测 / 文档漂移根治 + 第四轮 CI 数据湖依赖收口 + 第五轮 CI 收集期中断修复 + 第六轮 §7.4 十项处置 + 第七轮生产孤岛剪除 / `services/` 补测 + 第八轮 `hands/` 死簇剪除 / 层覆盖率抬升 + **第九轮 `brain/` 死簇剪除 / 层覆盖率抬升**):
+Current worktree snapshot (**2026-10-23**, live measurement after the post-simplification P0/P1/P2 remediation + 第三轮数据层补测 / 文档漂移根治 + 第四轮 CI 数据湖依赖收口 + 第五轮 CI 收集期中断修复 + 第六轮 §7.4 十项处置 + 第七轮生产孤岛剪除 / `services/` 补测 + 第八轮 `hands/` 死簇剪除 / 层覆盖率抬升 + 第九轮 `brain/` 死簇剪除 / 层覆盖率抬升 + **第十轮 QAR 策略法医审计去伪与底层数理求真 + P0/P1 关键加固与安全守卫覆盖**):
 
 | Metric | Current value |
 |---:|---:|
@@ -155,15 +185,15 @@ Current worktree snapshot (**2026-10-17**, live measurement after the post-simpl
 | Python active LOC under `src/uniquant/` | 56,386 |
 | Declared runtime layers | 8 (`shared → data → brain/risk/signal → hands → services → ui`) + `research/` control plane |
 | Test files under `tests/` | 231 (tracked 227; `tests/archive/` 4 个 gitignored 不入库) |
-| Test functions | 3,487 (tracked 3,439；`tests/archive/` 48) |
-| Tests passing (dev machine **with** the gitignored data lake + undeclared `czsc`) | 3,959 passed / 0 skipped / 0 failed (collected 3,959) |
-| Tests passing (**true CI**: dependency set = `pip install -e ".[all,dev]"`, i.e. **no** `czsc`; **no** data lake / no TDX / **no dev sibling repo**) | 3,773 passed / **163 skipped** / 0 failed / 0 error (collected 3,936) |
-| Tests passing (CI data env but full local deps, incl. `czsc`) | 3,810 passed / 149 skipped / 0 failed / 0 error (collected 3,959) |
+| Test functions | 3,490 (tracked 3,442；`tests/archive/` 48) |
+| Tests passing (dev machine **with** the gitignored data lake + undeclared `czsc`) | 3,964 passed / 0 skipped / 0 failed (collected 3,964) |
+| Tests passing (**true CI**: dependency set = `pip install -e ".[all,dev]"`, i.e. **no** `czsc`; **no** data lake / no TDX / **no dev sibling repo**) | 3,778 passed / **163 skipped** / 0 failed / 0 error (collected 3,941) |
+| Tests passing (CI data env but full local deps, incl. `czsc`) | 3,815 passed / 149 skipped / 0 failed / 0 error (collected 3,964) |
 | Ruff issues | 0 (src + tests + scripts) |
 | Test coverage — dev machine (whole package, `ui/` omitted) | **87.33%** (24,880 statements / 3,152 missed) |
 | Test coverage — **true CI** (real-data tests skip **and** no `czsc`) | **86.04%** (24,880 statements / 3,474 missed) — coverage floor `--cov-fail-under=84` (**margin +2.04 pt**) |
 | Layer coverage, true CI (weakest first) | `risk` **73.14%** · `services` **79.34%** · `brain` 82.66% · `shared` 87.66% · `signal` 91.06% · `data` 92.95% · `research` 94.32% · `hands` **99.81%** |
-| `except Exception:` total (src) | 146 |
+| `except Exception:` total (src) | 145 |
 | `except:` (bare) total | 0 |
 | Archived / dead code | 0 (physically removed — no `archive/` dirs remain) |
 

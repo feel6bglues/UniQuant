@@ -159,10 +159,16 @@ class CFFEXMatchingAndRiskEngine:
         account_id: str = "CFFEX_MASTER_PB",
         initial_cash: float = 50_000_000.0,
         risk_buffer_ratio: float = 0.05,
+        enable_kill_switch: bool = False,
+        kill_switch: Optional[Any] = None,
+        kill_switch_margin_call_threshold: float = 1.15,
     ):
         self.account_id = account_id
         self.cash = float(initial_cash)
         self.risk_buffer_ratio = float(risk_buffer_ratio)
+        self.enable_kill_switch = enable_kill_switch
+        self.kill_switch = kill_switch
+        self.kill_switch_margin_call_threshold = float(kill_switch_margin_call_threshold)
         self.positions: Dict[str, FuturesPosition] = {}
         self.settlement_history: List[DailyMTMSettlementReport] = []
 
@@ -473,6 +479,12 @@ class CFFEXMatchingAndRiskEngine:
         is_margin_call = available_funds < 0
         margin_call_amount = abs(available_funds) if is_margin_call else 0.0
 
+        if self.enable_kill_switch and self.kill_switch is not None:
+            if margin_ratio_pct > self.kill_switch_margin_call_threshold * 100.0 or self.cash <= 0:
+                self.kill_switch.kill(
+                    reason=f"CFFEX_CRITICAL_MARGIN_DEPLETION: margin_ratio={margin_ratio_pct:.1f}%, cash={self.cash:.2f}"
+                )
+
         report = DailyMTMSettlementReport(
             date=date,
             account_id=self.account_id,
@@ -490,3 +502,51 @@ class CFFEXMatchingAndRiskEngine:
         )
         self.settlement_history.append(report)
         return report
+
+
+class BasisSurfaceModel:
+    """
+    中金所股指期货动态基差曲面与跨期展期摩擦精算模型 (Basis Surface Model)
+    =============================================================================
+    核心数理逻辑:
+        1. 点位基差 (Basis):
+           Basis = Futures_Price - Spot_Index_Price
+           (负值表示贴水 Backwardation, 正值表示升水 Contango)
+        2. 年化基差率 (Annualized Basis Yield):
+           Basis_Yield_Annual = (Futures_Price / Spot_Index_Price - 1.0) * (252 / Days_To_Expiry)
+        3. 对冲端年化持有拖累 (Negative Carry Drag):
+           当基差贴水时, 空头对冲在到期收敛过程中面临负利差损失 (Basis Drag);
+        4. 跨期价差移仓滑点成本 (Roll Slippage Cost):
+           跨期价差平主力、开次月需承担买卖双边盘口跳价与微观滑点摩擦。
+    =============================================================================
+    """
+
+    @staticmethod
+    def calculate_basis(spot_price: float, futures_price: float) -> float:
+        """点位基差 = 期货价格 - 现货指数点位"""
+        return float(futures_price) - float(spot_price)
+
+    @staticmethod
+    def calculate_annualized_basis_rate(
+        spot_price: float,
+        futures_price: float,
+        days_to_expiry: int,
+    ) -> float:
+        """计算年化基差率 (以 252 交易日计)"""
+        if spot_price <= 0 or days_to_expiry <= 0:
+            return 0.0
+        simple_rate = (float(futures_price) / float(spot_price)) - 1.0
+        return float(simple_rate * (252.0 / float(days_to_expiry)))
+
+    @staticmethod
+    def estimate_roll_over_cost_bps(
+        front_price: float,
+        next_price: float,
+        tick_size: float = 0.2,
+        spread_slippage_ticks: float = 2.0,
+    ) -> float:
+        """估算跨期价差移仓交易滑点与摩擦 (以 bps 为单位)"""
+        if front_price <= 0:
+            return 0.0
+        slippage_rmb = float(spread_slippage_ticks) * float(tick_size)
+        return float(round((slippage_rmb / float(front_price)) * 10000.0, 3))

@@ -92,3 +92,28 @@ class TestKillSwitchArbitratorIntegration:
         result2 = arb.arbitrate(raw_signals, symbol="000001.SZ")
         assert len(result2) == 0
         ks.reset()
+
+    def test_kill_switch_hook_exception_logged_and_continues(self, caplog):
+        ks = get_kill_switch()
+        ks.reset()
+
+        executed = []
+
+        def bad_hook():
+            raise ValueError("simulated hook failure")
+
+        def good_hook():
+            executed.append(True)
+
+        ks.register_hook(bad_hook)
+        ks.register_hook(good_hook)
+
+        import logging
+        with caplog.at_level(logging.ERROR):
+            ks.kill("test_hook_failure")
+
+        assert ks.is_killed is True
+        assert executed == [True]
+        assert "simulated hook failure" in caplog.text
+        ks.reset()
+        ks._hooks.clear()

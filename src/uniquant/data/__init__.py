@@ -15,6 +15,10 @@ __all__ = [
     "DataPipeline",
     # LPPL数据服务
     "LPPLDataService",
+    # 动态股票池与全收益基准
+    "DynamicPointInTimeUniverse",
+    "TotalReturnBenchmarkAdapter",
+    "DelistedStockIngestor",
 ]
 
 import typing
@@ -55,4 +59,16 @@ def __getattr__(name: str) -> typing.Any:
         except ImportError as e:
             logger.error(f"无法导入 LPPLDataService: {e}")
             return None
+    elif name == "DynamicPointInTimeUniverse":
+        from .universe.dynamic_pit_universe import DynamicPointInTimeUniverse
+
+        return DynamicPointInTimeUniverse
+    elif name == "TotalReturnBenchmarkAdapter":
+        from .universe.total_return_benchmark import TotalReturnBenchmarkAdapter
+
+        return TotalReturnBenchmarkAdapter
+    elif name == "DelistedStockIngestor":
+        from .universe.delisted_ingestor import DelistedStockIngestor
+
+        return DelistedStockIngestor
     raise AttributeError(f"module 'uniquant.data' has no attribute '{name}'")

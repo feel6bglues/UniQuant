@@ -145,3 +145,24 @@ class TestSmartFactorCalculatorV15:
         events = self.make_event(df['date'].iloc[1], cash=9999999, split=0, rights=0)
         result = SmartFactorCalculatorV15().calculate(df, events)
         assert result['factor'].iloc[1] == pytest.approx(1.0, abs=1e-6)
+
+    def test_strong_open_filling_quote_corporate_action_not_skipped(self):
+        """测试: 除权日强开盘/填权 (actual_drop < expected_drop * 0.3) 依然正常计入除权因子，严禁静默丢弃"""
+        # 前收盘 10.0，除权日开盘 9.90 (仅跌 1%)，但每股分红 1.50 元 (理论跌 15%)
+        pre_close = 10.0
+        df = pd.DataFrame({
+            "date": pd.date_range("2024-06-01", periods=3, freq="B"),
+            "open": [10.0, 9.90, 9.95], # 开盘跌 1% < 理论 15% * 0.3 = 4.5%
+            "high": [10.1, 10.2, 10.1],
+            "low": [9.9, 9.8, 9.8],
+            "close": [pre_close, 10.0, 10.1],
+            "volume": 1_000_000,
+            "amount": 10_000_000,
+        })
+        # 10派15元 (每股派 1.50 元，理论除权价 8.50，因子 10/8.5 ≈ 1.1765)
+        events = self.make_event(df['date'].iloc[1], cash=1.50)
+        result = SmartFactorCalculatorV15().calculate(df, events)
+        expected_factor = 10.0 / (10.0 - 1.50)
+        assert result['factor'].iloc[1] == pytest.approx(expected_factor, rel=1e-5)
+        assert result['factor'].iloc[1] > 1.15
+

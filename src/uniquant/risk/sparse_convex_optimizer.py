@@ -49,7 +49,7 @@ class TwoStageOptimizerConfig:
     industry_max_weight: float = 0.10       # 单行业集中度 <= 10.0%
     industry_max_stocks: int = 4            # 单行业持仓只数上限 <= 4 只 (L0 约束)
     stage1_universe_size: int = 100         # 阶段一粗筛稀疏化目标规模 <= 100 只
-    min_eigenvalue_floor: float = 0.05      # 协方差李雅普诺夫稳健特征值下界 lambda_min >= 0.05
+    min_eigenvalue_floor: float = 1e-4      # 协方差稳健特征值下界 lambda_min >= 1e-4 (适配日收益率方差量纲)
     risk_aversion_gamma: float = 2.0        # 风险厌恶系数
     max_iterations: int = 500               # 内点法/SLSQP 最大迭代次数
     tolerance: float = 1e-8                 # 优化容差

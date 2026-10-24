@@ -641,7 +641,6 @@ class StorageManager:
             candidates.extend([
                 Path.home() / ".local/share/tdxcfv/drive_c/tc/vipdoc/sh/lday",
                 Path.home() / ".local/share/tdxcfv/drive_c/tc/vipdoc",
-                Path("/home/james/.local/share/tdxcfv/drive_c/tc/vipdoc/sh/lday"),
             ])
             for c in candidates:
                 if c.exists():

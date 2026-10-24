@@ -545,7 +545,9 @@ def main():
     if platform.system() == "Windows":
         default_gbbq_path = r"d:\dfzq\T0002\hq_cache\gbbq"
     else:
-        default_gbbq_path = "/home/james/.local/share/tdxcfv/drive_c/tc/T0002/hq_cache/gbbq"
+        default_gbbq_path = str(
+            Path.home() / ".local/share/tdxcfv/drive_c/tc/T0002/hq_cache/gbbq"
+        )
     
     gbbq_path = os.environ.get("TDX_GBBQ_PATH", default_gbbq_path)
     

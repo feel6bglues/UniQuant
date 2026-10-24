@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import logging
 import threading
 from typing import Callable, List, Optional
+
+logger = logging.getLogger("uniquant.shared.kill_switch")
 
 
 class KillSwitchError(RuntimeError):
@@ -43,8 +46,8 @@ class SharedKillSwitch:
         for hook in self._hooks:
             try:
                 hook()
-            except Exception:
-                pass
+            except Exception as e:
+                logger.error(f"Kill switch hook {hook} failed: {e}", exc_info=True)
 
     def reset(self) -> None:
         with self._lock:

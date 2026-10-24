@@ -126,3 +126,28 @@ class TestTwoStageSparseConvexOptimizer:
 
         # 5. 验证协方差特征值下界 lambda_min >= 0.05
         assert res.lambda_min_cov >= 0.05 - 1e-6, f"最小特征值 {res.lambda_min_cov} 低于下界 0.05"
+
+    def test_default_eigenvalue_floor_daily_scale(self, mock_large_market):
+        """测试默认配置下特征值下界为 1e-4，适配日频方差量纲且不抹杀真实相关性"""
+        df_market, _ = mock_large_market
+        optimizer = TwoStageSparseConvexOptimizer()
+        assert optimizer.config.min_eigenvalue_floor == 1e-4
+
+        selected = optimizer.stage1_sparsify_universe(df_market)
+        sub_df = df_market[df_market["code"].isin(selected)]
+
+        np.random.seed(101)
+        returns_mat = np.random.randn(120, len(selected)) * 0.02 + 0.0005
+        df_returns = pd.DataFrame(returns_mat, columns=selected)
+
+        res = optimizer.solve(
+            selected_stocks=selected,
+            expected_returns=dict(zip(sub_df["code"], sub_df["causal_alpha"])),
+            stock_returns_matrix=df_returns,
+            stock_to_industry=dict(zip(sub_df["code"], sub_df["industry"])),
+        )
+
+        assert res.is_converged is True
+        assert res.lambda_min_cov >= 1e-4 - 1e-8
+        # 验证特征值没有被全部推高到 0.05 (日方差真实量纲得到保留)
+        assert res.lambda_min_cov < 0.01

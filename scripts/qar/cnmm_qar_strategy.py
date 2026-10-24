@@ -42,6 +42,11 @@ from uniquant.services.portfolio_service import PortfolioService
 from uniquant.hands.backtest.institutional_fee_ledger import (
     InstitutionalFeeLedger,
 )
+from uniquant.hands.backtest.institutional_execution_orchestrator import (
+    InstitutionalExecutionOrchestrator,
+    StrategyTrack,
+    OrchestratorConfig,
+)
 from uniquant.data.utils.smart_factor_calculator import (
     SmartFactorCalculatorV15,
     GBBQProcessorV15,
@@ -115,6 +120,7 @@ SHENWAN_LEVEL1_MAP: Dict[str, str] = {
 @dataclass
 class CNMMQARConfig:
     """CNMM-QAR 策略配置参数"""
+    track: StrategyTrack = StrategyTrack.INSTITUTIONAL_75_25  # 策略运行轨别
     equity_weight_target: float = 0.75          # 股票多头目标总权重 (75%)
     futures_weight_target: float = -0.75        # 期指空头目标总权重 (-75%)
     cash_weight_target: float = 0.25            # 现金缓冲池目标权重 (25%)
@@ -135,6 +141,21 @@ class CNMMQARConfig:
     custody_fee_rate: float = 0.0025            # 托管费率 0.25%
     hurdle_rate: float = 0.06                   # 业绩报酬基准门槛 6.0% (蓝图基准)
     carry_rate: float = 0.20                    # 超额业绩提成比例 20.0%
+
+    def __post_init__(self):
+        """根据轨别自动同步资产配置权重"""
+        if self.track == StrategyTrack.PURE_LONG:
+            self.equity_weight_target = 1.0
+            self.futures_weight_target = 0.0
+            self.cash_weight_target = 0.0
+        elif self.track == StrategyTrack.CLASSIC_HEDGE:
+            self.equity_weight_target = 1.0
+            self.futures_weight_target = -1.0
+            self.cash_weight_target = 0.0
+        elif self.track == StrategyTrack.INSTITUTIONAL_75_25:
+            self.equity_weight_target = 0.75
+            self.futures_weight_target = -0.75
+            self.cash_weight_target = 0.25
 
 
 class CNMMQARStrategy:
@@ -159,10 +180,19 @@ class CNMMQARStrategy:
             initial_nav=1.0,
             start_date="2000-01-01",
         )
+        self.orchestrator = InstitutionalExecutionOrchestrator(
+            OrchestratorConfig(
+                track=self.config.track,
+                mgmt_fee_rate=self.config.mgmt_fee_rate,
+                carry_rate=self.config.carry_rate,
+                hurdle_rate=self.config.hurdle_rate,
+            )
+        )
 
         # 数据湖子路径
         self.quotes_dir = self.root_dir / "data" / "lake" / "quotes" / "daily"
         self.lake_div_dir = self.root_dir / "data" / "lake" / "dividend"
+        self.lake_fin_dir = self.root_dir / "data" / "lake" / "financial"
         self.gbbq_path = self.root_dir / "data" / "fq" / "gbbq.parquet"
 
         # 核心因子与复权计算器
@@ -198,20 +228,22 @@ class CNMMQARStrategy:
 
         # 2. 定位面板与负债表数据文件 (支持 UniQuant data/backtest/ 与 CNNM 备选路径)
         p_path = None
+        cnnm_panel_alt = Path.home() / "Documents" / "Project" / "CNNM" / "scratch" / "data" / "large_sample_100_panel_processed.csv"
         if panel_path and Path(panel_path).exists():
             p_path = Path(panel_path)
         elif (self.root_dir / "data" / "backtest" / "large_sample_100_panel_processed.csv").exists():
             p_path = self.root_dir / "data" / "backtest" / "large_sample_100_panel_processed.csv"
-        elif Path("/home/james/Documents/Project/CNNM/scratch/data/large_sample_100_panel_processed.csv").exists():
-            p_path = Path("/home/james/Documents/Project/CNNM/scratch/data/large_sample_100_panel_processed.csv")
+        elif cnnm_panel_alt.exists():
+            p_path = cnnm_panel_alt
 
         b_path = None
+        cnnm_balance_alt = Path.home() / "Documents" / "Project" / "CNNM" / "data_raw" / "large_sample_100_balance_raw.csv"
         if balance_raw_path and Path(balance_raw_path).exists():
             b_path = Path(balance_raw_path)
         elif (self.root_dir / "data" / "backtest" / "large_sample_100_balance_raw.csv").exists():
             b_path = self.root_dir / "data" / "backtest" / "large_sample_100_balance_raw.csv"
-        elif Path("/home/james/Documents/Project/CNNM/data_raw/large_sample_100_balance_raw.csv").exists():
-            b_path = Path("/home/james/Documents/Project/CNNM/data_raw/large_sample_100_balance_raw.csv")
+        elif cnnm_balance_alt.exists():
+            b_path = cnnm_balance_alt
 
         if not p_path or not b_path:
             raise FileNotFoundError(
@@ -306,10 +338,41 @@ class CNMMQARStrategy:
         ann = pd.merge(ann, b_raw_ann, on=["stock_code", "year"], how="left")
         ann["oth_rec_yi"] = ann["oth_rec_yi"].fillna(0.0)
 
+        # 加载 CAS 31 真实经营活动现金流净额 (造血现金流)
+        cfo_records = []
+        if self.lake_fin_dir.exists():
+            for c in self.stock_codes:
+                f_files = glob.glob(str(self.lake_fin_dir / f"{c}.*.parquet"))
+                if f_files:
+                    try:
+                        df_f = pd.read_parquet(f_files[0])
+                        col = "经营活动产生的现金流量净额"
+                        if col in df_f.columns:
+                            df_f["rep_str"] = df_f["report_date"].astype(str)
+                            df_f_ann = df_f[df_f["rep_str"].str.endswith("1231")].copy()
+                            df_f_ann["year"] = df_f_ann["rep_str"].str[:4].astype(int)
+                            for _, r in df_f_ann.iterrows():
+                                val = r[col]
+                                if pd.notna(val):
+                                    cfo_records.append({
+                                        "stock_code": c,
+                                        "year": int(r["year"]),
+                                        "cfo_yi": float(val) / 100000000.0,
+                                    })
+                    except (IOError, ValueError, TypeError, KeyError) as e:
+                        logger.debug("读取财报现金流失败 %s: %s", c, e)
+        if cfo_records:
+            df_cfo = pd.DataFrame(cfo_records).drop_duplicates(subset=["stock_code", "year"])
+            ann = pd.merge(ann, df_cfo, on=["stock_code", "year"], how="left")
+            ann["cfo_yi"] = ann["cfo_yi"].fillna(ann["net_profit_yi"])
+        else:
+            ann["cfo_yi"] = ann["net_profit_yi"]
+
         ann["cip_ratio"] = ann["cip_yi"] / ann["total_assets_yi"].clip(lower=1.0)
         ann["oth_rec_ratio"] = ann["oth_rec_yi"] / ann["total_assets_yi"].clip(lower=1.0)
         ann["roe"] = ann["net_profit_yi"] / ann["equity_yi"].clip(lower=1.0)
-        ann["cfo_proxy"] = ann["net_profit_yi"] / ann["total_assets_yi"].clip(lower=1.0)
+        ann["cfo_ratio"] = ann["cfo_yi"] / ann["total_assets_yi"].clip(lower=1.0)
+        ann["cfo_proxy"] = ann["cfo_ratio"]
         self.df_ann = ann
 
         # 7. 加载分红记录
@@ -444,8 +507,12 @@ class CNMMQARStrategy:
         diff = Decimal(str(self.config.equity_weight_target)) - stock_sum
         stock_weights[selected_stocks[0]] += diff
 
-        # 期指空头 -75% 与 现金 25%
-        futures_weights = {"IF_HEDGE": Decimal(str(self.config.futures_weight_target))}
+        # 期指空头与现金权重
+        futures_weights = (
+            {"IF_HEDGE": Decimal(str(self.config.futures_weight_target))}
+            if self.config.futures_weight_target != 0
+            else {}
+        )
         cash_weight = Decimal(str(self.config.cash_weight_target))
 
         # 4. 生产级多空治理中台硬门禁穿透验证
@@ -476,6 +543,19 @@ class CNMMQARStrategy:
             "selected_count": n_selected,
             "is_compliant": is_compliant,
         }
+
+    def execute_micro_rebalance(
+        self,
+        orders: List[Dict[str, Any]],
+        adv_map: Dict[str, float],
+        volatility_map: Optional[Dict[str, float]] = None,
+    ) -> Dict[str, Any]:
+        """通过 InstitutionalExecutionOrchestrator 执行微观冲击与拆单计算"""
+        return self.orchestrator.evaluate_rebalance_execution(
+            orders=orders,
+            adv_map=adv_map,
+            volatility_map=volatility_map,
+        )
 
     def get_governance_report(self) -> Dict[str, Any]:
         """获取私募机构 2/20 治理账本审计报表"""

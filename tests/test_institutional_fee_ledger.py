@@ -177,3 +177,57 @@ class TestInstitutionalFeeLedger:
         assert report["cumulative_mgmt_fee_paid"] > 0
         assert report["crystallization_events_count"] == 1
 
+    def test_process_continuous_nav_series_recursive_compounding(self):
+        """测试 7: 连续状态机递归复利计提与跨年度结晶扣除"""
+        # 两年日频时序 (2023-01-01 至 2024-12-31)
+        dates_y1 = pd.date_range("2023-01-03", "2023-12-29", freq="B")
+        dates_y2 = pd.date_range("2024-01-02", "2024-12-31", freq="B")
+        dates = dates_y1.append(dates_y2)
+
+        # 第 1 年 gross 从 1.0 涨至 1.20；第 2 年 gross 从 1.20 涨至 1.44 (每年 +20%)
+        t1 = np.linspace(0, 1, len(dates_y1))
+        t2 = np.linspace(0, 1, len(dates_y2))
+        navs_y1 = 1.0 + 0.20 * t1
+        navs_y2 = 1.20 + 0.24 * t2
+        raw_navs = np.concatenate([navs_y1, navs_y2])
+
+        df_nav = pd.DataFrame({"date": dates, "raw_nav": raw_navs})
+        crys_dates = [dates_y1[-1], dates_y2[-1]]
+
+        ledger = InstitutionalFeeLedger(
+            mgmt_fee_rate=0.02,
+            carry_rate=0.20,
+            hurdle_rate=0.06,
+            initial_nav=1.0,
+            start_date=dates[0],
+        )
+
+        res_df = ledger.process_continuous_nav_series(
+            df_nav,
+            date_col="date",
+            nav_col="raw_nav",
+            crystallization_dates=crys_dates,
+        )
+
+        # 验证结晶次数为 2 次
+        crys_rows = res_df[res_df["is_crystallized"]]
+        assert len(crys_rows) == 2
+
+        # 第 1 年年末净值必须扣除管理费与业绩报酬，且低于 gross 1.20
+        y1_end_net = crys_rows.iloc[0]["net_nav"]
+        assert y1_end_net < 1.20
+        assert crys_rows.iloc[0]["crystallized_carry"] > 0.0
+
+        # 第 2 年首日公布净值必须平滑衔接第 1 年年末扣费后的资本底座，不发生虚高跳跃
+        y2_start_idx = len(dates_y1)
+        y2_start_net = res_df.iloc[y2_start_idx]["net_nav"]
+        assert y2_start_net < 1.20
+        assert np.isclose(y2_start_net, y1_end_net, atol=0.01)
+
+        # 全周期终值：递归净值必须严格反映连续管理费和两度结晶
+        final_net = res_df.iloc[-1]["net_nav"]
+        assert 1.0 < final_net < 1.44
+        assert ledger.cumulative_crystallized_carry > 0.0
+        assert ledger.cumulative_mgmt_fee > 0.0
+
+

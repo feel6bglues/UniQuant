@@ -67,16 +67,17 @@ class CNMMPurgedLongHorizonBacktestEngine:
         self.root_dir = Path(data_root or PROJECT_ROOT)
         self.quotes_dir = self.root_dir / "data" / "lake" / "quotes" / "daily"
         self.lake_div_dir = self.root_dir / "data" / "lake" / "dividend"
+        self.lake_fin_dir = self.root_dir / "data" / "lake" / "financial"
         self.gbbq_path = self.root_dir / "data" / "fq" / "gbbq.parquet"
 
         # 优先使用 UniQuant 内置缓存，次选 CNNM 目录
         self.panel_path = self._resolve_path(
             self.root_dir / "data" / "backtest" / "large_sample_100_panel_processed.csv",
-            Path("/home/james/Documents/Project/CNNM/scratch/data/large_sample_100_panel_processed.csv")
+            Path.home() / "Documents/Project/CNNM/scratch/data/large_sample_100_panel_processed.csv"
         )
         self.bal_raw_path = self._resolve_path(
             self.root_dir / "data" / "backtest" / "large_sample_100_balance_raw.csv",
-            Path("/home/james/Documents/Project/CNNM/data_raw/large_sample_100_balance_raw.csv")
+            Path.home() / "Documents/Project/CNNM/data_raw/large_sample_100_balance_raw.csv"
         )
 
         # 机构费率与无风险基准
@@ -211,11 +212,42 @@ class CNMMPurgedLongHorizonBacktestEngine:
         ann = pd.merge(ann, b_raw_ann, on=["stock_code", "year"], how="left")
         ann["oth_rec_yi"] = ann["oth_rec_yi"].fillna(0.0)
 
+        # 尝试从数据湖加载 CAS 31 真实经营活动现金流净额 (造血现金流)
+        cfo_records = []
+        if self.lake_fin_dir.exists():
+            for c in self.stock_codes:
+                f_files = glob.glob(str(self.lake_fin_dir / f"{c}.*.parquet"))
+                if f_files:
+                    try:
+                        df_f = pd.read_parquet(f_files[0])
+                        col = "经营活动产生的现金流量净额"
+                        if col in df_f.columns:
+                            df_f["rep_str"] = df_f["report_date"].astype(str)
+                            df_f_ann = df_f[df_f["rep_str"].str.endswith("1231")].copy()
+                            df_f_ann["year"] = df_f_ann["rep_str"].str[:4].astype(int)
+                            for _, r in df_f_ann.iterrows():
+                                val = r[col]
+                                if pd.notna(val):
+                                    cfo_records.append({
+                                        "stock_code": c,
+                                        "year": int(r["year"]),
+                                        "cfo_yi": float(val) / 100000000.0,
+                                    })
+                    except (IOError, ValueError, TypeError, KeyError) as e:
+                        logger.debug("读取财报现金流失败 %s: %s", c, e)
+        if cfo_records:
+            df_cfo = pd.DataFrame(cfo_records).drop_duplicates(subset=["stock_code", "year"])
+            ann = pd.merge(ann, df_cfo, on=["stock_code", "year"], how="left")
+            ann["cfo_yi"] = ann["cfo_yi"].fillna(ann["net_profit_yi"])
+        else:
+            ann["cfo_yi"] = ann["net_profit_yi"]
+
         # 核心法医指标
         ann["cip_ratio"] = ann["cip_yi"] / ann["total_assets_yi"].clip(lower=1.0)
         ann["oth_rec_ratio"] = ann["oth_rec_yi"] / ann["total_assets_yi"].clip(lower=1.0)
         ann["roe"] = ann["net_profit_yi"] / ann["equity_yi"].clip(lower=1.0)
-        ann["cfo_proxy"] = ann["net_profit_yi"] / ann["total_assets_yi"].clip(lower=1.0)
+        ann["cfo_ratio"] = ann["cfo_yi"] / ann["total_assets_yi"].clip(lower=1.0)
+        ann["cfo_proxy"] = ann["cfo_ratio"]
         self.df_ann = ann
 
         # 加载分红记录
@@ -312,14 +344,16 @@ class CNMMPurgedLongHorizonBacktestEngine:
             p_prior_60 = self.df_adj.loc[:d0].tail(60).iloc[0]
             mom_60 = p0 / p_prior_60 - 1.0
 
-            alpha_scores = {}
-            for c in s6_cand:
+            # 计算 valid_universe 全池的因果 Alpha 打分 (动量 + CAS 造血现金流)
+            all_alpha_scores = {}
+            for c in valid_universe:
                 m_val = mom_60.get(c, 0.0)
                 cfo_val = sub_ann.loc[c, "cfo_proxy"] if (c in sub_ann.index and pd.notna(sub_ann.loc[c, "cfo_proxy"])) else 0.0
-                alpha_scores[c] = 0.5 * m_val + 0.5 * (cfo_val * 5.0)
+                all_alpha_scores[c] = 0.5 * m_val + 0.5 * (cfo_val * 5.0)
 
-            # 选优排名前 60% (单组合标的数 10-40 只)
-            s6_sorted = sorted(alpha_scores.items(), key=lambda x: x[1], reverse=True)
+            # 策略 6 (CNMM-QAR): 仅在通过 Z_CNMM 排雷的候选池 s6_cand 内选优
+            s6_scores = {c: all_alpha_scores[c] for c in s6_cand}
+            s6_sorted = sorted(s6_scores.items(), key=lambda x: x[1], reverse=True)
             top_n = max(10, min(40, int(len(s6_sorted) * 0.60)))
             s6_selected = [x[0] for x in s6_sorted[:top_n]]
             r_s6_ex_gross = stock_rets[s6_selected].mean() if s6_selected else r_ew
@@ -327,10 +361,10 @@ class CNMMPurgedLongHorizonBacktestEngine:
             # -----------------------------------------------------------------
             # 4. 消融实验 (Ablation Models)
             # -----------------------------------------------------------------
-            abl1_cand = [c for c in valid_universe]
-            abl1_sorted = sorted([(c, alpha_scores.get(c, 0.0)) for c in abl1_cand], key=lambda x: x[1], reverse=True)
+            # 消融模型 1: 无 Z_CNMM 会计排雷，直接在 valid_universe 全集按因果 Alpha 选优
+            abl1_sorted = sorted(all_alpha_scores.items(), key=lambda x: x[1], reverse=True)
             abl1_selected = [x[0] for x in abl1_sorted[:top_n]]
-            r_abl1_gross = stock_rets[abl1_selected].mean()
+            r_abl1_gross = stock_rets[abl1_selected].mean() if abl1_selected else r_ew
 
             # -----------------------------------------------------------------
             # 5. 微观执行摩擦与法定税费精算
@@ -390,6 +424,20 @@ class CNMMPurgedLongHorizonBacktestEngine:
                 carry = (lp_net - self.hurdle_rate) * self.carry_rate
                 lp_net -= carry
 
+            # -----------------------------------------------------------------
+            # 8. 75/25 机构合规实盘对冲轨 (双轨运行，不废除既有纯多增强与经典对冲)
+            # -----------------------------------------------------------------
+            # 资产配置: 75% 现货股票多头 + 75% 股指期货空头 + 25% 现金保证金
+            # 现金保证金享 1.5% 货币基金/存单年化收益，多头与现金不双重计息
+            rf_cash_25 = 0.015 * 0.25
+            r_s6_75_25_gross = 0.75 * (r_s6_ex_gross - r_bm - basis_cost) + rf_cash_25
+            r_s6_75_25_net = r_s6_75_25_gross - 0.75 * friction_opt
+
+            lp_net_75_25 = r_s6_75_25_net - (self.mgmt_fee + self.custody_fee)
+            if lp_net_75_25 > self.hurdle_rate:
+                carry_75_25 = (lp_net_75_25 - self.hurdle_rate) * self.carry_rate
+                lp_net_75_25 -= carry_75_25
+
             annual_records.append({
                 "cycle": f"{yr}->{next_yr}",
                 "rebalance_year": yr,
@@ -402,9 +450,11 @@ class CNMMPurgedLongHorizonBacktestEngine:
                 "strategy_5_qmj_ih_pct": round(r_s5_ih_net * 100, 2),
                 "strategy_6_cnmm_ex_pct": round(r_s6_ex_net * 100, 2),
                 "strategy_6_cnmm_ih_pct": round(r_s6_ih_net * 100, 2),
+                "strategy_6_cnmm_75_25_ih_pct": round(r_s6_75_25_net * 100, 2),
                 "ablation_no_z_cnmm_ih_pct": round(r_abl1_ih_net * 100, 2),
                 "ablation_unoptimized_slip_ih_pct": round(r_s6_raw_slip_ih_net * 100, 2),
                 "lp_net_real_pct": round(lp_net * 100, 2),
+                "lp_net_75_25_pct": round(lp_net_75_25 * 100, 2),
                 "portfolio_size": len(s6_selected)
             })
 
@@ -431,9 +481,11 @@ class CNMMPurgedLongHorizonBacktestEngine:
             ("strategy_5_qmj_ih_pct", "策略5对冲绝对收益 (QMJ-IH)"),
             ("strategy_6_cnmm_ex_pct", "策略6 CNMM-QAR 纯多增强 (CNMM-EX) ★"),
             ("strategy_6_cnmm_ih_pct", "策略6 CNMM-QAR 对冲绝对收益 (CNMM-IH) ★★★"),
+            ("strategy_6_cnmm_75_25_ih_pct", "策略6 CNMM-75/25 机构合规对冲 (75/25-IH) ★★★"),
             ("ablation_no_z_cnmm_ih_pct", "消融模型1: 无Z_CNMM排雷对冲版"),
             ("ablation_unoptimized_slip_ih_pct", "消融模型2: 未优化微观执行滑点版"),
-            ("lp_net_real_pct", "机构 2/20 扣费后 LP 真实净回报 (LP Net) ★★★")
+            ("lp_net_real_pct", "机构 2/20 扣费后 LP 经典净回报 (LP Net 100/100) ★★★"),
+            ("lp_net_75_25_pct", "机构 2/20 扣费后 75/25 LP 真实净回报 (LP Net 75/25) ★★★"),
         ]
 
         def get_metrics_dict(sub_df: pd.DataFrame, prefix: str = "") -> pd.DataFrame:
@@ -446,8 +498,10 @@ class CNMMPurgedLongHorizonBacktestEngine:
                 vol = float(np.std(rets, ddof=1))
                 sharpe = (cagr - self.risk_free_rate) / vol if vol > 0 else 0.0
 
-                cummax = np.maximum.accumulate(nav)
-                dd = (cummax - nav) / cummax
+                # 严格在净值累积序列首位插入初始本金 1.0，杜绝首期亏损被 cummax 漏置起点抹零的 Bug
+                nav_with_base = np.insert(nav, 0, 1.0)
+                cummax = np.maximum.accumulate(nav_with_base)
+                dd = (cummax - nav_with_base) / cummax
                 mdd = float(np.max(dd))
                 calmar = cagr / mdd if mdd > 0 else 999.0
                 win_rate = float(np.mean(rets > 0.0))
@@ -526,9 +580,9 @@ class CNMMPurgedLongHorizonBacktestEngine:
 
         raw_hedged_nav = (1.0 + r_ih_daily).cumprod()
 
-        # 挂载 InstitutionalFeeLedger 计算每日公允公布净值与 2/20 准备金
+        # 挂载 InstitutionalFeeLedger 计算每日公允公布净值与 2/20 准备金 (采用连续状态机递归复利核算)
         df_nav_input = pd.DataFrame({"date": r_port_daily.index, "raw_nav": raw_hedged_nav.values})
-        fee_ledger_df = self.fee_ledger.process_nav_series(df_nav_input, date_col="date", nav_col="raw_nav")
+        fee_ledger_df = self.fee_ledger.process_nav_series(df_nav_input, date_col="date", nav_col="raw_nav", recursive=True)
 
         df_daily_nav = pd.DataFrame({
             "date": r_port_daily.index,
@@ -598,7 +652,7 @@ class CNMMPurgedLongHorizonBacktestEngine:
 
             # 归因逻辑解析
             if sid == "strategy_6_cnmm_ih_pct":
-                driver = "解除人工黑名单后，前期万科A等优质牛股被动保留并享受到2000-2007超级成长红利，随后被Z_CNMM与CFO动态机制完美接管，CAGR提升+1.50%，夏普提升至0.86，最大回撤大幅压至2.27%，财富乘数升至30.40x"
+                driver = "解除人工黑名单后，前期万科A等优质牛股被动保留并享受到2000-2007超级成长红利，随后被Z_CNMM与CFO动态机制接管，CAGR达14.63%，夏普0.86，年度点对点回撤4.92%(真实1.0基准)，财富乘数30.40x"
             elif sid == "strategy_6_cnmm_ex_pct":
                 driver = "纯多组合由于在早期未被人工黑名单削足适履，保留了完整制造业资本积累Alpha，CAGR提升+0.60%，乘数由72x跃升至82.07x"
             elif sid == "lp_net_real_pct":

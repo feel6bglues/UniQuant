@@ -399,3 +399,73 @@ class TWAPExecutionSlicer:
             "slippage_reduction_pct": round((slip_savings_bps / naive_weighted_slip) * 100.0, 2),
             "slice_results_sample": [asdict(r) for r in ofi_results[:5]],
         }
+
+
+class LiquidityImpactModel:
+    """
+    基于 Almgren-Chriss 与非线性市场冲击理论的平方根流动性冲击模型 (Square-Root Law)
+    =============================================================================
+    公式:
+        Slippage_i = eta * sigma_i * sqrt(Order_Volume_i / ADV_i)
+    
+    参数:
+        eta: 流动性冲击系数 (A股通常取 0.10 ~ 0.15)
+        sigma_i: 标的日波动率 (如 0.02 代表 2.0%)
+        Order_Volume_i: 计划调仓股数
+        ADV_i: 过去 20 日日均成交量 (Average Daily Volume)
+    
+    风控门禁:
+        1. ADV 参与率 (POV) 约束: 建议单日调仓量不超过 ADV 的 10.0%;
+        2. 若超过 10.0% ADV，强制触发跨交易日平滑拆单 (如 3 日 TWAP)。
+    =============================================================================
+    """
+
+    def __init__(self, eta: float = 0.12, max_single_day_pov: float = 0.10):
+        self.eta = float(eta)
+        self.max_single_day_pov = float(max_single_day_pov)
+
+    def calculate_slippage_bps(
+        self,
+        order_volume: float,
+        adv: float,
+        daily_volatility: float = 0.02,
+    ) -> float:
+        """计算以基点 (bps) 为单位的流动性冲击滑点"""
+        if adv <= 0 or order_volume <= 0:
+            return 0.0
+        participation_rate = float(order_volume) / float(adv)
+        impact = self.eta * float(daily_volatility) * math.sqrt(participation_rate)
+        return float(round(impact * 10000.0, 3))
+
+    def evaluate_pov_and_slicing_requirement(
+        self,
+        order_volume: float,
+        adv: float,
+    ) -> Dict[str, Any]:
+        """
+        评估订单参与率 (POV) 与拆单需求
+        """
+        if adv <= 0:
+            return {
+                "order_volume": order_volume,
+                "adv": adv,
+                "pov_ratio": 1.0,
+                "pov_pct": 100.0,
+                "requires_multi_day_slicing": True,
+                "recommended_slicing_days": 3,
+                "is_pov_compliant": False,
+            }
+        pov = float(order_volume) / float(adv)
+        requires_multi_day = pov > self.max_single_day_pov
+        recommended_days = (
+            max(1, int(math.ceil(pov / self.max_single_day_pov))) if requires_multi_day else 1
+        )
+        return {
+            "order_volume": order_volume,
+            "adv": adv,
+            "pov_ratio": round(pov, 4),
+            "pov_pct": round(pov * 100.0, 2),
+            "requires_multi_day_slicing": requires_multi_day,
+            "recommended_slicing_days": min(recommended_days, 5),
+            "is_pov_compliant": not requires_multi_day,
+        }

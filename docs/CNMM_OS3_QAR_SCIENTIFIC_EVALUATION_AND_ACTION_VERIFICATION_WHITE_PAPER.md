@@ -269,14 +269,82 @@
 - **对账报表**：[`scratch/data/cnmm_v3_backtest_purged_reconciliation_report.csv`](file:///home/james/Documents/Project/CNNM/scratch/data/cnmm_v3_backtest_purged_reconciliation_report.csv)
 - **门禁测试**：[`tests/test_long_horizon_2000_2025_gates.py`](file:///home/james/Documents/Project/CNNM/tests/test_long_horizon_2000_2025_gates.py)（**8/8 Passed**）
 
-#### 25 年全周期 (2000–2025) 洁净版核心指标总览
+#### 25 年全周期 (2000–2025) 洁净版核心指标总览（双轨多维实测）
 | 策略代号 | 策略全称 | 25年年化CAGR | 年化波动率 | 夏普比率 (Sharpe) | 最大回撤 (MaxDD) | 卡玛比率 (Calmar) | 25年总财富乘数 |
 | :--- | :--- | :---: | :---: | :---: | :---: | :---: | :---: |
 | `benchmark_pct` | 核心市场基准 (SH/CSI300) | 3.86% | 50.11% | 0.03 | 47.10% | 0.08 | 2.58x |
-| `equal_weight_pct` | 全市场等权基准 (Equal Weight) | 17.24% | 49.57% | 0.30 | 25.36% | 0.68 | 53.32x |
-| `strategy_6_cnmm_ex_pct`| **CNMM-QAR 纯多增强 (CNMM-EX) ★** | **19.28%** | 50.57% | 0.33 | 21.79% | 0.88 | **82.07x** |
-| `strategy_6_cnmm_ih_pct`| **CNMM-QAR 对冲绝对收益 (CNMM-IH) ★★★**| **14.63%** | 14.03% | **0.86** | **2.27%** | **6.45** | **30.40x** |
-| `lp_net_real_pct` | **机构 2/20 扣费后 LP 真实净回报 (LP Net) ★★★** | **10.28%** | 11.50% | **0.68** | **4.52%** | **2.27** | **11.53x** |
+| `equal_weight_pct` | 全市场等权基准 (Equal Weight) | 17.51% | 49.99% | 0.30 | 25.36% | 0.69 | 56.52x |
+| `strategy_6_cnmm_ex_pct`| **CNMM-QAR 纯多增强轨 (CNMM-EX) ★** | **19.49%** | 49.58% | 0.34 | 21.79% | 0.89 | **85.70x** |
+| `strategy_6_cnmm_ih_pct`| **CNMM-QAR 经典对冲轨 (CNMM-IH 100/100) ★★★**| **14.58%** | 15.91% | **0.76** | **4.92%** | **2.96** | **30.03x** |
+| `strategy_6_cnmm_75_25_ih_pct`| **CNMM-QAR 机构合规实盘轨 (75/25-IH) ★★★**| **9.58%** | 11.93% | **0.59** | **5.19%** | **1.85** | **9.85x** |
+| `ablation_no_z_cnmm_ih_pct`| 消融模型1: 无Z_CNMM排雷对冲版 (失控对照) | 10.85% | 21.79% | 0.38 | **51.16%** | 0.21 | 13.12x |
+| `lp_net_real_pct` | **机构 2/20 扣费后 LP 经典净回报 (LP Net 100/100) ★★★** | **10.18%** | 13.05% | **0.59** | **7.17%** | **1.42** | **11.30x** |
+| `lp_net_75_25_pct` | **机构 2/20 扣费后 75/25 LP 真实净回报 (LP Net 75/25) ★★★** | **6.04%** | 9.96% | **0.36** | **7.73%** | **0.78** | **4.33x** |
+
+> ⚠️ **数理修正与双轨运行审计说明（第十轮法医审计）**：
+> 1. **最大回撤算法归真**：早期版本在计算最大回撤时，`cummax` 序列未在起点插入初始净值 `1.0`（`np.insert(nav, 0, 1.0)`），导致 2000-2001 首年建仓回撤（-4.92%）在数学上被抹平，误将 25 年全周期最大回撤记录为 2010–2025 子周期回撤 **2.27%**（Calmar 6.45）。经底层数理求真修正后：25 年全周期真实最大回撤为 **4.92%**，卡玛比率 **2.96**；现代对冲子周期 (2010–2025) 真实回撤仍为 **2.27%**（Calmar **6.55**）。
+> 2. **无受限全局打分与 Z_CNMM 排雷决定性验证**：在全域打分与真 CAS 31 经营现金流接入后，未进行 $Z_{CNMM}$ 会计造假排雷的消融模型 1 最大回撤直接爆表至 **51.16%**（累计财富从 30.03x 腰斩至 13.12x），确凿证明 $Z_{CNMM}$ 探针在防范尾部崩塌中具有不可替代的决定性作用。
+> 3. **双轨架构落地**：同时保留不对冲的纯多增强轨（CNMM-EX，CAGR 19.49%，财富乘数 85.70x）与对冲绝对收益轨（CNMM-IH），并引入中金所合规 75%多头 + 75%期指空头 + 25%准备金的实盘轨（75/25-IH，CAGR 9.58%，MaxDD 5.19%）。
+
+---
+
+### 3.6 行动项 6 (Phase 2 实盘总装): 中金所真实期指套保、TWAP 微观非线性执行与跨资产 Saga 补偿中枢总装
+
+- **调度中枢**：[`src/uniquant/hands/backtest/institutional_execution_orchestrator.py`](file:///home/james/Documents/Project/UniQuant/src/uniquant/hands/backtest/institutional_execution_orchestrator.py)
+- **中金所撮合**：[`src/uniquant/hands/backtest/cffex_engine.py`](file:///home/james/Documents/Project/UniQuant/src/uniquant/hands/backtest/cffex_engine.py)
+- **微观执行切片**：[`src/uniquant/hands/backtest/twap_execution_slicer.py`](file:///home/james/Documents/Project/UniQuant/src/uniquant/hands/backtest/twap_execution_slicer.py)
+- **Saga 补偿协调**：[`src/uniquant/hands/backtest/saga_compensator.py`](file:///home/james/Documents/Project/UniQuant/src/uniquant/hands/backtest/saga_compensator.py)
+- **专项门禁测试**：[`tests/hands/backtest/test_phase2_institutional_execution_orchestrator.py`](file:///home/james/Documents/Project/UniQuant/tests/hands/backtest/test_phase2_institutional_execution_orchestrator.py)（**11/11 Passed**）
+
+#### Phase 2 四大 P0 核心系统攻坚指标
+1. **资本配置三轨合规分配 (任务 2.1)**：
+   - 彻底废除 200% 资金杠杆假说，确立纯多轨（100/0/0）、经典对冲轨（100/-100/0）与机构 75/25 轨（75/-75/25）；
+   - 严格仅对 25% 现金准备金计提 1.5% 协定存款年化利息，杜绝股票与现金双重计息的伪增量。
+2. **CFFEX 撮合与动态基差曲面接入 (任务 2.2)**：
+   - 支持 IF/IC/IM/IH 四大品种，精算 50 亿 AUM 下 3 PB 账户套保分仓（1042+1042+1041 手），100% 穿透单账户 1,200 手限仓；
+   - 自动生成到期前 5 日平稳阶梯移仓排程（10%-20%-20%-25%-25%），全程约束单日最大 POV < 2.5%；
+   - 接入 `BasisSurfaceModel`，精准计量负基差（贴水）对冲持有拖累与移仓跳价摩擦。
+3. **平方根流动性冲击与 TWAP 平滑拆单 (任务 2.3)**：
+   - 接入非线性市场冲击模型（$\text{Slippage} = \eta \cdot \sigma_i \cdot \sqrt{\text{OrderVol} / \text{ADV}}$），单日订单参与率（POV）超 10% ADV 强制触发跨交易日平滑拆单；
+   - 结合 3 日 540 切片与 Cont et al. (2014) OFI 订单流不平衡防抢跑机制，被动 Maker 比例提升至 60% 以上，实测每百亿调仓节省冲击成本超 150 万元。
+4. **跨资产 Saga 四级级联补偿与 KillSwitch 熔断防护 (任务 2.4)**：
+   - 解决 A 股 T+1 现货与 T+0 期货撮合异步偏差，实现 Level 1 微观自愈、Level 2 期货 Delta 联动冲销、Level 3 可售底仓替代冲销与 Level 4 极端一字跌停死锁隔离；
+   - 连通 `SharedKillSwitch`：当发生 Level 4 严重死锁或中金所保证金风险度穿透（>115%）时，自动触发紧急停机熔断，坚决杜绝保证金穿仓。
+
+---
+
+### 3.7 行动项 7 (Phase 3 数据治理): 动态 PIT 股票池、337 只退市股全量入湖与全收益指数对齐
+
+- **动态股票池**：[`src/uniquant/data/universe/dynamic_pit_universe.py`](file:///home/james/Documents/Project/UniQuant/src/uniquant/data/universe/dynamic_pit_universe.py)
+- **退市补录引擎**：[`src/uniquant/data/universe/delisted_ingestor.py`](file:///home/james/Documents/Project/UniQuant/src/uniquant/data/universe/delisted_ingestor.py) 与 [`scripts/maintenance/ingest_delisted_stocks.py`](file:///home/james/Documents/Project/UniQuant/scripts/maintenance/ingest_delisted_stocks.py)
+- **全收益适配器**：[`src/uniquant/data/universe/total_return_benchmark.py`](file:///home/james/Documents/Project/UniQuant/src/uniquant/data/universe/total_return_benchmark.py)
+- **专项门禁测试**：[`tests/data/universe/test_phase3_dynamic_pit_and_benchmark.py`](file:///home/james/Documents/Project/UniQuant/tests/data/universe/test_phase3_dynamic_pit_and_benchmark.py)（**8/8 Passed**）
+
+#### Phase 3 三大数据治理攻坚成果
+1. **337 只全历史退市股票 100% 入湖 (任务 3.1)**：
+   - 深入审计数据湖，发现原有 337 只退市股票中缺失 319 只；
+   - 执行 `DelistedStockIngestor` 补齐 319 只历史退市标的日频 Parquet 数据，严格遵循 9 列物理契约 `[date, open, high, low, close, amount, volume, reserved, code]`，数据湖覆盖率达 **337 / 337 (100.0%)**。
+2. **动态 Point-in-Time 候选池构建器开发 (任务 3.2)**：
+   - 彻底废除后验 105 股静态面板，建立基于任意回测调仓日的点在时动态准入中枢 `DynamicPointInTimeUniverse`；
+   - 严格落实 A 股上市存续期门禁（$ipoDate \le as\_of\_date < outDate$）、次新股 365 天硬过滤以及 *ST/ST/PT 风险警示隔离，A 股候选池从 2000 年的 689 只自然扩容至 2024 年的 4,000+ 只，彻底根除后验白马穿越偏差。
+3. **沪深 300 / 上证 50 全收益指数生成与股息剪刀差消除 (任务 3.3)**：
+   - 落地 `TotalReturnBenchmarkAdapter`，从价格指数衍生生成标准全收益指数 `000300TR.SH`（5,293 交易日完整覆盖）与 `000016TR.SH`；
+   - 实证测算表明，价格指数与全收益指数之间存在每年 **2.23%** 的客观分红损耗（21.8 年累计财富乘数剪刀差达 **1.57x**），接入全收益指数基准后，多头分红与基准分红完全对冲抵消，杜绝了无风险虚假增量。
+
+---
+
+### 3.8 行动项 8 (Phase 4 生产调度 CLI): daily_signal_qar.py 日常流水线与持久化对账落地
+
+- **日常调度 CLI**：[`scripts/canslim/daily_signal_qar.py`](file:///home/james/Documents/Project/UniQuant/scripts/canslim/daily_signal_qar.py)
+- **调度输出报表**：[`results/daily_qar/2024-05-06.json`](file:///home/james/Documents/Project/UniQuant/results/daily_qar/2024-05-06.json)
+- **专项门禁测试**：[`tests/scripts/test_daily_signal_qar.py`](file:///home/james/Documents/Project/UniQuant/tests/scripts/test_daily_signal_qar.py)（**1/1 Passed**）
+
+#### Phase 4 生产调度落地标准
+1. **开箱即用的日常盘后自动化调度**：
+   - 整合 PIT 动态选股、CAS 31 造血现金流排雷、行业集中度硬门禁、75/25 资本架构与中金所 3 PB 账户套保分仓；
+   - 命令行一键调用：`python3 scripts/canslim/daily_signal_qar.py --as-of today --track 75/25-IH --aum 50000000`；
+2. **规范持久化输出契约**：
+   - 每日生成对齐实盘执行的结构化 JSON 报表，完整记录资金分配（多头 3,750 万 / 空头 -3,750 万 / 现金 1,250 万）、40 只持仓等权分布、3 PB 独立席位手数（11 + 10 + 10 手）与微观非线性冲击滑点预测（6.93 bps）。
 
 ---
 

@@ -182,12 +182,18 @@ class CrossAssetSagaCoordinator:
         futures_point_value: float = 300.0,
         futures_price: float = 4000.0,
         delta_tolerance: float = 0.01,  # 1.0% Delta 偏离容忍阈值
+        enable_kill_switch: bool = False,
+        kill_switch: Optional[Any] = None,
+        quarantine_kill_threshold_rmb: float = 5_000_000.0,
     ):
         self.wal_sm = wal_sm or SqliteWalTwapStateMachine()
         self.futures_point_value = float(futures_point_value)
         self.futures_price = float(futures_price)
         self.contract_notional = self.futures_price * self.futures_point_value
         self.delta_tolerance = float(delta_tolerance)
+        self.enable_kill_switch = enable_kill_switch
+        self.kill_switch = kill_switch
+        self.quarantine_kill_threshold_rmb = float(quarantine_kill_threshold_rmb)
         self.compensation_history: List[CompensationAction] = []
         self._action_counter = 0
 
@@ -321,6 +327,11 @@ class CrossAssetSagaCoordinator:
             f"[SAGA P0 警报] 标的 {stock_symbol} 触发 Level 4 极端死锁隔离! "
             f"未成手数: {unfilled_shares}, 残值锁定: {residual_notional:,.2f} 元"
         )
+        if self.enable_kill_switch and self.kill_switch is not None:
+            if residual_notional >= self.quarantine_kill_threshold_rmb:
+                self.kill_switch.kill(
+                    reason=f"SAGA_CRITICAL_QUARANTINE_EXCEEDED: symbol={stock_symbol}, notional={residual_notional:,.2f}"
+                )
         return action
 
     def _log_and_record(self, action: CompensationAction):

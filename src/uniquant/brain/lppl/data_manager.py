@@ -37,10 +37,9 @@ class LPPLDataManager:
         self.data_service = LPPLDataService()
         self.data_dir = data_dir
 
-        # 创建数据目录
-        if not os.path.exists(self.data_dir):
-            os.makedirs(self.data_dir)
-            logger.info(f"Created data directory: {self.data_dir}")
+        # 创建数据目录 (exist_ok=True 防范多进程并发 TOCTOU 竞态)
+        os.makedirs(self.data_dir, exist_ok=True)
+        logger.info(f"Ensured data directory: {self.data_dir}")
 
     @handle_errors(
         DataFetchError, DataError, default_return=None, log_level=logging.ERROR

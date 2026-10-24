@@ -25,12 +25,14 @@ from .cffex_engine import (
     FuturesPosition,
     PBSubAccount,
     DailyMTMSettlementReport,
+    BasisSurfaceModel,
 )
 from .twap_execution_slicer import (
     TWAPExecutionSlicer,
     MicrostructureOrderBookSimulator,
     OrderBookSnapshot,
     TWAPSliceResult,
+    LiquidityImpactModel,
 )
 from .saga_compensator import (
     CrossAssetSagaCoordinator,
@@ -42,6 +44,11 @@ from .saga_compensator import (
 from .institutional_fee_ledger import (
     InstitutionalFeeLedger,
     FeeSnapshot,
+)
+from .institutional_execution_orchestrator import (
+    InstitutionalExecutionOrchestrator,
+    StrategyTrack,
+    OrchestratorConfig,
 )
 
 __all__ = [
@@ -57,10 +64,12 @@ __all__ = [
     "FuturesPosition",
     "PBSubAccount",
     "DailyMTMSettlementReport",
+    "BasisSurfaceModel",
     "TWAPExecutionSlicer",
     "MicrostructureOrderBookSimulator",
     "OrderBookSnapshot",
     "TWAPSliceResult",
+    "LiquidityImpactModel",
     "CrossAssetSagaCoordinator",
     "SqliteWalTwapStateMachine",
     "OrderState",
@@ -68,6 +77,9 @@ __all__ = [
     "CompensationAction",
     "InstitutionalFeeLedger",
     "FeeSnapshot",
+    "InstitutionalExecutionOrchestrator",
+    "StrategyTrack",
+    "OrchestratorConfig",
     # 兼容类型
     "BacktestResult",
     "TradeRecord",
