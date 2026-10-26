@@ -9,7 +9,7 @@ from ...shared.logger_factory import get_logger
 
 logger = get_logger(__name__)
 
-__all__ = ["StorageManager"]
+__all__ = ["StorageManager", "QuoteResampler", "FreshnessValidator"]
 
 
 def __getattr__(name):
@@ -17,4 +17,10 @@ def __getattr__(name):
     if name == "StorageManager":
         from .storage_manager import StorageManager
         return StorageManager
+    if name == "QuoteResampler":
+        from .resampler import QuoteResampler
+        return QuoteResampler
+    if name == "FreshnessValidator":
+        from .freshness_validator import FreshnessValidator
+        return FreshnessValidator
     raise AttributeError(f"module 'uniquant.data.lake' has no attribute '{name}'")

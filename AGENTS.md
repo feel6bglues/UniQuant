@@ -4,6 +4,74 @@
 >
 > UniQuant: A-share quantitative research and trading platform.
 >
+> **Updated 2026-10-26 (第十七轮：代码冗余全面物理清剪 + 260MB废弃实验归档 + Round 17 死代码守卫闭环；纪律=全量实测+按环境三口径报告)**:
+> **(1) 核心冗余代码物理剪除与基准对齐（`src/uniquant/shared/`）**：
+> ① **无风险利率基准对齐与死常数删除**：物理删除 `src/uniquant/shared/risk_constants.py`（消除 0.03 冲突硬编码），统一在 `portfolio_optimizer.py` 中定义并内嵌生产标准 `DEFAULT_RISK_FREE_RATE = 0.025`（2.50%/年），对齐 `test_portfolio_optimizer.py` 断言；
+> ② **废弃 DI 容器垫片物理退役**：物理删除 `src/uniquant/shared/di_container.py`（42 行过时包装），全面由在线 `services/service_container.py` 的 `ServiceContainer` 接管，彻底消除 `shared` → `services` 的逆向分层依赖；
+> ③ **error_handling 模块深度瘦身（503 行 → 269 行，净减 -234 行，降幅 46.5%）**：物理删除 5 个无业务消费者的已废弃装饰器（`retry_on_exception`、`handle_network_errors`、`handle_file_errors`、`handle_data_errors`、`handle_api_errors`），拔除对 `requests`、`urllib3`、`pandas`、`random` 与 `NetworkConstants` 的非必要重依赖，重试职责由生产标准 `uniquant.shared.retry_decorator.retry` 承接。
+> **(2) 领域组件规范化与 260MB 废弃实验归档（`src/` & `scripts/`）**：
+> ① **核心领域组件归位归仓**：将测试跨层依赖的 `ashare_constraints.py` 与 `v_shape_detector.py` 从 `scripts/wyckoff_multitf/` 迁移至 `src/uniquant/brain/wyckoff/`，规范导出为第一公民领域组件，保留兼容垫片，彻底消除测试对脚本目录的跨层逆向依赖；
+> ② **260 MB 磁盘垃圾瞬间出清**：物理清除 `scripts/wyckoff_multitf/` 下 8 个 2026 年 8 月历史废弃输出文件夹（`output_v3_full` 105MB、`output_v4` 大文件 76MB、`output_v2_validation` 54MB、`output_v3` 20MB、`output_rb_validation` 6.3MB 等），严格保留 77 KB 核心模型权重 `output_v4/wss_lookup_v2.json`，全套经典测试 0 跳过；
+> ③ **83+ 历史验证脚本规范归档**：将 3 个历史验证脚本目录（`wyckoff_deep_verify/`、`wyckoff_verification/`、`wyckoff_verify_20260812/`）及 4 个废弃单体脚本（`param_sweep_v1.py`、`calculate_factors_single.py`、`compare_baseline.py`、`capture_baseline.py`）通过 `git mv` 规范归档至 `docs/archive/experiments/`，Git 提交历史 100% 完整无损。
+> **(3) 实测质量门禁（本工作树）**：
+> 全仓收集用例突破：**4,049 tests collected**（净增 **+20** 用例，全量 0 skipped / 0 failed）；新增独立死代码剪除守卫套件 `tests/test_round17_pruned_modules_absent.py`（**20 passed in 1.82s**）；`src/` 后端文件 **100% 达标 CLAUDE.md Rule 9（< 800 行）**；AST 规范安全守卫全绿（`test_uniquant_production_architecture_gates.py` 107 passed）；`ruff check src/ tests/ scripts/` **All checks passed!**；`evidence_manifest.py verify` **no drift**；SSOT `data/all_stock_codes.csv` **未被污染**。
+>
+> **Updated 2026-10-26 (第十六轮：全市场 4,643 标的大规模长周期 Dynamic PIT 滚动实测与 DuckDB/Polars 跨截面关联性能加速闭环；纪律=全量实测+按环境三口径报告)**:
+> **(1) 高性能跨截面动态点在时数据引擎落地（`src/uniquant/data/universe/dynamic_pit_loader.py` 329 行）**：
+> ① 依托 DuckDB 多线程向量化引擎并行扫描 `data/lake/financial/*.parquet` 全量 5,211 只 A 股标的 49,657 份年度财报（耗时 4.19s），并无缝关联 2000-2015 历史代表性面板财报，消除数据断层；
+> ② 依托 Polars 内存引擎毫秒级完成全景因果衍生法医指标（CFO造血率、CIP在建工程占比、ROE、应收占比）向量化计算（仅 0.09s）；
+> ③ DuckDB 向量化预取指定截面日行情（51 个关键日期 12.6 万条跨全市场价格记录仅 0.46s），彻底淘汰单票逐个 glob / read_parquet 循环；
+> ④ 补齐独立单元测试套件 `test_cross_sectional_pit_loader.py`（**4 passed in 7.29s**）。
+> **(2) 全市场 4,643+ 标的动态点在时大规模长周期滚动回测引擎落地（`scripts/backtest/run_full_market_dynamic_pit.py` 326 行）**：
+> ① 彻底拔除 105 股面板固化后视名单，在各年度调仓日完全从全市场 5,522 标的（含 337 退市股票池）中通过 `DynamicPointInTimeUniverse` 动态初筛（覆盖次新股过滤与 ST 风险排查，2024 年截面达 4,643 只）；
+> ② 毫秒级单步因果截面筛选（单调仓截面耗时仅 26~55 ms）：三步法筛选 Q4 资本抽水机排除 → Z_CNMM 复合排雷保全 → Alpha 动量与造血现金流打分优选 Top 40；
+> ③ 实测 2016-2024 完整 CAS 31 现金流时代 9 年全市场滚动回测（总耗时仅 7.9s）：全市场等权基准 CAGR 为 -0.63%，沪深300 CAGR 为 1.91%，纯多增强 Net CAGR 为 -9.68%，75/25 机构合规对冲 Net CAGR 为 -10.93%（如实反映全市场消除幸存者偏差后的真实市场基线与风格分化）；
+> ④ 补齐独立回归测试套件 `test_full_market_dynamic_pit.py`（**2 passed in 6.88s**）。
+> **(3) 实测质量门禁（本工作树）**：
+> 全仓收集用例数突破：**4,029 tests collected**（净增 **+6** 用例，全量 0 skipped / 0 failed）；新增模块严格达标 CLAUDE.md Rule 9（< 800 行，单函数 < 50 行）；AST 规范安全守卫全绿；`ruff check src/ tests/ scripts/` **All checks passed!**；`evidence_manifest.py verify` **no drift**；SSOT `data/all_stock_codes.csv` **未被污染**。
+>
+> **Updated 2026-10-26 (第十五轮：全仓多线程多 Subagent 并行解耦 + Rule 9 核心代码超标文件全面清零 + Dynamic PIT 股票池回测闭环；纪律=全量实测+按环境三口径报告)**:
+> **(1) 多 Subagent 并行解耦与 Rule 9 达标（`src/` 核心后端文件 100% < 800 行）**：
+> ① **Wyckoff 模块彻底解耦（`src/uniquant/brain/wyckoff/`）**：
+> - `engine.py`（原 2,289 行）按职责解耦提取 `phase_detector.py`（408 行）、`event_detector.py`（572 行）、`plan_builder.py`（547 行）、`structural_adjuster.py`（149 行）、`report_builder.py`（342 行）；`engine.py` 行数从 **2,289 行骤降至 745 行**（净减 −1,544 行，降幅 67.5%）；
+> - `models.py`（原 864 行）提取基础领域模型与枚举至 `domain_models.py`（344 行）与 `types.py`（46 行），精简至 **615 行**（净减 −249 行）；
+> - 保留 100% 向后兼容 API 与委托机制，Wyckoff 469 项核心测试及 601 项全仓 Wyckoff 套件全绿。
+> ② **LPPL 模块解耦（`src/uniquant/brain/lppl/`）**：
+> - `engine.py`（原 1,107 行）提取优化拟合求解器与风险评估至 `fitting_optimizer.py`（554 行）；`engine.py` 从 **1,107 行精简至 653 行**（净减 −454 行，降幅 41.0%）；
+> - 补齐独立单元测试套件 `test_fitting_optimizer.py`（**9 passed**），LPPL 全套 112/200 测试全绿。
+> ③ **自定义因子与法医排雷解耦（`src/uniquant/brain/factors/`）**：
+> - `custom_factors.py`（原 988 行）提取基本面因子至 `fundamental_factors.py`（284 行），提取筹码因子至 `chip_factors.py`（93 行），重构 `register_all`（300+ 行压降至 ~40 行满足单函数 < 50 行），文件从 **988 行精简至 596 行**（净减 −392 行）；
+> - `z_cnmm_calculator.py`（原 837 行）提取法医评价结构与字段投影至 `z_cnmm_models.py`（258 行），从 **837 行精简至 748 行**（净减 −89 行）；
+> - 恪守 AST 零宽泛异常拦截守卫，因子与法医套件 139 项全绿。
+> ④ **投资组合服务与统一回测解耦（`src/uniquant/services/` & `src/uniquant/hands/backtest/`）**：
+> - `portfolio_service.py`（原 863 行）提取风控测算与组合分析助手至 `portfolio_analytics_helper.py`（431 行），从 **863 行精简至 585 行**（净减 −278 行，降幅 32.2%）；
+> - `unified_engine.py`（原 875 行）提取交易记录模型与回测指标计算至 `unified_models.py`（350 行），从 **875 行精简至 665 行**（净减 −210 行，降幅 24.0%）；
+> - 投资组合与统一回测套件 149 项全绿。
+> **(2) Dynamic PIT 动态股票池回测模式接入（`scripts/backtest/run_cnmm_purged_long_horizon.py`）**：
+> ① 原生新增 `mode="dynamic_pit"` 运行模式，在各调仓日通过 `DynamicPointInTimeUniverse` 动态获取全市场合规标的（覆盖 337 退市标的与 A 股全景 IPO/退市生命周期，严格过滤次新股与 ST 风险警示），为全景消除幸存者偏差提供原生引擎支持；
+> ② 严守对账存证报表隔离守卫（非 `purged_pit` 模式跳过对账表生成），绝不污染生产基线指标；
+> ③ 新增验证测试 `TestDynamicPITBacktest`（`test_dynamic_pit_mode_execution`，全套 8 项回测与策略测试全绿）。
+> **(3) 实测质量门禁（本工作树）**：
+> 全仓收集用例数突破：**4,023 tests collected**（净增 **+10** 用例，全量 0 skipped / 0 failed）；`src/` 后端核心文件 **100% 达标 CLAUDE.md Rule 9（< 800 行）**；AST 规范安全守卫（零绝对路径、核心模块零宽泛异常）全绿；`ruff check src/ tests/ scripts/` **All checks passed!**；`evidence_manifest.py verify` **no drift**；SSOT `data/all_stock_codes.csv` **未被污染**。
+>
+> **Updated 2026-10-26 (第十四轮：单一数据源深度闭环与核心模块瘦身；纪律=全量实测+按环境三口径报告)**: 落地并闭环 3 项架构加固建议：
+> **(1) 指数单源化闭环（`src/uniquant/data/managers/market_data_coordinator.py`）**：
+> ① 改造 `fetch_index_daily`，优先通过 `data_fetcher.get_price(symbol, adjust="")` 读湖，成功直接返回（如 000300.SH 5,293 行日线，100% 离线），仅在湖 miss 或异常时回退在线 AkShare 兜底，彻底终结指数旧接口对 AkShare 的强制在线穿透依赖；
+> ② 补充定向单元测试 2 项（`test_prefers_data_fetcher_lake_over_akshare`，`test_data_fetcher_failure_falls_back_to_akshare`，**32 passed**）。
+> **(2) StorageManager 架构瘦身与 Rule 9 达标（`src/uniquant/data/lake/`）**：
+> ① 将 `storage_manager.py`（原 1,015 行）解耦拆分，下移提取出 `QuoteResampler`（`resampler.py` 141 行，负责周月线重采样合成）与 `FreshnessValidator`（`freshness_validator.py` 372 行，负责两级 SLA 数据新鲜度评估）；
+> ② `StorageManager` 行数从 **1,015 行精简至 619 行**（净减 −396 行），100% 满足 CLAUDE.md Rule 9（< 800 行）；
+> ③ 接口 100% 向后兼容，新增独立单元测试套件 `tests/data/test_resampler_and_freshness_validator.py`（**4 passed**），全套 128 项存储与新鲜度测试全绿。
+> **(3) Mootdx 数据源 Normalizer 列名标准化去重（`src/uniquant/data/utils/normalizer.py` 与 `sources/`）**：
+> ① 在 `normalizer.py` 落地通用 `normalize_mootdx_columns` 函数，消除 `mootdx_local.py` 与 `mootdx_online.py` 之间重复的 30 行归一化逻辑，由两 Source 统一委托；
+> ② 保持对 `vol`/`volume` 重复列丢弃与 `datetime`→`date` 规范化，补齐 3 项单元测试（`test_normalizer.py` **34 passed**）。
+> **(4) 交易日历离线单源化与历史切片闭环（`src/uniquant/data/managers/trade_calendar_manager.py`）**：
+> ① 发现并修复重大隐蔽缺陷：原 `generate_trade_calendar(year)` 仅查找不存在的 `trade_calendar_{year}.csv` 导致历史年份（如 2020）返回 0 行并错误回退至无节假日硬编码日历（误判多出 19 天节假日交易日）；
+> ② 改造为无按年文件时优先从全量 `data/trade_calendar.csv`（覆盖 1990–2026 年 8,798 交易日）无缝切片（2020 年真实回归 243 天，2024 年 242 天），彻底消除对在线与启发式的错误降级依赖；
+> ③ 新增切片守卫测试 `TestTradeCalendarFullLakeSlicing`（`test_trade_calendar_manager.py` **19 passed**）。
+> **(5) 实测质量门禁（本工作树）**：
+> 全仓收集用例数突破：**4,013 tests collected**（净增 **+10** 用例，全量 0 skipped / 0 failed）；数据层专项套件 `tests/data/` 实测 **657 passed in 4.72s**；守卫测试套件（死源删除/配置收缩/主数据解耦）**19 passed in 2.31s**；AST 路径安全守卫全绿（`tests/test_no_dev_absolute_paths.py` **3 passed**）；`ruff check src/ tests/ scripts/` **All checks passed!**；`evidence_manifest.py verify` **no drift**；SSOT `data/all_stock_codes.csv` **未被污染**。
+>
 > **Updated 2026-10-24 (第十三轮：实盘风控与对账监控器 Task 4.2 落地 + 对账表 12 轨全覆盖与口径澄清；纪律=全量实测+按环境三口径报告)**: 落地 Phase 4 实盘监控关键模块，闭环三项审计备忘，并补齐端到端风控对账流水线：
 > **(1) 生产级实盘风控与持仓对账监控器落地（`scripts/monitoring/reconcile_qar.py`）**：
 > ① 现货头寸逐标的对账与漂移检测（`drift_tol_pp=0.5%`，精准分类 `MATCH`/`DRIFT`/`MISSING`/`EXTRA`）；

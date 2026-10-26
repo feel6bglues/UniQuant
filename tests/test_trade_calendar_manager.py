@@ -173,3 +173,26 @@ class TestTradeCalendarManagerEdgeCases:
 
             assert mgr.is_trading_day(datetime.date(2020, 1, 2))
             assert not mgr.is_trading_day(datetime.date(2021, 1, 1))
+
+
+class TestTradeCalendarFullLakeSlicing:
+    """测试无按年独立文件时，自动从全量 trade_calendar.csv 切片对应年份 (纯离线单源)。"""
+
+    def test_generate_and_get_trade_calendar_from_full_csv(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            csv_path = os.path.join(tmpdir, "trade_calendar.csv")
+            pd.DataFrame({
+                "trade_date": ["2020-01-02", "2020-01-03", "2021-01-04"]
+            }).to_csv(csv_path, index=False)
+
+            mgr = TradeCalendarManager(data_dir=tmpdir)
+            cal2020 = mgr.generate_trade_calendar(2020)
+            assert len(cal2020) == 2
+            assert list(cal2020["trade_date"].dt.strftime("%Y-%m-%d")) == ["2020-01-02", "2020-01-03"]
+
+            range_cal = mgr.get_trade_calendar("2020-01-01", "2020-12-31")
+            assert len(range_cal) == 2
+
+            assert mgr.is_trading_day(datetime.date(2020, 1, 2))
+            assert not mgr.is_trading_day(datetime.date(2020, 1, 4))
+

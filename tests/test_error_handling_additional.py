@@ -1,19 +1,13 @@
 import logging
 
-import pandas as pd
 import pytest
 
 from uniquant.shared.error_handling import (
     _emit_log,
     _resolve_log_level,
     get_error_stats,
-    handle_api_errors,
-    handle_data_errors,
     handle_errors,
-    handle_file_errors,
-    handle_network_errors,
     reset_error_stats,
-    retry_on_exception,
     validate_inputs,
     with_context,
 )
@@ -68,18 +62,7 @@ class TestErrorHandlingHelpers:
         assert stats["unexpected"]["unexpected"] == 1
         assert stats["reraised"]["unknown"] == 1
 
-    def test_retry_on_exception_validate_inputs_and_with_context(self, monkeypatch):
-        monkeypatch.setattr("uniquant.shared.error_handling.time.sleep", lambda *_: None)
-        monkeypatch.setattr("uniquant.shared.error_handling.random.random", lambda: 0.0)
-        attempts = {"count": 0}
-
-        @retry_on_exception(max_retries=3, backoff=0.01, retry_exceptions=(ValueError,), jitter=False)
-        def flaky():
-            attempts["count"] += 1
-            if attempts["count"] < 3:
-                raise ValueError("retry")
-            return "ok"
-
+    def test_validate_inputs_and_with_context(self):
         @validate_inputs(count=lambda value: value > 0)
         def validated(count=1):
             return count
@@ -88,39 +71,22 @@ class TestErrorHandlingHelpers:
         def contextual():
             raise RuntimeError("boom")
 
-        assert flaky() == "ok"
         assert validated(2) == 2
         with pytest.raises(ValueError):
             validated(0)
         with pytest.raises(RuntimeError):
             contextual()
 
-    def test_specialized_wrappers(self, monkeypatch):
-        monkeypatch.setattr("uniquant.shared.error_handling.time.sleep", lambda *_: None)
-        monkeypatch.setattr("uniquant.shared.error_handling.random.random", lambda: 0.0)
+    def test_deprecated_wrappers_pruned(self):
+        """第十七轮死代码清理：已弃用的5个包装器已被物理移除。"""
+        import uniquant.shared.error_handling as eh
 
-        import requests
-
-        @handle_network_errors(default_return="network", max_retries=1)
-        def network():
-            raise requests.RequestException("down")
-
-        @handle_file_errors(default_return="file")
-        def file_op():
-            raise FileNotFoundError("missing")
-
-        @handle_data_errors(default_return="data")
-        def data_op():
-            raise pd.errors.ParserError("bad csv")
-
-        @handle_api_errors(default_return="api", max_retries=1)
-        def api_op():
-            raise requests.RequestException("bad response")
-
-        assert network() == "network"
-        assert file_op() == "file"
-        assert data_op() == "data"
-        assert api_op() == "api"
-
-        stats = get_error_stats()
-        assert stats["wrapper"]["network"] >= 1
+        pruned_names = [
+            "retry_on_exception",
+            "handle_network_errors",
+            "handle_file_errors",
+            "handle_data_errors",
+            "handle_api_errors",
+        ]
+        for name in pruned_names:
+            assert not hasattr(eh, name), f"{name} should have been pruned from error_handling"

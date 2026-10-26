@@ -162,6 +162,20 @@ class TradeCalendarManager:
                 return df
             except Exception as e:
                 logger.warning(f"加载本地交易日历失败: {e}")
+
+        # 离线单源兜底：从全量 trade_calendar.csv 切片对应年份 (避免缺失按年文件时错误回退内置启发式)
+        full_calendar_file = os.path.join(self.data_dir, "trade_calendar.csv")
+        if not force_update and os.path.exists(full_calendar_file):
+            try:
+                df = pd.read_csv(full_calendar_file, encoding='utf-8-sig')
+                if 'trade_date' in df.columns:
+                    df['trade_date'] = pd.to_datetime(df['trade_date'])
+                    year_df = df[df['trade_date'].dt.year == year].copy()
+                    if not year_df.empty:
+                        return year_df.sort_values('trade_date').reset_index(drop=True)
+            except Exception as e:
+                logger.warning(f"从全量交易日历切片失败: {e}")
+
         return pd.DataFrame()
 
     def is_trading_day(self, date: datetime.date) -> bool:
@@ -173,20 +187,11 @@ class TradeCalendarManager:
                 self._trading_days_cache = {}
             
             if year not in self._trading_days_cache:
-                calendar_file = os.path.join(self.data_dir, f"trade_calendar_{year}.csv")
-                if os.path.exists(calendar_file):
-                    try:
-                        calendar = pd.read_csv(calendar_file, encoding='utf-8-sig')
-                        if 'trade_date' in calendar.columns:
-                            calendar['trade_date'] = pd.to_datetime(calendar['trade_date'])
-                            self._trading_days_cache[year] = set(
-                                calendar['trade_date'].dt.strftime("%Y-%m-%d").values
-                            )
-                        else:
-                            self._trading_days_cache[year] = set()
-                    except Exception as e:
-                        logger.warning(f"加载本地交易日历失败: {e}")
-                        self._trading_days_cache[year] = set()
+                calendar = self.generate_trade_calendar(year)
+                if not calendar.empty and 'trade_date' in calendar.columns:
+                    self._trading_days_cache[year] = set(
+                        calendar['trade_date'].dt.strftime("%Y-%m-%d").values
+                    )
                 else:
                     self._trading_days_cache[year] = set()
             

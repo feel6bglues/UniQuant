@@ -103,10 +103,14 @@ class CNMMPurgedLongHorizonBacktestEngine:
         # 预留架构接口: 供后续接入全市场 5,522 标的与 337 退市股池真 PIT 宇宙 (Phase 3/4 架构解耦)
         self._pit_universe: Optional[DynamicPointInTimeUniverse] = None
         logger.info("=" * 80)
-        logger.info("【回测宇宙定性裁决声明】: 当前回测运行于 105 标的代表性面板 (Intra-Panel Purged PIT)。")
-        logger.info("已彻底拔除面板内部未来存活前视过滤 (p1.notna())、虚构利息 (+2.5%) 与虚构期指收益，")
-        logger.info("但该面板本身为 2024 截面挑选的优质标的样本 (0/105 退市)，尚未接入全市场 5,522 标的 PIT 宇宙与 337 退市池。")
-        logger.info("严禁宣称全市场无幸存者偏差；全市场真 PIT 扩容属于后续专项工程。")
+        if self.mode == "dynamic_pit":
+            logger.info("【回测宇宙定性裁决声明】: 当前回测运行于全市场动态点在时 (Dynamic PIT) 股票池模式。")
+            logger.info("已接入 DynamicPointInTimeUniverse (全历史 337 退市标的与 A 股全景 IPO/退市生命周期，严格过滤次新股与 ST 风险警示)。")
+        else:
+            logger.info("【回测宇宙定性裁决声明】: 当前回测运行于 105 标的代表性面板 (Intra-Panel Purged PIT)。")
+            logger.info("已彻底拔除面板内部未来存活前视过滤 (p1.notna())、虚构利息 (+2.5%) 与虚构期指收益，")
+            logger.info("但该面板本身为 2024 截面挑选的优质标的样本 (0/105 退市)，尚未接入全市场 5,522 标的 PIT 宇宙与 337 退市池。")
+            logger.info("严禁宣称全市场无幸存者偏差；全市场真 PIT 扩容属于后续专项工程。")
         logger.info("=" * 80)
 
         # 加载除权除息复权计算器
@@ -308,6 +312,30 @@ class CNMMPurgedLongHorizonBacktestEngine:
                 valid_mask = p0.notna() & p1.notna() & (p0 > 0)
                 valid_universe = p0[valid_mask].index.tolist()
                 stock_rets = p1[valid_universe] / p0[valid_universe] - 1.0
+            elif self.mode == "dynamic_pit":
+                eligible_symbols = self.pit_universe.get_eligible_universe(
+                    as_of_date=d0.strftime("%Y-%m-%d"),
+                    min_listing_days=365,
+                    exclude_st=True,
+                )
+                eligible_codes = {s.split(".")[0] for s in eligible_symbols}
+                valid_mask = p0.notna() & (p0 > 0)
+                valid_universe = [c for c in p0[valid_mask].index if c in eligible_codes]
+
+                rets_dict = {}
+                for c in valid_universe:
+                    p0_val = p0[c]
+                    p1_val = p1.get(c, np.nan)
+                    if pd.notna(p1_val) and p1_val > 0:
+                        rets_dict[c] = float(p1_val / p0_val - 1.0)
+                    else:
+                        sub_s = self.df_adj.loc[d0:d1, c].dropna()
+                        if len(sub_s) > 1:
+                            p_exit = float(sub_s.iloc[-1])
+                            rets_dict[c] = float(p_exit / p0_val - 1.0)
+                        else:
+                            rets_dict[c] = -1.0
+                stock_rets = pd.Series(rets_dict)
             else:
                 # 洁净点在时 (PIT) 准入：在 d0 时刻严禁使用 d1 未来存活信息进行过滤
                 valid_mask = p0.notna() & (p0 > 0)

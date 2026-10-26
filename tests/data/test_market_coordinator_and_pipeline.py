@@ -47,6 +47,37 @@ class TestFetchIndexDaily:
         fake_ak.fetch_index_daily.return_value = df
         return MarketDataCoordinator(MagicMock())
 
+    def test_prefers_data_fetcher_lake_over_akshare(self, fake_ak):
+        fetcher = MagicMock()
+        lake_df = pd.DataFrame({
+            "date": pd.to_datetime(["2024-01-02", "2024-01-03"]),
+            "open": [3400.0, 3410.0],
+            "close": [3420.0, 3430.0],
+            "volume": [1000, 2000],
+        })
+        fetcher.get_price.return_value = lake_df
+        coord = MarketDataCoordinator(fetcher)
+
+        out = coord.fetch_index_daily("000300.SH", "2024-01-01", "2024-01-10")
+        assert len(out) == 2
+        fetcher.get_price.assert_called_once_with(
+            "000300.SH", adjust="", start_date="2024-01-01", end_date="2024-01-10"
+        )
+        fake_ak.fetch_index_daily.assert_not_called()
+
+    def test_data_fetcher_failure_falls_back_to_akshare(self, fake_ak):
+        fetcher = MagicMock()
+        fetcher.get_price.side_effect = RuntimeError("Lake I/O error")
+        fake_ak.fetch_index_daily.return_value = pd.DataFrame({
+            "date": ["2024-01-02"],
+            "close": [3400.0],
+        })
+        coord = MarketDataCoordinator(fetcher)
+
+        out = coord.fetch_index_daily("000300.SH", "2024-01-01", "2024-01-10")
+        assert len(out) == 1
+        fake_ak.fetch_index_daily.assert_called_once_with("000300.SH")
+
     def test_none_payload_returns_empty(self, fake_ak):
         coord = self._coord(fake_ak, None)
         assert coord.fetch_index_daily("000300.SH", "2024-01-01", "2024-12-31").empty

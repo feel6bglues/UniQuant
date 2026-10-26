@@ -19,9 +19,23 @@ class MarketDataCoordinator:
         self, symbol: str, start_date: str, end_date: str
     ) -> pd.DataFrame:
         """
-        获取指数日线数据
+        获取指数日线数据（优先通过 data_fetcher 从数据湖读取，缺失时回退 akshare 兜底）
         """
         logger.info(f"获取指数日线数据: {symbol}")
+
+        # 1. 湖优先单源契约：优先尝试通过 data_fetcher.get_price(symbol, adjust="") 读湖
+        if self.data_fetcher is not None and hasattr(self.data_fetcher, "get_price"):
+            try:
+                df = self.data_fetcher.get_price(
+                    symbol, adjust="", start_date=start_date, end_date=end_date
+                )
+                if isinstance(df, pd.DataFrame) and not df.empty:
+                    logger.debug(f"通过 data_fetcher 从湖成功获取指数 {symbol} 数据，共 {len(df)} 条")
+                    return df
+            except Exception as e:
+                logger.warning(f"湖读取指数 {symbol} 失败，回退备用源: {e}")
+
+        # 2. 回退 akshare 在线兜底
         from ...data.utils.akshare_wrapper import akshare_wrapper
         
         df = akshare_wrapper.fetch_index_daily(symbol)

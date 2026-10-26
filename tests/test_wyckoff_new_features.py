@@ -354,7 +354,9 @@ class TestBayesianEventDetector:
 
 class TestVShapeResult:
     def test_default_values(self):
-        from scripts.wyckoff_multitf.v_shape_detector import VShapeResult
+        from uniquant.brain.wyckoff.v_shape_detector import VShapeResult
+        from scripts.wyckoff_multitf.v_shape_detector import VShapeResult as ShimVShapeResult
+        assert VShapeResult is ShimVShapeResult
         r = VShapeResult(
             date="2024-01-15",
             v_type="v_bottom",
@@ -369,7 +371,7 @@ class TestVShapeResult:
         assert r.in_progress is False
 
     def test_in_progress_flag(self):
-        from scripts.wyckoff_multitf.v_shape_detector import VShapeResult
+        from uniquant.brain.wyckoff.v_shape_detector import VShapeResult
         r = VShapeResult(
             date="2024-01-15",
             v_type="v_top",
@@ -408,7 +410,7 @@ class TestVShapedReversalDetector:
         return pd.DataFrame({"close": np.ones(n_bars) * 100.0})
 
     def test_detect_v_bottom(self):
-        from scripts.wyckoff_multitf.v_shape_detector import VShapedReversalDetector
+        from uniquant.brain.wyckoff.v_shape_detector import VShapedReversalDetector
         df = self._make_v_bottom_data()
         detector = VShapedReversalDetector(decline_threshold=0.10, recovery_ratio=0.30)
         results = detector.detect(df)
@@ -417,7 +419,7 @@ class TestVShapedReversalDetector:
         assert bottoms[0].decline_pct > 0
 
     def test_detect_v_top(self):
-        from scripts.wyckoff_multitf.v_shape_detector import VShapedReversalDetector
+        from uniquant.brain.wyckoff.v_shape_detector import VShapedReversalDetector
         df = self._make_v_top_data()
         detector = VShapedReversalDetector(decline_threshold=0.10, recovery_ratio=0.30)
         results = detector.detect(df)
@@ -425,7 +427,7 @@ class TestVShapedReversalDetector:
         assert len(tops) > 0
 
     def test_classify_date_detected(self):
-        from scripts.wyckoff_multitf.v_shape_detector import VShapedReversalDetector
+        from uniquant.brain.wyckoff.v_shape_detector import VShapedReversalDetector
         df = self._make_v_bottom_data()
         detector = VShapedReversalDetector(decline_threshold=0.10, recovery_ratio=0.30)
         results = detector.detect(df)
@@ -436,7 +438,7 @@ class TestVShapedReversalDetector:
             assert info["v_type"] in ("v_bottom", "v_top")
 
     def test_classify_date_no_detection(self):
-        from scripts.wyckoff_multitf.v_shape_detector import VShapedReversalDetector
+        from uniquant.brain.wyckoff.v_shape_detector import VShapedReversalDetector
         df = self._make_flat_data()
         detector = VShapedReversalDetector()
         info = detector.classify_date("9999-12-31", df)
@@ -451,29 +453,33 @@ class TestVShapedReversalDetector:
 
 class TestAShareLimitPct:
     def test_star_market(self):
-        from scripts.wyckoff_multitf.ashare_constraints import _get_limit_pct
+        from uniquant.brain.wyckoff.ashare_constraints import _get_limit_pct
+        from scripts.wyckoff_multitf.ashare_constraints import _get_limit_pct as shim_get_limit_pct
+        assert _get_limit_pct is shim_get_limit_pct
         assert _get_limit_pct("688001.SH") == 0.20
 
     def test_chip_next(self):
-        from scripts.wyckoff_multitf.ashare_constraints import _get_limit_pct
+        from uniquant.brain.wyckoff.ashare_constraints import _get_limit_pct
         assert _get_limit_pct("300001.SZ") == 0.20
 
     def test_bse(self):
-        from scripts.wyckoff_multitf.ashare_constraints import _get_limit_pct
+        from uniquant.brain.wyckoff.ashare_constraints import _get_limit_pct
         assert _get_limit_pct("830001.BJ") == 0.30
 
     def test_main_board(self):
-        from scripts.wyckoff_multitf.ashare_constraints import _get_limit_pct
+        from uniquant.brain.wyckoff.ashare_constraints import _get_limit_pct
         assert _get_limit_pct("600001.SH") == 0.10
         assert _get_limit_pct("000001.SZ") == 0.10
 
     def test_st_stock(self):
-        from scripts.wyckoff_multitf.ashare_constraints import _get_limit_pct
+        from uniquant.brain.wyckoff.ashare_constraints import _get_limit_pct
         assert _get_limit_pct("ST600001.SH") == 0.05
         assert _get_limit_pct("*ST000001.SZ") == 0.05
 
     def test_static_method(self):
-        from scripts.wyckoff_multitf.ashare_constraints import AShareConstraints
+        from uniquant.brain.wyckoff.ashare_constraints import AShareConstraints
+        from scripts.wyckoff_multitf.ashare_constraints import AShareConstraints as ShimConstraints
+        assert AShareConstraints is ShimConstraints
         assert AShareConstraints.get_limit_pct("688001.SH") == 0.20
         assert AShareConstraints.get_limit_pct("600001.SH") == 0.10
 

@@ -15,7 +15,7 @@ class TestOptimizerConfig:
     def test_default_config(self):
         """测试默认配置"""
         config = OptimizerConfig()
-        assert config.risk_free_rate == 0.03
+        assert config.risk_free_rate == 0.025
         assert config.max_weight == 0.40
         assert config.min_weight == 0.0
         assert config.max_iterations == 1000

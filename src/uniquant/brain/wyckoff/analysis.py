@@ -30,7 +30,11 @@ from uniquant.brain.wyckoff.constants import (
     PRICE_DEVIATION_LOOKBACK,
 )
 from uniquant.brain.wyckoff.phase_analysis import MultiTimeframeResonance
+from uniquant.brain.wyckoff.pnf import PointAndFigure
 from uniquant.shared.config_loader import get_config
+from uniquant.shared.logger_factory import get_logger
+
+logger = get_logger(__name__)
 
 
 def analyze_chips(df: pd.DataFrame, structure: WyckoffStructure) -> ChipAnalysis:
@@ -373,3 +377,126 @@ def create_no_signal_report(symbol: str, period: str, reason: str) -> WyckoffRep
         engine_version="v3.0",
         ruleset_version="v3.0",
     )
+
+
+def resample_ohlcv(df: pd.DataFrame, rule: str) -> pd.DataFrame:
+    """Resample daily OHLCV DataFrame into higher timeframe (weekly/monthly)."""
+    df = df.copy()
+    df["date"] = pd.to_datetime(df["date"])
+    df = df.set_index("date")
+
+    agg_dict = {
+        "open": "first",
+        "high": "max",
+        "low": "min",
+        "close": "last",
+        "volume": "sum",
+    }
+    if "amount" in df.columns:
+        agg_dict["amount"] = "sum"
+
+    resampled = df.resample(rule).agg(agg_dict).dropna().reset_index()
+    resampled["date"] = resampled["date"].dt.strftime("%Y-%m-%d")
+    return resampled
+
+
+def scan_signal_summary(
+    engine,
+    df: pd.DataFrame,
+    symbol: str = "UNKNOWN",
+) -> dict:
+    """轻量级信号扫描 - 仅返回关键信号标签
+
+    Args:
+        engine: WyckoffEngine 实例
+        df: OHLCV 数据
+        symbol: 股票代码
+
+    Returns:
+        dict: 包含 phase, signal_type, action, confidence, spring_detected, utad_detected
+    """
+    try:
+        report = engine.analyze(df, symbol=symbol, period="日线", multi_timeframe=False)
+
+        phase = "UNKNOWN"
+        signal_type = "no_signal"
+        action = "HOLD"
+        confidence = 0.0
+        spring_detected = False
+        utad_detected = False
+
+        if report.structure:
+            phase = (
+                report.structure.phase.value
+                if hasattr(report.structure.phase, "value")
+                else str(report.structure.phase)
+            )
+
+        if report.signal:
+            signal_type = (
+                report.signal.signal_type
+                if hasattr(report.signal, "signal_type")
+                else "no_signal"
+            )
+            conf_level = (
+                report.signal.confidence if hasattr(report.signal, "confidence") else None
+            )
+            if conf_level:
+                conf_map = {"A": 0.9, "B": 0.7, "C": 0.5, "D": 0.3}
+                confidence = conf_map.get(str(conf_level), 0.3)
+
+            if "spring" in str(signal_type).lower():
+                spring_detected = True
+            if "utad" in str(signal_type).lower():
+                utad_detected = True
+
+        if report.trading_plan:
+            # P0-6/P0-7: 仅当 direction ∈ {做多,买入,轻仓试探} 且置信度 ≥ 门槛时产出 BUY；恒不产 SELL
+            direction_raw = str(getattr(report.trading_plan, "direction", "空仓观望"))
+            buy_keywords = ["做多", "买入", "轻仓试探"]
+            if any(
+                kw in direction_raw for kw in buy_keywords
+            ) and confidence >= engine._scan_buy_confidence_gate():
+                action = "BUY"
+            else:
+                action = "HOLD"
+
+        pnf_signal = {}
+        try:
+            pnf = PointAndFigure(box_size=0.02, reversal=2)
+            pnf.build(df)
+            pnf_signal = {
+                "phase_hint": pnf.wyckoff_phase_hint(),
+                "breakout": pnf.breakout_detected(),
+                "count_target": pnf.count_target(),
+            }
+        except (ValueError, TypeError, KeyError):
+            logger.warning("scan_signal Point & Figure analysis failed", exc_info=True)
+            pnf_signal = {"phase_hint": "neutral", "breakout": False, "count_target": 0.0}
+
+        return {
+            "symbol": symbol,
+            "date": df["date"].iloc[-1] if "date" in df.columns else None,
+            "phase": phase,
+            "signal_type": signal_type,
+            "action": action,
+            "confidence": confidence,
+            "spring_detected": spring_detected,
+            "utad_detected": utad_detected,
+            "pnf_analysis": pnf_signal,
+            "regime_phase": getattr(report, "regime_phase", None),
+        }
+    except (ValueError, TypeError, KeyError, RuntimeError) as e:
+        logger.warning(f"scan_signal 失败 {symbol}: {e}", exc_info=True)
+        return {
+            "symbol": symbol,
+            "date": df["date"].iloc[-1] if "date" in df.columns else None,
+            "phase": "UNKNOWN",
+            "signal_type": "error",
+            "action": "HOLD",
+            "confidence": 0.0,
+            "spring_detected": False,
+            "utad_detected": False,
+            "regime_phase": None,
+        }
+

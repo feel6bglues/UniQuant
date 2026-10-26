@@ -233,6 +233,29 @@ class TestPurgedPITAuthenticBacktest:
         assert np.isclose(float(lp_75_recon["modern_era_daily_mdd_pct"]), 12.13, atol=0.05), "对账表 LP-75/25 真实日频 MaxDD 必须为 12.13%"
 
 
+@pytest.mark.requires_lake
+class TestDynamicPITBacktest:
+    """动态点在时 (Dynamic PIT) 股票池模式回测接入验证"""
+
+    def test_dynamic_pit_mode_execution(self):
+        """验证 mode='dynamic_pit' 成功调用 DynamicPointInTimeUniverse 并完成回测"""
+        engine = CNMMPurgedLongHorizonBacktestEngine(mode="dynamic_pit")
+        assert engine.mode == "dynamic_pit"
+        assert engine.pit_universe is not None
+
+        engine.load_price_data()
+        engine.load_fundamentals_and_forensics()
+        df_full, df_sub = engine.run_long_horizon_backtest()
+
+        assert df_full is not None and not df_full.empty
+        assert df_sub is not None and not df_sub.empty
+        assert len(engine.holdings_by_period) > 0
+
+        # 验证对账报表守卫：非 purged_pit 模式下返回空 DataFrame，绝不污染 baseline
+        df_recon = engine.generate_reconciliation_report()
+        assert df_recon.empty
+
+
 class TestASTForensicExceptionAudit:
     """AST 静态语法树法医级审计：验证全链路核心重构代码绝无裸 except 或 except Exception"""
 

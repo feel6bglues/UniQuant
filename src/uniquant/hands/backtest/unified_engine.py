@@ -16,181 +16,45 @@
 
 from __future__ import annotations
 
-import datetime
-import math
-from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
 import numpy as np
 import pandas as pd
 
-from ...shared.constants import BacktestConstants, MarketConstants
+from ...data.managers.trade_calendar_manager import TradeCalendarManager
+from ...shared.constants import BacktestConstants
 from ...shared.cost_model import (
     COMMISSION_PCT,
     MIN_COMMISSION,
     SLIPPAGE_PCT,
     STAMP_TAX_PCT,
-    TRANSFER_FEE_PCT,
-    _has_transfer_fee,
-    calculate_sharpe_ratio,
-    get_stamp_tax_pct,
 )
 from ...shared.interfaces import PositionSizerProtocol, TradingSignal
-from ...shared.limit_checker import get_board_type
 from ...shared.logger_factory import get_logger
 from ...shared.market_rules import get_board_rule
-from ...data.managers.trade_calendar_manager import TradeCalendarManager
+from .unified_models import (
+    BacktestResult,
+    TradeRecord,
+    calculate_commission,
+    calculate_slippage,
+    calculate_stamp_duty,
+    calculate_transfer_fee,
+    check_limit_price,
+    check_t1_compliance,
+    get_next_trading_day,
+    index_signals_by_date,
+    prepare_backtest_dataframe,
+    run_sensitivity_scan,
+)
 
 logger = get_logger(__name__)
 
+__all__ = [
+    "BacktestResult",
+    "TradeRecord",
+    "UnifiedBacktestEngine",
+]
 
-# ══════════════════════════════════════════════════════════════
-# 数据结构
-# ══════════════════════════════════════════════════════════════
-
-@dataclass
-class TradeRecord:
-    """成交记录"""
-    timestamp: datetime.datetime
-    action: str  # "BUY" | "SELL"
-    symbol: str
-    price: float
-    shares: int
-    commission: float
-    stamp_duty: float = 0.0
-    transfer_fee: float = 0.0
-    slippage: float = 0.0
-    pnl: float = 0.0
-    reason: str = ""
-
-
-@dataclass
-class BacktestResult:
-    """回测结果"""
-    trades: List[TradeRecord] = field(default_factory=list)
-    equity_curve: List[float] = field(default_factory=list)
-    daily_returns: List[float] = field(default_factory=list)
-    initial_capital: float = 0.0
-    final_cash: float = 0.0
-    metadata: Dict[str, Any] = field(default_factory=dict)
-    benchmark_return: float = 0.0
-
-    @property
-    def total_trades(self) -> int:
-        return len(self.trades)
-
-    @property
-    def total_return(self) -> float:
-        if not self.equity_curve or self.initial_capital <= 0:
-            return 0.0
-        return (self.equity_curve[-1] - self.initial_capital) / self.initial_capital
-
-    @property
-    def sharpe(self) -> float:
-        if len(self.daily_returns) < 2:
-            return 0.0
-        return calculate_sharpe_ratio(self.daily_returns, period_days=1)
-
-    @property
-    def sharpe_ratio(self) -> float:
-        return self.sharpe
-
-    @property
-    def annualized_return(self) -> float:
-        if not self.equity_curve or self.initial_capital <= 0 or len(self.daily_returns) == 0:
-            return 0.0
-        n_days = len(self.daily_returns)
-        tr = (self.equity_curve[-1] - self.initial_capital) / self.initial_capital
-        if tr <= -1.0:
-            return -1.0
-        return float((1.0 + tr) ** (252.0 / max(1, n_days)) - 1.0)
-
-    @property
-    def max_drawdown(self) -> float:
-        if not self.equity_curve:
-            return 0.0
-        ec = np.array(self.equity_curve, dtype=np.float64)
-        rolling_max = np.maximum.accumulate(ec)
-        dd = (rolling_max - ec) / np.maximum(rolling_max, 1e-10)
-        return float(np.max(dd))
-
-    @property
-    def win_rate(self) -> float:
-        closed = [t for t in self.trades if t.action == "SELL"]
-        if not closed:
-            return 0.0
-        wins = sum(1 for t in closed if t.pnl > 0)
-        return wins / len(closed)
-
-    @property
-    def profit_factor(self) -> float:
-        closed = [t for t in self.trades if t.action == "SELL"]
-        if not closed:
-            return 0.0
-        total_profit = sum(t.pnl for t in closed if t.pnl > 0)
-        total_loss = abs(sum(t.pnl for t in closed if t.pnl < 0))
-        if total_loss == 0:
-            return float("inf") if total_profit > 0 else 0.0
-        return total_profit / total_loss
-
-    def compare(self, other: "BacktestResult") -> dict:
-        """比较两个回测结果, 返回差值字典。
-
-        参数敏感性分析:
-            r1 = engine.run(df, signals_a, symbol)
-            r2 = engine.run(df, signals_b, symbol)
-            diff = r1.compare(r2)
-        """
-        def _safe_sub(a: float | None, b: float | None) -> float:
-            if a is None and b is None:
-                return 0.0
-            a_val = a or 0.0
-            b_val = b or 0.0
-            result = a_val - b_val
-            if not math.isfinite(result):
-                return 0.0
-            return result
-
-        return {
-            "total_return_diff": _safe_sub(self.total_return, other.total_return),
-            "sharpe_diff": _safe_sub(self.sharpe, other.sharpe),
-            "max_drawdown_diff": _safe_sub(self.max_drawdown, other.max_drawdown),
-            "total_trades_diff": len(self.trades) - len(other.trades),
-            "win_rate_diff": _safe_sub(self.win_rate, other.win_rate),
-            "profit_factor_diff": _safe_sub(self.profit_factor, other.profit_factor),
-        }
-
-    def to_dict(self) -> Dict[str, Any]:
-        """将回测指标转换为字典"""
-        return {
-            "initial_capital": self.initial_capital,
-            "final_cash": self.final_cash,
-            "total_return": self.total_return,
-            "annualized_return": self.annualized_return,
-            "max_drawdown": self.max_drawdown,
-            "sharpe_ratio": self.sharpe,
-            "win_rate": self.win_rate,
-            "total_trades": self.total_trades,
-            "trades": [
-                {
-                    "timestamp": t.timestamp.isoformat() if hasattr(t.timestamp, "isoformat") else str(t.timestamp),
-                    "action": t.action,
-                    "price": t.price,
-                    "shares": t.shares,
-                    "commission": t.commission,
-                    "stamp_duty": getattr(t, "stamp_duty", 0.0),
-                    "slippage": getattr(t, "slippage", 0.0),
-                    "pnl": getattr(t, "pnl", 0.0),
-                }
-                for t in self.trades
-            ],
-            "metadata": self.metadata,
-        }
-
-
-# ══════════════════════════════════════════════════════════════
-# 统一回测引擎
-# ══════════════════════════════════════════════════════════════
 
 class UnifiedBacktestEngine:
     """统一回测引擎
@@ -261,38 +125,26 @@ class UnifiedBacktestEngine:
             DataFrame with columns: slippage, commission, total_return, sharpe,
             max_drawdown, win_rate, profit_factor [, excess_return]
         """
-        if slippages is None:
-            slippages = [0.0, 0.0005, 0.001, 0.002, 0.003]
-        if commissions is None:
-            commissions = [0.0, 0.0003, 0.0005, 0.001]
+        def _factory(comm: float, slp: float) -> UnifiedBacktestEngine:
+            return UnifiedBacktestEngine(
+                initial_capital=self.initial_capital,
+                commission_rate=comm,
+                stamp_duty_rate=self.stamp_duty_rate,
+                slippage_rate=slp,
+                min_commission=self.min_commission,
+                trade_calendar=self.trade_calendar,
+            )
 
-        rows: List[Dict[str, float]] = []
-
-        for slp in slippages:
-            for comm in commissions:
-                engine = UnifiedBacktestEngine(
-                    initial_capital=self.initial_capital,
-                    commission_rate=comm,
-                    stamp_duty_rate=self.stamp_duty_rate,
-                    slippage_rate=slp,
-                    min_commission=self.min_commission,
-                    trade_calendar=self.trade_calendar,
-                )
-                result = engine.run(
-                    df, signals, symbol=symbol, name=name,
-                    benchmark_returns=benchmark_returns,
-                )
-                rows.append({
-                    "slippage": slp,
-                    "commission": comm,
-                    "total_return": result.total_return,
-                    "sharpe": result.sharpe,
-                    "max_drawdown": result.max_drawdown,
-                    "win_rate": result.win_rate,
-                    "profit_factor": result.profit_factor,
-                })
-
-        return pd.DataFrame(rows)
+        return run_sensitivity_scan(
+            engine_factory=_factory,
+            df=df,
+            signals=signals,
+            symbol=symbol,
+            name=name,
+            slippages=slippages,
+            commissions=commissions,
+            benchmark_returns=benchmark_returns,
+        )
 
     def run(
         self,
@@ -594,34 +446,14 @@ class UnifiedBacktestEngine:
 
     def _prepare_dataframe(self, df: pd.DataFrame) -> pd.DataFrame:
         """准备 DataFrame, 补充缺失列"""
-        df = df.copy()
-        required = {"date", "open", "high", "low", "close", "volume"}
-        missing = required - set(df.columns)
-        if missing:
-            raise ValueError(f"缺少必需列: {missing}")
-
-        if "pre_close" not in df.columns:
-            df["pre_close"] = df["close"].shift(1).fillna(df["open"])
-
-        if "avg_daily_volume" not in df.columns:
-            adv = df["volume"].rolling(20, min_periods=1).mean()
-            df["avg_daily_volume"] = adv.shift(1).fillna(adv)
-
-        return df
+        return prepare_backtest_dataframe(df)
 
     @staticmethod
     def _index_signals_by_date(
         signals: List[TradingSignal],
     ) -> Dict[str, List[TradingSignal]]:
         """按日期索引信号"""
-        by_date: Dict[str, List[TradingSignal]] = {}
-        for sig in signals:
-            if sig.timestamp is not None:
-                key = pd.Timestamp(sig.timestamp).strftime("%Y-%m-%d")
-            else:
-                key = "unknown"
-            by_date.setdefault(key, []).append(sig)
-        return by_date
+        return index_signals_by_date(signals)
 
     # ──────────────────────────────────────────────────────────
     # 内部方法: T+1 检查
@@ -629,28 +461,11 @@ class UnifiedBacktestEngine:
 
     def _check_t1(self, buy_date: pd.Timestamp, sell_date: pd.Timestamp) -> bool:
         """防线 A: T+1 检查 — 交易日序号差 >= 1"""
-        if buy_date is None:
-            return True
-
-        buy_ord = buy_date.toordinal()
-        sell_ord = sell_date.toordinal()
-
-        # 必须至少隔一个自然日
-        if sell_ord <= buy_ord:
-            return False
-
-        # 找到买入日的下一个交易日
-        next_td = self._next_trading_day(buy_date)
-        return sell_date.toordinal() >= next_td.toordinal()
+        return check_t1_compliance(buy_date, sell_date, self.trade_calendar)
 
     def _next_trading_day(self, date: pd.Timestamp) -> pd.Timestamp:
         """找到下一个交易日"""
-        d = date + pd.Timedelta(days=1)
-        for _ in range(10):
-            if self.trade_calendar.is_trading_day(d):
-                return d
-            d += pd.Timedelta(days=1)
-        return d
+        return get_next_trading_day(date, self.trade_calendar)
 
     # ──────────────────────────────────────────────────────────
     # 内部方法: 涨跌停检查
@@ -669,21 +484,7 @@ class UnifiedBacktestEngine:
         Returns:
             True = 允许交易, False = 拒绝
         """
-        if pre_close <= 0:
-            return True
-
-        ratio = price / pre_close
-        board = get_board_type(symbol, name)
-        up_ratio, down_ratio = MarketConstants.LIMIT_RATIO.get(
-            board, MarketConstants.LIMIT_RATIO["main"]
-        )
-        tol = MarketConstants.PRICE_TOLERANCE
-
-        if action == "BUY" and ratio >= up_ratio - tol:
-            return False  # 涨停拒绝买入
-        if action == "SELL" and ratio <= down_ratio + tol:
-            return False  # 跌停拒绝卖出
-        return True
+        return check_limit_price(price, pre_close, action, symbol=symbol, name=name)
 
     # ──────────────────────────────────────────────────────────
     # 内部方法: 成本计算
@@ -691,19 +492,15 @@ class UnifiedBacktestEngine:
 
     def _calc_commission(self, value: float) -> float:
         """佣金 = max(value × 费率, 最低佣金)"""
-        return max(value * self.commission_rate, self.min_commission)
+        return calculate_commission(value, self.commission_rate, self.min_commission)
 
     def _calc_stamp_duty(self, value: float, timestamp: Optional[pd.Timestamp] = None) -> float:
         """印花税 (仅卖方)"""
-        if timestamp is not None:
-            rate = get_stamp_tax_pct(timestamp.date())
-        else:
-            rate = self.stamp_duty_rate
-        return value * rate
+        return calculate_stamp_duty(value, self.stamp_duty_rate, timestamp=timestamp)
 
     def _calc_transfer_fee(self, value: float, symbol: str = "") -> float:
         """过户费 (仅沪市60xxxx)"""
-        return value * TRANSFER_FEE_PCT if _has_transfer_fee(symbol) else 0.0
+        return calculate_transfer_fee(value, symbol=symbol)
 
     def _calc_slippage(
         self,
@@ -717,20 +514,13 @@ class UnifiedBacktestEngine:
         Returns:
             执行价格 (含滑点)
         """
-        base = self.slippage_rate
-
-        impact = 0.0
-        if avg_daily_volume > 0 and trade_volume > 0:
-            # 关键修复: 使用 trade_volume (本次交易量)
-            # 而非 daily_volume (当日总成交量)
-            ratio = trade_volume / avg_daily_volume
-            impact = min(0.001 * (ratio ** 0.5), 0.02)
-
-        total = base + impact
-        if is_buy:
-            return price * (1 + total)
-        else:
-            return price * (1 - total)
+        return calculate_slippage(
+            price,
+            is_buy=is_buy,
+            trade_volume=trade_volume,
+            avg_daily_volume=avg_daily_volume,
+            slippage_rate=self.slippage_rate,
+        )
 
     # ──────────────────────────────────────────────────────────
     # 内部方法: 执行买入

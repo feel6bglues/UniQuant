@@ -250,3 +250,25 @@ class TestMultipleAndCompare:
         sources = {"a": pd.DataFrame(), "b": _frame(close=[1.0], date=["2024-01-01"])}
         out = nz.compare_sources(sources)
         assert "a" not in out
+
+
+class TestNormalizeMootdxColumns:
+    def test_none_and_empty_passthrough(self):
+        assert nz.normalize_mootdx_columns(None) is None
+        assert nz.normalize_mootdx_columns(pd.DataFrame()).empty
+
+    def test_datetime_renamed_to_date(self):
+        df = pd.DataFrame({"datetime": ["2024-01-02"], "vol": [100]})
+        out = nz.normalize_mootdx_columns(df)
+        assert "date" in out.columns
+        assert "volume" in out.columns
+        assert "datetime" not in out.columns
+        assert "vol" not in out.columns
+
+    def test_both_vol_and_volume_drops_alias_vol(self):
+        df = pd.DataFrame({"date": ["2024-01-02"], "vol": [100], "volume": [200]})
+        out = nz.normalize_mootdx_columns(df)
+        assert "volume" in out.columns
+        assert "vol" not in out.columns
+        assert out["volume"].iloc[0] == 200
+

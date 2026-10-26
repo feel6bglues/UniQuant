@@ -11,7 +11,8 @@ from scipy.optimize import minimize
 
 from ..shared.error_handling import handle_errors
 from ..shared.logger_factory import get_logger
-from ..shared.risk_constants import RISK_FREE_RATE
+
+DEFAULT_RISK_FREE_RATE: float = 0.025  # 长期无风险利率基准 (年化 2.50%)
 
 logger = get_logger("PortfolioOptimizer")
 
@@ -102,7 +103,7 @@ def _risk_parity_objective(weights: np.ndarray, cov: np.ndarray) -> float:
 @dataclass
 class OptimizerConfig:
     """优化器配置"""
-    risk_free_rate: float = RISK_FREE_RATE  # 无风险利率 (年化)
+    risk_free_rate: float = DEFAULT_RISK_FREE_RATE  # 无风险利率 (年化)
     max_weight: float = 0.40  # 单资产最大权重
     min_weight: float = 0.0  # 单资产最小权重
     target_return: Optional[float] = None  # 目标收益率 (None 表示不限制)

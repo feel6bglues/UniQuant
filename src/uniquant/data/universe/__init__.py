@@ -11,9 +11,11 @@
 from .dynamic_pit_universe import DynamicPointInTimeUniverse
 from .total_return_benchmark import TotalReturnBenchmarkAdapter
 from .delisted_ingestor import DelistedStockIngestor
+from .dynamic_pit_loader import CrossSectionalPITDataLoader
 
 __all__ = [
     "DynamicPointInTimeUniverse",
     "TotalReturnBenchmarkAdapter",
     "DelistedStockIngestor",
+    "CrossSectionalPITDataLoader",
 ]

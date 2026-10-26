@@ -132,26 +132,7 @@ class MootdxOnlineSource(DataSource):
 
     @staticmethod
     def _normalize_columns(df: pd.DataFrame) -> pd.DataFrame:
-        """标准化 mootdx 返回的列名
+        """标准化 mootdx 返回的列名 (委托至 data/utils/normalizer.py)"""
+        from ..utils.normalizer import normalize_mootdx_columns
 
-        §7.4 #10: 原映射同时含 'volume'→'volume' 与 'vol'→'volume'，当帧里
-        两列并存时 rename 会产出**重复的 volume 列**。改为：仅做真正的别名
-        重命名，且目标列已存在时不覆盖；若别名与目标列同时存在则保留规范列、
-        丢弃别名，保证成交量列唯一。
-
-        注：手→股换算属消费方归一化职责（跨资产系数不一致），此处不做硬编码。
-        """
-        column_mapping = {'datetime': 'date', 'vol': 'volume'}
-        rename_map = {
-            src: dst
-            for src, dst in column_mapping.items()
-            if src != dst and src in df.columns and dst not in df.columns
-        }
-        if rename_map:
-            df = df.rename(columns=rename_map)
-        if 'vol' in df.columns and 'volume' in df.columns:
-            logger.warning(
-                "mootdx 返回同时含 vol/volume 列，丢弃别名 vol 以保持单一成交量列"
-            )
-            df = df.drop(columns=['vol'])
-        return df
+        return normalize_mootdx_columns(df)
