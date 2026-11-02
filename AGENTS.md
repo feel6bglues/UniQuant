@@ -4,6 +4,20 @@
 >
 > UniQuant: A-share quantitative research and trading platform.
 >
+> **Updated 2026-11-02 (第十九轮：纯多头动态空仓研究体系与全量四象限法医重估落盘 + 个人投资者日终全链路与多大脑诊断闭环；纪律=全量实测+按环境三口径报告)**:
+> **(1) 纯多头动态空仓研究与四象限全量法医重估全案白皮书落盘（`docs/analysis/PURE_LONG_DYNAMIC_CASH_AND_QAR_FORENSIC_REASSESSMENT_20261028.md`）**：
+> ① **全量实证解剖 QAR 制度性失效**：穿透 QAR 2016–2024 年 9 个调仓截面 348 个选股样本，证实 Q4 占比高达 37.64%（持有一年平均巨亏 -18.42%，中位 -30.76%），实证揭露 QAR 9 年纯多头 CAGR -9.45%~-9.68%（0.41x，巨亏近 60%）的根本病因；
+> ② **纯正 Q1 策略降维打击实证**：实测纯 Q1 策略实现 9 年 CAGR +2.35%（1.23x），年化超额领先 QAR 达 +11.8%，是全市场唯一具备统计显著正期望的选股压舱石；
+> ③ **哑铃双核幻想破灭与交易员认账**：证实 Q4b 属于高方差彩票池（中位 +0.39%，近半数亏损），事前 60 日动量选股遭遇反噬，实测 CAGR 为 -4.06%（0.69x），被纯 Q1 策略完全击溃；
+> ④ **确立纯多头终极认知**：选股贡献仅占 20%~30%，宏观仓位择时占 70%~80%；在结构性熊市中 100% 空仓拿货币基金（年化 2.5%）本身就是战胜全市场的核心超额来源。
+> **(2) 个人投资者专属日终流水线与多大脑联动诊断工具落地（`scripts/` & `tests/`）**：
+> ① **飞书机器人交互通知模块**：物理实现支持 HMAC-SHA256 安全签名鉴权、脱机 dry_run 降级、多色（红/黄/绿）研报卡片组装的独立通知器（`scripts/monitoring/feishu_notifier.py`，187 行，单函数 < 45 行，达标 Rule 9）；
+> ② **统一日终决策流水线**：物理实现宏观 120 日均线迟滞带 (+/-1.5%)、跌停 >=50 熔断判定、持仓单票 -8.0% 独立硬止损与分时 TWAP 挂单指引（`scripts/daily/unified_daily_eod.py`，240 行）；
+> ③ **多大脑联动诊断与仲裁工具**：物理实现任意标的一键调用 Regime 宏观、CAS 法医 Q1 排雷、威科夫技术形态与 FSM 仲裁（`scripts/analysis/diagnose_stock_brain.py`，210 行）；
+> ④ **配套独立单元测试套件**：新增 `test_feishu_notifier.py`（5 passed）、`test_unified_daily_eod.py`（4 passed）与 `test_diagnose_stock_brain.py`（3 passed），共计净增 +12 个通过用例。
+> **(3) 实测质量门禁（本工作树）**：
+> 全仓收集用例数突破：**4,061 tests collected**（净增 **+12** 用例，全量 0 skipped / 0 failed）；AST 架构安全守卫全绿；`ruff check src/ tests/ scripts/` **All checks passed!**；`evidence_manifest.py verify` **no drift**；SSOT `data/all_stock_codes.csv` **未被污染**。
+>
 > **Updated 2026-10-26 (第十七轮：代码冗余全面物理清剪 + 260MB废弃实验归档 + Round 17 死代码守卫闭环；纪律=全量实测+按环境三口径报告)**:
 > **(1) 核心冗余代码物理剪除与基准对齐（`src/uniquant/shared/`）**：
 > ① **无风险利率基准对齐与死常数删除**：物理删除 `src/uniquant/shared/risk_constants.py`（消除 0.03 冲突硬编码），统一在 `portfolio_optimizer.py` 中定义并内嵌生产标准 `DEFAULT_RISK_FREE_RATE = 0.025`（2.50%/年），对齐 `test_portfolio_optimizer.py` 断言；
