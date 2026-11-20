@@ -23,6 +23,7 @@ from .pipeline.data_validator import DataValidator
 # 且必须从 sources/ 直接导入, 不得回流本模块。
 from .corporate_action import get_corporate_action_adjuster
 from .sources.mootdx_local import MootdxLocalSource
+from .sources.tdxdata_online import TdxDataOnlineSource
 from .data_pipeline_service import DataPipelineService
 
 # 新增的 Managers
@@ -59,7 +60,7 @@ GET_PRICE_RETURN_CONTRACT = {
     "order": "date ascending",
     "dedup": "date unique (keep last)",
     "empty": "empty DataFrame carrying the contract columns (df.empty is True)",
-    "sources": ("lake", "mootdx_local"),
+    "sources": ("lake", "mootdx_local", "tdxdata_online"),
     "volume_unit": "shares",
     "amount_unit": "CNY",
     "adjust": "qfq/hfq -> CorporateActionAdjuster (OHLC only, +adj_factor); "
@@ -155,6 +156,7 @@ class DataFetcher:
         data_dir: str = "./data",
         storage_manager: Optional[StorageManager] = None,
         pipeline: Optional[DataPipelineService] = None,
+        enable_online_fallback: bool = True,
     ):
         logger.info("初始化 DataFetcher - 系统的大脑和总指挥")
 
@@ -171,6 +173,18 @@ class DataFetcher:
             self.data_sources.append(self.mootdx_local_source)
         except FETCHER_INIT_RECOVERABLE_ERRORS as e:
             logger.warning(f"本地数据源 MootdxLocalSource 初始化失败，跳过: {e}")
+
+        # 在线第三跳 (第二十轮): tdxdata 新协议源, 仅在湖与本地双 miss 时兜底。
+        # 构造本身无 IO (tdxdata 懒导入于首次取数) → 恒可创建; CI 无 tdxdata 时
+        # ImportError 发生在取数期, 由 _fetch_online_fallback 的异常守卫吞掉并落
+        # 空表, 行为与旧契约一致。enable_online_fallback=False 供测试确定性使用。
+        self.tdxdata_online_source: Optional[TdxDataOnlineSource] = None
+        if enable_online_fallback:
+            try:
+                self.tdxdata_online_source = TdxDataOnlineSource()
+                self.data_sources.append(self.tdxdata_online_source)
+            except FETCHER_INIT_RECOVERABLE_ERRORS as e:
+                logger.warning(f"在线数据源 TdxDataOnlineSource 初始化失败，跳过: {e}")
 
         self.data_cleaner = DataCleaner()
         self.data_validator = DataValidator()
@@ -200,9 +214,11 @@ class DataFetcher:
     ) -> pd.DataFrame:
         """湖优先单源读取日线 (返回契约见模块级 GET_PRICE_RETURN_CONTRACT)。
 
-        数据通道 (裁决 D1): ``StorageManager.read_data`` 读湖 -> 缺失时本地
-        ``MootdxLocalSource.fetch_daily`` 兜底 -> 仍缺失返回带合同列的空表
-        (不 raise, 兼容旧调用方 "空表=无数据" 契约, 但 logger.warning)。
+        数据通道 (裁决 D1 + 第二十轮在线第三跳): ``StorageManager.read_data``
+        读湖 -> 缺失时本地 ``MootdxLocalSource.fetch_daily`` 兜底 -> 仍缺失时
+        在线 ``TdxDataOnlineSource.fetch_daily`` (tdxdata 新协议, 需 tdxdata
+        依赖与出网) 兜底 -> 三重缺失返回带合同列的空表 (不 raise, 兼容旧调用方
+        "空表=无数据" 契约, 但 logger.warning)。
         **只读**: 绝不回写数据湖 (写湖归 data_access_service)。
 
         Args:
@@ -225,7 +241,7 @@ class DataFetcher:
 
         raw = self._read_raw_price(symbol, start_date, end_date)
         if raw is None or raw.empty:
-            logger.warning(f"未获取到 {symbol} 的数据 (湖与本地 mootdx 均无) — 返回空表")
+            logger.warning(f"未获取到 {symbol} 的数据 (湖/本地 mootdx/在线 tdxdata 均无) — 返回空表")
             return self._empty_price_frame(adjust)
 
         df = self._normalize_price_frame(raw, symbol)
@@ -240,11 +256,14 @@ class DataFetcher:
     def _read_raw_price(
         self, symbol: str, start_date: Optional[str], end_date: Optional[str]
     ) -> Optional[pd.DataFrame]:
-        """湖优先读取: 湖 miss 时回退本地 mootdx 解包 (不写湖)。"""
+        """湖优先读取: 湖 miss 时回退本地 mootdx 解包, 再 miss 回退在线 tdxdata (不写湖)。"""
         df = self._read_lake(symbol)
         if df is not None and not df.empty:
             return df
-        return self._fetch_local_fallback(symbol, start_date, end_date)
+        local = self._fetch_local_fallback(symbol, start_date, end_date)
+        if local is not None and not local.empty:
+            return local
+        return self._fetch_online_fallback(symbol, start_date, end_date)
 
     def _read_lake(self, symbol: str) -> Optional[pd.DataFrame]:
         """按候选符号序列读湖 (裸代码自动补市场后缀), 只读不写。"""
@@ -288,6 +307,36 @@ class DataFetcher:
             return None
         # 量纲对齐湖契约: 湖 volume=股, 本地 mootdx 按资产类输出 手/股 混杂
         return harmonize_local_volume_unit(local)
+
+    def _fetch_online_fallback(
+        self, symbol: str, start_date: Optional[str], end_date: Optional[str]
+    ) -> Optional[pd.DataFrame]:
+        """在线 tdxdata 新协议兜底 (第二十轮第三跳, 需出网; 不写湖)。
+
+        仅在湖与本地双 miss 后触发; 源未初始化 (CI 无 tdxdata / 显式关闭) 或
+        取数失败时返回 None (get_price 落入空表分支)。源输出 volume 已是股,
+        无需 ``harmonize_local_volume_unit`` 自校准。
+        """
+        source = getattr(self, "tdxdata_online_source", None)
+        if source is None:
+            logger.info(f"在线 tdxdata 源不可用，跳过在线兜底: {symbol}")
+            return None
+        start = str(start_date) if start_date else "1990-01-01"
+        end = (
+            str(end_date)
+            if end_date
+            else get_time_provider().now().strftime("%Y-%m-%d")
+        )
+        try:
+            online = source.fetch_daily(symbol, start, end)
+        except Exception as e:
+            logger.warning(f"在线 tdxdata 兜底读取失败 {symbol}: {e}")
+            return None
+        if online is None or online.empty:
+            logger.info(f"在线 tdxdata 无 {symbol} 数据")
+            return None
+        logger.info(f"在线 tdxdata 兜底命中 {symbol}: {len(online)} 条 (raw 未复权)")
+        return online
 
     @staticmethod
     def _normalize_price_frame(df: pd.DataFrame, symbol: str) -> pd.DataFrame:

@@ -179,11 +179,21 @@ data_sources:
       class: uniquant.data.sources.mootdx_online.MootdxOnlineSource
       priority: 11
       timeout: 5
-      enabled: false  # 网络兜底待裁决
+      enabled: false  # 已被 tdxdata_online 替代 — 旧协议 bars 命令 2026-09 起被通达信服务端拒绝, 恒返回空
       config:
         retry_times: 3
         retry_delay: 0.5
-      note: "网络兜底待裁决 — 保留配置体但不启用 (D1/Step3)"
+      note: "已废弃: 旧协议 bars 被服务端拒绝 (2026-09); 保留配置体仅供追溯, 请勿启用"
+
+    tdxdata_online:
+      class: uniquant.data.sources.tdxdata_online.TdxDataOnlineSource
+      priority: 12
+      timeout: 10
+      enabled: true  # 2026-09 新协议在线源 (tdxdata); 2026-11-20 实测与湖日线逐位一致 (600519 6044 日 0 差)
+      config:
+        host: "101.35.121.35"  # 默认主机 (历史最全); connect.cfg 东证节点可作备用但老历史段精度略差
+        port: 7709
+      note: "tdxdata 新协议在线通道 — raw 日线翻页至 IPO / 实时 / 财务快照 / xdxr 分红 (上云解耦 TDX 本地依赖)"
 
 # 技术指标配置
 indicators:

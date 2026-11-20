@@ -149,13 +149,9 @@ data/
 ├── sources/
 │   ├── base.py                         — 数据源基类，定义 fetch_daily 等抽象接口
 │   ├── protocols.py                    — 数据源能力协议 (Protocol)，定义 HasBasicInfo、HasFundFlow 等可选能力
-│   ├── baostock.py                     — Baostock 数据源实现，免费开源，支持前/后/不复权
-│   ├── eastmoney.py                    — 东方财富数据源实现，基于 AKShare 包装
-│   ├── sina.py                         — 新浪财经数据源实现，基于 AKShare 包装
-│   ├── tencent.py                      — 腾讯财经数据源实现，基于 AKShare 包装
-│   ├── ths.py                          — 同花顺数据源实现，支持 JS 加密参数生成
-│   ├── tdx.py                          — 通达信本地数据源，解析 .day 二进制文件
-│   └── realtime_bridge.py              — 实时行情桥接引擎，WebSocket 轻量级桥接，支持盘中实时推送
+│   ├── mootdx_local.py                 — 本地 TDX 解包数据源 (mootdx reader 读 vipdoc)，终态唯一启用本地源
+│   ├── mootdx_online.py                — (已废弃) 旧协议 mootdx 在线源 — bars 命令 2026-09 起被通达信服务端拒绝，保留仅供追溯
+│   └── tdxdata_online.py               — tdxdata 新协议在线源 (2026-09 通达信协议)：raw 日线翻页/实时/财务快照/xdxr 分红
 │
 └── utils/
     ├── __init__.py                     — 数据工具包 (空导出)

@@ -81,7 +81,8 @@ class TestDataFetcherGetPriceLakeFirstRouter:
         with patch("uniquant.data.data_fetcher.MootdxLocalSource") as local_cls:
             local_cls.return_value.fetch_daily.return_value = pd.DataFrame()
             _write_min_all_stock_codes(tmp_path)
-            fetcher = DataFetcher(data_dir=str(tmp_path))
+            # 在线第三跳显式关闭: 本用例钉死湖/本地双 miss 语义, 不触真网
+            fetcher = DataFetcher(data_dir=str(tmp_path), enable_online_fallback=False)
 
             assert not hasattr(fetcher, "source_router")
             result = fetcher.get_price(SYMBOL)

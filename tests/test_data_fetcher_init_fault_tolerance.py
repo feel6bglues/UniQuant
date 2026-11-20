@@ -40,8 +40,11 @@ class TestDataFetcherInitFaultTolerance:
         fetcher = DataFetcher(data_dir="/tmp/test_data_fetcher_single")
 
         assert fetcher is not None
-        assert len(fetcher.data_sources) == 1
+        # 第二十轮: data_sources = [本地源, 在线源] (在线源构造无 IO, 恒创建;
+        # tdxdata 缺失仅影响取数期, 不影响装配)。首位恒为本地源。
+        assert len(fetcher.data_sources) == 2
         assert type(fetcher.data_sources[0]).__name__ == "MootdxLocalSource"
+        assert type(fetcher.data_sources[1]).__name__ == "TdxDataOnlineSource"
         assert fetcher.mootdx_local_source is fetcher.data_sources[0]
         assert not hasattr(fetcher, "source_router")
 
@@ -60,8 +63,9 @@ class TestDataFetcherInitFaultTolerance:
             fetcher = DataFetcher(data_dir="/tmp/test_data_fetcher_local_fail")
 
         assert fetcher is not None
-        assert fetcher.data_sources == []
+        # 本地源缺失 = 装配失败; 在线源 (第二十轮) 构造无 IO 仍会入列, 与本用例无关
         assert fetcher.mootdx_local_source is None
+        assert all(type(s).__name__ != "MootdxLocalSource" for s in fetcher.data_sources)
         assert not hasattr(fetcher, "source_router")
 
     # ------------------------------------------------------------------ #

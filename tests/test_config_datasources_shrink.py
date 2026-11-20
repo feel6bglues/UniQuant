@@ -1,8 +1,10 @@
 """WS-C: config `data_sources` 五源收缩 (D1/Step3 预注册裁决) — TDD 契约。
 
-预注册验收:
-  ① config 可加载且 data_sources.sources 只含 mootdx 两项 (mootdx_local/mootdx_online);
-  ② mootdx_local.enabled is True (mootdx_online 保留配置体但禁用 — 网络兜底待裁决);
+预注册验收 (第二十轮更新: tdxdata 新协议在线源接线, mootdx_online 转废弃):
+  ① config 可加载且 data_sources.sources 恰含三项
+     (mootdx_local / mootdx_online / tdxdata_online);
+  ② mootdx_local.enabled is True; tdxdata_online.enabled is True (新协议在线通道);
+     mootdx_online.enabled is False (旧协议 bars 2026-09 被服务端拒绝, 已废弃);
   ③ ConfigValidator 对收缩后的 config 校验通过 (data_sources 相关 0 错误);
   ④ 已删源名 (sina/tencent/ths/eastmoney/baostock/efinance 及三个 NOT YET
      IMPLEMENTED 占位源) 不再出现在 config.yaml 的 data_sources 段文本中。
@@ -22,7 +24,7 @@ from uniquant.shared.config_validator import ConfigValidator
 
 CONFIG_YAML = Path(__file__).resolve().parent.parent / "config" / "config.yaml"
 
-EXPECTED_SOURCES = {"mootdx_local", "mootdx_online"}
+EXPECTED_SOURCES = {"mootdx_local", "mootdx_online", "tdxdata_online"}
 
 # Step3 已删源名 — 均不得再出现在 data_sources 段
 REMOVED_SOURCE_TOKENS = [
@@ -69,18 +71,19 @@ def config():
     return get_config()
 
 
-# ① 收缩结果: sources 只含 mootdx 两项
+# ① 收缩结果: sources 恰含三项 (两 mootdx + tdxdata 在线源)
 def test_sources_shrunk_to_two_mootdx_entries(config):
     sources = config.get("data_sources", {}).get("sources", {})
     assert isinstance(sources, dict), "data_sources.sources 应为 dict (源名→配置体)"
     assert set(sources.keys()) == EXPECTED_SOURCES
 
 
-# ② 启用状态: 本地单源启用, 网络兜底禁用
+# ② 启用状态: 本地源启用, tdxdata 新协议在线源启用, 旧协议在线源废弃
 def test_mootdx_local_enabled_online_disabled(config):
     sources = config.get("data_sources", {}).get("sources", {})
     assert sources["mootdx_local"]["enabled"] is True
     assert sources["mootdx_online"]["enabled"] is False
+    assert sources["tdxdata_online"]["enabled"] is True
 
 
 # ③ 收缩后 config 通过 ConfigValidator

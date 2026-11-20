@@ -64,7 +64,7 @@ def _make_fetcher(
             "status": ["1"],
         }
     ).to_csv(tmp_path / "all_stock_codes.csv", index=False, encoding="utf-8-sig")
-    fetcher = DataFetcher(data_dir=str(tmp_path))
+    fetcher = DataFetcher(data_dir=str(tmp_path), enable_online_fallback=False)
     if df is not None:
         fetcher.storage_manager.write_data(symbol, df, data_type="daily")
         fetcher.clear_price_cache()
@@ -240,7 +240,11 @@ class TestGetPriceContract:
         )
         assert GET_PRICE_RETURN_CONTRACT["date_dtype"] == "datetime64[ns]"
         assert GET_PRICE_RETURN_CONTRACT["order"] == "date ascending"
-        assert GET_PRICE_RETURN_CONTRACT["sources"] == ("lake", "mootdx_local")
+        assert GET_PRICE_RETURN_CONTRACT["sources"] == (
+            "lake",
+            "mootdx_local",
+            "tdxdata_online",
+        )
         assert GET_PRICE_RETURN_CONTRACT["volume_unit"] == "shares"
         assert GET_PRICE_RETURN_CONTRACT["amount_unit"] == "CNY"
 

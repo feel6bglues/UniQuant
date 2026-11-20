@@ -240,8 +240,9 @@ def test_parse_gbbq_file_real_file_contract(cached_gbbq_reader):
     assert list(df.columns) == TARGET_COLS
     assert pd.api.types.is_integer_dtype(df["date"])
     assert not pd.api.types.is_datetime64_any_dtype(df["date"])
-    # pytdx 真文件实测 193,506 行（允许 TDX 客户端后续小幅更新）
-    assert abs(len(df) - 193_506) <= 1_000, f"行数异常: {len(df)}"
+    # pytdx 真文件实测行数（允许 TDX 客户端后续小幅更新; 维护指令见第十二轮:
+    # sync_gbbq 纳入新年度分红后必须实测重钉 — 最近重钉 2026-11-21 实测 195,120）
+    assert abs(len(df) - 195_120) <= 1_000, f"行数异常: {len(df)}"
 
     # 锚点行: 5 键映射方向正确（peigujia→rights_price / peigu_hou→rights_ratio…）
     anchor = df[(df["code"] == "000001") & (df["date"] == 19900301)]
@@ -278,7 +279,9 @@ def test_save_gbbq_to_fq_writes_contract_to_tmp_only(cached_gbbq_reader, tmp_pat
     written = pd.read_parquet(out_path)
     assert list(written.columns) == TARGET_COLS
     assert pd.api.types.is_integer_dtype(written["date"])
-    assert abs(len(written) - 193_506) <= 1_000
+    # 维护指令见第十二轮: sync_gbbq 纳入新年度分红后必须实测重钉
+    # （最近重钉 2026-11-21 实测 195,120）
+    assert abs(len(written) - 195_120) <= 1_000
 
     # 红线: 真实 data/fq/gbbq.parquet 绝不能被测试路径覆写
     if fq_mtime_before is not None:
