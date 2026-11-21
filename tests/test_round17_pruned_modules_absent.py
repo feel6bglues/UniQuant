@@ -67,7 +67,7 @@ SURVIVING_MODULES = (
 def test_round17_pruned_paths_do_not_exist(rel_path: str) -> None:
     """第十七轮被删除的文件不得重新出现在磁盘上。"""
     assert not (SHARED_DIR / rel_path).exists(), (
-        f"第十七轮已删除 {rel_path}，不应重新出现（见 AGENTS.md 第十七轮）"
+        f"第十七轮已删除 {rel_path}，不应重新出现（见 docs/archive/AGENTS_CHANGELOG_ROUNDS.md 第十七轮）"
     )
 
 

@@ -72,7 +72,7 @@ SURVIVING_MODULES = (
 def test_round9_pruned_paths_do_not_exist(rel_path: str) -> None:
     """被删除的文件不得重新出现在磁盘上。"""
     assert not (BRAIN_DIR / rel_path).exists(), (
-        f"第九轮已删除 {rel_path}，不应重新出现（见 AGENTS.md 第九轮）"
+        f"第九轮已删除 {rel_path}，不应重新出现（见 docs/archive/AGENTS_CHANGELOG_ROUNDS.md 第九轮）"
     )
 
 
