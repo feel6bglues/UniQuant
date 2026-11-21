@@ -4,6 +4,14 @@
 >
 > UniQuant: A-share quantitative research and trading platform.
 >
+> **Updated 2026-11-21 (第二十二轮：历史财务数据在线通道接入 —— mootdx.affair 官方 HTTP 分发 + 生产导入链直通；纪律=全量实测+沙盒验收+幂等)**:
+> **(1) 组件横评定案（用户给定五组件中谁可在线拉 TDX 财务）**：**mootdx（`mootdx.affair`/`mootdx.financial` 模块）是唯一具备历史财务在线拉取能力的组件**——走通达信官方 HTTP 文件分发接口（`tdxfin/gpcw.txt` 索引 + `gpcw{YYYYMMDD}.zip` 季度全量财务），与 2026-09 已死的 TCP 行情协议无关（第二十轮根因），实测存活；tdxdata `finance()` 仅最新快照（40 字段）；eltdx 宣称 7615 F10 文本资料（非结构化，未实测）；pytdxdata/tdx-python 无历史财务文件能力。
+> **(2) 通道全链路实测**：官方索引 148 期季度文件（**gpcw19881231 → gpcw20261231**，38 年）；下载 gpcw20260930.zip 5.49MB/6.2s；`mootdx FinancialReader` 解析 **5,576 标的 × 659 中文字段**；**项目自有 `TDXFinancialImporter._parse_gpcw_file` 直接吃下载文件**（与 Wine 本地 gpcw*.dat 同格式，5,198 行经 SSOT 过滤）——数值与 tdxdata `fetch_finance` 快照三方逐位对账：五、净利润 667.1714 亿 = 快照税后利润 66,717,144,000，货币资金 499.27 亿、存货 613.91 亿全吻合。湖 600519 财务 parquet（42 行×577 列，最新 20260630）即同链产物 → 在线源比湖**更新一个报告期**（20260930 已可得）。
+> **(3) 生产同步器落地（`scripts/maintenance/sync_online_financial.py`）**：官方索引 → 增量选择（`--latest N` 默认 1 / `--all` 全量 bootstrap，双重过滤：正则限 gpcw 名 + ≥10KB 防未来报告期占位空壳 164B）→ 下载 + **MD5 与官方索引逐文件校验**（缓存命中亦复验，防损坏入库）→ 解压 `gpcw*.dat` 至暂存 `vipdoc/cw` → `TDXFinancialImporter`（**追加式写侧**：concat 既有 parquet + 按 (code, report_date) 去重 keep-last，增量绝不破坏湖历史）→ 财务湖。**指纹隔离**：在线轨指纹落缓存目录（`financial_fingerprint_online.json`），不与本地 Wine 导入链共用 DATA_DIR 指纹；`--dry-run` / 退出码 0/1 语义齐备。
+> **(4) 真网端到端验收（沙盒 output 目录，不动真实湖）**：`--latest 1` 全流程 exit 0，沙盒产 **4,928 只** per-stock parquet；600519 新增 2026-09-30 行，三字段与快照对账逐位吻合；**二跑幂等**（MD5 缓存命中零下载、指纹跳过、600519 仍恰 1 行无重复）。
+> **(5) 测试与门禁（本工作树）**：新增 `tests/scripts/test_sync_online_financial.py`（**13 用例**：索引过滤/占位排除/最新 N 选择/MD5 校验与缓存命中/暂存解压/指纹隔离/构造参数捕获/dry-run 零下载/端到端编排/索引失败退 1；全假索引/假下载器/假导入器离线安全）；定向套件 **123 passed / 0 failed**；`ruff check src/ tests/ scripts/` **All checks passed!**。
+> **(6) 上云含义与已知边界**：① 历史财务序列（第二十一轮已知边界 ④"无在线等价物"）**正式关闭**——云端可 `--all` bootstrap（148 期 ≈ 全部历史）重建财务湖，无需 Wine 通达信；② 首次全量约 148×5MB ≈ 700MB 下载，为一次性成本，此后增量每期 ~5MB；③ 官方索引含 1 期占位空壳（gpcw20261231.zip 164B），已由 MIN_REAL_ZIP_BYTES 过滤；④ 分钟线（在线深度 ~2 个月）仍未接线，湖 1mins/5mins 目录为空——列入下轮候选。
+>
 > **Updated 2026-11-21 (第二十一轮：tdxdata 在线通道三项建议全部落地 —— gbbq↔xdxr 锚点对账 + 官方 gbbq 源验证 + get_price 在线第三跳接线；纪律=全量实测+按消费范围对账)**:
 > **(1) gbbq↔xdxr 锚点对账全量闭环**：tdxdata xdxr 与 data/fq/gbbq.parquet 逐位实测——600519 30/30、000001 33/33、600036 29/29、600601 28/28、600820 36/36、600653 14/14，共 **170 事件四字段 (fenhong↔cash_div / songzhuangu↔split_ratio / peigu↔rights_ratio / peigujia↔rights_price) 全部逐位一致、双向零缺失**，确认单位同为每10股（AGENTS.md P14"茅台 2024 年度每股 54.76 元"= 中期 23.882 + 年度 30.876 之和，归一）。新增 `fetch_xdxr_as_gbbq` 转换器（8 列契约直通，TDD **4 用例**）。
 > **(2) `download_gbbq` 官方源验证（tdx.com.cn gbbq.zip）**：`decrypt_records` 解密 **208,075 条**（本地湖 194,983 条，官方多 1.3 万）；**category=1（复权链唯一消费类）官方为本地严格超集——64,125 条交集零缺失、四字段最大差 4.74e-07（纯 float32 存储精度，0 行超 1e-3）**，另含 5,396 条本地没有的新事件；非 cat1 行差异为股本变更元数据（官方解码置零），复权链本就不消费。**结论：官方源可完整替代本地 Wine `hq_cache/gbbq` 文件**（上云最后一根结构性依赖可拔）。
