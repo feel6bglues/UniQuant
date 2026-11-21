@@ -123,8 +123,12 @@ class TestFetchDaily:
 
 
 class TestRealtimeAndFundamentals:
-    def test_real_time_parses_verified_anchors_only(self):
-        """snap 解析: 昨收/今开/last 精确; 抽样序列极值不完整 → 不伪造 high/low。"""
+    def test_real_time_parses_last_only(self):
+        """snap 解析 (第二十四轮修正): 只输出全样本可验证的 last。
+
+        反例驱动: 600959 prices[0]=89088.477 (垃圾值, 昨收实为 3.02) →
+        第二十三轮 "prices[0]=昨收/[1]=今开" 语义外推系伪回归, 已回退。
+        """
         snap = {
             "ok": True,
             "code": "600519",
@@ -135,24 +139,21 @@ class TestRealtimeAndFundamentals:
         }
         src = _make_source(_FakeClient(snap=snap))
         df = src.fetch_real_time("600519.SH")
-        assert list(df.columns) == [
-            "code", "market", "last", "prev_close", "open", "series_points", "compressed",
-        ]
+        assert list(df.columns) == ["code", "market", "last", "series_points", "compressed"]
         assert len(df) == 1
         assert df["code"].iloc[0] == "600519.SH"
-        assert df["prev_close"].iloc[0] == pytest.approx(1460.21)
-        assert df["open"].iloc[0] == pytest.approx(1450.89)
         assert df["last"].iloc[0] == pytest.approx(1485.75)
         assert df["series_points"].iloc[0] == 5
         assert bool(df["compressed"].iloc[0]) is True
+        assert "prev_close" not in df.columns and "open" not in df.columns
         assert "high" not in df.columns and "low" not in df.columns
 
-    def test_real_time_tolerates_short_price_list(self):
-        snap = {"prices": [10.0], "last": 10.5}
+    def test_real_time_tolerates_empty_prices(self):
+        snap = {"prices": [], "last": 10.5}
         src = _make_source(_FakeClient(snap=snap))
         df = src.fetch_real_time("000001.SZ")
-        assert df["prev_close"].iloc[0] == pytest.approx(10.0)
-        assert df["open"].iloc[0] is None
+        assert df["last"].iloc[0] == pytest.approx(10.5)
+        assert df["series_points"].iloc[0] == 0
 
     def test_real_time_empty_without_symbol(self):
         src = _make_source(_FakeClient(snap={"last": 1.0}))

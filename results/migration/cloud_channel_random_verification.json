@@ -1,0 +1,777 @@
+{
+  "seed": 42,
+  "sampled": [
+    "002657.SZ",
+    "300711.SZ",
+    "301106.SZ",
+    "600276.SH",
+    "600352.SH",
+    "600959.SH",
+    "601319.SH",
+    "601799.SH",
+    "603203.SH",
+    "688151.SH",
+    "688357.SH",
+    "688718.SH"
+  ],
+  "minute_stocks": [
+    "002657.SZ",
+    "300711.SZ",
+    "301106.SZ",
+    "600276.SH",
+    "600352.SH",
+    "600959.SH",
+    "601319.SH",
+    "601799.SH",
+    "603203.SH",
+    "688151.SH",
+    "688357.SH",
+    "688718.SH"
+  ],
+  "tracks": {
+    "A1_daily_vs_lake": {
+      "checked": 12,
+      "details": {
+        "002657.SZ": {
+          "overlap": 695,
+          "max_abs_diff": {
+            "open": 0.0,
+            "high": 0.0,
+            "low": 0.0,
+            "close": 0.0,
+            "amount": 0.0
+          },
+          "volume_max_abs_diff": 99.0,
+          "volume_granularity_days": 581
+        },
+        "300711.SZ": {
+          "overlap": 695,
+          "max_abs_diff": {
+            "open": 0.0,
+            "high": 0.0,
+            "low": 0.0,
+            "close": 0.0,
+            "amount": 0.0
+          },
+          "volume_max_abs_diff": 99.0,
+          "volume_granularity_days": 618
+        },
+        "301106.SZ": {
+          "overlap": 695,
+          "max_abs_diff": {
+            "open": 0.0,
+            "high": 0.0,
+            "low": 0.0,
+            "close": 0.0,
+            "amount": 0.0
+          },
+          "volume_max_abs_diff": 99.0,
+          "volume_granularity_days": 557
+        },
+        "600276.SH": {
+          "overlap": 695,
+          "max_abs_diff": {
+            "open": 0.0,
+            "high": 0.0,
+            "low": 0.0,
+            "close": 0.0,
+            "amount": 0.0
+          },
+          "volume_max_abs_diff": 99.0,
+          "volume_granularity_days": 684
+        },
+        "600352.SH": {
+          "overlap": 695,
+          "max_abs_diff": {
+            "open": 0.0,
+            "high": 0.0,
+            "low": 0.0,
+            "close": 0.0,
+            "amount": 0.0
+          },
+          "volume_max_abs_diff": 99.0,
+          "volume_granularity_days": 620
+        },
+        "600959.SH": {
+          "overlap": 695,
+          "max_abs_diff": {
+            "open": 0.0,
+            "high": 0.0,
+            "low": 0.0,
+            "close": 0.0,
+            "amount": 0.0
+          },
+          "volume_max_abs_diff": 100.0,
+          "volume_granularity_days": 670
+        },
+        "601319.SH": {
+          "overlap": 695,
+          "max_abs_diff": {
+            "open": 0.0,
+            "high": 0.0,
+            "low": 0.0,
+            "close": 0.0,
+            "amount": 0.0
+          },
+          "volume_max_abs_diff": 100.0,
+          "volume_granularity_days": 639
+        },
+        "601799.SH": {
+          "overlap": 695,
+          "max_abs_diff": {
+            "open": 0.0,
+            "high": 0.0,
+            "low": 0.0,
+            "close": 0.0,
+            "amount": 0.0
+          },
+          "volume_max_abs_diff": 99.0,
+          "volume_granularity_days": 619
+        },
+        "603203.SH": {
+          "overlap": 695,
+          "max_abs_diff": {
+            "open": 0.0,
+            "high": 0.0,
+            "low": 0.0,
+            "close": 0.0,
+            "amount": 0.0
+          },
+          "volume_max_abs_diff": 99.0,
+          "volume_granularity_days": 628
+        },
+        "688151.SH": {
+          "overlap": 695,
+          "max_abs_diff": {
+            "open": 0.0,
+            "high": 0.0,
+            "low": 0.0,
+            "close": 0.0,
+            "amount": 0.0
+          },
+          "volume_max_abs_diff": 99.0,
+          "volume_granularity_days": 691
+        },
+        "688357.SH": {
+          "overlap": 695,
+          "max_abs_diff": {
+            "open": 0.0,
+            "high": 0.0,
+            "low": 0.0,
+            "close": 0.0,
+            "amount": 0.0
+          },
+          "volume_max_abs_diff": 99.0,
+          "volume_granularity_days": 688
+        },
+        "688718.SH": {
+          "overlap": 695,
+          "max_abs_diff": {
+            "open": 0.0,
+            "high": 0.0,
+            "low": 0.0,
+            "close": 0.0,
+            "amount": 0.0
+          },
+          "volume_max_abs_diff": 99.0,
+          "volume_granularity_days": 691
+        }
+      },
+      "mismatch": {},
+      "verdict": "PASS"
+    },
+    "A2_daily_vs_akshare": {
+      "checked": 12,
+      "details": {
+        "002657.SZ": {
+          "overlap": 698,
+          "close_max_abs_diff": 0.0,
+          "volume_max_abs_diff": 99.0
+        },
+        "300711.SZ": {
+          "overlap": 698,
+          "close_max_abs_diff": 0.0,
+          "volume_max_abs_diff": 99.0
+        },
+        "301106.SZ": {
+          "overlap": 698,
+          "close_max_abs_diff": 0.0,
+          "volume_max_abs_diff": 99.0
+        },
+        "600276.SH": {
+          "overlap": 698,
+          "close_max_abs_diff": 0.0,
+          "volume_max_abs_diff": 99.0
+        },
+        "600352.SH": {
+          "overlap": 698,
+          "close_max_abs_diff": 0.0,
+          "volume_max_abs_diff": 99.0
+        },
+        "600959.SH": {
+          "overlap": 698,
+          "close_max_abs_diff": 0.0,
+          "volume_max_abs_diff": 100.0
+        },
+        "601319.SH": {
+          "overlap": 698,
+          "close_max_abs_diff": 0.0,
+          "volume_max_abs_diff": 100.0
+        },
+        "601799.SH": {
+          "overlap": 698,
+          "close_max_abs_diff": 0.0,
+          "volume_max_abs_diff": 99.0
+        },
+        "603203.SH": {
+          "overlap": 698,
+          "close_max_abs_diff": 0.0,
+          "volume_max_abs_diff": 99.0
+        },
+        "688151.SH": {
+          "overlap": 698,
+          "close_max_abs_diff": 0.0,
+          "volume_max_abs_diff": 99.0
+        },
+        "688357.SH": {
+          "overlap": 698,
+          "close_max_abs_diff": 0.0,
+          "volume_max_abs_diff": 99.0
+        },
+        "688718.SH": {
+          "overlap": 698,
+          "close_max_abs_diff": 0.0,
+          "volume_max_abs_diff": 99.0
+        }
+      },
+      "mismatch": {},
+      "verdict": "PASS"
+    },
+    "A3_daily_vs_baostock": {
+      "checked": 12,
+      "details": {
+        "002657.SZ": {
+          "overlap": 698,
+          "close_max_abs_diff": 0.0
+        },
+        "300711.SZ": {
+          "overlap": 698,
+          "close_max_abs_diff": 0.0
+        },
+        "301106.SZ": {
+          "overlap": 698,
+          "close_max_abs_diff": 0.0
+        },
+        "600276.SH": {
+          "overlap": 698,
+          "close_max_abs_diff": 0.0
+        },
+        "600352.SH": {
+          "overlap": 698,
+          "close_max_abs_diff": 0.0
+        },
+        "600959.SH": {
+          "overlap": 698,
+          "close_max_abs_diff": 0.0
+        },
+        "601319.SH": {
+          "overlap": 698,
+          "close_max_abs_diff": 0.0
+        },
+        "601799.SH": {
+          "overlap": 698,
+          "close_max_abs_diff": 0.0
+        },
+        "603203.SH": {
+          "overlap": 698,
+          "close_max_abs_diff": 0.0
+        },
+        "688151.SH": {
+          "overlap": 698,
+          "close_max_abs_diff": 0.0
+        },
+        "688357.SH": {
+          "overlap": 698,
+          "close_max_abs_diff": 0.0
+        },
+        "688718.SH": {
+          "overlap": 698,
+          "close_max_abs_diff": 0.0
+        }
+      },
+      "mismatch": {},
+      "verdict": "PASS"
+    },
+    "B_minute5_vs_lc5": {
+      "checked": 12,
+      "details": {
+        "002657.SZ": {
+          "days": 115,
+          "ohlc_max_abs_diff": {
+            "open": 0.0,
+            "high": 0.0,
+            "low": 0.0,
+            "close": 0.0
+          },
+          "volume_max_abs_diff": 50.0,
+          "amount_max_rel_diff": 1.5465889321522297e-08
+        },
+        "300711.SZ": {
+          "days": 115,
+          "ohlc_max_abs_diff": {
+            "open": 0.0,
+            "high": 0.0,
+            "low": 0.0,
+            "close": 0.0
+          },
+          "volume_max_abs_diff": 49.0,
+          "amount_max_rel_diff": 3.2293982647573336e-08
+        },
+        "301106.SZ": {
+          "days": 115,
+          "ohlc_max_abs_diff": {
+            "open": 0.0,
+            "high": 0.0,
+            "low": 0.0,
+            "close": 0.0
+          },
+          "volume_max_abs_diff": 49.0,
+          "amount_max_rel_diff": 3.259792863186724e-08
+        },
+        "600276.SH": {
+          "days": 115,
+          "ohlc_max_abs_diff": {
+            "open": 0.0,
+            "high": 0.0,
+            "low": 0.0,
+            "close": 0.0
+          },
+          "volume_max_abs_diff": 52.0,
+          "amount_max_rel_diff": 5.5323093950024165e-08
+        },
+        "600352.SH": {
+          "days": 115,
+          "ohlc_max_abs_diff": {
+            "open": 0.0,
+            "high": 0.0,
+            "low": 0.0,
+            "close": 0.0
+          },
+          "volume_max_abs_diff": 50.0,
+          "amount_max_rel_diff": 5.0595829707505386e-08
+        },
+        "600959.SH": {
+          "days": 115,
+          "ohlc_max_abs_diff": {
+            "open": 0.0,
+            "high": 0.0,
+            "low": 0.0,
+            "close": 0.0
+          },
+          "volume_max_abs_diff": 52.0,
+          "amount_max_rel_diff": 3.4574964306064124e-08
+        },
+        "601319.SH": {
+          "days": 115,
+          "ohlc_max_abs_diff": {
+            "open": 0.0,
+            "high": 0.0,
+            "low": 0.0,
+            "close": 0.0
+          },
+          "volume_max_abs_diff": 49.0,
+          "amount_max_rel_diff": 3.002798734854515e-08
+        },
+        "601799.SH": {
+          "days": 115,
+          "ohlc_max_abs_diff": {
+            "open": 0.0,
+            "high": 0.0,
+            "low": 0.0,
+            "close": 0.0
+          },
+          "volume_max_abs_diff": 50.0,
+          "amount_max_rel_diff": 3.1474176842133534e-08
+        },
+        "603203.SH": {
+          "days": 115,
+          "ohlc_max_abs_diff": {
+            "open": 0.0,
+            "high": 0.0,
+            "low": 0.0,
+            "close": 0.0
+          },
+          "volume_max_abs_diff": 50.0,
+          "amount_max_rel_diff": 4.6356114449977933e-08
+        },
+        "688151.SH": {
+          "days": 115,
+          "ohlc_max_abs_diff": {
+            "open": 0.0,
+            "high": 0.0,
+            "low": 0.0,
+            "close": 0.0
+          },
+          "volume_max_abs_diff": 50.0,
+          "amount_max_rel_diff": 2.9032964060574907e-08
+        },
+        "688357.SH": {
+          "days": 115,
+          "ohlc_max_abs_diff": {
+            "open": 0.13000000000000256,
+            "high": 0.0,
+            "low": 0.019999999999999574,
+            "close": 0.0
+          },
+          "volume_max_abs_diff": 50.0,
+          "amount_max_rel_diff": 3.26372773930979e-08
+        },
+        "688718.SH": {
+          "days": 115,
+          "ohlc_max_abs_diff": {
+            "open": 0.0,
+            "high": 0.0,
+            "low": 0.0,
+            "close": 0.0
+          },
+          "volume_max_abs_diff": 50.0,
+          "amount_max_rel_diff": 4.910868232663972e-08
+        }
+      },
+      "lc5_volume_rel_evidence": {},
+      "mismatch": {},
+      "verdict": "PASS"
+    },
+    "C_xdxr_gbbq_dual_stack": {
+      "checked": 12,
+      "details": {
+        "002657.SZ": {
+          "tdxdata_xdxr_cat1": 8,
+          "old_mootdx_xdxr_cat1": 0,
+          "official_gbbq_cat1": 8,
+          "local_wine_gbbq_cat1": 8,
+          "tdxdata_eq_official": true,
+          "old_eq_official": "SKIP(旧协议不可达)",
+          "official_superset_of_wine": true
+        },
+        "300711.SZ": {
+          "tdxdata_xdxr_cat1": 9,
+          "old_mootdx_xdxr_cat1": 0,
+          "official_gbbq_cat1": 9,
+          "local_wine_gbbq_cat1": 9,
+          "tdxdata_eq_official": true,
+          "old_eq_official": "SKIP(旧协议不可达)",
+          "official_superset_of_wine": true
+        },
+        "301106.SZ": {
+          "tdxdata_xdxr_cat1": 5,
+          "old_mootdx_xdxr_cat1": 0,
+          "official_gbbq_cat1": 5,
+          "local_wine_gbbq_cat1": 5,
+          "tdxdata_eq_official": true,
+          "old_eq_official": "SKIP(旧协议不可达)",
+          "official_superset_of_wine": true
+        },
+        "600276.SH": {
+          "tdxdata_xdxr_cat1": 28,
+          "old_mootdx_xdxr_cat1": 0,
+          "official_gbbq_cat1": 28,
+          "local_wine_gbbq_cat1": 28,
+          "tdxdata_eq_official": true,
+          "old_eq_official": "SKIP(旧协议不可达)",
+          "official_superset_of_wine": true
+        },
+        "600352.SH": {
+          "tdxdata_xdxr_cat1": 26,
+          "old_mootdx_xdxr_cat1": 0,
+          "official_gbbq_cat1": 26,
+          "local_wine_gbbq_cat1": 26,
+          "tdxdata_eq_official": true,
+          "old_eq_official": "SKIP(旧协议不可达)",
+          "official_superset_of_wine": true
+        },
+        "600959.SH": {
+          "tdxdata_xdxr_cat1": 11,
+          "old_mootdx_xdxr_cat1": 0,
+          "official_gbbq_cat1": 11,
+          "local_wine_gbbq_cat1": 11,
+          "tdxdata_eq_official": true,
+          "old_eq_official": "SKIP(旧协议不可达)",
+          "official_superset_of_wine": true
+        },
+        "601319.SH": {
+          "tdxdata_xdxr_cat1": 13,
+          "old_mootdx_xdxr_cat1": 0,
+          "official_gbbq_cat1": 13,
+          "local_wine_gbbq_cat1": 13,
+          "tdxdata_eq_official": true,
+          "old_eq_official": "SKIP(旧协议不可达)",
+          "official_superset_of_wine": true
+        },
+        "601799.SH": {
+          "tdxdata_xdxr_cat1": 19,
+          "old_mootdx_xdxr_cat1": 0,
+          "official_gbbq_cat1": 19,
+          "local_wine_gbbq_cat1": 19,
+          "tdxdata_eq_official": true,
+          "old_eq_official": "SKIP(旧协议不可达)",
+          "official_superset_of_wine": true
+        },
+        "603203.SH": {
+          "tdxdata_xdxr_cat1": 11,
+          "old_mootdx_xdxr_cat1": 0,
+          "official_gbbq_cat1": 11,
+          "local_wine_gbbq_cat1": 11,
+          "tdxdata_eq_official": true,
+          "old_eq_official": "SKIP(旧协议不可达)",
+          "official_superset_of_wine": true
+        },
+        "688151.SH": {
+          "tdxdata_xdxr_cat1": 7,
+          "old_mootdx_xdxr_cat1": 0,
+          "official_gbbq_cat1": 7,
+          "local_wine_gbbq_cat1": 7,
+          "tdxdata_eq_official": true,
+          "old_eq_official": "SKIP(旧协议不可达)",
+          "official_superset_of_wine": true
+        },
+        "688357.SH": {
+          "tdxdata_xdxr_cat1": 8,
+          "old_mootdx_xdxr_cat1": 0,
+          "official_gbbq_cat1": 8,
+          "local_wine_gbbq_cat1": 8,
+          "tdxdata_eq_official": true,
+          "old_eq_official": "SKIP(旧协议不可达)",
+          "official_superset_of_wine": true
+        },
+        "688718.SH": {
+          "tdxdata_xdxr_cat1": 3,
+          "old_mootdx_xdxr_cat1": 0,
+          "official_gbbq_cat1": 3,
+          "local_wine_gbbq_cat1": 3,
+          "tdxdata_eq_official": true,
+          "old_eq_official": "SKIP(旧协议不可达)",
+          "official_superset_of_wine": true
+        }
+      },
+      "mismatch": {},
+      "verdict": "PASS"
+    },
+    "D_financial_vs_wine": {
+      "checked": 12,
+      "details": {
+        "002657.SZ": {
+          "overlap": 1,
+          "compared_fields": 584,
+          "match": 582,
+          "new_field_online_richer": 2,
+          "vintage_restatement": []
+        },
+        "300711.SZ": {
+          "overlap": 1,
+          "compared_fields": 584,
+          "match": 582,
+          "new_field_online_richer": 2,
+          "vintage_restatement": []
+        },
+        "301106.SZ": {
+          "overlap": 1,
+          "compared_fields": 584,
+          "match": 582,
+          "new_field_online_richer": 2,
+          "vintage_restatement": []
+        },
+        "600276.SH": {
+          "overlap": 1,
+          "compared_fields": 584,
+          "match": 582,
+          "new_field_online_richer": 2,
+          "vintage_restatement": []
+        },
+        "600352.SH": {
+          "overlap": 1,
+          "compared_fields": 584,
+          "match": 582,
+          "new_field_online_richer": 2,
+          "vintage_restatement": []
+        },
+        "600959.SH": {
+          "overlap": 1,
+          "compared_fields": 584,
+          "match": 582,
+          "new_field_online_richer": 2,
+          "vintage_restatement": []
+        },
+        "601319.SH": {
+          "overlap": 1,
+          "compared_fields": 584,
+          "match": 577,
+          "new_field_online_richer": 7,
+          "vintage_restatement": []
+        },
+        "601799.SH": {
+          "overlap": 1,
+          "compared_fields": 584,
+          "match": 582,
+          "new_field_online_richer": 2,
+          "vintage_restatement": []
+        },
+        "603203.SH": {
+          "overlap": 1,
+          "compared_fields": 584,
+          "match": 581,
+          "new_field_online_richer": 2,
+          "vintage_restatement": [
+            {
+              "pos": 363,
+              "online": 2.380000114440918,
+              "local": 2.3399999141693115
+            }
+          ]
+        },
+        "688151.SH": {
+          "overlap": 1,
+          "compared_fields": 584,
+          "match": 581,
+          "new_field_online_richer": 2,
+          "vintage_restatement": [
+            {
+              "pos": 363,
+              "online": 2.6700000762939453,
+              "local": 2.680000066757202
+            }
+          ]
+        },
+        "688357.SH": {
+          "overlap": 1,
+          "compared_fields": 584,
+          "match": 582,
+          "new_field_online_richer": 2,
+          "vintage_restatement": []
+        },
+        "688718.SH": {
+          "overlap": 1,
+          "compared_fields": 584,
+          "match": 582,
+          "new_field_online_richer": 2,
+          "vintage_restatement": []
+        }
+      },
+      "mismatch": {},
+      "verdict": "PASS",
+      "finding": {
+        "local_file": "/home/james/.local/share/tdxcfv/drive_c/tc/vipdoc/cw/gpcw20260331.dat",
+        "local_size_bytes": 13009441,
+        "online_size_bytes": 14578808,
+        "online_rows": 5516,
+        "local_rows": 5543
+      }
+    },
+    "E_snap_vs_daily": {
+      "checked": 12,
+      "details": {
+        "002657.SZ": {
+          "daily_close": 11.87,
+          "snap_last": 11.87,
+          "cross_api_diff": 0.0,
+          "ak_ref_close": 11.87,
+          "ak_ref_diff": 0.0
+        },
+        "300711.SZ": {
+          "daily_close": 12.8,
+          "snap_last": 12.8,
+          "cross_api_diff": 0.0,
+          "ak_ref_close": 12.8,
+          "ak_ref_diff": 0.0
+        },
+        "301106.SZ": {
+          "daily_close": 15.21,
+          "snap_last": 15.21,
+          "cross_api_diff": 0.0,
+          "ak_ref_close": 15.21,
+          "ak_ref_diff": 0.0
+        },
+        "600276.SH": {
+          "daily_close": 47.0,
+          "snap_last": 47.03,
+          "cross_api_diff": 0.030000000000001137,
+          "ak_ref_close": 47.0,
+          "ak_ref_diff": 0.030000000000001137
+        },
+        "600352.SH": {
+          "daily_close": 10.48,
+          "snap_last": 10.48,
+          "cross_api_diff": 0.0,
+          "ak_ref_close": 10.48,
+          "ak_ref_diff": 0.0
+        },
+        "600959.SH": {
+          "daily_close": 2.95,
+          "snap_last": 2.95,
+          "cross_api_diff": 0.0,
+          "ak_ref_close": 2.95,
+          "ak_ref_diff": 0.0
+        },
+        "601319.SH": {
+          "daily_close": 7.17,
+          "snap_last": 7.17,
+          "cross_api_diff": 0.0,
+          "ak_ref_close": 7.17,
+          "ak_ref_diff": 0.0
+        },
+        "601799.SH": {
+          "daily_close": 59.69,
+          "snap_last": 59.69,
+          "cross_api_diff": 0.0,
+          "ak_ref_close": 59.69,
+          "ak_ref_diff": 0.0
+        },
+        "603203.SH": {
+          "daily_close": 28.48,
+          "snap_last": 28.48,
+          "cross_api_diff": 0.0,
+          "ak_ref_close": 28.48,
+          "ak_ref_diff": 0.0
+        },
+        "688151.SH": {
+          "daily_close": 13.07,
+          "snap_last": 13.07,
+          "cross_api_diff": 0.0,
+          "ak_ref_close": 13.07,
+          "ak_ref_diff": 0.0
+        },
+        "688357.SH": {
+          "daily_close": 23.82,
+          "snap_last": 23.82,
+          "cross_api_diff": 0.0,
+          "ak_ref_close": 23.82,
+          "ak_ref_diff": 0.0
+        },
+        "688718.SH": {
+          "daily_close": 10.41,
+          "snap_last": 10.41,
+          "cross_api_diff": 0.0,
+          "ak_ref_close": 10.41,
+          "ak_ref_diff": 0.0
+        }
+      },
+      "mismatch": {},
+      "verdict": "PASS",
+      "finding": {
+        "lake_stale_latest_date": "2026-11-17",
+        "note": "本地湖日线 L1 停摆 2 个交易日 (见 lake_stale_latest_date), snap/在线日线为最新 — 上云第三跳可解"
+      }
+    }
+  },
+  "wine_financial_files": {
+    "gpcw20250331.dat": 12720760,
+    "gpcw20250630.dat": 12878009,
+    "gpcw20250930.dat": 12866274,
+    "gpcw20251231.dat": 25837,
+    "gpcw20260331.dat": 13009441,
+    "gpcw20260630.dat": 4032166,
+    "gpcw20260930.dat": 20,
+    "gpcw20261231.dat": 20
+  },
+  "overall": "PASS"
+}

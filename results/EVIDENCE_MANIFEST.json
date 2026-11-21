@@ -1,13 +1,13 @@
 {
   "version": 1,
-  "generated_at": "2026-10-16T02:46:00.820182+00:00",
-  "git_head": "0a12f0cff4733c98d24357909a87031590585fe3",
+  "generated_at": "2026-11-21T06:00:59.224266+00:00",
+  "git_head": "ba973fecc0c4245af3d9c4eeafaf0754774c833b",
   "roots": [
     "results",
     "tests/benchmark"
   ],
-  "file_count": 50,
-  "total_bytes": 942274,
+  "file_count": 51,
+  "total_bytes": 963277,
   "files": {
     "results/canslim/factor_gate.json": {
       "sha256": "126f128bef0d472c67ac70b698640fe60c848ee59f68ce8d7378fec86d64ad24",
@@ -104,6 +104,10 @@
     "results/h_a_signals/2026-07-23.json": {
       "sha256": "95d3477325794dd3cd74cf08c1c40eb6a4a6ae86ae3c217db38e92b6e896686d",
       "size": 3396
+    },
+    "results/migration/cloud_channel_random_verification.json": {
+      "sha256": "6933580fda8b174c8987576a448f2f36abf9e503df36747c0e35636a8d675e95",
+      "size": 21003
     },
     "results/migration/csi300_singleday_qfq_verification.json": {
       "sha256": "9a75e6be1db58b960d34eaa76a3d8aaeab5acc970c9e8657291a983225131792",

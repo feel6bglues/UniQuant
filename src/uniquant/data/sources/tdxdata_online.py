@@ -48,8 +48,11 @@ GBBQ_CONTRACT_COLUMNS = [
 MINUTE_CATEGORY = {"1min": 7, "5min": 0, "15min": 1, "30min": 2, "60min": 3}
 MINUTE_COLUMNS = ["datetime", "open", "high", "low", "close", "volume", "amount", "code"]
 
-# 实时快照解析列 (第二十三轮): prices 为抽样序列, 极值不完整 → 不伪造 high/low
-REALTIME_COLUMNS = ["code", "market", "last", "prev_close", "open", "series_points", "compressed"]
+# 实时快照解析列 (第二十四轮修正): prices 为抽样序列且**首元素语义不普适**
+# (600519=昨收 1460.21 ✓; 600959=89088.477 垃圾值, 昨收实为 3.02) → 只保留
+# 全样本可验证的 last, 不解析 prev_close/open (第二十三轮基于单标的外推, 系
+# 伪回归, 已回退)。极值不完整 → 不伪造 high/low (Rule 4)。
+REALTIME_COLUMNS = ["code", "market", "last", "series_points", "compressed"]
 
 
 class TdxDataOnlineSource(DataSource):
@@ -173,12 +176,15 @@ class TdxDataOnlineSource(DataSource):
             return pd.DataFrame()
 
     def fetch_real_time(self, symbol: Optional[str] = None) -> pd.DataFrame:
-        """获取单标的实时快照并解析 (第二十三轮)。
+        """获取单标的实时快照并解析 (第二十四轮修正)。
 
-        snap 原始结构实测: ``prices`` 为抽样价格序列 (茅台一个交易日仅 62 点),
-        其中 prices[0]=昨收, prices[1]=今开 (与日线逐位一致); 序列极值**不**
-        等于真实 high/low (1485.75 vs 1489.09) → 只解析可验证字段, 不伪造
-        极值。``market`` 为新协议自带字段, 语义未定 → 原样透传不解释。
+        snap 原始结构实测: ``last`` = 最新价 (12/12 抽样标的与日线收盘逐位
+        一致); ``prices`` 为抽样序列 (茅台一个交易日 62 点), **首元素语义不
+        普适** — 600519 prices[0]=昨收 1460.21, 但 600959 prices[0]=89088.477
+        (垃圾值, 昨收实为 3.02) → 第二十三轮 "prices[0]=昨收 / [1]=今开" 的
+        语义外推系**伪回归**, 已回退: 本方法只输出 ``last``, 不解析
+        prev_close/open, 不伪造 high/low (Rule 4)。``market`` 为新协议自带
+        字段, 语义未定 → 原样透传不解释。
         """
         if not symbol:
             logger.warning("获取全市场实时数据暂不支持，请指定股票代码")
@@ -188,14 +194,11 @@ class TdxDataOnlineSource(DataSource):
             if not snap:
                 logger.warning(f"未获取到 {symbol} 的实时快照")
                 return pd.DataFrame()
-            prices = list(snap.get("prices") or [])
             row = {
                 "code": symbol,
                 "market": snap.get("market"),
                 "last": snap.get("last"),
-                "prev_close": prices[0] if len(prices) >= 1 else None,
-                "open": prices[1] if len(prices) >= 2 else None,
-                "series_points": len(prices),
+                "series_points": len(snap.get("prices") or []),
                 "compressed": snap.get("compressed"),
             }
             df = pd.DataFrame([row], columns=REALTIME_COLUMNS)
