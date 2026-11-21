@@ -150,7 +150,11 @@ Each stage includes:
 | [Architecture Topology](ARCHITECTURE_TOPOLOGY.md) | Historical/current mixed | Useful for dependency discussions. |
 | [Project Status](archive/STATUS.md) | ⚠️ Archived 2026-05-26 | Historical snapshot, does NOT reflect current codebase. |
 | [Closure Review Report (2026-06-12)](analysis/institutional/17_institutional_closure_review_report.md) | Current | Institutional audit closure review — P0/P1/P6 status matrix, verification log. |
-> **Note**: Historical audit docs (Phase migration reports, EVALUATION_REPORT.md, VERIFICATION_REPORT.md, old REVIEW/OPTIMIZATION/FIX_PLAN files) have been moved to [archive/](archive/). See [archive/INDEX.md](archive/INDEX.md) for categorized browsing. These remain available for reference via Git history.
+| [AGENTS Round Changelog Archive](archive/AGENTS_CHANGELOG_ROUNDS.md) | ⚠️ Archived 2026-11-21 | AGENTS.md 第 1~22 轮轮次变更块逐字节归档（2026-10~11）；当前状态以 `AGENTS.md` 为准。 |
+| [AGENTS Recent Work Archive](archive/AGENTS_RECENT_WORK_2026H2.md) | ⚠️ Archived 2026-11-21 | AGENTS.md 2026-06~09 历史工作纪事与历史状态节逐字节归档；大量指标已被后续轮次取代。 |
+| [Pre-Refactor Deep Analysis (2026-11-21)](analysis/PRE_REFACTOR_DEEP_ANALYSIS_20261121.md) | Current | 重构前系统深度分析：分层地图 + 四路审计（数据层/服务编排/决策链/云部署差距）+ P0/P1/P2 重构路线图。 |
+| [Refactor Task Plan (2026-11-21)](analysis/REFACTOR_TASK_PLAN_20261121.md) | Current | 重构任务清单定稿（3 轮红蓝对抗后）：Wave 0-4 波次依赖图 + 详细任务卡（锚点/验收/回滚/测试面）+ 12 项用户裁决点。 |
+> **Note**: Historical audit docs (Phase migration reports, EVALUATION_REPORT.md, VERIFICATION_REPORT.md, old REVIEW/OPTIMIZATION/FIX_PLAN files) have been moved to [archive/](archive/). See [archive/INDEX.md](archive/INDEX.md) for categorized browsing. These remain available for reference via Git history. AGENTS.md 历史轮次日志（2026-11-21 瘦身重组）同样归档于 [archive/](archive/) 下两个 AGENTS_* 文件。
 
 ### Package Pages
 
