@@ -44,6 +44,13 @@ GBBQ_CONTRACT_COLUMNS = [
     "code", "market", "date", "category", "cash_div", "split_ratio", "rights_ratio", "rights_price",
 ]
 
+# 分钟频率 → TDX K 线 category 码 (服务端分钟 vol 单位=股, 与日线的手不同, 见 fetch_minute)
+MINUTE_CATEGORY = {"1min": 7, "5min": 0, "15min": 1, "30min": 2, "60min": 3}
+MINUTE_COLUMNS = ["datetime", "open", "high", "low", "close", "volume", "amount", "code"]
+
+# 实时快照解析列 (第二十三轮): prices 为抽样序列, 极值不完整 → 不伪造 high/low
+REALTIME_COLUMNS = ["code", "market", "last", "prev_close", "open", "series_points", "compressed"]
+
 
 class TdxDataOnlineSource(DataSource):
     """tdxdata 新协议在线源 — 日线/实时/财务/分红 (公司行为) 在线通道。"""
@@ -75,20 +82,24 @@ class TdxDataOnlineSource(DataSource):
         """'600519.SH' -> '600519'; market 交由 tdxdata 自行判定 (market=None)。"""
         return symbol.split(".")[0]
 
-    def _fetch_all_daily_rows(self, code: str, start_date: str) -> list:
-        """翻页拉取直至覆盖 start_date (页未满或已越过起点即停)。"""
+    def _fetch_all_rows(self, category: int, code: str, start_day: str) -> list:
+        """翻页拉取直至覆盖 start_day (按 datetime 前十位日期比较, 页未满即停)。"""
         rows: list = []
         start = 0
         for _ in range(MAX_PAGES):
-            page = self._get_client().bars(DAY_CATEGORY, code, start=start, count=PAGE_SIZE)
+            page = self._get_client().bars(category, code, start=start, count=PAGE_SIZE)
             if not page:
                 break
             rows.extend(page)
             last_day = str(page[-1].get("datetime", ""))[:10]
             start += len(page)
-            if len(page) < PAGE_SIZE or last_day <= start_date:
+            if len(page) < PAGE_SIZE or last_day <= start_day:
                 break
         return rows
+
+    def _fetch_all_daily_rows(self, code: str, start_date: str) -> list:
+        """日线翻页 (委托通用翻页器)。"""
+        return self._fetch_all_rows(DAY_CATEGORY, code, str(start_date))
 
     def fetch_daily(self, symbol: str, start_date: str, end_date: str) -> pd.DataFrame:
         """拉取 [start_date, end_date] 区间 raw 日线 (volume 已转股)。"""
@@ -114,8 +125,61 @@ class TdxDataOnlineSource(DataSource):
             logger.error(f"获取 {symbol} 日线数据失败: {e}")
             return pd.DataFrame()
 
+    def fetch_minute(
+        self,
+        symbol: str,
+        frequency: str = "5min",
+        start_dt: Optional[str] = None,
+        end_dt: Optional[str] = None,
+    ) -> pd.DataFrame:
+        """拉取分钟线 (1/5/15/30/60 分钟), 翻页语义与 fetch_daily 一致。
+
+        ⚠️ 量纲实测 (2026-11-21): 服务端分钟 bar 的 ``vol`` 已是**股**
+        (amount/(close*vol) 比值=1.00), 与日线的手(×100=股)不同 → 本方法
+        **不做** ×100 换算。在线深度受服务端保留期限制 (5 分钟约 2 个月,
+        1 分钟更短), 仅够近期增量, 历史分钟归档仍需湖快照。
+        """
+        category = MINUTE_CATEGORY.get(str(frequency).lower())
+        if category is None:
+            raise ValueError(f"未知分钟频率 {frequency!r}; 支持: {sorted(MINUTE_CATEGORY)}")
+        try:
+            code = self._split_code(symbol)
+            start_day = str(start_dt)[:10] if start_dt else "1990-01-01"
+            rows = self._fetch_all_rows(category, code, start_day)
+            if not rows:
+                logger.warning(f"未获取到 {symbol} 的 {frequency} 分钟数据")
+                return pd.DataFrame()
+
+            df = pd.DataFrame(rows)
+            df["datetime"] = pd.to_datetime(df["datetime"])
+            df["code"] = symbol
+            # 服务端字段名 vol → volume; 分钟 vol 已是股, 仅改名不缩放
+            df = df.rename(columns={"vol": "volume"})
+            df = df[MINUTE_COLUMNS].sort_values("datetime").drop_duplicates("datetime", keep="last")
+
+            start = pd.to_datetime(start_dt) if start_dt else None
+            end = pd.to_datetime(end_dt) if end_dt else None
+            if start is not None:
+                df = df[df["datetime"] >= start]
+            if end is not None:
+                df = df[df["datetime"] <= end]
+            df = df.reset_index(drop=True)
+            logger.info(f"成功获取 {symbol} {frequency} 分钟数据，共 {len(df)} 条")
+            return df
+        except ValueError:
+            raise
+        except Exception as e:
+            logger.error(f"获取 {symbol} {frequency} 分钟数据失败: {e}")
+            return pd.DataFrame()
+
     def fetch_real_time(self, symbol: Optional[str] = None) -> pd.DataFrame:
-        """获取单标的实时快照 (snap); 全市场扫描暂不支持。"""
+        """获取单标的实时快照并解析 (第二十三轮)。
+
+        snap 原始结构实测: ``prices`` 为抽样价格序列 (茅台一个交易日仅 62 点),
+        其中 prices[0]=昨收, prices[1]=今开 (与日线逐位一致); 序列极值**不**
+        等于真实 high/low (1485.75 vs 1489.09) → 只解析可验证字段, 不伪造
+        极值。``market`` 为新协议自带字段, 语义未定 → 原样透传不解释。
+        """
         if not symbol:
             logger.warning("获取全市场实时数据暂不支持，请指定股票代码")
             return pd.DataFrame()
@@ -124,9 +188,18 @@ class TdxDataOnlineSource(DataSource):
             if not snap:
                 logger.warning(f"未获取到 {symbol} 的实时快照")
                 return pd.DataFrame()
-            df = pd.DataFrame([snap])
-            df["code"] = symbol
-            logger.info(f"成功获取实时数据，共 {len(df)} 条")
+            prices = list(snap.get("prices") or [])
+            row = {
+                "code": symbol,
+                "market": snap.get("market"),
+                "last": snap.get("last"),
+                "prev_close": prices[0] if len(prices) >= 1 else None,
+                "open": prices[1] if len(prices) >= 2 else None,
+                "series_points": len(prices),
+                "compressed": snap.get("compressed"),
+            }
+            df = pd.DataFrame([row], columns=REALTIME_COLUMNS)
+            logger.info(f"成功获取实时数据: {symbol} last={row['last']}")
             return df
         except Exception as e:
             logger.error(f"获取实时数据失败: {e}")

@@ -123,21 +123,89 @@ class TestFetchDaily:
 
 
 class TestRealtimeAndFundamentals:
-    def test_real_time_wraps_snap_with_code(self):
-        snap = {"price": 1485.75, "open": 1450.89, "volume": 67229.0}
+    def test_real_time_parses_verified_anchors_only(self):
+        """snap 解析: 昨收/今开/last 精确; 抽样序列极值不完整 → 不伪造 high/low。"""
+        snap = {
+            "ok": True,
+            "code": "600519",
+            "market": 0,
+            "prices": [1460.21, 1450.89, 1445.3, 1448.47, 1485.75],
+            "last": 1485.75,
+            "compressed": True,
+        }
         src = _make_source(_FakeClient(snap=snap))
         df = src.fetch_real_time("600519.SH")
+        assert list(df.columns) == [
+            "code", "market", "last", "prev_close", "open", "series_points", "compressed",
+        ]
         assert len(df) == 1
-        assert (df["code"] == "600519.SH").all()
-        assert df["price"].iloc[0] == pytest.approx(1485.75)
+        assert df["code"].iloc[0] == "600519.SH"
+        assert df["prev_close"].iloc[0] == pytest.approx(1460.21)
+        assert df["open"].iloc[0] == pytest.approx(1450.89)
+        assert df["last"].iloc[0] == pytest.approx(1485.75)
+        assert df["series_points"].iloc[0] == 5
+        assert bool(df["compressed"].iloc[0]) is True
+        assert "high" not in df.columns and "low" not in df.columns
+
+    def test_real_time_tolerates_short_price_list(self):
+        snap = {"prices": [10.0], "last": 10.5}
+        src = _make_source(_FakeClient(snap=snap))
+        df = src.fetch_real_time("000001.SZ")
+        assert df["prev_close"].iloc[0] == pytest.approx(10.0)
+        assert df["open"].iloc[0] is None
 
     def test_real_time_empty_without_symbol(self):
-        src = _make_source(_FakeClient(snap={"price": 1.0}))
+        src = _make_source(_FakeClient(snap={"last": 1.0}))
         assert src.fetch_real_time(None).empty
 
     def test_real_time_empty_on_error(self):
         src = _make_source(_FakeClient(fail=True))
         assert src.fetch_real_time("600519.SH").empty
+
+
+class TestFetchMinute:
+    """分钟线 (1/5/15/30/60min): vol 已是股 (实测比值 1.00), 不做 ×100。"""
+
+    def _minute_row(self, dt: str, close: float = 10.0, vol: float = 954_600.0) -> dict:
+        return {
+            "datetime": dt,
+            "open": close,
+            "high": close + 1.0,
+            "low": close - 1.0,
+            "close": close,
+            "vol": vol,
+            "amount": close * vol,
+        }
+
+    def test_unknown_frequency_raises_value_error(self):
+        src = _make_source(_FakeClient())
+        with pytest.raises(ValueError, match="分钟频率"):
+            src.fetch_minute("600519.SH", frequency="2h")
+
+    def test_shape_and_volume_not_rescaled(self):
+        rows = [self._minute_row("2026-11-20 14:55"), self._minute_row("2026-11-20 15:00")]
+        src = _make_source(_FakeClient(pages=[rows]))
+        df = src.fetch_minute("600519.SH", frequency="5min")
+        assert list(df.columns) == [
+            "datetime", "open", "high", "low", "close", "volume", "amount", "code",
+        ]
+        assert df["volume"].iloc[0] == pytest.approx(954_600.0)  # 原样 (股), 未 ×100
+        assert df["datetime"].iloc[0] == pd.Timestamp("2026-11-20 14:55")
+        assert (df["code"] == "600519.SH").all()
+
+    def test_range_filtering(self):
+        rows = [
+            self._minute_row("2026-11-20 09:35"),
+            self._minute_row("2026-11-20 10:00"),
+            self._minute_row("2026-11-20 14:55"),
+        ]
+        src = _make_source(_FakeClient(pages=[rows]))
+        df = src.fetch_minute("600519.SH", start_dt="2026-11-20 10:00", end_dt="2026-11-20 14:55")
+        assert len(df) == 2
+
+    def test_empty_on_no_data(self):
+        src = _make_source(_FakeClient(pages=[]))
+        assert src.fetch_minute("600519.SH").empty
 
     def test_market_cap_from_finance_shares_times_latest_close(self):
         fin = {"zongguben": 1_250_081_562.5, "liutongguben": 1_250_081_562.5}
