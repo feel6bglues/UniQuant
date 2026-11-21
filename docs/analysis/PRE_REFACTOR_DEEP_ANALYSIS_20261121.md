@@ -252,3 +252,33 @@ requires_lake 52 / requires_gbbq 7 / requires_futures_lake 5 = **64 用例 / 12 
 - 分钟线历史归档（>10.5 个月深度）仍无在线来源，湖快照依赖保留（第 23 轮已知边界）。
 - tdx.com.cn / tdxfin 官方端点无 SLA 承诺；akshare/baostock 爬虫稳定性未知——上云后需要监控与多源冗余设计。
 - `czsc` 塞入主依赖会引入 ta-lib 系统级 C 库依赖（第三轮已裁决不进 `[all]`），镜像构建时需显式处理。
+
+---
+
+## 9. 真实代码实测核验记录与勘误（2026-11-21 机器核查回写）
+
+> **核验时间**：2026-11-21 20:10 · **核验方法**：全仓 Python 脚本 AST 机械扫描 + 文件系统逐项定位 + 测试用例收集实测。
+
+### 9.1 规模与层间关系实测核实
+1. **全仓文件与 LOC 逐位匹配**：`src/uniquant/` 实测 240 文件 / 59,834 LOC，9 个子层统计与 §2.1 统计 100% 吻合。
+2. **Brain 子包文件数勘误**：§2.1 备注中“wyckoff 16 / factors 14 / lppl 9”为历史口径。实测当前磁盘上：`wyckoff` 为 29 文件、`factors` 为 17 文件（12 顶层 + 5 个 `forensics/`）、`lppl` 为 11 文件，合计 73 文件完全精确。
+3. **逆向边勘误与确认**：
+   - §2.2 逆向边中的 `data -> services`（`data/__init__.py:56`）实为内部子包 `uniquant.data.services` 的 `LPPLDataService`，并非顶层 `services`，已在重构任务清单中更正为内部导入（非逆向依赖）。
+   - 其余逆向边完全属实：`brain -> risk` 2 处（`fsm.py:214,219`）、`brain -> research` 2 处（`walk_forward_pipeline.py:21,320`）、`services -> research` 3 处（`scan_service.py:22-24`）、`shared -> brain` 1 处（`config_validator.py:144`）。
+   - Brain 内部各引擎之间无直接跨引擎导入（AST 实测 cross-import 为空）。
+
+### 9.2 路径与组件状态勘误
+1. **脚本物理路径定位**：
+   - `unified_daily_eod.py` 实际物理路径为 `scripts/daily/unified_daily_eod.py`（非 `scripts/canslim/`）。
+   - `reconcile_qar.py` 实际物理路径为 `scripts/monitoring/reconcile_qar.py`。
+   - `normalizer.py` 位于 `src/uniquant/data/utils/normalizer.py`（总行数恰好 323 行）。
+   - `storage_manager.py`、`freshness_validator.py`、`resampler.py` 均位于 `src/uniquant/data/lake/`。
+   - `delisted_ingestor.py`、`total_return_benchmark.py` 均位于 `src/uniquant/data/universe/`。
+2. **写路径与组件现役确认**：
+   - `delisted_ingestor.py:193-195` 实测已使用 `tmp_path + os.replace`。
+   - `lppl/calculator.py`（665 行）并非废弃旧栈，已被 `brain/lppl/engine.py:409` 明确引入并由 `LPPLEngine` 消费，确认为现役核心组件。
+   - `saga` 事务机在 `saga_compensator.py:80` 及 `orchestrator.py:99` 中实测默认 `db_path=":memory:"`，完全无持久化。
+   - `daily_signal_qar.py:106-122` 在湖缺时静默采用 `4000.0` 假价格直接喂入 `plan_futures_hedging_structure`，全仓最重 Rule 4 违规属实；且第 139 行个股真实价格兜底为 `50.0`。
+   - `unified_daily_eod.py:86-88` 确实使用 linspace 伪造行情，214 行硬编码 4 股，249-251 行硬编码 mock 持仓。
+   - `data/lake/quotes/index/` 恰好包含 556 个 parquet 分片；`1mins` 与 `5mins` 物理目录在磁盘上为空（未生成）。
+   - WSS 权重文件 `scripts/wyckoff_multitf/output_v4/wss_lookup_v2.json` 真实存在，大小确为 78,547 字节。

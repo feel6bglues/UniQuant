@@ -181,7 +181,21 @@ class DataFetcher:
         self.tdxdata_online_source: Optional[TdxDataOnlineSource] = None
         if enable_online_fallback:
             try:
-                self.tdxdata_online_source = TdxDataOnlineSource()
+                host = None
+                port = 7709
+                try:
+                    from ..shared.config_loader import get_config
+
+                    cfg = get_config()
+                    host = cfg.get("data_sources.sources.tdxdata_online.config.host")
+                    port = cfg.get("data_sources.sources.tdxdata_online.config.port", 7709)
+                except Exception:
+                    pass
+                self.tdxdata_online_source = (
+                    TdxDataOnlineSource(host=host, port=port)
+                    if host
+                    else TdxDataOnlineSource()
+                )
                 self.data_sources.append(self.tdxdata_online_source)
             except FETCHER_INIT_RECOVERABLE_ERRORS as e:
                 logger.warning(f"在线数据源 TdxDataOnlineSource 初始化失败，跳过: {e}")

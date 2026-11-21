@@ -281,6 +281,53 @@ class TestStorageFreshnessSLA:
         assert len(res["details"]["read_errors"]) >= 1
         assert any("000001.SZ.parquet" in err for err in res["details"]["read_errors"])
 
+    def test_freshness_online_reanchor_when_local_tdx_absent(
+        self,
+        mock_storage_env: Tuple[StorageManager, Path],
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: Path,
+    ):
+        """测试本地 TDX 路径不存在时，自动通过在线通道探测进行 SLA 重锚"""
+        sm, _ = mock_storage_env
+        daily_dir = sm.daily_dir
+
+        # 构造湖内数据: 湖数据末日为 2026-10-10
+        _create_mock_parquet_file(
+            daily_dir / "600519.SH.parquet",
+            ["2026-10-09", "2026-10-10"],
+        )
+
+        # 模拟在线探测返回最新交易日 2026-10-10
+        monkeypatch.setattr(
+            "uniquant.data.lake.freshness_validator.FreshnessValidator._probe_online_tdx_max_date",
+            lambda self: "2026-10-10",
+        )
+        # 强制清空环境变量与指向本地 TDX 的路径
+        monkeypatch.delenv("TDX_VIPDOC_DIR", raising=False)
+        monkeypatch.delenv("TDX_PATH", raising=False)
+        monkeypatch.setattr(
+            "uniquant.shared.config_loader.GlobalConfig.get",
+            lambda self, key, default=None: None if key == "base.tdx.path" else default,
+        )
+        # 模拟云主机环境无开发机 .local Wine 目录
+        empty_home = tmp_path / "empty_home"
+        empty_home.mkdir(parents=True, exist_ok=True)
+        monkeypatch.setattr(Path, "home", lambda: empty_home)
+
+        res = sm.validate_freshness(
+            max_lag_days=5,
+            tdx_dir=None,
+            as_of_date="2026-10-11",
+            check_tdx=True,
+        )
+
+        assert res["is_fresh"] is True
+        assert res["lake_max_date"] == "2026-10-10"
+        assert res["tdx_max_date"] == "2026-10-10"
+        assert res["l2_lag_days"] == 0
+        assert res["details"]["l1_lag_days"] == 1
+        assert res["details"]["l1_is_fresh"] is True
+
     @pytest.mark.requires_lake
     def test_freshness_real_environment_smoke(self):
         """冒烟测试: 在项目真实数据湖上运行 validate_freshness"""

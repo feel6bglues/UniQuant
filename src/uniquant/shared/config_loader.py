@@ -20,6 +20,8 @@ _ENV_ALIASES: Dict[str, str] = {
     "OBSERVABILITY": "refactoring.feature_flags.observability",
     "STRICT_TIMESTAMPS": "refactoring.feature_flags.strict_timestamps",
     "FACTOR_GATE": "refactoring.feature_flags.factor_gate",
+    "TDXDATA_HOST": "data_sources.sources.tdxdata_online.config.host",
+    "TDXDATA_PORT": "data_sources.sources.tdxdata_online.config.port",
 }
 
 

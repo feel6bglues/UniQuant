@@ -147,3 +147,20 @@ class TestDataFetcherInitFaultTolerance:
         fetcher.storage_manager.write_data = spy_write
         fetcher.get_price("000001.SZ")
         spy_write.assert_not_called()
+
+    def test_tdxdata_host_and_port_injected_from_config(self, monkeypatch):
+        """测试 config / env 中的 tdxdata host 和 port 被正确注入到 TdxDataOnlineSource。"""
+        monkeypatch.setenv("UNIQUANT_TDXDATA_HOST", "192.168.1.100")
+        monkeypatch.setenv("UNIQUANT_TDXDATA_PORT", "8888")
+        from uniquant.shared.config_loader import get_config
+
+        get_config().reload()
+        try:
+            _write_min_all_stock_codes("/tmp/test_data_fetcher_host_inject")
+            fetcher = DataFetcher(data_dir="/tmp/test_data_fetcher_host_inject")
+
+            assert fetcher.tdxdata_online_source is not None
+            assert fetcher.tdxdata_online_source._host == "192.168.1.100"
+            assert fetcher.tdxdata_online_source._port == 8888
+        finally:
+            get_config().reload()

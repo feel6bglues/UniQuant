@@ -98,10 +98,10 @@ class FreshnessValidator:
             if env_tdx:
                 candidates.append(Path(env_tdx))
             try:
-                from ...shared.config_loader import ConfigLoader
+                from ...shared.config_loader import get_config
 
-                cfg = ConfigLoader().load_config()
-                cfg_tdx = cfg.get("tdx", {}).get("path")
+                cfg = get_config()
+                cfg_tdx = cfg.get("base.tdx.path")
                 if cfg_tdx:
                     candidates.append(Path(cfg_tdx))
             except Exception:
@@ -116,6 +116,9 @@ class FreshnessValidator:
                     break
 
         if not resolved_dir or not resolved_dir.exists():
+            online_date = self._probe_online_tdx_max_date()
+            if online_date:
+                return online_date, Path("online://tdxdata")
             return None, None
 
         day_files: List[Path] = []
@@ -127,6 +130,9 @@ class FreshnessValidator:
             day_files.extend(list(resolved_dir.glob("*.day")))
 
         if not day_files:
+            online_date = self._probe_online_tdx_max_date()
+            if online_date:
+                return online_date, Path("online://tdxdata")
             return None, resolved_dir
 
         anchors = {"sh600519.day", "sh000001.day", "sz000001.day", "sz399001.day"}
@@ -151,6 +157,26 @@ class FreshnessValidator:
                 continue
 
         return (max(dates) if dates else None), resolved_dir
+
+    def _probe_online_tdx_max_date(self) -> Optional[str]:
+        """云端环境重锚: 无本地 Wine TDX .day 文件时, 从在线通道探测服务端最新交易日"""
+        try:
+            from ..sources.tdxdata_online import TdxDataOnlineSource
+
+            source = TdxDataOnlineSource()
+            client_fn = getattr(source, "_get_client", None)
+            if client_fn:
+                client = client_fn()
+                if client and hasattr(client, "bars"):
+                    bars = client.bars(9, "600519", start=0, count=1)
+                    if bars and isinstance(bars, list) and len(bars) > 0:
+                        dt_val = str(bars[0].get("datetime", ""))[:10]
+                        if dt_val:
+                            logger.info(f"本地 TDX 缺失，从 tdxdata 在线通道探测到最新交易日: {dt_val}")
+                            return dt_val
+        except Exception as e:
+            logger.debug(f"tdxdata 在线新鲜度探测跳过或失败: {e}")
+        return None
 
     def validate_freshness(
         self,

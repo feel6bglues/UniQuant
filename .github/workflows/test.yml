@@ -5,6 +5,10 @@ on:
     branches: [main, master]
   pull_request:
     branches: [main, master]
+  schedule:
+    # 每天 UTC 18:00 (北京时间次日凌晨 02:00) 定时真网在线通道健康拨测
+    - cron: '0 18 * * *'
+  workflow_dispatch:
 
 jobs:
   test:
@@ -159,3 +163,23 @@ jobs:
               | while IFS= read -r line; do echo "::error title=pytest-digest::${line}"; done
           fi
           exit $rc
+
+  nightly-online-smoke:
+    # 裁决 ⑧A: 定时真网拨测 job，仅由 schedule / workflow_dispatch 触发，不阻塞常规 PR
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -e ".[all,dev]"
+
+      - name: Online real-network smoke
+        run: |
+          python3 -c "from tdxdata import TdxClient; c = TdxClient(host='101.35.121.35', port=7709); c.connect(); print('Online server connected OK, latest bar:', c.bars(9, '600519', start=0, count=1))"
+          pytest tests/data/test_tdxdata_online.py -q

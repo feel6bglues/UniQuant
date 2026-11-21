@@ -234,3 +234,40 @@ A1 T2a 崩溃验收无基建 → 故障注入方案 + chaos 7 用例补收 · A2
 - T10 覆盖率地板方向（删除后升或降）无法纸面判定——执行期同依赖集前后实测。
 - ta-lib 非 x86_64 平台 wheel 覆盖未验证；lockfile 生成需网络。
 - 裁决点 ①-⑫ 已于 2026-11-21 全部收口（见 §4 裁决记录）；唯一保留的可翻项=⑥（sparse_convex 剪除为默认，T6b 设计明确需要组合级稀疏投影时可翻转接回）。
+
+---
+
+## 8. 真实代码实测核验记录（2026-11-21 机器核查回写）
+
+> **核验时间**：2026-11-21 20:10 · **核验状态**：✅ **全部 100% 核准闭环（READY）**
+
+1. **测试资产存在性核验（10/10 闭环）**：
+   - T6d 影响面的 10 个测试文件在磁盘上逐一核验，全部存在：
+     - `tests/test_cnmm_qar_strategy_and_backtest.py` ✅
+     - `tests/scripts/test_daily_signal_qar.py` ✅
+     - `tests/scripts/test_reconcile_qar.py` ✅
+     - `tests/hands/backtest/test_phase2_institutional_execution_orchestrator.py` ✅
+     - `tests/test_signal_arbitrator.py` ✅
+     - `tests/test_cffex_twap_saga_production.py` ✅
+     - `tests/test_ha_rotation_buffer.py` ✅
+     - `tests/test_bp_ha_portfolio.py` ✅
+     - `tests/scripts/test_unified_daily_eod.py` ✅
+     - `tests/scripts/test_ha_engineering.py` ✅
+2. **守卫与混沌测试锚点核实**：
+   - `tests/test_data_chaos_qa.py` 第 440-514 行确有 16 处调用已弃用的 `save_data` / `save_factor`（覆盖 7-8 个独立测试用例），T2a/T10 同窗改造锚点核实无误。
+   - `tests/data/test_tdxdata_online.py` 26 个用例全部基于 `_FakeClient`，零 skip 标记，当前 CI 确实已全绿运行（裁决 ⑧ 修正成立）。
+   - `tests/test_round8_pruned_modules_absent.py` 第 64-77 行的 `SURVIVING_MODULES` 确实钉死 robustness 4 件套（T10-直删A 需同窗修改守卫测试属实）。
+   - `tests/test_round17_pruned_modules_absent.py` 第 71-82 行与第 105 行确实断言了 `ServiceContainer`（T7 降为专用、不可物理删除的红线属实）。
+3. **脚本物理路径确认**：
+   - `scripts/daily/unified_daily_eod.py`（物理路径位于 `scripts/daily/`，非 `canslim/`）。
+   - `scripts/monitoring/reconcile_qar.py`（物理路径位于 `scripts/monitoring/`）。
+   - `scripts/canslim/daily_signal_qar.py`、`daily_signal_ha.py`、`ha_unified_adapter.py`（物理路径位于 `scripts/canslim/`）。
+4. **关键数据违规点代码锚点确认**：
+   - `scripts/daily/unified_daily_eod.py:86-88` linspace 伪造数据、214 行硬编码推荐股池、249-251 行 mock 持仓。
+   - `scripts/canslim/daily_signal_qar.py:106-122` 采用 4000.0 假指数点位兜底并喂入期指风控对冲计算、139 行采用 50.0 假个股价格。
+   - `scripts/canslim/daily_signal_ha.py:110-113` 与 `ha_unified_adapter.py:80-88` 裸 FileNotFoundError。
+   - `orchestrator.py:44, 154-165` 75/25 机构账户级对冲名义头寸，与 `interfaces.py:155`（BUY/SELL/HOLD）及 `arbitrator.py:155` 契约限制完全吻合。
+5. **依赖声明缺口核实**：
+   - `pyproject.toml:10-53` 确无 `tdxdata`、`polars`、`czsc`（第 63 行仅为 lint per-file-ignore 注释）。
+6. **最终裁决与施工准备结论**：
+   - 裁决 ①-⑫ 已全部收口锁定；部署形态确定为云主机 + pip 直装（免 Docker）；全量测试收集数为 4,124 项；本清单已具备直接施工条件。
