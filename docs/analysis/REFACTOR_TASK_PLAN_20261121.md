@@ -8,7 +8,7 @@
 
 ## 1. 排序方法论（六原则，终版）
 
-1. **部署阻断优先**：不能进容器/镜像的作业免谈（T1/T3/N1 最前）。
+1. **部署阻断优先**：在目标环境（2026-11-21 已定：云主机 + pip 直装，无 Docker）跑不起来的作业免谈（T1/T3/N1 最前）。
 2. **契约与数据真实性红线**：触碰冻结契约（GET_PRICE_RETURN_CONTRACT、9 列 parquet、GBBQ 八列、TradingSignal）的任务必须显式带守卫；**写湖任务必须依赖写路径原子化完成（T2a 先于 Wave 2）**；Rule 4 违规点（伪造数据/假价兜底）修复优先级等同部署阻断。
 3. **依赖拓扑 + 同文件串行**：消费者先迁；**同文件任务显式串行**（T3→N1 同 freshness_validator.py；T10-直删A→T2b 同 data_fetcher.py；T2a 内含 T10-storage 子窗）。
 4. **测试钉死同窗解**：改守卫测试与被守卫行为同一施工窗口（round8 SURVIVING_MODULES ↔ robustness 四件；chaos 7 用例 ↔ save_data 删除）。
@@ -43,7 +43,7 @@ Wave 3  语义重设计（独占窗口，依赖 T6b 设计定稿 + T7-裁决）
   T10-直删B sparse_convex / signal-db / signal-quality（等 T6b 裁决 ⑥⑦）
 
 Wave 4  加固（依赖 T7-实施 / T9a）
-  T9b 对象存储后端 + DI 接线 ──串行──> T13 分布式锁（R3-C9 互依边）
+  T9b 对象存储后端 ──串行──> T13 分布式锁（R3-C9）【单机 VM 场景降级：可选/按需】
   T11 HTTP 健康层 + prometheus 接线 | T12 重复逻辑归一 ×4 | T14 调度编排 | T15 UI 分离（可选） | T16 WSS 资产归仓 | N6 host 主备
 ```
 
@@ -55,11 +55,11 @@ Wave 4  加固（依赖 T7-实施 / T9a）
 
 ### Wave 0
 
-#### T1a 依赖声明 + lockfile + Dockerfile
-- **原因**：tdxdata（第 20~24 轮主通道）/ polars（PIT 加载核心）/ czsc（缠论引擎）均未入 pyproject（唯一命中是 ruff per-file 注释 `pyproject.toml:63`）；三者现装用户 site-packages，`pip install -e ".[all,dev]"` 云镜像必缺件。
+#### T1a 依赖声明 + lockfile + 环境安装脚本（部署形态已定：云主机 + pip 直装，无 Docker）
+- **原因**：tdxdata（第 20~24 轮主通道）/ polars（PIT 加载核心）/ czsc（缠论引擎）均未入 pyproject（唯一命中是 ruff per-file 注释 `pyproject.toml:63`）；三者现装用户 site-packages，`pip install -e ".[all,dev]"` 云主机必缺件。~~Dockerfile~~ **已按 2026-11-21 部署形态裁决（云主机 + pip 直装）剪除**——原 Dockerfile 承载的环境问题改由**环境安装脚本**（apt 系统库 + pip 层，幂等可重复执行）承载。
 - **锚点**：`pyproject.toml:10-53`（dependencies + extras：dev/tdx/baostock/curl/report/js，`all` 不含 dev）。
-- **要点**：tdxdata≥0.2.13、polars 入主依赖；czsc 进独立 extra 且**不入 `all`**（防 CI 收集面突变）。**czsc 代价依据更新（R3-A5）**：czsc 0.10.12 硬依赖 `ta-lib>=0.6`，而 ta-lib 0.6+ 的 manylinux wheel 已内置 C 库——x86_64 Docker **无系统级 C 库问题**（旧报告 §8 判断过时）；真实代价 = 依赖树体积（~20 传递依赖）与非 x86_64 wheel 覆盖未验证。Dockerfile：可写 HOME（mootdx 导入期建 `~/.mootdx`，tests/conftest.py:29-34）、weasyprint→pango/cairo、matplotlib 中文字体。
-- **验收**：`pip install -e ".[all,dev]"` 解析成功 + `pip check` + `docker build -t uniquant .` + 本地 pytest 收集数与 CI 口径一致。
+- **要点**：tdxdata≥0.2.13、polars 入主依赖；czsc 进独立 extra 且**不入 `all`**（防 CI 收集面突变）。czsc 代价依据（R3-A5）：ta-lib≥0.6 的 manylinux wheel 已内置 C 库，x86_64 Linux 无系统级 C 库问题；真实代价 = 依赖树体积（~20 传递依赖）。**环境安装脚本三项**：① 系统库（apt/yum）：weasyprint→pango/cairo/gdk-pixbuf、libxml2；② 中文字体（matplotlib/报告生成）；③ 云主机 HOME 天然可写 → mootdx `~/.mootdx` 导入期写目录问题**自动消解**（tests/conftest.py:29-34 无需任何特殊处理）。
+- **验收**：`pip install -e ".[all,dev]"` 解析成功 + `pip check` + 环境安装脚本在干净 VM/沙盒一次跑通 + 本地 pytest 收集数与 CI 口径一致。
 - **回滚**：git 分支；lockfile 生成需网络，低风险。
 
 #### T1b CI 重标定
@@ -167,7 +167,7 @@ Wave 4  加固（依赖 T7-实施 / T9a）
 
 ### Wave 4
 
-- **T9b**：对象存储后端 + DI 接线（接线点等 T7）——**与 T13 串行**（R3-C9：分布式锁实现依赖状态后端、对象存储后端又需分布式锁，互为前置，显式定先后）。
+- **T9b**：对象存储后端 + DI 接线（接线点等 T7）——**与 T13 串行**（R3-C9）。**部署形态降级注（2026-11-21：云主机 + pip 直装）**：单机 VM 场景下本地盘 StateStore + 本地 FileLock 已满足需求，本项与 T13 降为**可选/按需**（多机扩展或湖上对象存储时才启用）；湖迁移 = 一次性 rsync/scp 3.3GB parquet 到云主机盘。
 - **T13**：FileLock（storage_manager.py:138）→ 分布式锁（对象存储条件写 / Redis）。
 - **T11**：HealthService 三层探针（health_service.py:59-125 已有逻辑）补 HTTP 端点 + `ensure_prometheus_server` 接线（prometheus_metrics.py:23，现全仓零调用；config observability 段字段同步激活）。
 - **T12**：代码归一化 ×5→1（storage_manager/stock_metadata_manager/import_financial/dynamic_pit_universe/dynamic_pit_loader）；市场后缀推断 ×3→1；量纲机制 ×3→1（harmonize_local_volume_unit / LOT_TO_SHARE / VOLUME_UNITS 表）；resampler 周/月去重（:31-141）。
@@ -199,6 +199,7 @@ Wave 4  加固（依赖 T7-实施 / T9a）
 
 ### 裁决后果与解锁（2026-11-21，12/12 收口后）
 
+- **部署形态裁决（2026-11-21，推翻 2026-11-20"容器/Serverless"初选）**：**云主机 + pip 直装 + systemd/cron**。T1a 剪除 Dockerfile（改环境安装脚本）；mootdx HOME 问题自动消解；**T9b/T13/T14 单机 VM 场景动机减弱，降级为可选/按需**（本地盘 + 本地 FileLock + cron 即满足）；numba `cache=True` 在可写 VM 盘正常工作（Serverless 冷启动顾虑解除）。
 - **全部波次解锁，无阻塞裁决**：Wave 0-4 全部可开工。
 - **Wave 0**：T1a/T1b（⑧A 定型）/T3/N1/T7-方向（②B）/T6b 设计输入齐备且方向锁定（①C+⑨B+⑩B）——T6b 从"裁决文档"降为"落地设计文档"（在已定框架内细化股票腿接线方案）。
 - **Wave 1**：T10-直删A 按 ⑪A 轻删；T2a/T2b/T2c（含 ③A 合成数据隔离）/T8/T9a。
