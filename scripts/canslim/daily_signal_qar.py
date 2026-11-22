@@ -104,16 +104,24 @@ def run_daily_pipeline(
 
     # 真实期指基准合约现货点位提取
     futures_idx_file = PROJECT_ROOT / "data" / "lake" / "quotes" / "index" / "000300.SH.parquet"
-    futures_price_points = 4000.0
-    if futures_idx_file.exists():
-        try:
-            df_idx = pd.read_parquet(futures_idx_file)
-            df_idx["date"] = pd.to_datetime(df_idx["date"])
-            sub_idx = df_idx[df_idx["date"] <= as_of_dt].sort_values("date")
-            if not sub_idx.empty:
-                futures_price_points = float(sub_idx.iloc[-1]["close"])
-        except Exception as e:
-            logger.warning(f"读取期指对冲基准价格失败，采用兜底价: {e}")
+    if not futures_idx_file.exists():
+        alt_path = PROJECT_ROOT / "data" / "lake" / "quotes" / "daily" / "000300.SH.parquet"
+        if alt_path.exists():
+            futures_idx_file = alt_path
+        else:
+            raise FileNotFoundError(
+                f"期指对冲基准 000300.SH 数据不存在 ({futures_idx_file})。"
+                "严禁伪造 4000.0 兜底点位计算对冲风控头寸 (Rule 4 Fail-Closed)"
+            )
+
+    df_idx = pd.read_parquet(futures_idx_file)
+    df_idx["date"] = pd.to_datetime(df_idx["date"])
+    sub_idx = df_idx[df_idx["date"] <= as_of_dt].sort_values("date")
+    if sub_idx.empty:
+        raise ValueError(
+            f"期指对冲基准 000300.SH 在 {as_of_dt} 之前无有效数据，无法确定真实对冲点位 (Rule 4 Fail-Closed)"
+        )
+    futures_price_points = float(sub_idx.iloc[-1]["close"])
 
     hedge_structure = orchestrator.plan_futures_hedging_structure(
         equity_long_notional=cap_alloc["equity_long_value"],
@@ -135,24 +143,31 @@ def run_daily_pipeline(
         else:
             symbol = f"{code_str}.SZ"
 
-        # 尝试从数据湖获取真实价与真实 ADV
-        real_price = 50.0
-        real_adv = 100_000_000.0
+        # 从数据湖获取真实价与真实 ADV (严格禁止 50.0 假价兜底与 1 亿 ADV 伪造)
         q_files = glob.glob(str(quotes_dir / f"{code_str}.*.parquet"))
-        if q_files:
-            try:
-                df_q = pd.read_parquet(q_files[0])
-                df_q["date"] = pd.to_datetime(df_q["date"])
-                sub_q = df_q[df_q["date"] <= as_of_dt].sort_values("date")
-                if not sub_q.empty:
-                    last_close = float(sub_q.iloc[-1]["close"])
-                    if last_close > 0:
-                        real_price = last_close
-                    trailing_adv = sub_q.tail(20)["amount"].mean()
-                    if pd.notna(trailing_adv) and trailing_adv > 0:
-                        real_adv = float(trailing_adv)
-            except Exception as e:
-                logger.debug("读取个股真实行情失败 %s: %s", symbol, e)
+        if not q_files:
+            raise FileNotFoundError(
+                f"选股标的 {symbol} 在数据湖 {quotes_dir} 中缺失行情文件，严禁伪造 50.0 价格或假 ADV (Rule 4 Fail-Closed)"
+            )
+        try:
+            df_q = pd.read_parquet(q_files[0])
+            df_q["date"] = pd.to_datetime(df_q["date"])
+            sub_q = df_q[df_q["date"] <= as_of_dt].sort_values("date")
+            if sub_q.empty:
+                raise ValueError(
+                    f"选股标的 {symbol} 在 as_of={as_of_dt} 之前无行情记录，严禁伪造假价格进行风控调仓 (Rule 4 Fail-Closed)"
+                )
+            last_close = float(sub_q.iloc[-1]["close"])
+            if last_close <= 0:
+                raise ValueError(f"选股标的 {symbol} 最新收盘价异常 ({last_close} <= 0)")
+            real_price = last_close
+            trailing_adv = sub_q.tail(20)["amount"].mean()
+            if pd.isna(trailing_adv) or trailing_adv <= 0:
+                trailing_adv = float(sub_q.iloc[-1]["amount"])
+            real_adv = float(trailing_adv)
+        except Exception as e:
+            logger.error("读取选股标的 %s 真实行情失败: %s", symbol, e)
+            raise
 
         target_notional = cap_alloc["equity_long_value"] * float(weight)
         # 按 A 股 100 股一手向下整手计算

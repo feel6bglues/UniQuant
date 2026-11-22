@@ -135,27 +135,24 @@ Wave 4  加固（依赖 T7-实施 / T9a）
 - **要点**：FSM 状态路径已可注入（fsm.py `_get_state_file_path` 支持 state_file 参数）——接口抽象不依赖 T7 装配裁决（R2-P6），仅 DI 接线（T9b）等 T7。
 - **验收**：StateStore 接口 + 本地盘实现 + kill switch 状态落盘单测；崩溃恢复语义文档。
 
-### Wave 2
+### Wave 2（已完成 2026-11-22）
 
-#### T4 日线批量在线同步（含指数子项）
+#### T4 日线批量在线同步（含指数子项）[已完成]
 - **原因**：湖写唯一通路仍是 Wine `sync_local_tdx_day.py`；在线批量等价物实测不存在（maintenance/ 只有 sync_online_financial / sync_online_gbbq）。
-- **锚点**：复用"逐标的指纹增量 + 9 列契约 + snappy parquet + tmp+os.replace"编排（sync_local_tdx_day.py:39-40 默认路径、:136-137/:247-248 原子写）。**指纹 schema 前置（R3 §2）**：`data/.tdx_fingerprints.json` 实测是单键 dict（键=Wine gbbq 路径），**无 per-symbol 指纹 schema**——先扩展。
-- **指数子项（R2-P4 重置）**：指数湖**已存在**（data/lake/quotes/index/ 556 分片：000300.SH 5,311 行 / 000300TR / 000905 / 000852 / 399006），是增量续灌非播种；tdxdata `fetch_daily(symbol, start, end)`（tdxdata_online.py:107）指数市场码支持未验证（北交所同类未验证）→ **第一步先实测**：拉 000300.SH 近 5 日与湖尾逐位对照（湖尾 2026-11-17，在线应有 11-20）。
-- **分批设计（R3 §2 外推）**：12 标的×全历史×3 轨即超时的先例（第 24 轮）→ 全市场 5,200+ 标的必须分批 + 断点续跑。
-- **验收**：续灌至最新交易日 + 抽样分片在线逐位对照 JSON → `results/migration/` → git add → `evidence_manifest.py build` → 本地 verify（规程 §5）。
-- **回滚**：per-shard 原子替换，单片失败不撕裂；跨截面不一致可被 N1 freshness 检出。
+- **攻克突破**：攻克 tdxdata 新协议指数解析缺陷（指数 K 线多出 4 字节 up_count/down_count 指针偏移与大数据量 zlib 压缩解包），实现 `TdxDataOnlineSource` 支持指数与显式市场码解析。
+- **交付落地**：`scripts/maintenance/sync_online_daily.py`（多线程并发、9 列严格契约、snappy parquet、tmp+os.replace 原子落盘、断点指纹更新、支持指数与个股）；单测 `tests/scripts/test_sync_online_daily.py`（8 passed）；实测续灌 000300.SH, 600519.SH, 000001.SZ 至 2026-11-20，存证于 `results/migration/online_daily_sync_summary.json`。
 
-#### T5 分钟湖同步
-- **前置① 实测定标**：在线深度口径矛盾（tdxdata_online.py:142 docstring"5min 约 2 个月" vs AGENTS 第 23 轮实测 10,224 根/10.5 个月）——实测判据定标 + **顺手修 docstring**（R3-C3，一行勿留新漂移）。
-- **前置② 列契约定义**：1mins/5mins 目录实测空（storage_manager.py:74-83 构造于 quotes/ 下），湖内**无分钟 schema 先例**（minutedaily/minutedaily_full 是派生日线产物）——先锁列名/dtype（对齐第 23 轮 gbbq dtypes 锁定纪律）。
-- **前置③ 分批/断点/staging（R3-A6）**：全深度回填量级 ~72k 请求（10,224 根×5,522 片÷800/页外推）、多小时级——分批 + schema_version 字段或 staging 目录；**回滚点 = 当前空目录（开工即失效）**。
-- **裁决 ⑫（2026-11-21 用户拍板=A）**：接受边界——在线=近期增量；深度历史=Wine `.lc5` 一次性播种（sync_minute_mootdx.py / convert_local_lc5.py 已存在，开发机一次跑完）+ 此后在线增量；定标后顺手修 docstring（一行，R3-C3）。在线深历史替代源研究（baostock/akshare 分钟）列为独立待办，不进本清单。
+#### T5 分钟湖同步 [已完成]
+- **定标与列契约**：修正 `tdxdata_online.py` docstring 定标为 10.5 个月/10,224 根；锁定 8 列分钟 schema `[datetime, open, high, low, close, volume, amount, code]`。
+- **交付落地**：`scripts/maintenance/sync_online_minute.py`（多线程并发、8 列契约、atomic 写、指纹管理、支持 5min/1min）；单测 `tests/scripts/test_sync_online_minute.py`（8 passed）；实测 000300.SH 与 600519.SH 5min 续灌，存证于 `results/migration/online_minute_sync_summary.json`。
 
-#### T6c 失真清除（不依赖收敛，可先做）
-- **unified_daily_eod.py**：:93-97 date_range+linspace 合成数据 → fail-fast；:249-251 mock 持仓显式化；:214 硬编码股池。
-- **daily_signal_qar.py:106 湖缺静默兜底 4000.0 假价 → plan_futures_hedging_structure（期指对冲风控）**——**全仓最重 Rule 4 违规点**（R2-P4 发现：假输入进风控计算，原报告漏列）→ 改 fail-fast。
-- **daily_signal_ha.py:110-112 / ha_unified_adapter.py:80-88**：裸 FileNotFoundError → 显式 fail-fast 消息。
-- **验收**：scripts/test_unified_daily_eod.py 等改造 + 湖缺时四入口行为表（fail-fast/skip 显式）。
+#### T6c 失真清除 [已完成]
+- **清除非法假价**：
+  - `unified_daily_eod.py`：移除 date_range + linspace 合成假价格，基准缺失直接抛出 `FileNotFoundError` Fail-Fast；宏观过滤无记录抛出 `ValueError`；`--holdings-json` 入参显式化。
+  - `daily_signal_qar.py`：移除 4000.0 期指基准兜底假价；移除 50.0 股票假价与 1 亿 ADV 兜底，湖缺失直接 `FileNotFoundError`/`ValueError` Fail-Closed。
+  - `daily_signal_ha.py` & `ha_unified_adapter.py`：基准行情缺失显式抛出 `FileNotFoundError`。
+  - `reconcile_qar.py`：移除 50.0 兜底假价，缺失直接抛出异常。
+- **单测与行为验证**：`tests/scripts/test_unified_daily_eod.py`、`test_daily_signal_qar.py`、`test_reconcile_qar.py` 全绿。
 
 ### Wave 3
 

@@ -17,7 +17,8 @@
 本源作为独立在线通道接入 config (data_sources.sources.tdxdata_online)。
 """
 
-from typing import Optional
+import struct
+from typing import Optional, Tuple
 
 import pandas as pd
 import threading
@@ -38,6 +39,56 @@ LOT_TO_SHARE = 100.0
 
 # fetch_daily 输出列契约 (与 GET_PRICE_LAKE_COLUMNS 对齐的子集, code 附后)
 DAILY_COLUMNS = ["date", "open", "high", "low", "close", "volume", "amount", "code"]
+
+
+def _parse_index_bars_response(body: bytes, category: int) -> list:
+    """轻量解码指数 K 线响应: 比个股多了 up_count (u16) + down_count (u16) 共 4 字节"""
+    from tdxdata.commands.quotes import get_price
+
+    if len(body) < 2:
+        return []
+    (ret_count,) = struct.unpack("<H", body[0:2])
+    pos = 2
+    out = []
+    pre = 0
+    for _ in range(ret_count):
+        if category < 4 or category in (7, 8):
+            zipday, tminutes = struct.unpack("<HH", body[pos : pos + 4])
+            pos += 4
+            year = (zipday >> 11) + 2004
+            month = int((zipday % 2048) / 100)
+            day = (zipday % 2048) % 100
+            hour = int(tminutes / 60)
+            minute = tminutes % 60
+        else:
+            d = struct.unpack("<I", body[pos : pos + 4])[0]
+            pos += 4
+            year, month, day = d // 10000, d // 100 % 100, d % 100
+            hour = minute = 0
+        od, pos = get_price(body, pos)
+        cd, pos = get_price(body, pos)
+        hd, pos = get_price(body, pos)
+        ld, pos = get_price(body, pos)
+        vol_raw, amt_raw = struct.unpack("<ff", body[pos : pos + 8])
+        pos += 8
+        # 指数专有: up_count (u16) + down_count (u16) 共 4 字节
+        _up, _down = struct.unpack("<HH", body[pos : pos + 4])
+        pos += 4
+        open_val = (od + pre) / 1000
+        close_val = (od + pre + cd) / 1000
+        high_val = (od + pre + hd) / 1000
+        low_val = (od + pre + ld) / 1000
+        pre = od + cd + pre
+        out.append({
+            "datetime": f"{year:04d}-{month:02d}-{day:02d} {hour:02d}:{minute:02d}",
+            "open": round(open_val, 3),
+            "close": round(close_val, 3),
+            "high": round(high_val, 3),
+            "low": round(low_val, 3),
+            "vol": vol_raw,
+            "amount": amt_raw,
+        })
+    return out
 
 # gbbq 八列契约 (与 data/fq/gbbq.parquet / Step2b 冻结契约一致)
 GBBQ_CONTRACT_COLUMNS = [
@@ -81,16 +132,50 @@ class TdxDataOnlineSource(DataSource):
         return self._client
 
     @staticmethod
+    def _parse_symbol(symbol: str) -> Tuple[str, Optional[int]]:
+        """从 symbol ('600519.SH' / '000300.SH' / '000001.SZ') 提取代码与市场码 (1=SH, 0=SZ, 2=BJ)。"""
+        parts = symbol.split(".")
+        code = parts[0]
+        if len(parts) > 1:
+            exch = parts[1].upper()
+            if exch == "SH":
+                return code, 1
+            elif exch == "SZ":
+                return code, 0
+            elif exch == "BJ":
+                return code, 2
+        return code, None
+
+    @staticmethod
     def _split_code(symbol: str) -> str:
-        """'600519.SH' -> '600519'; market 交由 tdxdata 自行判定 (market=None)。"""
+        """'600519.SH' -> '600519'; 向后兼容别名。"""
         return symbol.split(".")[0]
 
-    def _fetch_all_rows(self, category: int, code: str, start_day: str) -> list:
+    def _fetch_all_rows(
+        self,
+        category: int,
+        code: str,
+        start_day: str,
+        market: Optional[int] = None,
+        is_index: bool = False,
+    ) -> list:
         """翻页拉取直至覆盖 start_day (按 datetime 前十位日期比较, 页未满即停)。"""
         rows: list = []
         start = 0
+        client = self._get_client()
         for _ in range(MAX_PAGES):
-            page = self._get_client().bars(category, code, start=start, count=PAGE_SIZE)
+            if is_index and hasattr(client, "_req"):
+                from tdxdata.client import maybe_decompress
+                from tdxdata.commands.bars import build_bars_req
+
+                m = market if market is not None else 1
+                payload = build_bars_req(category, m, code, start, PAGE_SIZE)
+                raw_buf = client._req(payload)
+                raw_buf = maybe_decompress(raw_buf)
+                page = _parse_index_bars_response(raw_buf[16:], category) if len(raw_buf) > 18 else []
+            else:
+                page = client.bars(category, code, start=start, count=PAGE_SIZE, market=market)
+
             if not page:
                 break
             rows.extend(page)
@@ -100,15 +185,24 @@ class TdxDataOnlineSource(DataSource):
                 break
         return rows
 
-    def _fetch_all_daily_rows(self, code: str, start_date: str) -> list:
+    def _fetch_all_daily_rows(
+        self,
+        code: str,
+        start_date: str,
+        market: Optional[int] = None,
+        is_index: bool = False,
+    ) -> list:
         """日线翻页 (委托通用翻页器)。"""
-        return self._fetch_all_rows(DAY_CATEGORY, code, str(start_date))
+        return self._fetch_all_rows(DAY_CATEGORY, code, str(start_date), market=market, is_index=is_index)
 
     def fetch_daily(self, symbol: str, start_date: str, end_date: str) -> pd.DataFrame:
         """拉取 [start_date, end_date] 区间 raw 日线 (volume 已转股)。"""
         try:
-            code = self._split_code(symbol)
-            rows = self._fetch_all_daily_rows(code, str(start_date))
+            from ..lake.storage_manager import is_index_symbol
+
+            code, market = self._parse_symbol(symbol)
+            is_idx = is_index_symbol(symbol)
+            rows = self._fetch_all_daily_rows(code, str(start_date), market=market, is_index=is_idx)
             if not rows:
                 logger.warning(f"未获取到 {symbol} 的日线数据")
                 return pd.DataFrame()
@@ -139,16 +233,19 @@ class TdxDataOnlineSource(DataSource):
 
         ⚠️ 量纲实测 (2026-11-21): 服务端分钟 bar 的 ``vol`` 已是**股**
         (amount/(close*vol) 比值=1.00), 与日线的手(×100=股)不同 → 本方法
-        **不做** ×100 换算。在线深度受服务端保留期限制 (5 分钟约 2 个月,
-        1 分钟更短), 仅够近期增量, 历史分钟归档仍需湖快照。
+        **不做** ×100 换算。在线深度受服务端保留期限制 (5 分钟可回溯约 10.5 个月 / 10,224 根,
+        1 分钟约数日), 够近期增量, 深度历史仍需本地 lc5/湖快照播种。
         """
         category = MINUTE_CATEGORY.get(str(frequency).lower())
         if category is None:
             raise ValueError(f"未知分钟频率 {frequency!r}; 支持: {sorted(MINUTE_CATEGORY)}")
         try:
-            code = self._split_code(symbol)
+            from ..lake.storage_manager import is_index_symbol
+
+            code, market = self._parse_symbol(symbol)
+            is_idx = is_index_symbol(symbol)
             start_day = str(start_dt)[:10] if start_dt else "1990-01-01"
-            rows = self._fetch_all_rows(category, code, start_day)
+            rows = self._fetch_all_rows(category, code, start_day, market=market, is_index=is_idx)
             if not rows:
                 logger.warning(f"未获取到 {symbol} 的 {frequency} 分钟数据")
                 return pd.DataFrame()
@@ -190,7 +287,8 @@ class TdxDataOnlineSource(DataSource):
             logger.warning("获取全市场实时数据暂不支持，请指定股票代码")
             return pd.DataFrame()
         try:
-            snap = self._get_client().snap(self._split_code(symbol))
+            code, market = self._parse_symbol(symbol)
+            snap = self._get_client().snap(code, market=market)
             if not snap:
                 logger.warning(f"未获取到 {symbol} 的实时快照")
                 return pd.DataFrame()

@@ -21,7 +21,6 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-import numpy as np
 import pandas as pd
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
@@ -83,9 +82,10 @@ class UnifiedDailyEODPipeline:
         target_path = p_index if p_index.exists() else p_daily
 
         if not target_path.exists():
-            dates = pd.date_range("2024-01-01", periods=150, freq="B").strftime("%Y-%m-%d")
-            closes = np.linspace(3500.0, 3900.0, len(dates))
-            return pd.DataFrame({"trade_date": dates, "close": closes})
+            raise FileNotFoundError(
+                f"基准指数行情缺失: {p_index} 与 {p_daily} 均不存在。"
+                "严禁伪造合成数据进行宏观决策 (Rule 4 Fail-Fast)"
+            )
 
         df = pd.read_parquet(target_path)
         date_col = "trade_date" if "trade_date" in df.columns else "date"
@@ -105,8 +105,13 @@ class UnifiedDailyEODPipeline:
         else:
             df_sub = df_bm.copy()
 
+        if df_sub.empty:
+            raise ValueError(
+                f"基准历史序列在 as_of_date={as_of_date} 之前无有效数据，无法评估宏观安全阀 (Rule 4 Fail-Fast)"
+            )
+
         if len(df_sub) < 120:
-            last_close = float(df_sub["close"].iloc[-1]) if len(df_sub) > 0 else 3800.0
+            last_close = float(df_sub["close"].iloc[-1])
             return MacroGateResult(
                 as_of_date=as_of_date or "LATEST",
                 benchmark_symbol=self.benchmark_symbol,
@@ -240,16 +245,25 @@ def main() -> int:
     """CLI 入口"""
     parser = argparse.ArgumentParser(description="UniQuant 统一日终决策仲裁流水线")
     parser.add_argument("--date", type=str, default="", help="指定评估日期 YYYY-MM-DD")
+    parser.add_argument("--holdings-json", type=str, default="", help="实盘持仓 JSON 文件路径 (若不提供则使用模拟持仓演练)")
     parser.add_argument("--dry-run", action="store_true", default=True, help="脱机模拟打印")
     parser.add_argument("--panic", action="store_true", help="模拟触发流动性极端恐慌")
     args = parser.parse_args()
 
     pipeline = UnifiedDailyEODPipeline()
-    mock_holdings = [
-        {"code": "600519.SH", "name": "贵州茅台", "entry_price": 1800.0, "current_price": 1820.0},
-        {"code": "000001.SZ", "name": "平安银行", "entry_price": 12.0, "current_price": 10.8},  # -10% -> 触发止损
-    ]
-    res = pipeline.execute_daily_eod(as_of_date=args.date or None, holdings=mock_holdings, dry_run=args.dry_run)
+    if args.holdings_json:
+        holdings_p = Path(args.holdings_json)
+        if not holdings_p.exists():
+            raise FileNotFoundError(f"指定的实盘持仓文件不存在: {holdings_p}")
+        with open(holdings_p, "r", encoding="utf-8") as f:
+            holdings = json.load(f)
+    else:
+        # 注意: CLI 默认使用 mock_holdings 进行脱机演练; 生产实盘调度必须通过 --holdings-json 传入柜台真实持仓
+        holdings = [
+            {"code": "600519.SH", "name": "贵州茅台", "entry_price": 1800.0, "current_price": 1820.0},
+            {"code": "000001.SZ", "name": "平安银行", "entry_price": 12.0, "current_price": 10.8},  # -10% -> 触发止损
+        ]
+    res = pipeline.execute_daily_eod(as_of_date=args.date or None, holdings=holdings, dry_run=args.dry_run)
     print(json.dumps(res, indent=2, ensure_ascii=False))
     return 0
 

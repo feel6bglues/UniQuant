@@ -110,6 +110,10 @@ def main(argv=None):
     idx_path = PROJECT_ROOT / "data/lake/quotes/index/000300.SH.parquet"
     if not idx_path.exists():
         idx_path = PROJECT_ROOT / "data/lake/quotes/daily/000300.SH.parquet"
+    if not idx_path.exists():
+        raise FileNotFoundError(
+            f"H-A 策略所需基准指数行情不存在: {idx_path}。请先执行数据湖同步 (Rule 4 Fail-Fast)"
+        )
     state = compute_state(pd.read_parquet(idx_path), args.as_of)
     out = {"generated_at": _dt.now().isoformat(timespec="seconds"),
            "strategy": "H-A conditional illiquidity (P7/P8/D+10)",

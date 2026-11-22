@@ -1,0 +1,29 @@
+{
+  "timestamp": "2026-11-22T10:23:06.281146",
+  "stats": {
+    "total_scanned": 2,
+    "updated": 0,
+    "up_to_date": 2,
+    "created_new": 0,
+    "failed": 0,
+    "new_bars": 0,
+    "frequency": "5min",
+    "errors": {},
+    "symbol_details": {
+      "600519.SH": {
+        "symbol": "600519.SH",
+        "status": "up_to_date",
+        "new_bars": 0,
+        "total_bars": 48,
+        "last_datetime": "2026-11-20 15:00:00"
+      },
+      "000300.SH": {
+        "symbol": "000300.SH",
+        "status": "up_to_date",
+        "new_bars": 0,
+        "total_bars": 48,
+        "last_datetime": "2026-11-20 15:00:00"
+      }
+    }
+  }
+}

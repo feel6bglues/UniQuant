@@ -322,3 +322,102 @@ class TestFetchXdXrAsGbbq:
         src = _make_source(_FakeClient(xdxr=[]))
         df = src.fetch_xdxr_as_gbbq("600519.SH")
         assert df.empty and "rights_price" in df.columns
+
+
+class TestParseSymbol:
+    """验证证券与指数代码及市场码解析。"""
+
+    def test_parse_symbol_varieties(self):
+        assert TdxDataOnlineSource._parse_symbol("600519.SH") == ("600519", 1)
+        assert TdxDataOnlineSource._parse_symbol("000001.SZ") == ("000001", 0)
+        assert TdxDataOnlineSource._parse_symbol("830001.BJ") == ("830001", 2)
+        assert TdxDataOnlineSource._parse_symbol("000300.SH") == ("000300", 1)
+        assert TdxDataOnlineSource._parse_symbol("399001.SZ") == ("399001", 0)
+        assert TdxDataOnlineSource._parse_symbol("600519") == ("600519", None)
+
+
+class TestParseIndexBarsResponse:
+    """验证指数 K 线专有响应解码 (包含 up_count/down_count 4 字节指针步进)。"""
+
+    @staticmethod
+    def _encode_varint(val: int) -> bytes:
+        sign = 0x40 if val < 0 else 0
+        uval = abs(val)
+        first = (uval & 0x3F) | sign
+        uval >>= 6
+        if uval > 0:
+            first |= 0x80
+            out = [first]
+            while uval > 0:
+                b = uval & 0x7F
+                uval >>= 7
+                if uval > 0:
+                    b |= 0x80
+                out.append(b)
+            return bytes(out)
+        return bytes([first])
+
+    def test_empty_or_short_buffer_returns_empty_list(self):
+        from uniquant.data.sources.tdxdata_online import _parse_index_bars_response
+
+        assert _parse_index_bars_response(b"", category=4) == []
+        assert _parse_index_bars_response(b"\x00", category=4) == []
+
+    def test_daily_category_decode(self):
+        import struct
+        from uniquant.data.sources.tdxdata_online import _parse_index_bars_response
+
+        body = struct.pack("<H", 1)
+        body += struct.pack("<I", 20261120)
+        body += self._encode_varint(3000)
+        body += self._encode_varint(100)
+        body += self._encode_varint(200)
+        body += self._encode_varint(-100)
+        body += struct.pack("<ff", 50000.0, 155000.0)
+        body += struct.pack("<HH", 1200, 800)
+
+        rows = _parse_index_bars_response(body, category=4)
+        assert len(rows) == 1
+        r = rows[0]
+        assert r["datetime"] == "2026-11-20 00:00"
+        assert r["open"] == pytest.approx(3.0)
+        assert r["close"] == pytest.approx(3.1)
+        assert r["high"] == pytest.approx(3.2)
+        assert r["low"] == pytest.approx(2.9)
+        assert r["vol"] == pytest.approx(50000.0)
+        assert r["amount"] == pytest.approx(155000.0)
+
+    def test_minute_category_decode(self):
+        import struct
+        from uniquant.data.sources.tdxdata_online import _parse_index_bars_response
+
+        zipday = ((2026 - 2004) << 11) + (11 * 100 + 20)
+        tminutes = 14 * 60 + 30
+        body = struct.pack("<H", 1)
+        body += struct.pack("<HH", zipday, tminutes)
+        body += self._encode_varint(3000)
+        body += self._encode_varint(100)
+        body += self._encode_varint(200)
+        body += self._encode_varint(-100)
+        body += struct.pack("<ff", 50000.0, 155000.0)
+        body += struct.pack("<HH", 1200, 800)
+
+        rows = _parse_index_bars_response(body, category=0)
+        assert len(rows) == 1
+        r = rows[0]
+        assert r["datetime"] == "2026-11-20 14:30"
+        assert r["open"] == pytest.approx(3.0)
+        assert r["close"] == pytest.approx(3.1)
+
+
+class TestFetchIndexOnline:
+    """验证指数日线拉取整合 (包括 _FakeClient 兼容)。"""
+
+    def test_fetch_daily_index_with_fake_client(self):
+        rows = [_row("2026-11-19", close=3950.0), _row("2026-11-20", close=3960.0)]
+        src = _make_source(_FakeClient(pages=[rows]))
+        df = src.fetch_daily("000300.SH", "2026-11-19", "2026-11-20")
+        assert len(df) == 2
+        assert (df["code"] == "000300.SH").all()
+        assert df["close"].iloc[1] == pytest.approx(3960.0)
+

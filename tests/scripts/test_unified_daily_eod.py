@@ -60,3 +60,10 @@ class TestUnifiedDailyEODPipeline:
         assert "feishu_response" in result
         assert len(result["stop_loss_alerts"]) == 1
         assert result["feishu_response"]["status"] == "dry_run"
+
+    def test_missing_benchmark_fails_fast_without_synthetic_data(self, tmp_path):
+        """测试基准缺失时 Fail-Fast 抛出 FileNotFoundError，严禁伪造假数据 (T6c Rule 4)"""
+        import pytest
+        pipeline = UnifiedDailyEODPipeline(lake_root=tmp_path / "empty_lake")
+        with pytest.raises(FileNotFoundError, match="基准指数行情缺失"):
+            pipeline.load_benchmark_series()

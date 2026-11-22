@@ -172,8 +172,9 @@ def resolve_market_prices(
                 logger.debug(f"读取数据湖价格失败 {clean_code}: {e}")
 
         if not price_found:
-            # 兜底基准价格
-            res[clean_code] = 50.0
+            raise FileNotFoundError(
+                f"对账标的 {clean_code} 在数据湖或显式价格表中缺失有效价格。严禁伪造 50.0 价格进行风控对账 (Rule 4 Fail-Closed)"
+            )
 
     return res
 
@@ -206,7 +207,11 @@ def reconcile_equity_holdings(
 
     for code in all_codes:
         shares = actual_dict.get(code, 0.0)
-        px = price_map.get(code, 50.0)
+        px = price_map.get(code)
+        if px is None or px <= 0:
+            raise ValueError(
+                f"对账标的 {code} 缺少有效价格映射，无法核算持仓市值 (Rule 4 Fail-Closed)"
+            )
         mkt_val = shares * px
         total_actual_equity_value += mkt_val
 

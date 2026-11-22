@@ -63,3 +63,16 @@ class TestDailySignalQARPipeline:
             data = json.load(f)
         assert data["as_of_date"] == "2024-05-06"
         assert data["universe_summary"]["selected_stocks_count"] == 40
+
+    def test_missing_benchmark_fails_fast_without_4000_fake_price(self, tmp_path, monkeypatch):
+        """测试当 000300.SH 期指基准缺失时，严禁静默兜底 4000.0，必须 Fail-Fast (T6c Rule 4)"""
+        import scripts.canslim.daily_signal_qar as qar_mod
+
+        # 将 PROJECT_ROOT 临时劫持到空目录
+        monkeypatch.setattr(qar_mod, "PROJECT_ROOT", tmp_path)
+        with pytest.raises(FileNotFoundError, match="期指对冲基准 000300.SH 数据不存在"):
+            qar_mod.run_daily_pipeline(
+                as_of="2024-05-06",
+                track="75/25-IH",
+                output_dir=tmp_path,
+            )

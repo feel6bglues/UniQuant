@@ -85,7 +85,10 @@ def load_hot_days(dates_index: pd.DatetimeIndex) -> pd.Series:
             idx_path = candidate
             break
     if idx_path is None:
-        idx_path = PROJECT_ROOT / "data/lake/quotes/index/000300.SH.parquet"
+        target = PROJECT_ROOT / "data/lake/quotes/index/000300.SH.parquet"
+        raise FileNotFoundError(
+            f"H-A 策略基准指数 000300.SH 数据不存在 ({target})。请先执行数据湖同步 (Rule 4 Fail-Fast)"
+        )
     idx = pd.read_parquet(idx_path)
     idx["date"] = pd.to_datetime(idx["date"])
     vs = pit_vol_states(idx)

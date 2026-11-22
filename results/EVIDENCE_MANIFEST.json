@@ -1,13 +1,13 @@
 {
   "version": 1,
-  "generated_at": "2026-11-21T06:00:59.224266+00:00",
-  "git_head": "ba973fecc0c4245af3d9c4eeafaf0754774c833b",
+  "generated_at": "2026-11-22T02:25:32.859870+00:00",
+  "git_head": "c5d4f8d899600dfdf0f1ee45ba365e37d74413de",
   "roots": [
     "results",
     "tests/benchmark"
   ],
-  "file_count": 51,
-  "total_bytes": 963277,
+  "file_count": 53,
+  "total_bytes": 964680,
   "files": {
     "results/canslim/factor_gate.json": {
       "sha256": "126f128bef0d472c67ac70b698640fe60c848ee59f68ce8d7378fec86d64ad24",
@@ -120,6 +120,14 @@
     "results/migration/lake_baseline.json": {
       "sha256": "cfffb5ed0c7dc55687468c34168ac6de0f4d64adb0a7a038555b6aace57c38c7",
       "size": 2863
+    },
+    "results/migration/online_daily_sync_summary.json": {
+      "sha256": "1badbdb14b6dd49bc8c1cb9d99a171620fad0cd098e186768ad1e7461928cfe3",
+      "size": 767
+    },
+    "results/migration/online_minute_sync_summary.json": {
+      "sha256": "52f07dc00839b0de008c869e0d5cfcc1a0226997a57c1a4364b5ff07d3b2dc05",
+      "size": 636
     },
     "results/migration/qfq_baostock_benchmark.json": {
       "sha256": "ca9c5ce85b416d614bacbbcb455b5c81c5c419670876442458cc9a8772648d25",
