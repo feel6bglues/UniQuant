@@ -26,6 +26,7 @@ from datetime import datetime, timedelta
 import json
 import os
 from pathlib import Path
+import struct
 import sys
 import threading
 from typing import Any, Dict, List, Optional, Tuple
@@ -45,6 +46,7 @@ logger = get_logger("maintenance.sync_online_daily")
 DEFAULT_DATA_DIR = PROJECT_ROOT / "data"
 DEFAULT_LAKE_QUOTES = DEFAULT_DATA_DIR / "lake" / "quotes"
 DEFAULT_FINGERPRINT_PATH = DEFAULT_DATA_DIR / ".online_daily_fingerprints.json"
+DEFAULT_LOCAL_VIPDOC = Path.home() / ".local/share/tdxcfv/drive_c/tc/vipdoc"
 
 DAILY_CONTRACT_COLUMNS = [
     "date", "open", "high", "low", "close", "amount", "volume", "reserved", "code"
@@ -59,8 +61,82 @@ class SyncStats:
     created_new: int = 0
     failed: int = 0
     new_bars: int = 0
+    verified_count: int = 0
+    verification_skipped: int = 0
     errors: Dict[str, str] = field(default_factory=dict)
     symbol_details: Dict[str, Any] = field(default_factory=dict)
+
+
+def parse_local_day_tail(day_path: Path, min_date_int: int = 19900101) -> pd.DataFrame:
+    """快速读取本地 .day 结尾记录 (每次仅读末尾 30 根以保证性能)。"""
+    if not day_path.exists():
+        return pd.DataFrame()
+    s = day_path.stat().st_size
+    if s < 32:
+        return pd.DataFrame()
+    offset = max(0, s - 32 * 30)
+    with open(day_path, "rb") as f:
+        f.seek(offset)
+        buf = f.read()
+    records = []
+    stem = day_path.stem.lower()
+    code = stem[2:]
+    divisor = 10000.0 if code.startswith(("11", "12")) else (1000.0 if code.startswith(("5", "15", "9")) else 100.0)
+    for r in struct.iter_unpack("<IIIIIfII", buf):
+        d_int = r[0]
+        if d_int >= min_date_int:
+            records.append({
+                "date": pd.to_datetime(str(d_int), format="%Y%m%d"),
+                "open": float(r[1] / divisor),
+                "high": float(r[2] / divisor),
+                "low": float(r[3] / divisor),
+                "close": float(r[4] / divisor),
+                "amount": float(r[5]),
+                "volume": int(r[6]),
+            })
+    return pd.DataFrame(records)
+
+
+def cross_validate_new_bars(
+    symbol: str,
+    new_df: pd.DataFrame,
+    vipdoc_dir: Path,
+) -> Tuple[bool, Optional[str]]:
+    """比对在线增量拉取的 K 线与本地 .day 记录，确保数据一致。"""
+    if new_df.empty or not vipdoc_dir.exists():
+        return True, "SKIPPED_NO_VIPDOC"
+    code, ext = symbol.split(".")
+    market = ext.lower()
+    day_file = vipdoc_dir / market / "lday" / f"{market}{code}.day"
+    if not day_file.exists():
+        return True, "SKIPPED_NO_LOCAL_FILE"
+
+    min_date_int = int(new_df["date"].min().strftime("%Y%m%d"))
+    local_df = parse_local_day_tail(day_file, min_date_int=min_date_int)
+    if local_df.empty:
+        return True, "LOCAL_NO_NEW_BARS"
+
+    merged = new_df.merge(local_df, on="date", suffixes=("_on", "_loc"))
+    if merged.empty:
+        return False, "NO_DATE_OVERLAP"
+
+    is_star = symbol.startswith("68")
+    is_idx = is_index_symbol(symbol)
+    price_tol = 0.20 if is_star else (0.05 if is_idx else 0.01)
+
+    for _, row in merged.iterrows():
+        if abs(row["close_on"] - row["close_loc"]) > price_tol:
+            return False, f"CLOSE_MISMATCH on {row['date'].strftime('%Y-%m-%d')}"
+        if abs(row["open_on"] - row["open_loc"]) > price_tol:
+            return False, f"OPEN_MISMATCH on {row['date'].strftime('%Y-%m-%d')}"
+        if abs(row["high_on"] - row["high_loc"]) > price_tol:
+            return False, f"HIGH_MISMATCH on {row['date'].strftime('%Y-%m-%d')}"
+        if abs(row["low_on"] - row["low_loc"]) > price_tol:
+            return False, f"LOW_MISMATCH on {row['date'].strftime('%Y-%m-%d')}"
+        if abs(row["volume_on"] - row["volume_loc"]) > 100:
+            return False, f"VOLUME_MISMATCH on {row['date'].strftime('%Y-%m-%d')}"
+
+    return True, f"VERIFIED_{len(merged)}_BARS"
 
 
 def load_fingerprints(path: Path) -> Dict[str, Any]:
@@ -118,6 +194,7 @@ def sync_single_symbol(
     end_date: Optional[str] = None,
     force: bool = False,
     dry_run: bool = False,
+    vipdoc_dir: Optional[Path] = None,
 ) -> Dict[str, Any]:
     """单标的增量拉取与合并写入。"""
     is_idx = is_index_symbol(symbol)
@@ -177,6 +254,15 @@ def sync_single_symbol(
     if "code" not in new_df.columns:
         new_df["code"] = symbol
 
+    # 本地 TDX 交叉校验 (防伪防错)
+    ver_status = None
+    if vipdoc_dir is not None:
+        ok, reason = cross_validate_new_bars(symbol, new_df, vipdoc_dir)
+        if not ok:
+            logger.error(f"{symbol} 本地 TDX 交叉校验失败: {reason}")
+            return {"symbol": symbol, "status": "validation_failed", "error": reason, "new_bars": 0}
+        ver_status = reason
+
     # 合并既有数据
     if existing_df is not None and not existing_df.empty and not force:
         # 确保列齐全
@@ -228,6 +314,7 @@ def sync_single_symbol(
         "new_bars": added_bars,
         "total_bars": total_bars,
         "last_date": max_date_str,
+        "verified": ver_status,
     }
 
 
@@ -243,6 +330,7 @@ def run_sync(
     force: bool = False,
     dry_run: bool = False,
     fingerprint_path: Optional[Path] = None,
+    vipdoc_dir: Optional[Path] = None,
 ) -> SyncStats:
     """主同步循环，支持线程池并发与分批更新指纹。"""
     fp_path = fingerprint_path or DEFAULT_FINGERPRINT_PATH
@@ -277,6 +365,7 @@ def run_sync(
             end_date=end_date,
             force=force,
             dry_run=dry_run,
+            vipdoc_dir=vipdoc_dir,
         )
 
     processed_count = 0
@@ -311,6 +400,7 @@ def run_sync(
                     end_date=end_date,
                     force=force,
                     dry_run=dry_run,
+                    vipdoc_dir=vipdoc_dir,
                 )
                 _record_result(res, stats, fingerprints)
             except Exception as e:
@@ -328,6 +418,7 @@ def run_sync(
     logger.info(
         f"日线同步完成: 总计={stats.total_scanned}, 更新={stats.updated}, "
         f"新建={stats.created_new}, 保持最新={stats.up_to_date}, 失败={stats.failed}, "
+        f"校验一致={stats.verified_count}, 校验跳过={stats.verification_skipped}, "
         f"新增K线={stats.new_bars}"
     )
     return stats
@@ -350,12 +441,20 @@ def _record_result(res: Dict[str, Any], stats: SyncStats, fingerprints: Dict[str
         if "error" in res:
             stats.errors[sym] = res["error"]
 
+    ver = res.get("verified")
+    if ver:
+        if "VERIFIED" in str(ver):
+            stats.verified_count += 1
+        else:
+            stats.verification_skipped += 1
+
     if st in ("updated", "created_new", "up_to_date"):
         fingerprints["symbols"][sym] = {
             "last_date": res.get("last_date"),
             "total_bars": res.get("total_bars"),
             "updated_at": datetime.now().isoformat(),
             "status": st,
+            "verified": ver,
         }
 
 
@@ -371,6 +470,8 @@ def main() -> int:
     parser.add_argument("--batch-size", type=int, default=50, help="指纹分批暂存步长 (默认 50)")
     parser.add_argument("--force", action="store_true", help="强制从 start-date 重写")
     parser.add_argument("--dry-run", action="store_true", help="空跑演练 (不写真实文件)")
+    parser.add_argument("--verify-local", action="store_true", help="启用与本地 TDX .day 盘后数据交叉校验")
+    parser.add_argument("--local-vipdoc", type=str, default=str(DEFAULT_LOCAL_VIPDOC), help="本地 TDX vipdoc 路径")
     parser.add_argument("--summary-json", type=str, default=None, help="对账存证摘要 JSON 输出路径")
     args = parser.parse_args()
 
@@ -379,6 +480,8 @@ def main() -> int:
 
     inc_stock = not args.index_only
     inc_index = not args.stock_only
+
+    vipdoc_path = Path(args.local_vipdoc) if args.verify_local else None
 
     stats = run_sync(
         lake_quotes=lake_quotes,
@@ -391,6 +494,7 @@ def main() -> int:
         batch_size=args.batch_size,
         force=args.force,
         dry_run=args.dry_run,
+        vipdoc_dir=vipdoc_path,
     )
 
     if args.summary_json:

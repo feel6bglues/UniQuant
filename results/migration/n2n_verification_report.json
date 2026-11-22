@@ -1,0 +1,77 @@
+{
+  "mode": "sandbox",
+  "seed": 42,
+  "timestamp": "2026-11-22T03:39:52Z",
+  "tracks": {
+    "Track 1: 数据通道与湖原子写": {
+      "status": "PASS",
+      "elapsed_sec": 12.546,
+      "details": {
+        "canary_universe": {
+          "canary_total": 20,
+          "daily_schema_9col": "PASS",
+          "depth_gt_365": true
+        },
+        "atomic_and_crash": {
+          "atomic_replace": "PASS",
+          "crash_safe": "PASS",
+          "tmp_cleaned": true
+        },
+        "freshness_sla": true,
+        "minute_files_checked": 2
+      }
+    },
+    "Track 2: 决策收敛与仲裁优先": {
+      "status": "PASS",
+      "elapsed_sec": 0.107,
+      "details": {
+        "qar_adapter_mapping": "PASS",
+        "arbitrated_count": 2,
+        "conflict_resolution": "SELL_WON"
+      }
+    },
+    "Track 3: 机构执行与期指分仓": {
+      "status": "PASS",
+      "elapsed_sec": 0.001,
+      "details": {
+        "hedged_notional": 37500000.0,
+        "total_contracts": 31,
+        "regulatory_status": "SAFE"
+      }
+    },
+    "Track 4: 日终流水线与风控对账": {
+      "status": "PASS",
+      "elapsed_sec": 0.028,
+      "details": {
+        "macro_status": "BEAR_PANIC_CASH",
+        "overall_status": "GREEN",
+        "exit_code": 0,
+        "net_beta": 0.0038
+      }
+    },
+    "Track 5: 熔断拦截与状态恢复": {
+      "status": "PASS",
+      "elapsed_sec": 0.007,
+      "details": {
+        "trip_intercept": "PASS",
+        "state_persistence": "PASS",
+        "restart_fail_closed": "PASS",
+        "reset": "PASS"
+      }
+    },
+    "Track 6: 假数据防御与架构解耦": {
+      "status": "PASS",
+      "elapsed_sec": 0.042,
+      "details": {
+        "bootstrap_latency_ms": 42.19,
+        "rule4_fail_fast": "PASS"
+      }
+    }
+  },
+  "summary": {
+    "total": 6,
+    "passed": 6,
+    "failed": 0
+  },
+  "overall_verdict": "PASS"
+}

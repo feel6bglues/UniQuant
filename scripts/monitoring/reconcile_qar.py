@@ -266,8 +266,17 @@ def reconcile_futures_hedging(
     """
     中金所期指空头对冲合约与 3 PB 分仓对账
     """
-    target_contracts = int(target_hedging_orders.get("target_contracts", 0))
+    target_contracts = int(
+        target_hedging_orders.get("target_contracts")
+        if target_hedging_orders.get("target_contracts") is not None
+        else target_hedging_orders.get("total_short_contracts_needed", 0)
+    )
     target_alloc = target_hedging_orders.get("accounts_allocation", {})
+    if not target_alloc and "accounts" in target_hedging_orders and isinstance(target_hedging_orders["accounts"], list):
+        target_alloc = {
+            acc.get("account_id", f"ACC_{i}"): {"contracts": int(acc.get("allocated_contracts", 0))}
+            for i, acc in enumerate(target_hedging_orders["accounts"])
+        }
     actual_contracts = int(actual_futures["contracts"].sum()) if not actual_futures.empty else 0
 
     contract_diff = actual_contracts - target_contracts
@@ -275,7 +284,7 @@ def reconcile_futures_hedging(
     actual_notional = actual_contracts * unit_contract_value
 
     pb_records = []
-    pb_accounts = ["PB_ACCOUNT_1", "PB_ACCOUNT_2", "PB_ACCOUNT_3"]
+    pb_accounts = list(target_alloc.keys()) if target_alloc else ["PB_ACCOUNT_1", "PB_ACCOUNT_2", "PB_ACCOUNT_3"]
     for acc in pb_accounts:
         tgt_c = int(target_alloc.get(acc, {}).get("contracts", target_contracts // 3))
         act_sub = actual_futures[actual_futures["account"] == acc] if not actual_futures.empty and "account" in actual_futures.columns else pd.DataFrame()
@@ -413,7 +422,11 @@ def build_qar_reconciliation(
     target_aum = float(signal.get("aum_rmb", 50_000_000.0))
     target_weights = signal.get("target_stock_weights", {})
     hedge_orders = signal.get("futures_hedging_orders", {})
-    unit_contract_val = float(hedge_orders.get("unit_contract_value", 1_200_000.0))
+    unit_contract_val = float(
+        hedge_orders.get("unit_contract_value")
+        if hedge_orders.get("unit_contract_value") is not None
+        else hedge_orders.get("unit_value_rmb", 1_200_000.0)
+    )
 
     # 2. 加载实际持仓
     df_equity = load_equity_positions(positions_path)

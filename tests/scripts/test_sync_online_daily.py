@@ -189,3 +189,44 @@ class TestRunSync:
             fp_data = json.load(f)
         assert "000300.SH" in fp_data["symbols"]
         assert "600519.SH" in fp_data["symbols"]
+
+
+class TestCrossValidate:
+    def test_cross_validate_pass_and_fail(self, tmp_path: Path):
+        import struct
+        vipdoc = tmp_path / "vipdoc"
+        lday_sh = vipdoc / "sh" / "lday"
+        lday_sh.mkdir(parents=True)
+        day_file = lday_sh / "sh600519.day"
+
+        # Write matching local day record for 2026-11-20
+        with open(day_file, "wb") as f:
+            f.write(struct.pack("<IIIIIfII", 20261120, 10000, 10500, 9800, 10200, 1000000.0, 10000, 0))
+
+        mock_source = MagicMock()
+        mock_source.fetch_daily.return_value = _sample_df("600519.SH", ["2026-11-20"])
+
+        lake_dir = tmp_path / "lake"
+        res_pass = sync_single_symbol(
+            symbol="600519.SH",
+            lake_quotes=lake_dir,
+            source=mock_source,
+            vipdoc_dir=vipdoc,
+        )
+        assert res_pass["status"] == "created_new"
+        assert "VERIFIED" in str(res_pass.get("verified"))
+
+        # Now test price mismatch: source returns close=200.0
+        bad_df = _sample_df("600519.SH", ["2026-11-20"])
+        bad_df["close"] = 200.0
+        mock_source.fetch_daily.return_value = bad_df
+
+        res_fail = sync_single_symbol(
+            symbol="600519.SH",
+            lake_quotes=lake_dir,
+            source=mock_source,
+            vipdoc_dir=vipdoc,
+            force=True,
+        )
+        assert res_fail["status"] == "validation_failed"
+        assert "CLOSE_MISMATCH" in str(res_fail.get("error"))

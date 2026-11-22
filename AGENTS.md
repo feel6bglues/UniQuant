@@ -5,10 +5,23 @@
 > UniQuant: A-share quantitative research and trading platform.
 >
 > 📦 **历史日志已归档（2026-11-21 瘦身重组）**：本文档只保留**最近 2 轮**变更块与常青控制节。
-> 第 22 轮及更早的全部轮次块见 `docs/archive/AGENTS_CHANGELOG_ROUNDS.md`；
+> 第 23 轮及更早的全部轮次块见 `docs/archive/AGENTS_CHANGELOG_ROUNDS.md`；
 > 2026-06~09 的历史 `Recent Work` 研究纪事见 `docs/archive/AGENTS_RECENT_WORK_2026H2.md`。
 > 全部轮次的一行索引与轮次→提交映射见下方 Round Log Index；维护分流规则见文末"文档维护规则"。
 
+> **Updated 2026-11-22 (第二十五轮：端到端 (N2N) 全链路系统级验收与红蓝对抗落地；纪律=6 轨全闭环+金丝雀 20 标的全覆盖+Fail-Closed 防线验证)**:
+> **(1) N2N 验证框架落地（`scripts/maintenance/run_n2n_verification.py`）**：依据 `docs/analysis/N2N_VERIFICATION_PLAN_20261122.md` 定稿实施版 v2.2，实现涵盖六大核心阶段的系统级闭环验证：
+>   - **Track 1（数据通道与湖原子写）**：20 只金丝雀标的池（沪市蓝筹 4 / 深市主板 4 / 创业板 3 / 科创板 3 / 周期特殊 3 / 基准指数 3）日线 9 列契约与 >365 日历史深度 100% 物理验证 PASS；5 分钟湖 8 列契约 `[datetime, open, high, low, close, volume, amount, code]` 校验 PASS；磁盘写崩溃仿真（模拟 IO 异常）验证原文件无损、零 `.tmp` 残留；Freshness SLA 探针在 Wine 缺失下正确重锚。
+>   - **Track 2（决策收敛与仲裁优先）**：QARAdapter 强类型映射标准 `TradingSignal`；注入买卖冲突标的（QAR BUY conf=0.95 vs Wyckoff SELL conf=0.80），`SignalArbitrator` 严格执行 Sell-Priority 避险裁决（SELL 获胜），正常 BUY 标的成功保留。
+>   - **Track 3（机构执行与期指分仓）**：5000 万 AUM `75/25-IH` 策略轨资产三元配置（75% 多头 / 25% 现金 / -75% 期指空头）；中金所 3 PB 账户对冲分仓，单账户持仓 $\le 1200$ 手（SAFE），无穿仓违约。
+>   - **Track 4（日终生产链路与对账）**：`UnifiedDailyEODPipeline` 宏观安全阀准确输出三色态；`reconcile_qar.py` 双向平准对账退出码恒为 0（GREEN），Net Beta = 0.0038 $\le 0.10$（Beta 中性达成），0 违规项。
+>   - **Track 5（熔断防护与状态恢复）**：`SharedKillSwitch` 触发停机，`DiskStateStore` 磁盘持久化；进程重启自动继承停机态（Fail-Closed 严格守卫），生产管道与脚本立即阻断并抛出 `KillSwitchError`；手工复位后恢复正常。
+>   - **Track 6（假数据防御与架构解耦）**：轻量级 Bootstrap 装配耗时 $< 50$ ms（实测约 36~42 ms）；抹除行情文件进行 EOD 评估严格抛出 `FileNotFoundError`，100% 杜绝 linspace 伪造假数据漏洞（Rule 4 守卫）。
+> **(2) 门禁与存证全绿**：
+>   - 定向与集成测试：`tests/scripts/test_run_n2n_verification.py` (6 passed) + `test_reconcile_qar.py` (10 passed) 全部 100% 通过；
+>   - 代码质量：`ruff check src/ tests/ scripts/` **All checks passed!**；
+>   - 证据链账本：`results/migration/n2n_verification_report.json` 纳入 `results/EVIDENCE_MANIFEST.json`（54 份证据文件），`evidence_manifest.py verify` **no drift**。
+>
 > **Updated 2026-11-21 (第二十四轮：上云通道随机抽样三方对账全绿 + 两个真缺陷回退修正；纪律=seed 可复现+三类差异如实分类+伪回归回退)**:
 > **(1) 三方对账框架落地（`scripts/maintenance/verify_cloud_channels_random.py`）**：seed=42 从 SSOT (status=1 ∧ type=1, 剔债券/ETF, 沪深 12 只) 随机抽样，7 轨道 × 双基线（本地 TDX + 其他在线源 akshare/baostock/旧协议 mootdx xdxr）可复现对账，结果 JSON 入 `results/migration/` 并纳 evidence manifest。经 6 轮迭代修复（抽样误含债券/ETF、形参名错、全历史×3 重复拉取超时→窗口收敛+预取复用、轨道原子构造改逐轨容错、_parse_gpcw_file 包装层误 SKIP→直读 Financial.parse 数值矩阵）。
 > **(2) 终跑全绿（12 标的 × 7 轨道, 总体 PASS）**：**A1** 上云日线 vs 本地湖 12/12 逐位（OHLC/amount 0 差）；**A2** vs akshare 不复权 12/12；**A3** vs baostock 不复权 12/12；**B** 5 分钟聚合一致性 12/12（48 根/日重构日线 OHLC 精确 + amount rel ~3e-8）；**C** xdxr 双在线栈（tdxdata=旧协议 mootdx=官方 gbbq）12/12 且官方 ⊇ Wine；**D** 财务同报告期数值矩阵 12/12（581/584 列逐位一致）；**E** snap last vs 在线日线收盘 12/12。
@@ -18,20 +31,13 @@
 > **(6) 门禁与入档**：定向 78 passed（tdxdata_online 26 + get_price_online_fallback 11 + price contract + gbbq/financial sync）；`ruff check src/ tests/ scripts/` **All checks passed!**；`evidence_manifest.py verify` no drift（含新增对账 JSON 入账本）；结果存证 `results/migration/cloud_channel_random_verification.json`（seed=42 可复现）。
 > **(7) 已知边界**：① E 轨道 cross_api 容差 0.05 元（snap.last 语义="最新成交价"含盘后大宗, 与日线收盘语义不同, 600276 差 0.03 如实保留明细）；② 北交所标的未纳入抽样（在线市场码支持未验证）；③ 旧协议 mootdx xdxr 为唯一存活旧栈对照, 其自身无独立权威性；④ 验证脚本为开发机验收工具（需湖+本地 TDX+真网），CI 不运行。
 >
-> **Updated 2026-11-21 (第二十三轮：三项收尾接线 —— gbbq 写通道真实替换 + 分钟线在线接入 + snap 实时解析；纪律=全量实测+无损失守卫+不伪造极值)**:
-> **(1) 侦察定案（三项实现的事实基础）**：① snap `prices` 为**抽样序列**（茅台一个交易日仅 62 点）：prices[0]=昨收 1460.21、prices[1]=今开 1450.89（与日线逐位一致），但序列 max=1485.75 ≠ 真实 high 1489.09、min=1426.00 ≠ 真实 low 1423.9 → **极值不可导出，实现只解析可验证锚点，不伪造 high/low**；② **分钟线 vol 已是股**（amount/(close*vol)=1.00，与日线的手×100 不同，量纲跨 category 不一致）→ fetch_minute 不做缩放；③ gbbq 消费者 `corporate_action.py` **严格过滤 category==1**；本地 parquet dtypes 锁定（code=object 6位/int64 日期/float64 值）。
-> **(2) gbbq 写通道真实接线（`scripts/maintenance/sync_online_gbbq.py`）**：官方 `download_gbbq` → `decrypt_records` → **合并式写策略**（官方 cat1 全量替换本地 cat1【更精确 float64 + 新事件】+ 本地非 cat1 股本变更元数据 130,858 行原样保留【官方解码非 cat1 置零无信息量】）→ **无损失守卫**（写前断言旧表每一 (code,date,category) 键都在新表，fail-closed 绝不半写）+ 官方 cat1 ⊇ 本地 cat1 超集守卫 → 原子写（tmp+os.replace）+ `.bak` 备份。**真实替换完成**：`data/fq/gbbq.parquet` 194,983 → **200,377 行**（cat1 64,125→69,520，新增 5,395 事件），旧键 100% 保留（守卫实测 True），锚点 000001/19900301 rights_price=3.56 无损。**消费者冒烟 210 passed / 0 failed**（corporate_action qfq 钉带 0.1471、CSI300 109 例冒烟、price contract 全链路对替换无感——qfq 因子扰动 ~1e-7 级远低于钉带容差）。沙盒先行：/tmp 全量重建 69,520 条锚点逐位精确后才真实写。
-> **(3) 分钟线在线接入（`TdxDataOnlineSource.fetch_minute`）**：频率映射 1min→7/5min→0/15min→1/30min→2/60min→3，未知频率 `ValueError` fail-fast；翻页语义与日线一致（800/页，MAX_PAGES=30）；**vol 仅改名不缩放**（已是股）；`--start_dt/--end_dt` 区间过滤。真网验收：5min 增量 48 根/日、**全深度 10,224 根回溯 2026-01-05（约 10.5 个月，修正第二十二轮"约 2 个月"的低估——此前只翻 2 页）**、1min 恰一个交易日 240 根、60min 深市 12 根全通。在线深度语义：**够近期增量，历史分钟归档仍需湖快照**（湖 1mins/5mins 目录为空的重建路径留待后续）。
-> **(4) snap 实时解析（`fetch_real_time` 升级）**：透传原始 dict → 解析为结构化列 `[code, market, last, prev_close, open, series_points, compressed]`，三锚点真网对账逐位一致（昨收/今开/last=日线 1460.21/1450.89/1485.75）；**明确不输出 high/low**（抽样序列极值不完整，伪造即违反 Rule 4）；market 字段新协议语义未定 → 原样透传不解释。
-> **(5) 测试与门禁（本工作树）**：新增 gbbq 同步 10 用例（纪元过滤/字段映射/dtypes 锁定/合并保留与覆盖/去重排序/无损失守卫/原子写+.bak/超集违约 fail-closed/空表拒绝）+ 分钟 4 用例 + snap 解析 3 用例（含短序列容错），`tdxdata_online` 累计 26 用例；**广域回归 data+get_price+scripts 三域 993 passed / 0 failed**；`ruff check src/ tests/ scripts/` **All checks passed!**。
-> **(6) 已知边界**：① snap 无全市场扫描（单标的）；② 分钟在线增量接线为源级能力（`fetch_minute`），湖级分钟同步脚本（1mins/5mins 空目录重建）留待下轮；③ gbbq `.bak` 为唯一回滚保险（数据文件不入 git）；④ 历史逐季财务与 gbbq 官方 HTTP 通道均依赖 tdx.com.cn/tdxfin 可用性，无 SLA 承诺。
->
 ## Round Log Index（轮次日志索引）
 
-> 顺序与上文/归档块一致（新→旧）。第 23、24 轮块保留于上文；其余块全文在
+> 顺序与上文/归档块一致（新→旧）。第 24、25 轮块保留于上文；其余块全文在
 > `docs/archive/AGENTS_CHANGELOG_ROUNDS.md`。哈希为 `git log -- AGENTS.md` 可映射的主提交
 > （部分轮次为合并提交；轮次纪元前的 dated 块不逐一映射哈希）。第十八轮无独立块（并入相邻记录）。
 
+- **第 25 轮**（2026-11-22）：端到端 (N2N) 全链路系统级验收与红蓝对抗落地；纪律=6 轨全闭环+金丝雀 20 标的全覆盖+Fail-Closed 防线验证 — 保留于上文
 - **第 24 轮**（2026-11-21）：上云通道随机抽样三方对账全绿 + 两个真缺陷回退修正；纪律=seed 可复现+三类差异如实分类+伪回归回退 — 保留于上文
 - **第 23 轮**（2026-11-21）：三项收尾接线 —— gbbq 写通道真实替换 + 分钟线在线接入 + snap 实时解析；纪律=全量实测+无损失守卫+不伪造极值 — `ba973fe`
 - **第 22 轮**（2026-11-21）：历史财务数据在线通道接入 —— mootdx.affair 官方 HTTP 分发 + 生产导入链直通；纪律=全量实测+沙盒验收+幂等 — `2722e19`
