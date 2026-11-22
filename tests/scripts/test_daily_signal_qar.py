@@ -49,6 +49,11 @@ class TestDailySignalQARPipeline:
         # 权重总和严格等于 0.75
         assert pytest.approx(sum(res["target_stock_weights"].values()), abs=1e-5) == 0.75
 
+        assert "target_stock_weights" in res
+        assert "trading_signals" in res
+        assert len(res["trading_signals"]) == 40
+        assert res["trading_signals"][0]["action"] == "BUY"
+
         # 期货分仓验证
         futures_info = res["futures_hedging_orders"]
         assert futures_info["num_accounts"] == 3
@@ -76,3 +81,20 @@ class TestDailySignalQARPipeline:
                 track="75/25-IH",
                 output_dir=tmp_path,
             )
+
+    def test_kill_switch_stops_qar_pipeline(self, tmp_path):
+        """测试 SharedKillSwitch 停机保护拦截 QAR 日常调度流水线 (Wave 3 T6d)"""
+        from uniquant.shared.kill_switch import KillSwitchError, get_kill_switch
+
+        ks = get_kill_switch()
+        ks.reset()
+        ks.kill("qar_emergency_stop")
+        try:
+            with pytest.raises(KillSwitchError, match="Trading stopped: qar_emergency_stop"):
+                run_daily_pipeline(
+                    as_of="2024-05-06",
+                    output_dir=tmp_path,
+                )
+        finally:
+            ks.reset()
+

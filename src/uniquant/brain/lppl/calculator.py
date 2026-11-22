@@ -1,3 +1,11 @@
+"""LPPL 生产核心计算模块 (Production Core Calculator).
+
+【架构边界声明 - 裁决 ⑤=A (Wave 3)】
+本模块为 UniQuant 生产运行时 LPPL 在线分析引擎 (LPPLAnalysisEngine) 的核心计算器。
+负责标准化参数拟合、快速缓存计算与崩盘预警输出。
+深度离线多窗口扫描与扩展优化请参见研究专用模块 fitting_optimizer.py。
+"""
+
 import hashlib
 import logging
 from collections import OrderedDict

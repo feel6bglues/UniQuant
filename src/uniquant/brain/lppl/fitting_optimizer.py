@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
-"""
-LPPL 拟合与优化核心模块 (Fitting & Optimization Module)
+"""LPPL 研究专用拟合与优化模块 (Research Dedicated Optimization Module).
+
+【架构边界声明 - 裁决 ⑤=A (Wave 3)】
+本模块为离线深度研究、敏感性分析与大规模并行窗口参数扫描专用。
+生产实时运行流水线默认采用轻量高性能的 calculator.py，维持双栈边界隔离。
 
 职责:
 - LPPL 目标代价函数 (RMSE)

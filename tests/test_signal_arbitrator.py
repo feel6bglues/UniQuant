@@ -51,6 +51,47 @@ class TestArbitrateBasic:
         assert len(result) == 1
         assert result[0].confidence == 0.9
 
+    def test_qar_signal_arbitration(self):
+        """测试 QAR 股票腿 TradingSignal 参与仲裁 (Wave 3 T6d)"""
+        arb = SignalArbitrator()
+        qar_buy = TradingSignal(
+            action="BUY",
+            confidence=0.88,
+            symbol="600519.SH",
+            reason="QAR_TOP_WEIGHT",
+            metadata={"source": "QAR", "weight": 0.038},
+        )
+        alpha_buy = TradingSignal(
+            action="BUY",
+            confidence=0.65,
+            symbol="600519.SH",
+            reason="AlphaScore=0.72",
+            metadata={"source": "alpha_score"},
+        )
+        res = arb.arbitrate([qar_buy, alpha_buy])
+        assert len(res) == 1
+        assert res[0].action == "BUY"
+        assert res[0].confidence == 0.88
+        assert res[0].metadata["source"] == "QAR"
+
+    def test_cross_sectional_multi_symbol_arbitration(self):
+        """测试横截面多标的仲裁保持各自独立优选 (Wave 3 T6d)"""
+        arb = SignalArbitrator()
+        sig_a1 = TradingSignal(action="BUY", confidence=0.7, symbol="000001.SZ")
+        sig_a2 = TradingSignal(action="SELL", confidence=0.9, symbol="000001.SZ")
+        sig_b = TradingSignal(action="BUY", confidence=0.8, symbol="600519.SH")
+
+        res = arb.arbitrate([sig_a1, sig_a2, sig_b])
+        assert len(res) == 2
+        symbols = {s.symbol for s in res}
+        assert symbols == {"000001.SZ", "600519.SH"}
+        res_map = {s.symbol: s for s in res}
+        # 000001.SZ 发生买卖冲突，SELL 优先
+        assert res_map["000001.SZ"].action == "SELL"
+        # 600519.SH 无冲突，保留 BUY
+        assert res_map["600519.SH"].action == "BUY"
+
+
     def test_quality_threshold_filters_low_oos_r2_sell(self):
         arb = SignalArbitrator(quality_threshold=0.5)
         sig1 = TradingSignal(action="SELL", confidence=0.8, symbol="000001.SZ")

@@ -455,6 +455,53 @@ class MAStatusAdapter(EngineAdapter):
 
 
 # ══════════════════════════════════════════════════════════════
+# QAR 策略股票腿适配器
+# ══════════════════════════════════════════════════════════════
+
+class QARAdapter(EngineAdapter):
+    """CNMM-QAR 股票腿策略输出适配器。
+
+    输入 keys: weight / target_weight, is_compliant
+    输出: BUY (治理合规且 weight > 0) / SELL (weight < 0 或平仓) / None
+    """
+
+    def adapt(
+        self,
+        raw_output: Dict[str, Any],
+        symbol: str,
+        timestamp: Optional[datetime.datetime] = None,
+        default_shares: int = 100,
+    ) -> Optional[TradingSignal]:
+        is_compliant = raw_output.get("is_compliant", True)
+        if not is_compliant:
+            return None
+        weight = float(raw_output.get("weight", raw_output.get("target_weight", 0.0)))
+        if weight > 0:
+            action = "BUY"
+            reason = f"QAR weight={weight:.4f}"
+            confidence = min(0.5 + weight * 10, 0.95)
+        elif weight < 0:
+            action = "SELL"
+            reason = "QAR exit"
+            confidence = 0.8
+        else:
+            return None
+
+        price = float(raw_output.get("price", 0.0))
+        shares = int(raw_output.get("shares", default_shares))
+        return TradingSignal(
+            action=action,
+            reason=reason,
+            confidence=confidence,
+            shares=shares,
+            symbol=symbol,
+            price=price,
+            timestamp=timestamp,
+            metadata={"weight": weight, "source": "QAR"},
+        )
+
+
+# ══════════════════════════════════════════════════════════════
 # 适配器注册表
 # ══════════════════════════════════════════════════════════════
 
@@ -503,6 +550,7 @@ def create_default_registry() -> AdapterRegistry:
     registry.register("ntf", NTFAdapter())
     registry.register("alpha_score", AlphaScoreAdapter())
     registry.register("ma_status", MAStatusAdapter())
+    registry.register("qar", QARAdapter())
     return registry
 
 

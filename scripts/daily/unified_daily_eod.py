@@ -200,7 +200,13 @@ class UnifiedDailyEODPipeline:
         holdings: Optional[List[Dict[str, Any]]] = None,
         dry_run: bool = True,
     ) -> Dict[str, Any]:
-        """执行端到端日终决策流程并推送通知"""
+        """执行端到端日终决策流程并推送通知 (受 SharedKillSwitch 保护，统一经 SignalArbitrator 产出信号)"""
+        from uniquant.shared.interfaces import TradingSignal
+        from uniquant.shared.kill_switch import get_kill_switch
+        from uniquant.signal.arbitrator import SignalArbitrator
+
+        get_kill_switch().check()
+
         macro = self.evaluate_macro_gate(as_of_date=as_of_date)
         holdings_list = holdings or []
         stop_alerts = self.scan_stop_loss(holdings_list)
@@ -220,6 +226,49 @@ class UnifiedDailyEODPipeline:
         if macro.target_equity_weight_pct == 0.0:
             rec_stocks = []
 
+        # 统一信号装配与仲裁输出
+        candidate_signals: List[TradingSignal] = []
+        for alert in stop_alerts:
+            candidate_signals.append(
+                TradingSignal(
+                    symbol=alert.code,
+                    action="SELL",
+                    confidence=0.99,
+                    reason=f"HARD_STOP_EXIT_{alert.drawdown_pct:.1f}%",
+                    price=alert.current_price,
+                    metadata={"drawdown_pct": alert.drawdown_pct, "source": "HARD_STOP"},
+                )
+            )
+
+        if macro.status == "BULL_OFFENSE":
+            for rec in rec_stocks:
+                sym = rec.split()[0]
+                candidate_signals.append(
+                    TradingSignal(
+                        symbol=sym,
+                        action="BUY",
+                        confidence=0.85,
+                        reason="MACRO_BULL_OFFENSE",
+                        metadata={"source": "EOD_RECOMMENDED"},
+                    )
+                )
+        elif macro.status == "BEAR_PANIC_CASH":
+            for pos in holdings_list:
+                cand_code = pos.get("code", "")
+                if cand_code:
+                    candidate_signals.append(
+                        TradingSignal(
+                            symbol=cand_code,
+                            action="SELL",
+                            confidence=0.99,
+                            reason="BEAR_PANIC_CASH_LIQUIDATION",
+                            metadata={"source": "PANIC_EXIT"},
+                        )
+                    )
+
+        arbitrator = SignalArbitrator()
+        arbitrated_signals = arbitrator.arbitrate(candidate_signals)
+
         notifier = FeishuNotifier(dry_run=dry_run)
         alert_notes = "\\n".join(actions)
         feishu_res = notifier.send_macro_cash_report(
@@ -236,6 +285,7 @@ class UnifiedDailyEODPipeline:
         return {
             "macro_gate": asdict(macro),
             "stop_loss_alerts": [asdict(a) for a in stop_alerts],
+            "trading_signals": [s.to_dict() for s in arbitrated_signals],
             "execution_actions": actions,
             "feishu_response": feishu_res,
         }

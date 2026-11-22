@@ -103,6 +103,12 @@ def build_target(as_of: str | None) -> dict:
 
 
 def main(argv=None):
+    from uniquant.shared.interfaces import TradingSignal
+    from uniquant.shared.kill_switch import get_kill_switch
+    from uniquant.signal.arbitrator import SignalArbitrator
+
+    get_kill_switch().check()
+
     ap = argparse.ArgumentParser(description="H-A 每日信号")
     ap.add_argument("--as-of", type=str, default=None)
     args = ap.parse_args(argv)
@@ -120,18 +126,33 @@ def main(argv=None):
            "state": state}
 
     tgt_asof = None
+    ha_candidate_signals = []
     if state["hot_bull"]:
         tgt = build_target(args.as_of)
         tgt_asof = tgt["as_of"]
         out["target_portfolio"] = tgt
         out["action"] = f"HOLD top{TOP_N} illiq (equal weight)"
         print(f"[H-A] 过热牛 ✓ → 目标 {len(tgt['target'])} 只 (合格池 {tgt['n_eligible']})")
+        for t in tgt["target"]:
+            ha_candidate_signals.append(
+                TradingSignal(
+                    symbol=t["code"],
+                    action="BUY",
+                    confidence=0.85,
+                    reason="H_A_HOT_BULL_TOP30",
+                    metadata={"target_weight": t.get("weight", 1.0 / TOP_N), "strategy": "H-A"},
+                )
+            )
         for t in tgt["target"][:10]:
             print(f"    {t['code']} w={t['weight']:.4f} illiq={t['illiq']:,.0f} ADV≈{t['adv20_wan']:,.0f}万")
     else:
         out["action"] = "CASH (state off)"
         out["target_portfolio"] = {"as_of": state["as_of"], "target": []}
         print(f"[H-A] {state['trend_on']}/{state['vol_state']} → 空仓")
+
+    arbitrator = SignalArbitrator(quality_threshold=0.0)
+    arbitrated_signals = arbitrator.arbitrate(ha_candidate_signals)
+    out["trading_signals"] = [s.to_dict() for s in arbitrated_signals]
 
     SIGNAL_DIR.mkdir(parents=True, exist_ok=True)
     fp = SIGNAL_DIR / f"{tgt_asof or state['as_of']}.json"

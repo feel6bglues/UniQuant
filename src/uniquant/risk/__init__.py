@@ -1,23 +1,16 @@
-"""
-风险管理模块
-=============
+"""风险管理模块.
 
 当前已实现:
 - PositionSizer: 仓位计算 (T+1 风险惩罚 + CZSC 几何止损)
 - EVTRisk / HistoricalSimulationRisk: 历史模拟 VaR/CVaR
 - PortfolioOptimizer: 风险平价 + 均值-方差组合优化
-- TwoStageSparseConvexOptimizer: 两阶段稀疏化凸优化求解器 (CNMM-QAR 生产级)
+- ComplianceEngine: 交易合规与风控检查
 """
 
 try:
-    from .drawdown_analyzer import DrawdownAnalyzer
+    from .compliance_engine import ComplianceEngine
 except ImportError:
-    DrawdownAnalyzer = None
-
-try:
-    from .sizer import PositionSizer
-except ImportError:
-    PositionSizer = None
+    ComplianceEngine = None
 
 try:
     from .evt_risk import EVTRisk
@@ -30,30 +23,14 @@ except ImportError:
     PortfolioOptimizer = None
 
 try:
-    from .sparse_convex_optimizer import (
-        TwoStageSparseConvexOptimizer,
-        TwoStageOptimizerConfig,
-        TwoStageOptimizationResult,
-    )
+    from .sizer import PositionSizer
 except ImportError:
-    TwoStageSparseConvexOptimizer = None
-    TwoStageOptimizerConfig = None
-    TwoStageOptimizationResult = None
-
-try:
-    from .structural import StructuralRiskManager
-except ImportError:
-    StructuralRiskManager = None
+    PositionSizer = None
 
 __all__ = [
     "PositionSizer",
     "EVTRisk",
     "PortfolioOptimizer",
-    "TwoStageSparseConvexOptimizer",
-    "TwoStageOptimizerConfig",
-    "TwoStageOptimizationResult",
 ]
-if DrawdownAnalyzer is not None:
-    __all__.append("DrawdownAnalyzer")
-if StructuralRiskManager is not None:
-    __all__.append("StructuralRiskManager")
+if ComplianceEngine is not None:
+    __all__.append("ComplianceEngine")

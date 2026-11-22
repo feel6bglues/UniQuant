@@ -94,94 +94,122 @@ class ServiceContainer:
                 "\n  - ".join(validation_errors),
             )
 
-        storage = StorageManager()
-        calendar = TradeCalendarManager()
-        cache = CacheCoordinator()
-
-        data_svc = DataService(
-            storage_manager=storage,
+        # 1. 注册核心数据层服务工厂 (无 IO 懒加载)
+        self.register_factory("storage", lambda c: StorageManager())
+        self.register_factory("calendar", lambda c: TradeCalendarManager())
+        self.register_factory("cache", lambda c: CacheCoordinator())
+        self.register_factory(
+            "data_service",
+            lambda c: DataService(storage_manager=c.get("storage")),
         )
-        # docs: AGENTS.md §Core Runtime Flow — 12 registered service keys
-        self.register("storage", storage)
-        self.register("calendar", calendar)
-        self.register("cache", cache)
-        self.register("data_service", data_svc)
+        self.register_factory("time_provider", lambda c: RealTimeProvider())
 
-        # 注入 TimeProvider (生产环境使用 RealTimeProvider)
-        time_provider = RealTimeProvider()
-        self.register("time_provider", time_provider)
+        # 2. 注册分析引擎工厂与缓存
+        def _make_engine_factory(c):
+            from .analysis.engine_factory import AnalysisEngineFactory
 
-        from .analysis.engine_factory import AnalysisEngineFactory
-        from .market_cache import MarketLevelCache
+            return AnalysisEngineFactory(orchestrator=c.get("data_service"))
 
-        engine_factory = AnalysisEngineFactory(orchestrator=data_svc)
-        market_cache = MarketLevelCache()
-        data_svc.attach_market_cache(market_cache)
-        self.register("engine_factory", engine_factory)
-        self.register("market_cache", market_cache)
+        def _make_market_cache(c):
+            from .market_cache import MarketLevelCache
 
-        from .analysis_service_v2 import AnalysisService
-        from .research_pipeline import UnifiedResearchPipeline
-        from ..hands.backtest.unified_engine import UnifiedBacktestEngine
-        from ..signal.adapters import TradingSignalCollector, create_default_registry
+            mc = MarketLevelCache()
+            ds = c.get("data_service")
+            if ds is not None and hasattr(ds, "attach_market_cache"):
+                ds.attach_market_cache(mc)
+            return mc
 
-        analysis_svc = AnalysisService(
-            data_service=data_svc,
-            engine_factory=engine_factory,
-            market_cache=market_cache,
-        )
-        engine_factory.bind_orchestrator(analysis_svc)
-        self.register("analysis_service", analysis_svc)
+        self.register_factory("engine_factory", _make_engine_factory)
+        self.register_factory("market_cache", _make_market_cache)
 
-        backtest_engine = UnifiedBacktestEngine()
-        signal_collector = TradingSignalCollector(create_default_registry())
-        self.register("backtest_engine", backtest_engine)
-        self.register("signal_collector", signal_collector)
+        # 3. 注册分析服务 (AnalysisService)
+        def _make_analysis_svc(c):
+            from .analysis_service_v2 import AnalysisService
 
-        # 信号仲裁器 (特性开关控制)
-        arbitrator = None
+            ef = c.get("engine_factory")
+            asvc = AnalysisService(
+                data_service=c.get("data_service"),
+                engine_factory=ef,
+                market_cache=c.get("market_cache"),
+            )
+            if ef is not None and hasattr(ef, "bind_orchestrator"):
+                ef.bind_orchestrator(asvc)
+            return asvc
+
+        self.register_factory("analysis_service", _make_analysis_svc)
+
+        # 4. 注册回测引擎与信号收集器
+        def _make_backtest_engine(c):
+            from ..hands.backtest.unified_engine import UnifiedBacktestEngine
+
+            return UnifiedBacktestEngine()
+
+        def _make_signal_collector(c):
+            from ..signal.adapters import TradingSignalCollector, create_default_registry
+
+            return TradingSignalCollector(create_default_registry())
+
+        self.register_factory("backtest_engine", _make_backtest_engine)
+        self.register_factory("signal_collector", _make_signal_collector)
+
+        # 5. 信号仲裁器 (特性开关控制)
+        def _make_arbitrator(c):
+            try:
+                from ..shared.config_models import load_refactoring_config
+
+                ref_config = load_refactoring_config()
+                if ref_config.feature_flags.signal_arbitration:
+                    from ..signal.arbitrator import SignalArbitrator
+
+                    logger.info("信号仲裁器已启用")
+                    return SignalArbitrator()
+            except Exception as exc:
+                logger.debug("SignalArbitrator configuration failed; leaving arbitrator disabled: %s", exc)
+            return None
+
+        self.register_factory("arbitrator", _make_arbitrator)
+
+        # 6. 因子准入 (特性开关控制)
         try:
             from ..shared.config_models import load_refactoring_config
-            ref_config = load_refactoring_config()
-            if ref_config.feature_flags.signal_arbitration:
-                from ..signal.arbitrator import SignalArbitrator
-                arbitrator = SignalArbitrator()
-                logger.info("信号仲裁器已启用")
-        except Exception as exc:
-            logger.debug("SignalArbitrator configuration failed; leaving arbitrator disabled: %s", exc)
-        self.register("arbitrator", arbitrator)
 
-        # 因子准入 (特性开关控制)
-        try:
             ref_config = load_refactoring_config()
             gate_mode = ref_config.feature_flags.factor_gate
             if gate_mode != "off":
                 from ..brain.factors.registry import FactorAccessLevel, FactorRegistry
+
                 level = FactorAccessLevel(gate_mode)
                 FactorRegistry.set_mode(level)
                 logger.info("因子准入模式已设为: %s", gate_mode)
         except Exception as exc:
             logger.debug("FactorRegistry gate configuration failed; leaving default mode: %s", exc)
 
-        sizer: Optional[PositionSizerProtocol] = None
-        try:
-            from ..risk.sizer import PositionSizer
-            sizer = PositionSizer()
-        except Exception as exc:
-            logger.debug("PositionSizer init failed; sizer disabled: %s", exc)
+        # 7. 综合研究流水线 (UnifiedResearchPipeline)
+        def _make_research_pipeline(c):
+            from .research_pipeline import UnifiedResearchPipeline
 
-        batch_max_workers: Optional[int] = config.get("batch", {}).get("max_workers", None)
+            sizer: Optional[PositionSizerProtocol] = None
+            try:
+                from ..risk.sizer import PositionSizer
 
-        pipeline = UnifiedResearchPipeline(
-            analysis_service=analysis_svc,
-            backtest_engine=backtest_engine,
-            signal_collector=signal_collector,
-            arbitrator=arbitrator,
-            sizer=sizer,
-            time_provider=time_provider,
-            max_workers=batch_max_workers,
-        )
-        self.register("research_pipeline", pipeline)
+                sizer = PositionSizer()
+            except Exception as exc:
+                logger.debug("PositionSizer init failed; sizer disabled: %s", exc)
+
+            cfg = get_config()
+            batch_max_workers: Optional[int] = cfg.get("batch", {}).get("max_workers", None)
+
+            return UnifiedResearchPipeline(
+                analysis_service=c.get("analysis_service"),
+                backtest_engine=c.get("backtest_engine"),
+                signal_collector=c.get("signal_collector"),
+                arbitrator=c.get("arbitrator"),
+                sizer=sizer,
+                time_provider=c.get("time_provider"),
+                max_workers=batch_max_workers,
+            )
+
+        self.register_factory("research_pipeline", _make_research_pipeline)
 
         self._initialized = True
-        logger.info("ServiceContainer initialized with DAG topology + ResearchPipeline")
+        logger.info("ServiceContainer initialized with lazy DAG factories")

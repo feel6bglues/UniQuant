@@ -56,10 +56,27 @@ class TestUnifiedDailyEODPipeline:
 
         assert "macro_gate" in result
         assert "stop_loss_alerts" in result
+        assert "trading_signals" in result
         assert "execution_actions" in result
         assert "feishu_response" in result
         assert len(result["stop_loss_alerts"]) == 1
+        assert len(result["trading_signals"]) >= 1
         assert result["feishu_response"]["status"] == "dry_run"
+
+    def test_kill_switch_stops_execution(self):
+        """测试 SharedKillSwitch 停机保护直接拦截日终决策执行 (Wave 3 T6d)"""
+        from uniquant.shared.kill_switch import KillSwitchError, get_kill_switch
+        import pytest
+
+        ks = get_kill_switch()
+        ks.reset()
+        ks.kill("test_emergency_halt")
+        try:
+            pipeline = UnifiedDailyEODPipeline()
+            with pytest.raises(KillSwitchError, match="Trading stopped: test_emergency_halt"):
+                pipeline.execute_daily_eod(dry_run=True)
+        finally:
+            ks.reset()
 
     def test_missing_benchmark_fails_fast_without_synthetic_data(self, tmp_path):
         """测试基准缺失时 Fail-Fast 抛出 FileNotFoundError，严禁伪造假数据 (T6c Rule 4)"""

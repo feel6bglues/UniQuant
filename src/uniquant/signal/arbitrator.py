@@ -33,11 +33,12 @@ ENGINE_PRIORITY: Dict[str, int] = {
     "lppl": 99,
     "fsm": 1,
     "czsc": 2,
-    "wyckoff": 3,
-    "regime": 4,
-    "ntf": 5,
-    "alpha_score": 6,
-    "ma_status": 7,
+    "qar": 3,
+    "wyckoff": 4,
+    "regime": 5,
+    "ntf": 6,
+    "alpha_score": 7,
+    "ma_status": 8,
 }
 
 # 信号过期时间 (秒) — 0 表示不启用过期检查
@@ -118,7 +119,7 @@ class SignalArbitrator:
             return []
 
         now = get_time_provider().now()
-        by_date: Dict[str, List[TradingSignal]] = {}
+        by_sym_date: Dict[Tuple[str, str], List[TradingSignal]] = {}
         for sig in signals:
             # 信号超时检查
             if sig.timestamp is not None and self._max_signal_age_seconds > 0:
@@ -129,17 +130,18 @@ class SignalArbitrator:
                         age, self._max_signal_age_seconds, sig.reason,
                     )
                     continue
+            sym = sig.symbol or symbol
             key = (
                 str(sig.timestamp.date())
                 if sig.timestamp
                 else "unknown"
             )
-            by_date.setdefault(key, []).append(sig)
+            by_sym_date.setdefault((sym, key), []).append(sig)
 
         result: List[TradingSignal] = []
-        for date_key in sorted(by_date.keys()):
-            day_signals = by_date[date_key]
-            winner = self._pick_winner(day_signals, symbol, date_key)
+        for (sym, date_key) in sorted(by_sym_date.keys(), key=lambda x: (x[1], x[0])):
+            day_signals = by_sym_date[(sym, date_key)]
+            winner = self._pick_winner(day_signals, sym, date_key)
             if winner is not None:
                 result.append(winner)
 

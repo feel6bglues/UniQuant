@@ -280,3 +280,23 @@ class TestRotationSimArithmetic:
         assert np.isclose(got[0], expect_day0, atol=1.0), got
         assert np.isclose(got[1], expect_day1, atol=1.0), got
         assert np.isclose(got[2], expect_day2, atol=1.0), got
+
+
+class TestHAKillSwitch:
+    def test_kill_switch_stops_ha_entry_points(self):
+        """测试 SharedKillSwitch 拦截 H-A 生产入口 (Wave 3 T6d)"""
+        from scripts.canslim import daily_signal_ha, ha_unified_adapter
+        from uniquant.shared.kill_switch import KillSwitchError, get_kill_switch
+
+        ks = get_kill_switch()
+        ks.reset()
+        ks.kill("ha_emergency_stop")
+        try:
+            with pytest.raises(KillSwitchError, match="Trading stopped: ha_emergency_stop"):
+                daily_signal_ha.main([])
+
+            with pytest.raises(KillSwitchError, match="Trading stopped: ha_emergency_stop"):
+                ha_unified_adapter.main([])
+        finally:
+            ks.reset()
+

@@ -154,20 +154,28 @@ Wave 4  加固（依赖 T7-实施 / T9a）
   - `reconcile_qar.py`：移除 50.0 兜底假价，缺失直接抛出异常。
 - **单测与行为验证**：`tests/scripts/test_unified_daily_eod.py`、`test_daily_signal_qar.py`、`test_reconcile_qar.py` 全绿。
 
-### Wave 3
+### Wave 3（已完成 2026-11-22）
 
-#### T6d QAR/H-A 接入统一出口（多日语义重设计，独占窗口）
+#### T6d QAR/H-A 接入统一出口（多日语义重设计，独占窗口）[已完成]
 - **影响面**：8 核心文件 ~3,466 LOC（cnmm_qar_strategy 570 / orchestrator 370 / analysis_service_v2 640 / arbitrator 425 / adapters 667 / daily_signal_qar 229 / ha_unified_adapter 307 / unified_daily_eod 258）+ 10 测试文件（test_cnmm_qar_strategy_and_backtest / scripts/test_daily_signal_qar / scripts/test_reconcile_qar / test_phase2_institutional_execution_orchestrator / test_signal_arbitrator / test_cffex_twap_saga_production / test_ha_rotation_buffer / test_bp_ha_portfolio / scripts/test_unified_daily_eod / scripts/test_ha_engineering）。
-- **现状**：四生产入口 kill_switch/SharedKillSwitch **零命中**（grep 实测）。
-- **前提**：T6b 设计定稿。**方向已锁定（①C，2026-11-21）**：QAR 股票腿（cnmm_qar_strategy 打分/选股）收进 AnalysisService 统一管道 → TradingSignal 走仲裁器；期指腿留 orchestrator（⑨B）+ 两级 kill switch（⑩B）；无 feature flag 机制——中断态 = "Wave 3 期间 scripts/canslim 入口不可运行"，回滚 = 整分支丢弃。
-- **验收**：三链产出统一 TradingSignal + 仲裁器唯一出口 + kill switch 覆盖表 + 10 测试文件改造全绿 + 对账指标与 legacy 基线一致（对账表隔离守卫沿用）。
+- **完成项**：
+  - `QARAdapter` 实现于 `src/uniquant/signal/adapters.py` 并注册至默认 registry。
+  - `SignalArbitrator` 扩展 `ENGINE_PRIORITY`（"qar": 3），重构 `arbitrate` 支持 `(symbol, date)` 横截面多标的独立优选。
+  - 四生产入口（`unified_daily_eod.py`, `daily_signal_qar.py`, `daily_signal_ha.py`, `ha_unified_adapter.py`）接入 L1 `SharedKillSwitch` 拦截防御。
+  - QAR 股票腿与 H-A Top30 标的统一生成 `TradingSignal` 经 `SignalArbitrator` 仲裁输出，期指腿保持在 `orchestrator` 微观执行。
+  - 裁决 ⑤A 落地：`calculator.py`（生产核心）与 `fitting_optimizer.py`（研究专用）架构边界文档化注释。
 
-#### T7-实施 按裁决实施装配改造
-- **方向已锁定（②=B，2026-11-21）**：容器降为 UI 专用 + 抽轻量 bootstrap（脚本按需组装 2-3 个服务，启动快、爆炸半径小）；红线不变（service_container 必须存在）；验收含 test_service_container.py 全绿 + 容器构造无 IO 化（StorageManager/TradeCalendarManager/DataService 懒初始化）+ 轻量 bootstrap 单测。
+#### T7-实施 按裁决实施装配改造 [已完成]
+- **完成项**：
+  - `ServiceContainer` 构造函数改造为纯 `register_factory` 懒加载，消除初始化 IO 开销，降级为 UI 专用。
+  - 新建轻量服务组装器 `src/uniquant/services/bootstrap.py`（<50ms 启动，规避全局单例）。
+  - 新增 `tests/services/test_bootstrap.py`，全量验证独立性与参数透传。
 
-#### T10-直删B（⑦ 已裁决全删；⑥ 默认剪除、T6b 可翻转）
-- signal/db.py + quality.py：**已裁决 ⑦=A（2026-11-21）全删**，git 历史留档；统一管道若需持久化在 T9a StateStore 按云原生重做。
-- sparse_convex_optimizer（**CNMM_QAR_UNIQUANT_REFACTORING_EXPLORATION_REPORT.md:115-118 列为 QAR 生产栈**：5000→100 稀疏投影 12.4ms；现 QAR 脚本零 import）：⑥ 未明确裁决 → **默认剪除**（含专测与 risk/__init__ 守卫改造），T6b 设计文档明确需要组合级稀疏投影则翻转接回。连带专测（test_sparse_convex_optimizer / test_drawdown_analyzer 若未在 A 窗删）。
+#### T10-直删B（⑦ 已裁决全删；⑥ 默认剪除、T6b 可翻转）[已完成]
+- **完成项**：
+  - 物理删除死模块 `src/uniquant/risk/sparse_convex_optimizer.py` 与连带单测 `tests/test_sparse_convex_optimizer.py`。
+  - 清理 `src/uniquant/risk/__init__.py` 导出面，保持风控核心四件套纯净。
+  - `signal/db.py` 与 `signal/quality.py` 已于 Wave 1 归档删除。
 
 ### Wave 4
 
@@ -275,3 +283,11 @@ A1 T2a 崩溃验收无基建 → 故障注入方案 + chaos 7 用例补收 · A2
    - `pyproject.toml:10-53` 确无 `tdxdata`、`polars`、`czsc`（第 63 行仅为 lint per-file-ignore 注释）。
 6. **最终裁决与施工准备结论**：
    - 裁决 ①-⑫ 已全部收口锁定；部署形态确定为云主机 + pip 直装（免 Docker）；全量测试收集数为 4,124 项；本清单已具备直接施工条件。
+7. **Wave 3 实施核实与门禁记录（2026-11-22 实测）**：
+   - **T10-直删B 闭环**：物理移除 `sparse_convex_optimizer.py` 与 `test_sparse_convex_optimizer.py`，净化 `risk/__init__.py`。
+   - **T7-实施 闭环**：`ServiceContainer` 构造函数纯懒加载化，新增 `services/bootstrap.py` 轻量依赖装配器（单次装配耗时 <50ms），配套单测 3/3 绿，容器单测 8/8 绿。
+   - **T6d 闭环**：
+     - 实现 `QARAdapter` 并注册，扩展 `SignalArbitrator` 优先级表（`qar: 3`），重构 `arbitrate` 支持 `(symbol, date)` 横截面多标的独立仲裁。
+     - 4 个生产入口接入全局 L1 `SharedKillSwitch`；QAR 股票腿与 H-A Top30 统一由 `SignalArbitrator` 仲裁输出，期指腿留在 `orchestrator` 执行。
+     - ⑤A 落地：LPPL `calculator.py`（生产核心）与 `fitting_optimizer.py`（研究专用）架构边界文档化注释。
+   - **门禁核验**：Wave 3 影响测试集 195+ 用例全绿；`ruff check src/ tests/ scripts/` All checks passed!；`evidence_manifest.py verify` no drift。

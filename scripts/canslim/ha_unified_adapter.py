@@ -227,6 +227,10 @@ def aggregate_portfolio(stock_returns: dict[str, tuple[list, list]]) -> dict:
 
 
 def main(argv=None):
+    from uniquant.shared.kill_switch import get_kill_switch
+
+    get_kill_switch().check()
+
     ap = argparse.ArgumentParser(description="H-A → unified_engine 适配器")
     ap.add_argument("--limit", type=int, default=None)
     ap.add_argument("--full", action="store_true",

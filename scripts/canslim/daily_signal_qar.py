@@ -53,8 +53,14 @@ def run_daily_pipeline(
     output_dir: Optional[str | Path] = None,
 ) -> Dict[str, Any]:
     """
-    执行 CNMM-QAR 每日端到端实盘信号流水线
+    执行 CNMM-QAR 每日端到端实盘信号流水线 (受 SharedKillSwitch 保护，股票腿产出 TradingSignal 经仲裁器唯一出口)
     """
+    from uniquant.shared.interfaces import TradingSignal
+    from uniquant.shared.kill_switch import get_kill_switch
+    from uniquant.signal.arbitrator import SignalArbitrator
+
+    get_kill_switch().check()
+
     out_dir = Path(output_dir) if output_dir else PROJECT_ROOT / "results" / "daily_qar"
     out_dir.mkdir(parents=True, exist_ok=True)
 
@@ -187,6 +193,28 @@ def run_daily_pipeline(
         adv_map=adv_map,
     )
 
+    # 5. QAR 股票腿收进统一信号接口，经 SignalArbitrator 唯一出口
+    qar_candidate_signals = []
+    for order in rebalance_orders:
+        sym = order["symbol"]
+        code_raw = sym.split(".")[0]
+        weight_val = float(target_portfolio["stock_weights"].get(code_raw, 0.0))
+        qar_candidate_signals.append(
+            TradingSignal(
+                symbol=sym,
+                action="BUY",
+                confidence=min(0.5 + weight_val * 10, 0.95),
+                reason="QAR_TOP_WEIGHT",
+                price=float(order.get("price", 0.0)),
+                shares=int(order.get("volume_shares", 100)),
+                timestamp=as_of_dt,
+                metadata={"target_weight": weight_val, "source": "QAR"},
+            )
+        )
+
+    arbitrator = SignalArbitrator(quality_threshold=0.0)
+    arbitrated_signals = arbitrator.arbitrate(qar_candidate_signals)
+
     result_payload = {
         "as_of_date": as_of_str,
         "strategy_track": target_track.value,
@@ -198,6 +226,7 @@ def run_daily_pipeline(
             "governance_compliant": target_portfolio["is_compliant"],
         },
         "target_stock_weights": {k: float(v) for k, v in target_portfolio["stock_weights"].items()},
+        "trading_signals": [s.to_dict() for s in arbitrated_signals],
         "futures_hedging_orders": hedge_structure,
         "micro_execution_evaluation": {
             "total_orders": exec_eval["total_orders"],

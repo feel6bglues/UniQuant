@@ -10,6 +10,7 @@ from uniquant.signal.adapters import (
     LPPLAdapter,
     MAStatusAdapter,
     NTFAdapter,
+    QARAdapter,
     RegimeAdapter,
     TradingSignalCollector,
     WyckoffAdapter,
@@ -570,3 +571,35 @@ class TestTradingSignalCollectorEvent:
         signals = collector.collect(data_pack)
         assert len(signals) >= 1
         assert signals[0].action == "BUY"
+
+
+class TestQARAdapter:
+    def test_qar_buy_signal_on_positive_weight(self):
+        adapter = QARAdapter()
+        raw = {"weight": 0.035, "is_compliant": True, "price": 100.0}
+        sig = adapter.adapt(raw, "600519.SH")
+        assert sig is not None
+        assert sig.action == "BUY"
+        assert sig.symbol == "600519.SH"
+        assert sig.confidence > 0.5
+        assert sig.price == 100.0
+
+    def test_qar_non_compliant_returns_none(self):
+        adapter = QARAdapter()
+        raw = {"weight": 0.035, "is_compliant": False}
+        sig = adapter.adapt(raw, "600519.SH")
+        assert sig is None
+
+    def test_qar_negative_weight_returns_sell(self):
+        adapter = QARAdapter()
+        raw = {"weight": -0.02, "is_compliant": True}
+        sig = adapter.adapt(raw, "600519.SH")
+        assert sig is not None
+        assert sig.action == "SELL"
+
+    def test_qar_zero_weight_returns_none(self):
+        adapter = QARAdapter()
+        raw = {"weight": 0.0, "is_compliant": True}
+        sig = adapter.adapt(raw, "600519.SH")
+        assert sig is None
+
