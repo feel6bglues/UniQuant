@@ -439,20 +439,20 @@ class TestStorageManagerChaos:
 
     def test_save_and_read_data(self, storage):
         df = _make_ohlcv(5)
-        assert storage.save_data("600000.SH", df) is True
+        assert storage.write_data("600000.SH", df) is True
         result = storage.read_data("600000.SH", data_type="daily")
         assert not result.empty
 
     def test_has_data(self, storage):
         df = _make_ohlcv(3)
-        storage.save_data("600001.SH", df)
+        storage.write_data("600001.SH", df)
         assert storage.has_data("600001.SH") is True
         assert storage.has_data("999999.SH") is False
 
     def test_get_symbols(self, storage):
         df = _make_ohlcv(3)
-        storage.save_data("600002.SH", df)
-        storage.save_data("600003.SH", df)
+        storage.write_data("600002.SH", df)
+        storage.write_data("600003.SH", df)
         symbols = storage.get_symbols()
         assert "600002.SH" in symbols
         assert "600003.SH" in symbols
@@ -461,10 +461,10 @@ class TestStorageManagerChaos:
         from uniquant.data.lake.storage_manager import is_index_symbol
 
         df = _make_ohlcv(3)
-        storage.save_data("000001.SH", df)
-        storage.save_data("399001.SZ", df)
-        storage.save_data("600004.SH", df)
-        storage.save_data("000001.SZ", df)
+        storage.write_data("000001.SH", df)
+        storage.write_data("399001.SZ", df)
+        storage.write_data("600004.SH", df)
+        storage.write_data("000001.SZ", df)
         symbols = storage.get_symbols()
         assert "600004.SH" in symbols
         assert "000001.SZ" in symbols
@@ -476,8 +476,8 @@ class TestStorageManagerChaos:
 
     def test_get_symbols_exclude_indices_false(self, storage):
         df = _make_ohlcv(3)
-        storage.save_data("000001.SH", df)
-        storage.save_data("600005.SH", df)
+        storage.write_data("000001.SH", df)
+        storage.write_data("600005.SH", df)
         symbols = storage.get_symbols(exclude_indices=False)
         assert "000001.SH" in symbols
         assert "600005.SH" in symbols
@@ -492,8 +492,8 @@ class TestStorageManagerChaos:
 
     def test_batch_read_data(self, storage):
         df = _make_ohlcv(3)
-        storage.save_data("600010.SH", df)
-        storage.save_data("600011.SH", df)
+        storage.write_data("600010.SH", df)
+        storage.write_data("600011.SH", df)
         results = storage.batch_read_data(["600010.SH", "600011.SH", "999999.SH"])
         assert "600010.SH" in results
         assert "600011.SH" in results
@@ -504,19 +504,44 @@ class TestStorageManagerChaos:
             "date": pd.bdate_range("2024-01-02", periods=5, freq="B"),
             "factor": [1.0, 1.0, 1.5, 1.5, 2.0],
         })
-        assert storage.save_factor("600000.SH", df_factor) is True
+        p = str(storage.factor_dir / "600000.SH.parquet")
+        assert storage.write_parquet(p, df_factor, overwrite=True) is True
         result = storage.read_local_factor("600000.SH")
         assert not result.empty
 
     def test_clean_data(self, storage):
         df = _make_ohlcv(3)
-        storage.save_data("600099.SH", df)
-        storage.save_factor("600099.SH", pd.DataFrame({
+        storage.write_data("600099.SH", df)
+        p = str(storage.factor_dir / "600099.SH.parquet")
+        storage.write_parquet(p, pd.DataFrame({
             "date": pd.bdate_range("2024-01-02", periods=3, freq="B"),
             "factor": [1.0, 1.0, 1.0],
-        }))
+        }), overwrite=True)
         storage.clean_data("600099.SH")
         assert not storage.has_data("600099.SH")
+
+    def test_atomic_write_failure_leaves_target_intact(self, storage, monkeypatch):
+        """T2a 故障注入：写入中途异常时，原分片逐位完好且无 .tmp 残留。"""
+        df_orig = _make_ohlcv(5)
+        storage.write_data("600088.SH", df_orig)
+        target_path = storage.daily_dir / "600088.SH.parquet"
+        orig_content = target_path.read_bytes()
+
+        df_bad = _make_ohlcv(10)
+
+        def boom_to_parquet(self, path, *args, **kwargs):
+            # 写入部分字节后故意抛出异常模拟进程断电/崩溃
+            with open(path, "wb") as f:
+                f.write(b"CORRUPTED_PARTIAL_BYTES")
+            raise IOError("Simulated disk write fault")
+
+        monkeypatch.setattr(pd.DataFrame, "to_parquet", boom_to_parquet)
+        res = storage.write_parquet(str(target_path), df_bad, overwrite=True)
+        assert res is False
+        assert target_path.read_bytes() == orig_content  # 原文件逐位完好
+        # 目录下不得残留任何 .tmp 文件
+        tmp_files = list(storage.daily_dir.glob("*.tmp*"))
+        assert len(tmp_files) == 0
 
 
 # ===================================================================

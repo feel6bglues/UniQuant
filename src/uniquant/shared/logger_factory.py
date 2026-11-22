@@ -84,7 +84,12 @@ class LoggerFactory:
         )
         self.log_format = config.get("base.logging.format", self.DEFAULT_FORMAT)
         self.date_format = config.get("base.logging.date_format", self.DEFAULT_DATE_FORMAT)
-        self.log_dir = config.get("base.logging.directory", "logs")
+        raw_log_dir = config.get("base.logging.directory", "logs")
+        p = Path(raw_log_dir)
+        if not p.is_absolute():
+            from .constants.path import PROJECT_ROOT
+            p = (PROJECT_ROOT / p).resolve()
+        self.log_dir = str(p)
         self.max_bytes = config.get("base.logging.max_bytes", 10 * 1024 * 1024)  # 10MB
         self.backup_count = config.get("base.logging.backup_count", 5)
         self.console_output = config.get("base.logging.console", True)

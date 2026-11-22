@@ -141,7 +141,9 @@ class ConfigValidator:
         """
         errors: List[str] = []
         try:
-            from ..brain.factors.registry import FactorRegistry
+            import importlib
+            registry_mod = importlib.import_module("uniquant.brain.factors.registry")
+            FactorRegistry = getattr(registry_mod, "FactorRegistry")
             registry = FactorRegistry()
 
             factors_config = self._config.get("factors", {})

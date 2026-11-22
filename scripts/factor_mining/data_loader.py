@@ -49,7 +49,7 @@ def load_universe(
     as_of: str | None = None,
     min_days: int = MIN_DAYS_FOR_WALK_FORWARD,
     max_workers: int = 32,
-    data_dir: str = "./data",
+    data_dir: str | Path | None = None,
     symbols: list[str] | None = None,
     adjust: str | None = None,
 ) -> pd.DataFrame:
@@ -72,7 +72,7 @@ def load_universe(
 
     adjuster: CorporateActionAdjuster | None = None
     if adjust in ("qfq", "hfq"):
-        gbbq_file = Path(data_dir) / "fq" / "gbbq.parquet"
+        gbbq_file = storage.data_dir / "fq" / "gbbq.parquet"
         adjuster = CorporateActionAdjuster(gbbq_path=gbbq_file)
         adjuster.load_events()
 

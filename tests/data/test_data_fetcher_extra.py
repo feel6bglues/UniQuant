@@ -23,8 +23,6 @@ from uniquant.data.data_fetcher import (
     GET_PRICE_ADJUSTED_COLUMNS,
     GET_PRICE_LAKE_COLUMNS,
     DataFetcher,
-    LegacyDataFetcher,
-    create_fetcher,
     harmonize_local_volume_unit,
     lake_candidate_symbols,
 )
@@ -616,10 +614,13 @@ class TestMetadataDelegation:
 
 
 class TestConstructors:
-    def test_legacy_fetcher_subclasses_data_fetcher(self):
-        assert issubclass(LegacyDataFetcher, DataFetcher)
+    def test_legacy_aliases_removed(self):
+        """断言废弃的 LegacyDataFetcher 和工厂函数 create_fetcher 已被物理清除 (T10-直删A)"""
+        import uniquant.data.data_fetcher as df_mod
+        assert not hasattr(df_mod, "LegacyDataFetcher")
+        assert not hasattr(df_mod, "create_fetcher")
 
-    def test_create_fetcher_returns_data_fetcher(self, tmp_path, monkeypatch):
+    def test_direct_fetcher_instantiation(self, tmp_path, monkeypatch):
         monkeypatch.setattr(
             "uniquant.data.data_fetcher.MootdxLocalSource",
             MagicMock(side_effect=ImportError("mootdx missing")),
@@ -627,6 +628,6 @@ class TestConstructors:
         pd.DataFrame(
             {"code": ["sh.600000"], "name": ["浦发银行"], "代码": ["600000"]}
         ).to_csv(tmp_path / "all_stock_codes.csv", index=False, encoding="utf-8-sig")
-        fetcher = create_fetcher(data_dir=str(tmp_path))
+        fetcher = DataFetcher(data_dir=str(tmp_path), enable_online_fallback=False)
         assert isinstance(fetcher, DataFetcher)
         assert fetcher.mootdx_local_source is None

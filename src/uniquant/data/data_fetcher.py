@@ -6,7 +6,8 @@
 import logging
 from datetime import datetime
 from collections import OrderedDict
-from typing import Dict, List, Optional, Tuple
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple, Union
 import pandas as pd
 
 from ..shared.error_handling import handle_errors
@@ -15,8 +16,6 @@ from ..shared.logger_factory import get_logger
 from ..shared.time_provider import get_time_provider
 
 from .lake.storage_manager import StorageManager
-from .pipeline.data_cleaner import DataCleaner
-from .pipeline.data_validator import DataValidator
 
 # 湖优先单源 (预注册裁决 D1): 仅保留本地 mootdx 解包兜底。
 # 爬虫源 (Tdx/Baostock/Sina/Ths/Tencent) 模块级 import 已删除 — 如需网络源请走后续裁决,
@@ -24,7 +23,6 @@ from .pipeline.data_validator import DataValidator
 from .corporate_action import get_corporate_action_adjuster
 from .sources.mootdx_local import MootdxLocalSource
 from .sources.tdxdata_online import TdxDataOnlineSource
-from .data_pipeline_service import DataPipelineService
 
 # 新增的 Managers
 from .managers.stock_metadata_manager import StockMetadataManager
@@ -153,9 +151,9 @@ class DataFetcher:
 
     def __init__(
         self,
-        data_dir: str = "./data",
+        data_dir: Optional[Union[str, Path]] = None,
         storage_manager: Optional[StorageManager] = None,
-        pipeline: Optional[DataPipelineService] = None,
+        pipeline: Optional[Any] = None,
         enable_online_fallback: bool = True,
     ):
         logger.info("初始化 DataFetcher - 系统的大脑和总指挥")
@@ -200,19 +198,10 @@ class DataFetcher:
             except FETCHER_INIT_RECOVERABLE_ERRORS as e:
                 logger.warning(f"在线数据源 TdxDataOnlineSource 初始化失败，跳过: {e}")
 
-        self.data_cleaner = DataCleaner()
-        self.data_validator = DataValidator()
-
         # 初始化独立的专门管理器
         self.metadata_manager = StockMetadataManager(data_dir=data_dir)
         self.calendar_manager = TradeCalendarManager(data_dir=data_dir)
         self.market_coordinator = MarketDataCoordinator(self)
-
-        self.pipeline = (
-            pipeline
-            if pipeline is not None
-            else DataPipelineService(data_dir, storage_manager=self.storage_manager)
-        )
 
         self._price_cache: OrderedDict = OrderedDict()
         self._max_cache_size = 5000
@@ -562,14 +551,3 @@ class DataFetcher:
 
     def get_trade_calendar(self, start_date: str, end_date: str) -> pd.DataFrame:
         return self.calendar_manager.get_trade_calendar(start_date, end_date)
-
-
-class LegacyDataFetcher(DataFetcher):
-    """
-    传统数据获取器（保持原有行为）
-    """
-    def __init__(self) -> None:
-        super().__init__()
-
-def create_fetcher(data_dir: str = "./data") -> DataFetcher:
-    return DataFetcher(data_dir)

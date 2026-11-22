@@ -30,7 +30,7 @@ def main():
     parser.add_argument("--overwrite", action="store_true", help="Overwrite existing files")
     args = parser.parse_args()
 
-    mgr = StorageManager(data_dir="./data")
+    mgr = StorageManager()
     all_symbols = mgr.get_symbols()
     print(f"Found {len(all_symbols)} symbols with daily data")
 
@@ -39,7 +39,7 @@ def main():
         print(f"Processing first {len(all_symbols)} symbols")
 
     # --- Placeholder for 1min/5min ---
-    placeholder_dir = Path("./data/lake/quotes/1mins")
+    placeholder_dir = mgr.lake_dir / "quotes" / "1mins"
     placeholder_dir.mkdir(parents=True, exist_ok=True)
     placeholder_file = placeholder_dir / "README.md"
     placeholder_file.write_text(

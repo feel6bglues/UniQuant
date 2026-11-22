@@ -2,8 +2,8 @@
 数据模块
 
 多源数据摄取、数据湖存储、清洗、校验、复权。
-数据源: TDX, BaoStock, Sina, Tencent, THS, Eastmoney, mootdx
-子模块: sources (数据源), lake (数据湖), managers (管理器), pipeline (管道), services (服务), parsers (解析器), utils (工具), realtime (实时桥)
+数据源: TDX, mootdx, tdxdata
+子模块: sources (数据源), lake (数据湖), managers (管理器), pipeline (管道), services (服务), parsers (解析器), utils (工具)
 """
 
 __all__ = [

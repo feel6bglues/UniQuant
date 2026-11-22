@@ -2,12 +2,10 @@ from __future__ import annotations
 
 from unittest.mock import Mock
 
-import numpy as np
 import pandas as pd
 import pytest
 
 from uniquant.brain.factors.registry import FactorRegistry
-from uniquant.hands.backtest.monte_carlo import MonteCarloSimulator
 from uniquant.services.analysis.macro_analysis_engine import MacroAnalysisEngine
 
 
@@ -74,23 +72,3 @@ def test_macro_engine_empty_real_returns_does_not_generate_random_fallback(monke
     assert result["status"] == "failed"
     assert result["error"] == "DATA_UNAVAILABLE"
     assert result["regime"] == "UNKNOWN"
-
-
-def test_monte_carlo_default_seed_is_reproducible_independent_of_global_rng():
-    returns = pd.Series(np.linspace(-0.02, 0.03, 80))
-    equity = (1 + returns).cumprod() * 100_000
-
-    np.random.seed(1)
-    mc_a = MonteCarloSimulator(n_simulations=40)
-    shuffle_a = mc_a.run_shuffle(returns)
-    bootstrap_a = mc_a.run_bootstrap(equity)
-
-    np.random.seed(999)
-    mc_b = MonteCarloSimulator(n_simulations=40)
-    shuffle_b = mc_b.run_shuffle(returns)
-    bootstrap_b = mc_b.run_bootstrap(equity)
-
-    assert shuffle_a["mean_simulated_sharpe"] == shuffle_b["mean_simulated_sharpe"]
-    assert shuffle_a["confidence_interval"] == shuffle_b["confidence_interval"]
-    assert bootstrap_a["mean_simulated_final"] == bootstrap_b["mean_simulated_final"]
-    assert bootstrap_a["final_equity_ci"] == bootstrap_b["final_equity_ci"]

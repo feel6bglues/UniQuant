@@ -56,9 +56,16 @@ class CacheFactory:
             return MemoryCacheBackend(max_size=max_size)
 
         elif backend == "disk":
-            from ..constants import CacheConstants, PerformanceConstants
+            from pathlib import Path
 
-            cache_dir = kwargs.get("cache_dir", "data/cache")
+            from ..constants import CacheConstants, PerformanceConstants
+            from ..constants.path import PROJECT_ROOT
+
+            cache_dir_val = kwargs.get("cache_dir", "data/cache")
+            p = Path(cache_dir_val)
+            if not p.is_absolute():
+                p = (PROJECT_ROOT / p).resolve()
+            cache_dir = str(p)
             max_cache_age = kwargs.get("max_cache_age", CacheConstants.MAX_CACHE_AGE)
             max_cache_size = kwargs.get(
                 "max_cache_size", CacheConstants.DEFAULT_MAX_CACHE_SIZE

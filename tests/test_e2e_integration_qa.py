@@ -91,13 +91,8 @@ class TestImportChain:
         ("uniquant.hands.backtest.unified_engine", "uniquant.hands.backtest.unified_engine"),
         ("uniquant.hands.backtest.result", "uniquant.hands.backtest.result"),
         ("uniquant.risk", "uniquant.risk"),
-        ("uniquant.risk.drawdown_analyzer", "uniquant.risk.drawdown_analyzer"),
         ("uniquant.risk.portfolio_optimizer", "uniquant.risk.portfolio_optimizer"),
         ("uniquant.signal", "uniquant.signal"),
-        ("uniquant.signal.models", "uniquant.signal.models"),
-        ("uniquant.signal.normalizer", "uniquant.signal.normalizer"),
-        ("uniquant.signal.aggregator", "uniquant.signal.aggregator"),
-        ("uniquant.signal.quality", "uniquant.signal.quality"),
         ("uniquant.services", "uniquant.services"),
         ("uniquant.services.analysis.engine_factory", "uniquant.services.analysis.engine_factory"),
         ("uniquant.services.service_container", "uniquant.services.service_container"),
@@ -327,174 +322,23 @@ class TestUnifiedBacktestEngineQuickE2E:
 # ═══════════════════════════════════════════════════════════════
 
 class TestSignalModule:
-    def test_signal_models_creation(self):
-        from uniquant.signal.models import Signal, SignalType, SignalSource, SignalStrength
+    def test_signal_collector_and_arbitrator(self):
+        from uniquant.signal.adapters import TradingSignalCollector
+        from uniquant.signal.arbitrator import SignalArbitrator
+        from uniquant.shared.interfaces import TradingSignal
 
-        sig = Signal(
-            signal_type=SignalType.TREND_BULLISH,
-            source=SignalSource.INDICATOR,
-            symbol="000001",
-            direction=1,
-            strength=SignalStrength.STRONG,
-            confidence=0.8,
-            price=10.5,
+        collector = TradingSignalCollector()
+        assert collector is not None
+
+        arbitrator = SignalArbitrator()
+        sig = TradingSignal(
+            symbol="000001.SZ",
+            action="BUY",
+            confidence=0.85,
+            reason="test reason",
         )
-        assert sig.is_bullish()
-        assert not sig.is_bearish()
-        assert not sig.is_expired()
-        assert sig.direction == 1
-
-    def test_signal_serialization_roundtrip(self):
-        from uniquant.signal.models import Signal, SignalType, SignalSource
-
-        sig = Signal(
-            signal_type=SignalType.LPPL_BUBBLE,
-            source=SignalSource.LPPL,
-            symbol="600519",
-            direction=1,
-            confidence=0.75,
-        )
-        d = sig.to_dict()
-        restored = Signal.from_dict(d)
-        assert restored.signal_type == SignalType.LPPL_BUBBLE
-        assert restored.source == SignalSource.LPPL
-        assert restored.symbol == "600519"
-        assert restored.direction == 1
-
-    def test_signal_batch_filtering(self):
-        from uniquant.signal.models import Signal, SignalType, SignalSource, SignalStrength, SignalBatch
-
-        batch = SignalBatch()
-        for i in range(10):
-            batch.add(Signal(
-                signal_type=SignalType.TREND_BULLISH if i % 2 == 0 else SignalType.TREND_BEARISH,
-                source=SignalSource.INDICATOR,
-                symbol=f"00000{i}",
-                direction=1 if i % 2 == 0 else -1,
-                strength=SignalStrength.STRONG if i < 5 else SignalStrength.WEAK,
-            ))
-
-        assert len(batch) == 10
-        assert len(batch.bullish()) == 5
-        assert len(batch.bearish()) == 5
-        assert len(batch.by_strength(SignalStrength.STRONG)) == 5
-
-    def test_normalizer_lppl(self):
-        from uniquant.signal.normalizer import LPPLSignalNormalizer
-
-        norm = LPPLSignalNormalizer()
-        raw = {"type": "bubble", "confidence": 0.85, "symbol": "600519", "price": 1800.0}
-        sig = norm.normalize(raw)
-        assert sig.signal_type.value == "lppl_bubble"
-        assert sig.direction == 1
-        assert sig.strength >= 3
-
-    def test_normalizer_wyckoff(self):
-        from uniquant.signal.normalizer import WyckoffSignalNormalizer
-
-        norm = WyckoffSignalNormalizer()
-        raw = {"type": "spring", "confidence": 0.7, "symbol": "000001"}
-        sig = norm.normalize(raw)
-        assert sig.signal_type.value == "wyckoff_spring"
-        assert sig.direction == 0
-
-    def test_normalizer_indicator(self):
-        from uniquant.signal.normalizer import IndicatorSignalNormalizer
-
-        norm = IndicatorSignalNormalizer()
-        raw = {"type": "overbought", "confidence": 0.6, "symbol": "000001"}
-        sig = norm.normalize(raw)
-        assert sig.signal_type.value == "momentum_overbought"
-        assert sig.direction == -1
-
-    def test_normalizer_czsc(self):
-        from uniquant.signal.normalizer import CZSCSignalNormalizer
-
-        norm = CZSCSignalNormalizer()
-        raw = {"type": "bi_end", "confidence": 0.9, "symbol": "000001", "direction": 1}
-        sig = norm.normalize(raw)
-        assert sig.signal_type.value == "czsc_bi_end"
-        assert sig.direction == 1
-
-    def test_normalizer_registry(self):
-        from uniquant.signal.normalizer import create_default_registry
-        from uniquant.signal.models import SignalSource
-
-        registry = create_default_registry()
-        assert registry.has(SignalSource.LPPL)
-        assert registry.has(SignalSource.WYCKOFF)
-        assert registry.has(SignalSource.INDICATOR)
-        assert registry.has(SignalSource.CZSC)
-
-        raw = {"type": "bubble", "confidence": 0.8, "symbol": "600519"}
-        sig = registry.normalize(SignalSource.LPPL, raw)
-        assert sig.signal_type.value == "lppl_bubble"
-
-    def test_aggregator_weighted_average(self):
-        from uniquant.signal.aggregator import SignalAggregator, SignalAggregationMethod
-        from uniquant.signal.models import Signal, SignalType, SignalSource
-
-        agg = SignalAggregator(method=SignalAggregationMethod.WEIGHTED_AVERAGE)
-        signals = [
-            Signal(signal_type=SignalType.TREND_BULLISH, source=SignalSource.LPPL, symbol="000001", direction=1, confidence=0.8),
-            Signal(signal_type=SignalType.TREND_BULLISH, source=SignalSource.WYCKOFF, symbol="000001", direction=1, confidence=0.7),
-            Signal(signal_type=SignalType.TREND_BULLISH, source=SignalSource.INDICATOR, symbol="000001", direction=-1, confidence=0.3),
-        ]
-        result = agg.aggregate(signals)
-        assert result.signal.direction == 1
-        assert result.agreement_ratio > 0
-
-    def test_aggregator_majority_vote(self):
-        from uniquant.signal.aggregator import SignalAggregator, SignalAggregationMethod
-        from uniquant.signal.models import Signal, SignalType, SignalSource
-
-        agg = SignalAggregator(method=SignalAggregationMethod.MAJORITY_VOTE)
-        signals = [
-            Signal(signal_type=SignalType.TREND_BULLISH, source=SignalSource.LPPL, symbol="000001", direction=1, confidence=0.8),
-            Signal(signal_type=SignalType.TREND_BULLISH, source=SignalSource.WYCKOFF, symbol="000001", direction=1, confidence=0.7),
-            Signal(signal_type=SignalType.TREND_BULLISH, source=SignalSource.INDICATOR, symbol="000001", direction=-1, confidence=0.6),
-        ]
-        result = agg.aggregate(signals)
-        assert result.signal.direction == 1
-
-    def test_aggregator_consensus(self):
-        from uniquant.signal.aggregator import SignalAggregator
-        from uniquant.signal.models import Signal, SignalType, SignalSource
-
-        agg = SignalAggregator()
-        signals = [
-            Signal(signal_type=SignalType.TREND_BULLISH, source=SignalSource.LPPL, symbol="000001", direction=1, confidence=0.8),
-            Signal(signal_type=SignalType.TREND_BULLISH, source=SignalSource.WYCKOFF, symbol="000001", direction=1, confidence=0.7),
-        ]
-        consensus = agg.calculate_consensus(signals)
-        assert consensus.consensus_direction == 1
-        assert consensus.agreement_ratio == 1.0
-
-    def test_quality_assessor(self):
-        from uniquant.signal.quality import SignalQualityAssessor
-        from uniquant.signal.models import Signal, SignalType, SignalSource
-
-        sig = Signal(signal_type=SignalType.TREND_BULLISH, source=SignalSource.INDICATOR, symbol="000001", direction=1, price=10.0)
-        subsequent = [10.5, 11.0, 10.8, 11.5, 12.0]
-        result = SignalQualityAssessor.assess(sig, subsequent, lookahead=5)
-        assert result is True
-
-    def test_quality_tracker(self):
-        from uniquant.signal.quality import SignalQualityTracker
-        from uniquant.signal.models import SignalSource, SignalType
-
-        tracker = SignalQualityTracker()
-        tracker.record_outcome("sig1", True, SignalSource.LPPL, SignalType.LPPL_BUBBLE)
-        tracker.record_outcome("sig2", False, SignalSource.LPPL, SignalType.LPPL_BUBBLE)
-        tracker.record_outcome("sig3", True, SignalSource.WYCKOFF, SignalType.WYCKOFF_SPRING)
-
-        overall = tracker.get_overall_quality()
-        assert overall.sample_size == 3
-        assert overall.hit_rate == pytest.approx(2 / 3, abs=0.01)
-
-        lppl_q = tracker.get_source_quality(SignalSource.LPPL)
-        assert lppl_q.sample_size == 2
-        assert lppl_q.hit_rate == 0.5
+        out = arbitrator.arbitrate([sig])
+        assert isinstance(out, list)
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -502,57 +346,6 @@ class TestSignalModule:
 # ═══════════════════════════════════════════════════════════════
 
 class TestRiskModule:
-    def test_drawdown_analyzer_basic(self):
-        from uniquant.risk.drawdown_analyzer import DrawdownAnalyzer, DrawdownMetrics
-
-        equity = np.array([100, 110, 105, 115, 100, 120, 110, 130], dtype=np.float64)
-        metrics = DrawdownAnalyzer.analyze_drawdown(equity, annual_return=0.1)
-
-        assert isinstance(metrics, DrawdownMetrics)
-        assert metrics.max_drawdown > 0
-        assert metrics.max_drawdown <= 1.0
-        assert metrics.max_drawdown_duration > 0
-        assert metrics.ulcer_index >= 0
-
-    def test_drawdown_known_mdd(self):
-        from uniquant.risk.drawdown_analyzer import DrawdownAnalyzer
-
-        equity = np.array([100, 120, 90, 110], dtype=np.float64)
-        metrics = DrawdownAnalyzer.analyze_drawdown(equity)
-        expected_mdd = (120 - 90) / 120
-        assert abs(metrics.max_drawdown - expected_mdd) < 0.001, f"MDD {metrics.max_drawdown} != {expected_mdd}"
-
-    def test_drawdown_series(self):
-        from uniquant.risk.drawdown_analyzer import DrawdownAnalyzer
-
-        equity = np.array([100, 110, 105, 115, 100], dtype=np.float64)
-        dd = DrawdownAnalyzer.compute_drawdown_series(equity)
-        assert dd.ndim == 1
-        assert len(dd) == 5
-        assert dd[0] == 0.0
-        assert dd[2] < 0
-
-    def test_tail_risk(self):
-        from uniquant.risk.drawdown_analyzer import DrawdownAnalyzer, TailRiskMetrics
-
-        rng = np.random.RandomState(42)
-        returns = rng.normal(0.001, 0.02, 252)
-        metrics = DrawdownAnalyzer.analyze_tail_risk(returns)
-
-        assert isinstance(metrics, TailRiskMetrics)
-        assert metrics.var_95 > 0
-        assert metrics.var_99 > 0
-        assert metrics.cvar_95 >= metrics.var_95
-        assert metrics.cvar_99 >= metrics.var_99
-
-    def test_stress_scenario(self):
-        from uniquant.risk.drawdown_analyzer import DrawdownAnalyzer, StressTestResult
-
-        equity = np.array([100, 110, 120, 130, 140], dtype=np.float64)
-        result = DrawdownAnalyzer.stress_scenario(equity, "2015_crash")
-        assert isinstance(result, StressTestResult)
-        assert result.loss_pct == -0.40
-
     def test_portfolio_optimizer_risk_parity(self):
         from uniquant.risk.portfolio_optimizer import PortfolioOptimizer
 
@@ -766,26 +559,6 @@ class TestParameterAlignment:
         engine = UnifiedBacktestEngine(initial_capital=100_000)
         result = engine.run(df=df, signals=[], symbol="000001.SZ")
         assert len(result.equity_curve) == 200
-
-    def test_drawdown_analyzer_input_alignment(self):
-        from uniquant.risk.drawdown_analyzer import DrawdownAnalyzer
-
-        equity = np.array([100, 105, 103, 108, 102, 110], dtype=np.float64)
-        dd = DrawdownAnalyzer.compute_drawdown_series(equity)
-        assert len(dd) == len(equity), f"drawdown 长度 {len(dd)} != equity 长度 {len(equity)}"
-
-    def test_signal_normalizer_output_alignment(self):
-        from uniquant.signal.normalizer import create_default_registry
-        from uniquant.signal.models import SignalSource
-
-        registry = create_default_registry()
-        raw = {"type": "bubble", "confidence": 0.8, "symbol": "600519", "price": 1800.0, "value": 0.95}
-        sig = registry.normalize(SignalSource.LPPL, raw)
-
-        assert sig.symbol == "600519"
-        assert sig.price == 1800.0
-        assert sig.confidence == 0.8
-        assert sig.direction in (-1, 0, 1)
 
     def test_portfolio_optimizer_weights_sum_to_one(self):
         from uniquant.risk.portfolio_optimizer import PortfolioOptimizer

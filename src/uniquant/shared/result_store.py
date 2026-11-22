@@ -39,8 +39,16 @@ class AnalysisRecord:
 class ResultStore:
     """Persist analysis results as JSON files under results/{date}/{symbol}.json."""
 
-    def __init__(self, path: str = "./results") -> None:
-        self._root = Path(path)
+    def __init__(self, path: Optional[str | Path] = None) -> None:
+        from uniquant.shared.constants.path import PROJECT_ROOT
+
+        if path is None:
+            self._root = PROJECT_ROOT / "results"
+        else:
+            p = Path(path)
+            if not p.is_absolute():
+                p = (PROJECT_ROOT / p).resolve()
+            self._root = p
 
     # ── helpers ──────────────────────────────────────────────
 

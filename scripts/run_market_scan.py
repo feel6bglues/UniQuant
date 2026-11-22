@@ -9,7 +9,7 @@ from uniquant.data.lake.storage_manager import StorageManager
 from uniquant.shared.constants import ResultsConstants
 
 # 获取股票列表
-storage = StorageManager('./data')
+storage = StorageManager()
 all_symbols = storage.get_symbols()
 
 # 过滤：只保留沪深主板股票 (600/000/300开头)
@@ -37,7 +37,7 @@ config = ScanConfig(
     lightweight=True  # 轻量模式，跳过IC/IR分析
 )
 
-pipeline = ScanPipeline(data_dir='./data', config=config)
+pipeline = ScanPipeline(data_dir=str(storage.data_dir), config=config)
 output_dir = f"./{ResultsConstants.HANDS_DIR_NAME}/{ResultsConstants.REPORTS_DIR_NAME}"
 result = pipeline.run(output_dir=output_dir, symbols=main_board)
 

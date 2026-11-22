@@ -41,15 +41,15 @@
 
 正向边（合规）：services→shared 84、brain→shared 76、data→shared 62、hands→shared 38、services→brain 19、ui→shared 19、signal→shared 16、risk→shared 11、services→risk 9、ui→services 8、services→data 7、其余小边。
 
-**逆向边（全部 9 条，重构切点已定位）**：
+**逆向边（Wave 1 治理后全部清零，AST 校验 0 违规）**：
 
-| 逆向依赖 | 位置 | 修复方案 |
+| 逆向依赖 | 原始位置 | 修复方案与状态 (Wave 1 落地) |
 |---|---|---|
-| brain→risk ×2 | `brain/fsm/fsm.py:214,219`（evt_risk + sizer） | 改 `shared/interfaces.py:587` 已有的 `PositionSizerProtocol` 注入，DecisionBrain 变纯注入 |
-| brain→research ×2 | `brain/factors/walk_forward_pipeline.py:21,320` | 整文件迁 research/（它本就是研究编排器，src 内零生产消费者） |
-| data→services ×1 | `data/__init__.py:56` | 清理导出面 |
-| services→research ×3 | `services/scan_service.py:22-24` | 合规（桥接层设计如此），保留 |
-| shared→brain ×1 | `shared/config_validator.py:144` | 因子注册校验改反射/延迟字符串引用 |
+| brain→risk ×2 | `brain/fsm/fsm.py:214,219`（evt_risk + sizer） | **已清零**：改为 `shared/interfaces.py:587` 的 `PositionSizerProtocol` 纯协议注入 |
+| brain→research ×2 | `brain/factors/walk_forward_pipeline.py:21,320` | **已清零**：解耦静态 import，改为 ledger 协议能力反射调用 (`register_factor_trials`) |
+| data→services ×1 | `data/__init__.py:56` | **已合规**：延迟导入只作为对外便利导出面，docstring 陈旧描述已清理 |
+| services→research ×3 | `services/scan_service.py:22-24` | 合规（高层编排层桥接，允许依赖 research 账本） |
+| shared→brain ×1 | `shared/config_validator.py:144` | **已清零**：改由 `importlib.import_module` 动态反射获取 FactorRegistry |
 
 brain 内部跨引擎 import 为零（grep 证实）——四引擎全部经 services 层 data_pack 交换，**耦合热点不在 brain 而在 services 与 scripts**。
 

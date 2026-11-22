@@ -260,3 +260,11 @@ def register_factor_trials(
     audit.alpha_wealth_remaining = round(float(ledger.current_alpha_wealth), 6)
     audit.hurdle_report = ledger.get_hurdle_report(family_id)
     return audit
+
+
+def _ledger_register_factor_trials(self: DegreesOfFreedomLedger, ic_results: Dict[str, Dict[int, Any]], **kwargs: Any) -> LedgerAudit:
+    return register_factor_trials(self, ic_results, **kwargs)
+
+
+setattr(DegreesOfFreedomLedger, "register_factor_trials", _ledger_register_factor_trials)
+

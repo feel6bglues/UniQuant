@@ -1,25 +1,11 @@
 """Tests for env_config, loader, market_constants, perf."""
 
-import os
+import importlib.util
 
 
 class TestEnvConfig:
-    def test_import(self):
-        import uniquant.shared.env_config as mod
-        assert callable(mod.configure_environment)
-
-    def test_configure_environment(self):
-        from uniquant.shared.env_config import configure_environment
-        key = "OMP_NUM_THREADS"
-        original = os.environ.pop(key, None)
-        try:
-            configure_environment()
-            assert os.environ[key] == "1"
-        finally:
-            if original is not None:
-                os.environ[key] = original
-            else:
-                os.environ.pop(key, None)
+    def test_env_config_pruned(self):
+        assert importlib.util.find_spec("uniquant.shared.env_config") is None
 
 
 class TestLoader:

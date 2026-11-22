@@ -320,18 +320,22 @@ class TestGetStockSuffix:
 
 
 class TestLocalReadWrite:
-    def test_read_local_raw_prefers_standard_symbol(self, sm, data_dir):
-        d = data_dir / "lake" / "quotes" / "daily"
-        sm.write_parquet(str(d / "600519.SH.parquet"), pd.DataFrame({"close": [1.0]}))
-        assert not sm.read_local_raw("600519").empty
+    def test_legacy_methods_removed(self, sm):
+        """断言废弃的 save_data, save_factor, read_local_raw 接口已被物理清除 (T10-直删A)"""
+        assert not hasattr(sm, "save_data")
+        assert not hasattr(sm, "save_factor")
+        assert not hasattr(sm, "read_local_raw")
 
-    def test_read_local_raw_index_fallback_to_index_dir(self, sm, data_dir):
-        idx = data_dir / "lake" / "quotes" / "index"
-        sm.write_parquet(str(idx / "000001.SH.parquet"), pd.DataFrame({"close": [1.0]}))
-        assert not sm.read_local_raw("000001.SH").empty
+    def test_write_data_and_read_data_atomic_and_readable(self, sm, data_dir):
+        df = pd.DataFrame({"close": [1.0], "date": [pd.Timestamp("2026-01-01")]})
+        assert sm.write_data("600519.SH", df) is True
+        assert (data_dir / "lake" / "quotes" / "daily" / "600519.SH.parquet").exists()
+        loaded = sm.read_data("600519.SH")
+        assert not loaded.empty
+        assert loaded["close"].iloc[0] == 1.0
 
-    def test_read_local_raw_missing_returns_empty(self, sm):
-        assert sm.read_local_raw("999999").empty
+    def test_write_data_empty_frame_returns_false(self, sm):
+        assert sm.write_data("600519.SH", pd.DataFrame()) is False
 
     def test_read_local_factor(self, sm, data_dir):
         f = data_dir / "factors"
@@ -340,20 +344,6 @@ class TestLocalReadWrite:
 
     def test_read_local_factor_missing_returns_empty(self, sm):
         assert sm.read_local_factor("999999").empty
-
-    def test_save_data_atomic_and_readable(self, sm, data_dir):
-        assert sm.save_data("600519.SH", pd.DataFrame({"close": [1.0]})) is True
-        assert (data_dir / "lake" / "quotes" / "daily" / "600519.SH.parquet").exists()
-
-    def test_save_data_empty_frame_returns_false(self, sm):
-        assert sm.save_data("600519.SH", pd.DataFrame()) is False
-
-    def test_save_factor_atomic(self, sm, data_dir):
-        assert sm.save_factor("600519.SH", pd.DataFrame({"factor": [1.0]})) is True
-        assert (data_dir / "factors" / "600519.SH.parquet").exists()
-
-    def test_save_factor_empty_frame_returns_false(self, sm):
-        assert sm.save_factor("600519.SH", pd.DataFrame()) is False
 
     def test_has_data_daily_and_index(self, sm, data_dir):
         assert sm.has_data("600519.SH") is False

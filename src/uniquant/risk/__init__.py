@@ -3,15 +3,16 @@
 =============
 
 当前已实现:
-- DrawdownAnalyzer: 向量化回撤分析
 - PositionSizer: 仓位计算 (T+1 风险惩罚 + CZSC 几何止损)
 - EVTRisk / HistoricalSimulationRisk: 历史模拟 VaR/CVaR
 - PortfolioOptimizer: 风险平价 + 均值-方差组合优化
 - TwoStageSparseConvexOptimizer: 两阶段稀疏化凸优化求解器 (CNMM-QAR 生产级)
-- StructuralRiskManager: 结构性风险矩阵
 """
 
-from .drawdown_analyzer import DrawdownAnalyzer
+try:
+    from .drawdown_analyzer import DrawdownAnalyzer
+except ImportError:
+    DrawdownAnalyzer = None
 
 try:
     from .sizer import PositionSizer
@@ -45,12 +46,14 @@ except ImportError:
     StructuralRiskManager = None
 
 __all__ = [
-    "DrawdownAnalyzer",
     "PositionSizer",
     "EVTRisk",
     "PortfolioOptimizer",
     "TwoStageSparseConvexOptimizer",
     "TwoStageOptimizerConfig",
     "TwoStageOptimizationResult",
-    "StructuralRiskManager",
 ]
+if DrawdownAnalyzer is not None:
+    __all__.append("DrawdownAnalyzer")
+if StructuralRiskManager is not None:
+    __all__.append("StructuralRiskManager")

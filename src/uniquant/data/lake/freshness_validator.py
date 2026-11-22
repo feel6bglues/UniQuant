@@ -116,9 +116,10 @@ class FreshnessValidator:
                     break
 
         if not resolved_dir or not resolved_dir.exists():
-            online_date = self._probe_online_tdx_max_date()
-            if online_date:
-                return online_date, Path("online://tdxdata")
+            if tdx_dir is None:
+                online_date = self._probe_online_tdx_max_date()
+                if online_date:
+                    return online_date, Path("online://tdxdata")
             return None, None
 
         day_files: List[Path] = []
@@ -130,9 +131,10 @@ class FreshnessValidator:
             day_files.extend(list(resolved_dir.glob("*.day")))
 
         if not day_files:
-            online_date = self._probe_online_tdx_max_date()
-            if online_date:
-                return online_date, Path("online://tdxdata")
+            if tdx_dir is None:
+                online_date = self._probe_online_tdx_max_date()
+                if online_date:
+                    return online_date, Path("online://tdxdata")
             return None, resolved_dir
 
         anchors = {"sh600519.day", "sh000001.day", "sz000001.day", "sz399001.day"}

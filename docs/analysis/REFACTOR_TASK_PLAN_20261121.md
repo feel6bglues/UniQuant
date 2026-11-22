@@ -91,9 +91,16 @@ Wave 4  加固（依赖 T7-实施 / T9a）
 - **验收**：设计文档落 docs/analysis/ + 用户书面裁决 + 回写 T6d/T10-直删B 范围。
 - **裁决输入更新（2026-11-21 用户拍板）**：⑨=B、⑩=B、①=C 已全部锁定——设计文档在"QAR 股票腿收进统一管道（产 TradingSignal 走仲裁器）+ 期指腿留账户级编排器 + 两级 kill switch（L1 全局落盘 / L2 轨隔离）"框架内落笔，不再论证契约扩展与合并方案；**无悬空裁决，T6b 从裁决文档降为落地设计文档**（细化股票腿接线：cnmm_qar_strategy 打分逻辑 → AnalysisService/Pipeline 的接入缝、daily_signal_qar CLI 的改造形态、TradingSignal 映射表）。
 
-### Wave 1
+### Wave 1 [已完成 2026-11-21]
 
-#### T10-直删A 无争议死代码剪除（先于 T2b，同文件串行 R3-C6）
+> **Wave 1 验收状态**: **全项通过 (PASS)**。
+> - T10-直删A: 剪除 12 个废弃模块（signal 5件套、hands robustness 4件套、env_config、structural、drawdown），DataFetcher 实例属性瘦身，StorageManager 废弃接口清理，死代码守卫更新全绿。
+> - T2a 写路径原子化: `write_parquet` 采用 FileLock 内 `tmp + os.replace` + 异常清理；`total_return_benchmark.py` 原子化；混沌故障注入测试通过。
+> - T8 逆向依赖清零: `brain -> risk` 纯协议注入；`brain -> research` ledger 解耦；`shared -> brain` 反射化；AST 静态逆向边清零；docstring 漂移清除。
+> - T2b & T2c 构造器与 cwd 治理: `StorageManager` / `DataFetcher` / `ResultStore` / `LoggerFactory` / `CacheFactory` 默认路径绝对化消除 cwd 依赖，实测 `/tmp` 启动无感；delisted 合成退市数据隔离声明（reserved=65536）。
+> - T9a 状态落盘与崩溃恢复: `StateStore` 契约 + `DiskStateStore` 本地盘原子实现；`SharedKillSwitch` 状态持久化落盘与 Fail-Closed 恢复；产出规范文档 `docs/analysis/CRASH_RECOVERY_AND_STATE_SEMANTICS_20261121.md`。
+
+#### T10-直删A 无争议死代码剪除 (已完成)
 - **直删面**（AST 零外部消费者实测）：signal models/normalizer/aggregator（db+quality 留 Wave 3 裁决）；risk structural + drawdown（**连带 risk/__init__.py:14 无条件导入改守卫**，:32/:43 已是 try 守卫模式可仿照）；robustness 四件套（**先改 test_round8:79-82 SURVIVING_MODULES**）；env_config；normalize_stock_data 族；LegacyDataFetcher/create_fetcher；StorageManager 旧接口 save_data/save_factor/read_local_raw（src 零生产调用，**与 T2a 同窗施工**）。
 - **裁决 ⑪（R3-A7 + 2026-11-21 用户拍板=A）**：**本窗只删实例属性**（:189-199 三个属性，42 个 chaos 测试全存活）；DataCleaner/DataValidator 模块级废弃与否升格 Wave 3 小裁决（clean→validate→adjust 子系统整体废弃，与 T12 同窗）。
 - **测试改造面 13-14 文件**：test_signal / test_signal_db / test_e2e_integration_qa / test_backtest_advanced / hands/backtest/test_robustness_and_matching_unit / test_phase4_1_remediation / test_p0_signal_chain_patch / test_drawdown_analyzer / shared/test_optimal_params / data/test_normalizer / round8 守卫 / round17 守卫 / risk/__init__ / **tests/test_data_chaos_qa.py（7 个用例直调 save_data/save_factor：440/446/449/452/455/502/506 附近——R1 遗漏、R3-A1 补收）**。

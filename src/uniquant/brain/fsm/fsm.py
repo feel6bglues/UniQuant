@@ -210,16 +210,6 @@ class DecisionBrain:
         self._persist_state = persist_state
         self._state_file = state_file
 
-        if evt_risk is None:
-            from ...risk.evt_risk import HistoricalSimulationRisk
-            evt_risk = HistoricalSimulationRisk()
-            logger.debug("DecisionBrain: Using default HistoricalSimulationRisk instance")
-        
-        if sizer is None:
-            from ...risk.sizer import PositionSizer
-            sizer = PositionSizer()
-            logger.debug("DecisionBrain: Using default PositionSizer instance")
-
         self.evt_risk = evt_risk
         self.sizer = sizer
 
@@ -422,7 +412,11 @@ class DecisionBrain:
     ) -> Dict[str, Any]:
         """执行买入逻辑"""
         if ctx.returns is not None and not ctx.returns.empty:
-            evt_metrics = self.evt_risk.calculate_metrics(ctx.returns)
+            evt_metrics = (
+                self.evt_risk.calculate_metrics(ctx.returns)
+                if self.evt_risk is not None
+                else {}
+            )
             risk_level_map = {"CRISIS": "CRITICAL", "HIGH_VOL": "HIGH", "BEAR": "WARNING", "BULL": "LOW", "NORMAL": "LOW"}
             raw_risk = evt_metrics.get("regime", "NORMAL")
             risk_level = risk_level_map.get(raw_risk, "LOW")
@@ -431,14 +425,18 @@ class DecisionBrain:
                 if risk_level == "CRITICAL"
                 else 1.0
             )
-            position_plan = self.sizer.calculate_shares(
-                price=ctx.price,
-                stop_loss=ctx.atr_stop,
-                czsc_bottom=ctx.czsc_bottom,
-                market=ctx.market,
-                symbol=ctx.symbol,
+            position_plan = (
+                self.sizer.calculate_shares(
+                    price=ctx.price,
+                    stop_loss=ctx.atr_stop,
+                    czsc_bottom=ctx.czsc_bottom,
+                    market=ctx.market,
+                    symbol=ctx.symbol,
+                )
+                if self.sizer is not None
+                else {"建议仓位": 100}
             )
-            final_shares = int(position_plan["建议仓位"] * risk_scaler)
+            final_shares = int(position_plan.get("建议仓位", 100) * risk_scaler)
             action = "BUY" if self.state != FSMState.PYRAMID else "ADD"
             return self._build_response(
                 action,

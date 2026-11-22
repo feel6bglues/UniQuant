@@ -12,6 +12,7 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from typing import Any, Dict, Optional
 import pandas as pd
@@ -97,8 +98,19 @@ class TotalReturnBenchmarkAdapter:
 
         if persist:
             out_path = self.index_dir / f"{target_sym}.parquet"
-            df_tr.to_parquet(out_path, index=False)
-            logger.info(f"全收益指数已成功生成并落盘至: {out_path} (共 {len(df_tr)} 行)")
+            tmp_path = self.index_dir / f".{target_sym}.parquet.tmp.{os.getpid()}"
+            try:
+                df_tr.to_parquet(tmp_path, index=False)
+                os.replace(tmp_path, out_path)
+                logger.info(f"全收益指数已成功生成并落盘至: {out_path} (共 {len(df_tr)} 行)")
+            except Exception as e:
+                logger.error(f"落盘全收益指数失败: {e}")
+                if tmp_path.exists():
+                    try:
+                        tmp_path.unlink()
+                    except OSError:
+                        pass
+                raise
 
         return df_tr
 

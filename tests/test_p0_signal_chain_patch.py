@@ -7,7 +7,6 @@ import datetime
 from uniquant.shared.interfaces import ResearchDataPack
 from uniquant.services.research_pipeline import UnifiedResearchPipeline
 from uniquant.signal.adapters import TradingSignalCollector
-from uniquant.hands.backtest.overfitting_detector import OverfittingDetector
 
 
 class TestP0SignalChainFlattening:
@@ -103,17 +102,3 @@ class TestP0SignalChainFlattening:
         assert any("Wyckoff" in r for r in reasons)
         # Verify Regime adapter fired (FROZEN -> HOLD)
         assert any("市场冻结" in r for r in reasons)
-
-
-class TestP0OverfittingDetector:
-    def test_mdd_p_value_direct_call(self):
-        od = OverfittingDetector()
-        p = od.mdd_p_value(0.20, 252)
-        assert isinstance(p, float)
-        assert 0.0 <= p <= 1.0
-
-    def test_mdd_p_value_boundary_values(self):
-        od = OverfittingDetector()
-        assert od.mdd_p_value(0.0, 100) == 1.0
-        assert od.mdd_p_value(-0.05, 100) == 1.0
-        assert od.mdd_p_value(0.1, 1) == 1.0

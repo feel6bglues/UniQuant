@@ -8,7 +8,7 @@
 
 from dataclasses import dataclass
 from types import SimpleNamespace
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
@@ -17,8 +17,7 @@ from ...shared.logger_factory import get_logger
 from .analyzer import AnalysisMode, FactorAnalyzer, check_lookahead_leakage, LookaheadBiasError
 from .composer import FactorComposer
 
-if TYPE_CHECKING:  # 科研控制平面为可选依赖：仅在显式传入 ledger 时才需要
-    from ...research.ledger.degrees_of_freedom import DegreesOfFreedomLedger
+DegreesOfFreedomLedger = Any
 
 logger = get_logger(__name__)
 
@@ -317,11 +316,12 @@ class WalkForwardFactorPipeline:
                 n_periods=int(np.median(n_values)),
             )
 
-        from ...research.ledger.bridge import register_factor_trials
+        register_fn = getattr(self.ledger, "register_factor_trials", None)
+        if not callable(register_fn):
+            return None
 
         try:
-            audit = register_factor_trials(
-                self.ledger,
+            audit = register_fn(
                 merged,
                 family_id=self.ledger_family_id,
                 cross_section_N=int(df[code_col].nunique()) if code_col in df.columns else 0,

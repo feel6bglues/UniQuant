@@ -87,7 +87,7 @@ def load_and_sample(
 def sample_symbols(n: int, max_workers: int = 32) -> list[str]:
     """从净化符号池预采样 (冒烟用, 免全量加载)。"""
     from uniquant.data.lake.storage_manager import StorageManager
-    storage = StorageManager("./data")
+    storage = StorageManager()
     syms = sorted(str(s) for s in storage.get_symbols())
     rng = np.random.RandomState(42)
     selected = rng.choice(syms, size=min(n, len(syms)), replace=False)

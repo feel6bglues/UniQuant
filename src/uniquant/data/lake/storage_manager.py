@@ -1,5 +1,6 @@
 import datetime
 import logging
+import os
 from pathlib import Path
 from typing import Dict, Any, List, Optional, Tuple, Union
 
@@ -56,14 +57,23 @@ class StorageManager:
     负责文件系统操作，包括文件读写、目录管理等
     """
 
-    def __init__(self, data_dir: str = "./data"):
+    def __init__(self, data_dir: Optional[Union[str, Path]] = None):
         """
         初始化存储管理器
 
         Args:
-            data_dir: 数据存储根目录
+            data_dir: 数据存储根目录。若为 None 则默认解析为项目根目录下的 data 目录；
+                      若为相对路径，则自动相对于项目根目录解析，消除 cwd 依赖。
         """
-        self.data_dir = Path(data_dir)
+        from ...shared.constants.path import PROJECT_ROOT
+
+        if data_dir is None:
+            self.data_dir = PROJECT_ROOT / "data"
+        else:
+            p = Path(data_dir)
+            if not p.is_absolute():
+                p = (PROJECT_ROOT / p).resolve()
+            self.data_dir = p
         
         self.lake_dir = self.data_dir / "lake"
         self.quotes_dir = self.lake_dir / "quotes"
@@ -137,12 +147,19 @@ class StorageManager:
 
         lock_path = str(file_path_obj.with_suffix(file_path_obj.suffix + ".lock"))
         with FileLock(lock_path):
+            tmp_path = file_path_obj.with_name(f".{file_path_obj.name}.tmp.{os.getpid()}")
             try:
-                df.to_parquet(file_path, compression="snappy")
+                df.to_parquet(tmp_path, compression="snappy")
+                os.replace(tmp_path, file_path_obj)
                 logger.info(f"成功写入数据到 {file_path}")
                 return True
             except Exception as e:
                 logger.error(f"写入数据到 {file_path} 失败: {e}")
+                if tmp_path.exists():
+                    try:
+                        tmp_path.unlink()
+                    except OSError:
+                        pass
                 return False
 
     @handle_errors(
@@ -313,40 +330,6 @@ class StorageManager:
         
         return ""
     
-    def read_local_raw(self, symbol: str) -> pd.DataFrame:
-        """读取本地原始数据"""
-        clean_symbol = symbol.replace(".SH", "").replace(".SZ", "").replace(".BJ", "")
-        clean_symbol = clean_symbol.replace("sh", "").replace("sz", "").replace("bj", "").upper()
-        
-        suffix = self._get_stock_suffix(clean_symbol)
-        standard_symbol = f"{clean_symbol}{suffix}"
-        
-        possible_symbols = [
-            standard_symbol,
-            f"{clean_symbol}.SH",
-            f"{clean_symbol}.SZ",
-            f"{clean_symbol}.BJ",
-            clean_symbol,
-            symbol,
-        ]
-        
-        seen = set()
-        for test_symbol in possible_symbols:
-            if test_symbol in seen:
-                continue
-            seen.add(test_symbol)
-            
-            file_path = self.daily_dir / f"{test_symbol}.parquet"
-            if not file_path.exists() and is_index_symbol(test_symbol):
-                file_path = self.index_dir / f"{test_symbol}.parquet"
-            df = self.read_parquet(str(file_path))
-            if not df.empty:
-                logger.info(f"成功读取数据: {test_symbol}")
-                return df
-        
-        logger.warning(f"未找到股票 {symbol} 的数据")
-        return pd.DataFrame()
-
     def read_local_factor(self, symbol: str) -> pd.DataFrame:
         """读取本地复权因子数据"""
         clean_symbol = symbol.replace(".SH", "").replace(".SZ", "").replace(".BJ", "")
@@ -378,48 +361,6 @@ class StorageManager:
         
         logger.warning(f"未找到股票 {symbol} 的因子数据")
         return pd.DataFrame()
-
-    def save_data(self, symbol: str, df: pd.DataFrame):
-        """原子写入数据"""
-        file_path = self.daily_dir / f"{symbol}.parquet"
-        temp_path = file_path.with_suffix(".tmp")
-
-        if not self.write_parquet(str(temp_path), df, overwrite=True):
-            logger.error(f"写入临时文件失败: {temp_path}")
-            return False
-
-        try:
-            if file_path.exists():
-                file_path.unlink()
-            temp_path.rename(file_path)
-            logger.info(f"原子写入成功: {file_path}")
-            return True
-        except Exception as e:
-            logger.error(f"原子替换失败: {e}")
-            if temp_path.exists():
-                temp_path.unlink()
-            return False
-
-    def save_factor(self, symbol: str, df: pd.DataFrame):
-        """原子写入复权因子数据"""
-        file_path = self.factor_dir / f"{symbol}.parquet"
-        temp_path = file_path.with_suffix(".tmp")
-
-        if not self.write_parquet(str(temp_path), df, overwrite=True):
-            logger.error(f"写入因子临时文件失败: {temp_path}")
-            return False
-
-        try:
-            if file_path.exists():
-                file_path.unlink()
-            temp_path.rename(file_path)
-            logger.info(f"原子写入因子成功: {file_path}")
-            return True
-        except Exception as e:
-            logger.error(f"原子替换因子失败: {e}")
-            if temp_path.exists():
-                temp_path.unlink()
-            return False
 
     def has_data(self, symbol: str) -> bool:
         file_path = self.daily_dir / f"{symbol}.parquet"
@@ -542,27 +483,10 @@ class StorageManager:
 
     def write_data(
         self, symbol: str, df: pd.DataFrame, data_type: str = "daily", **kwargs
-    ):
-        """写入数据到对应目录"""
+    ) -> bool:
+        """写入数据到对应目录 (原子写入)"""
         file_path = self._get_file_path(symbol, data_type)
-        self.ensure_directory(str(file_path.parent))
-
-        temp_path = file_path.with_suffix(".tmp")
-        if not self.write_parquet(str(temp_path), df, overwrite=True):
-            logger.error(f"写入数据临时文件失败: {temp_path}")
-            return False
-
-        try:
-            if file_path.exists():
-                file_path.unlink()
-            temp_path.rename(file_path)
-            logger.info(f"数据写入成功: {file_path}")
-            return True
-        except Exception as e:
-            logger.error(f"原子替换失败: {e}")
-            if temp_path.exists():
-                temp_path.unlink()
-            return False
+        return self.write_parquet(str(file_path), df, overwrite=True)
 
     def delete_data(self, symbol: str, data_type: str = "daily") -> bool:
         """删除数据"""

@@ -28,19 +28,14 @@ from __future__ import annotations
 
 import numpy as np
 import pandas as pd
-import pytest
 
 from uniquant.hands.backtest.institutional_fee_ledger import InstitutionalFeeLedger
-from uniquant.hands.backtest.monte_carlo import MonteCarloSimulator
-from uniquant.hands.backtest.overfitting_detector import OverfittingDetector
-from uniquant.hands.backtest.robustness_checker import RobustnessChecker
 from uniquant.hands.backtest.saga_compensator import (
     CrossAssetSagaCoordinator,
     OrderState,
     SagaCompensationLevel,
     SqliteWalTwapStateMachine,
 )
-from uniquant.hands.backtest.sensitivity_analyzer import SensitivityAnalyzer
 from uniquant.hands.backtest.twap_execution_slicer import (
     OrderBookSnapshot,
     TWAPExecutionSlicer,
@@ -145,191 +140,6 @@ class TestMatchingEngineBranches:
         assert fill.t1_violation_mask[0]
         assert fill.rejected_mask[0]
         assert fill.executed_shares[0] == 0
-
-
-# ---------------------------------------------------------------------------
-# robustness_checker.py
-# ---------------------------------------------------------------------------
-
-class TestRobustnessCheckerBranches:
-    def test_regime_stability_empty_inputs(self):
-        checker = RobustnessChecker()
-        result = checker.check_market_regime_stability(
-            pd.Series(dtype=float), pd.Series(dtype=object)
-        )
-        assert result == {"error": "输入数据为空"}
-
-    def test_regime_stability_all_nan_combined(self):
-        checker = RobustnessChecker()
-        result = checker.check_market_regime_stability(
-            pd.Series([np.nan, np.nan]), pd.Series(["bull", "bear"])
-        )
-        assert result == {"error": "合并后无有效数据"}
-
-    def test_regime_stability_small_regime_skipped(self):
-        checker = RobustnessChecker()
-        # A single regime with only 3 observations (< 5) is skipped entirely.
-        result = checker.check_market_regime_stability(
-            pd.Series([0.01, 0.02, 0.03]), pd.Series(["bull", "bull", "bull"])
-        )
-        assert result["regime_stats"] == {}
-        assert result["n_regimes"] == 0
-        assert result["stability_score"] == 0
-
-    def test_parameter_sensitivity_single_value_skipped(self):
-        checker = RobustnessChecker()
-        result = checker.check_parameter_sensitivity(
-            strategy_fn=lambda _params: {"sharpe_ratio": 0.5},
-            param_grid={"window": [10]},
-        )
-        assert result["sensitivities"] == {}
-        assert result["most_sensitive"] is None
-        assert result["base_metric"] == 0.5
-
-    def test_subperiod_small_chunk_skipped(self, monkeypatch):
-        checker = RobustnessChecker()
-        # Force a chunk smaller than 5 while keeping the length guard satisfied.
-        import uniquant.hands.backtest.robustness_checker as rc_mod
-
-        monkeypatch.setattr(rc_mod.np, "array_split", lambda arr, _k: [arr[:3], arr[3:]])
-
-        returns = pd.Series(np.linspace(-0.01, 0.02, 40))
-        result = checker.check_subperiod_consistency(returns, n_splits=4)
-
-        assert len(result["period_stats"]) == 1
-        assert result["period_stats"][0]["period"] == 2
-
-    def test_transaction_cost_empty_returns(self):
-        checker = RobustnessChecker()
-        assert checker.check_transaction_cost_sensitivity(pd.Series(dtype=float)) == {
-            "error": "收益率为空"
-        }
-
-    def test_transaction_cost_single_level_no_decay(self):
-        checker = RobustnessChecker()
-        result = checker.check_transaction_cost_sensitivity(
-            pd.Series([0.01, -0.02, 0.03, 0.005]), cost_levels=[0.001]
-        )
-        assert result["cost_decay"] == 0.0
-        assert len(result["cost_metrics"]) == 1
-
-
-# ---------------------------------------------------------------------------
-# sensitivity_analyzer.py
-# ---------------------------------------------------------------------------
-
-class TestSensitivityAnalyzerBranches:
-    def test_oat_single_value_parameter_skipped(self):
-        analyzer = SensitivityAnalyzer()
-        df = analyzer.one_at_a_time(
-            base_params={"window": 5},
-            param_ranges={"window": [5], "threshold": [0.1, 0.2]},
-            strategy_fn=lambda params: {"sharpe_ratio": float(params.get("threshold", 0.0))},
-        )
-        # Only the two-valued parameter contributes rows.
-        assert set(df["parameter"]) == {"threshold"}
-
-    def test_oat_all_parameters_skipped(self):
-        analyzer = SensitivityAnalyzer()
-        df = analyzer.one_at_a_time(
-            base_params={"window": 5},
-            param_ranges={"window": [5]},
-            strategy_fn=lambda _params: 1.0,
-        )
-        assert df.empty
-
-    def test_tornado_empty_input(self):
-        analyzer = SensitivityAnalyzer()
-        assert analyzer.tornado_plot_data(pd.DataFrame()).empty
-
-    def test_tornado_single_row_group_skipped(self):
-        analyzer = SensitivityAnalyzer()
-        sensitivities = pd.DataFrame(
-            [{"parameter": "window", "value": 5, "sharpe_ratio": 0.5, "base_metric": 0.4}]
-        )
-        assert analyzer.tornado_plot_data(sensitivities).empty
-
-    def test_correlation_empty_inputs(self):
-        analyzer = SensitivityAnalyzer()
-        assert analyzer.correlation_analysis(pd.DataFrame(), pd.Series([1.0])).empty
-        assert analyzer.correlation_analysis(pd.DataFrame({"a": [1]}), pd.Series(dtype=float)).empty
-
-    def test_correlation_length_mismatch(self):
-        analyzer = SensitivityAnalyzer()
-        result = analyzer.correlation_analysis(
-            pd.DataFrame({"a": [1, 2, 3]}), pd.Series([1.0, 2.0])
-        )
-        assert result.empty
-
-    def test_correlation_under_sampled_skipped(self):
-        analyzer = SensitivityAnalyzer()
-        # Only 3 valid pairs (< 5) -> the column is skipped.
-        result = analyzer.correlation_analysis(
-            pd.DataFrame({"a": [1.0, 2.0, 3.0]}), pd.Series([0.1, 0.2, 0.3])
-        )
-        assert result.empty
-
-    def test_correlation_emits_stats_for_enough_samples(self):
-        analyzer = SensitivityAnalyzer()
-        values = pd.DataFrame({"a": np.arange(10, dtype=float)})
-        metric = pd.Series(np.arange(10, dtype=float))
-        result = analyzer.correlation_analysis(values, metric)
-        assert len(result) == 1
-        assert result.iloc[0]["n_valid"] == 10
-        assert pytest.approx(result.iloc[0]["pearson"], abs=1e-9) == 1.0
-
-
-# ---------------------------------------------------------------------------
-# monte_carlo.py
-# ---------------------------------------------------------------------------
-
-class TestMonteCarloBranches:
-    def test_bootstrap_short_series_guard(self):
-        sim = MonteCarloSimulator(n_simulations=10)
-        assert sim.run_bootstrap(pd.Series([1.0, 2.0, 3.0])) == {
-            "error": "权益曲线数据过少"
-        }
-
-    def test_confidence_intervals_empty_array(self):
-        sim = MonteCarloSimulator()
-        assert sim.get_confidence_intervals(np.array([])) == {"error": "模拟结果为空"}
-
-    def test_confidence_intervals_shape(self):
-        sim = MonteCarloSimulator(seed=7)
-        draws = np.random.default_rng(7).normal(size=(50, 20))
-        result = sim.get_confidence_intervals(draws)
-        for level in (90, 95, 99):
-            assert f"ci_{level}" in result
-        assert result["ci_95"]["lower"] <= result["median"] <= result["ci_95"]["upper"]
-
-
-# ---------------------------------------------------------------------------
-# overfitting_detector.py
-# ---------------------------------------------------------------------------
-
-class TestOverfittingDetectorBranches:
-    def test_num_trials_metric_invalid_inputs(self):
-        detector = OverfittingDetector()
-        assert detector.num_trials_metric(-1, 5) == 1.0
-        assert detector.num_trials_metric(3, 0) == 1.0
-
-    def test_num_trials_metric_valid(self):
-        detector = OverfittingDetector()
-        # n_configs * (1 + n_parameters / sqrt(n_configs))
-        assert detector.num_trials_metric(4, 4) == pytest.approx(4 * (1 + 4 / 2))
-
-    def test_pbo_requires_two_strategies(self):
-        detector = OverfittingDetector()
-        result = detector.probability_of_backtest_overfitting([pd.Series([0.1, 0.2])])
-        assert result == {"pbo": 1.0, "error": "至少需要 2 个策略"}
-
-    def test_pbo_length_below_partitions(self):
-        detector = OverfittingDetector()
-        result = detector.probability_of_backtest_overfitting(
-            [pd.Series([0.1, 0.2, 0.3]), pd.Series([0.2, 0.1, 0.0])], n_partitions=10
-        )
-        assert result["pbo"] == 1.0
-        assert "error" in result
 
 
 # ---------------------------------------------------------------------------
