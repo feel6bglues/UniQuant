@@ -1,241 +1,536 @@
-# Stage 1 — services 层编排分析
+# 阶段 1：UniQuant 服务编排分析
 
-> 生成日期: 2026-06-29
-> 基于当前工作树 (commit c1e0eb1)
-> 方法: 完整读取 service_container.py, analysis_service_v2.py, research_pipeline.py, engine_factory.py, data_service.py
+> **分析时间**：2026-11-24  
+> **依赖阶段**：阶段0（全局架构识别）  
+> **核心文件**：`service_container.py`, `analysis_service_v2.py`, `research_pipeline.py`, `engine_factory.py`
 
 ---
 
 ## 1. 服务依赖拓扑图
 
-```
-ServiceContainer.initialize()
- │
- ├─ 1. ConfigValidator(config)      ← 配置校验
- ├─ 2. StorageManager()             ← 数据湖底层
- ├─ 3. TradeCalendarManager()       ← 交易日历
- ├─ 4. CacheCoordinator()           ← 缓存协调器
- ├─ 5. DataService(storage)         ← 数据门面 (依赖 2,3,4)
- │      └─ attach_market_cache(MarketLevelCache)
- ├─ 6. RealTimeProvider()           ← 时间提供器
- ├─ 7. AnalysisEngineFactory(data_svc)  ← 引擎工厂 (初始 orc=data_svc)
- ├─ 8. MarketLevelCache()           ← 市场级缓存
- ├─ 9. AnalysisService(data_svc, engine_factory, market_cache)
- │      └─ engine_factory.bind_orchestrator(analysis_svc)
- ├─10. UnifiedBacktestEngine()      ← 回测引擎
- ├─11. TradingSignalCollector(registry) ← 信号收集器
- ├─12. SignalArbitrator (特性开关)   ← 信号仲裁器 (可选)
- ├─13. FactorRegistry.set_mode()    ← 因子准入 (特性开关)
- ├─14. PositionSizer (可选)          ← 仓位计算器
- └─15. UnifiedResearchPipeline(analysis, backtest, collector, arbitrator, sizer, time_provider, max_workers)
-       └─ 注册为 "research_pipeline"
+### 1.1 ServiceContainer DAG完整拓扑
+
+```mermaid
+graph TD
+    subgraph 配置层
+    CFG[ConfigLoader]
+    VAL[ConfigValidator]
+    RC[RefactoringConfig<br/>特性开关]
+    end
+    
+    subgraph 基础设施层
+    TP[TimeProvider<br/>RealTime/Frozen]
+    EB[EventBus]
+    KS[KillSwitch]
+    end
+    
+    subgraph 数据层
+    SM[StorageManager]
+    TCM[TradeCalendarManager]
+    CC[CacheCoordinator]
+    DS[DataService]
+    MC[MarketLevelCache]
+    end
+    
+    subgraph 分析层
+    EF[AnalysisEngineFactory]
+    AS[AnalysisService]
+    subgraph 引擎集
+    FSM[FSM引擎]
+    CZSC[CZSC引擎]
+    LPPL[LPPL引擎]
+    REG[Regime引擎]
+    NTF[NTF引擎]
+    MACRO[Macro引擎]
+    WYCK[Wyckoff引擎]
+    BRAIN[DecisionBrain]
+    end
+    end
+    
+    subgraph 信号层
+    SC[TradingSignalCollector]
+    SA[SignalArbitrator<br/>可选]
+    end
+    
+    subgraph 回测层
+    BE[UnifiedBacktestEngine]
+    end
+    
+    subgraph 风控层
+    PS[PositionSizer]
+    end
+    
+    subgraph 研究流水线
+    RP[UnifiedResearchPipeline]
+    RS[ResultStore]
+    MET[MetricsRecorder]
+    end
+    
+    CFG --> VAL
+    CFG --> RC
+    RC --> SA
+    RC --> FACTOR[FactorRegistry]
+    
+    SM --> DS
+    TCM --> DS
+    CC --> DS
+    MC --> DS
+    DS --> AS
+    MC --> AS
+    
+    EF --> AS
+    EF --> FSM
+    EF --> CZSC
+    EF --> LPPL
+    EF --> REG
+    EF --> NTF
+    EF --> MACRO
+    EF --> WYCK
+    EF --> BRAIN
+    
+    AS --> RP
+    SC --> RP
+    SA --> RP
+    BE --> RP
+    PS --> RP
+    TP --> RP
+    EB --> RP
+    RS --> RP
+    MET --> RP
 ```
 
-**容器注册的服务键:**
-- `storage`, `calendar`, `cache`, `data_service`, `time_provider`
-- `engine_factory`, `market_cache`, `analysis_service`
-- `backtest_engine`, `signal_collector`, `arbitrator`, `research_pipeline`
+### 1.2 ServiceContainer.initialize() 7步初始化顺序
 
-共 12 个服务键, DAG 零循环依赖 ✅
+```python
+# 步骤1: 配置加载与验证
+config = get_config()
+validator = ConfigValidator(config)
+validation_errors = validator.validate_all()  # 仅警告，不阻断
+
+# 步骤2: 数据层服务工厂（无IO懒加载）
+register_factory("storage", lambda c: StorageManager())
+register_factory("calendar", lambda c: TradeCalendarManager())
+register_factory("cache", lambda c: CacheCoordinator())
+register_factory("data_service", lambda c: DataService(storage_manager=c.get("storage")))
+register_factory("time_provider", lambda c: RealTimeProvider())
+
+# 步骤3: 分析引擎工厂与市场缓存
+register_factory("engine_factory", _make_engine_factory)  # orchestrator=data_service
+register_factory("market_cache", _make_market_cache)      # 注入到DataService
+
+# 步骤4: 分析服务 + 绑定orchestrator（解决循环依赖）
+register_factory("analysis_service", _make_analysis_svc)
+# 关键: ef.bind_orchestrator(asvc) 在创建后调用
+
+# 步骤5: 回测引擎与信号收集器
+register_factory("backtest_engine", _make_backtest_engine)
+register_factory("signal_collector", _make_signal_collector)
+
+# 步骤6: 信号仲裁器（特性开关控制）
+if ref_config.feature_flags.signal_arbitration:
+    register_factory("arbitrator", lambda c: SignalArbitrator())
+
+# 步骤7: 因子准入（特性开关控制）
+if gate_mode != "off":
+    FactorRegistry.set_mode(FactorAccessLevel(gate_mode))
+
+# 步骤8: 综合研究流水线
+register_factory("research_pipeline", _make_research_pipeline)
+```
+
+**关键设计点**：
+- ✅ **懒加载**：所有工厂使用`register_factory`，`c.get()`时才实例化
+- ✅ **无IO启动**：`initialize()`只注册工厂，不触发数据加载
+- ✅ **特性开关**：`SignalArbitrator`和`FactorRegistry`可配置启用/禁用
 
 ---
 
-## 2. 单票分析流程图 (AnalysisService)
+## 2. 单票分析流程图
 
+### 2.1 AnalysisService.run_ticker_analysis() 完整流程
+
+```mermaid
+sequenceDiagram
+    participant P as UnifiedResearchPipeline
+    participant AS as AnalysisService
+    participant DS as DataService
+    participant EF as EngineFactory
+    participant E1 as FSM引擎
+    participant E2 as CZSC引擎
+    participant E3 as LPPL引擎
+    participant DB as DecisionBrain
+    
+    P->>AS: run_ticker_analysis(symbol, trace_id)
+    AS->>AS: _prepare_data(ticker)
+    
+    alt ResearchDataPack特性启用
+        AS->>DS: fetch_research_pack(ticker)
+        DS-->>AS: ResearchDataPack
+    else 回退到Dict路径
+        AS->>DS: fetch_for_brain(ticker)
+        DS-->>AS: Dict[str, Any]
+    end
+    
+    AS->>AS: 验证stock_df非空
+    AS->>AS: _attach_trace_id(data_pack, trace_id)
+    
+    AS->>AS: _run_engines(ticker, data_pack)
+    AS->>EF: factory.fsm (懒加载)
+    EF-->>AS: FsmAnalysisEngine
+    AS->>E1: analyze(data_pack)
+    E1-->>AS: FSM输出
+    AS->>AS: _mark_engine_status("fsm", "ok")
+    
+    AS->>EF: factory.czsc (懒加载)
+    EF-->>AS: CzscAnalysisEngine
+    AS->>E2: analyze(data_pack)
+    E2-->>AS: CZSC输出
+    AS->>AS: _mark_engine_status("czsc", "ok")
+    
+    AS->>EF: factory.lppl (懒加载)
+    EF-->>AS: LpplAnalysisEngine
+    AS->>E3: analyze(data_pack)
+    E3-->>AS: LPPL输出
+    AS->>AS: _mark_engine_status("lppl", "ok")
+    
+    Note over AS: ... 其他引擎 (regime/ntf/macro/wyckoff)
+    
+    AS->>AS: _make_decision(ticker, data_pack)
+    AS->>DB: make_decision(context)
+    DB-->>AS: decision dict
+    AS->>AS: ensure_precision_consistency(decision)
+    
+    AS-->>P: TickerAnalysisResult<br/>(data_pack, decision, signals=[], success=True)
 ```
-run_ticker_analysis(ticker, trace_id)
- │
- ├─ Step 1: _prepare_data(ticker)
- │    ├─ 特征标记 use_research_data_pack?
- │    │   ├─ true  → data_service.fetch_research_pack(ticker) → ResearchDataPack
- │    │   └─ false → data_service.fetch_for_brain(ticker)     → Dict[str, Any]
- │    ├─ stock_df 为 None/empty → 返回 None → 返回失败结果
- │    └─ 返回 data_pack (Union type)
- │
- ├─ Step 2: _run_engines(ticker, data_pack)  ← 顺序执行 7 个引擎
- │    ├─ _run_regime()     → MarketLevelCache 缓存市场级别 → RegimeOutput
- │    ├─ _run_lppl()       → LPPL 泡沫检测 → LPPLOutput
- │    ├─ _run_ntf()        → MarketLevelCache 缓存 NTF → NtfOutput
- │    ├─ _run_czsc()       → CZSC 缠论 → CZSCOutput
- │    ├─ _run_wyckoff()    → Wyckoff 威科夫 → WyckoffOutput
- │    ├─ _run_alpha()      → Alpha 分离度 → AlphaOutput
- │    └─ _calculate_derived() → MA 状态 + ATR 止损
- │
- ├─ (每个引擎完成后发布 EngineCompleted 事件)
- │
- ├─ Step 3: _make_decision(ticker, data_pack)
- │    ├─ MarketSignalContext.from_dict(data_pack)  ← 构建上下文字典
- │    ├─ DecisionBrain.make_decision(ctx)           ← 最终决策
- │    └─ DecisionOutput.from_dict(raw)              ← 类型化解包
- │
- └─ 返回 TickerAnalysisResult
-```
 
-**引擎执行顺序**: regime → lppl → ntf → czsc → wyckoff → alpha → derived
+### 2.2 关键方法解析
 
-**特征标记控制**:
-- `use_research_data_pack: false` — DictPackWriter 写入 (当前默认)
-- `factor_gate: "block"` — FactorRegistry 阻止未注册因子
+| 方法 | 职责 | 失败处理 |
+|---|---|---|
+| `_prepare_data(ticker)` | 获取数据（支持ResearchDataPack或Dict） | 返回None → success=False, error="数据不足" |
+| `_run_engines(ticker, data_pack)` | 通过factory运行所有引擎 | 任一引擎失败 → success=False, error="引擎分析失败" |
+| `_make_decision(ticker, data_pack)` | DecisionBrain综合决策 | 返回None → success=False, error="决策失败" |
+| `_mark_engine_status(engine, status, error)` | 标记引擎状态到data_pack.metadata | 不抛异常，仅记录 |
+| `_attach_trace_id(data_pack, trace_id)` | 追踪ID用于日志和调试 | 不抛异常 |
+| `ensure_precision_consistency(data)` | 递归归一化浮点精度 | 不改变schema |
 
 ---
 
-## 3. 研究流水线流程图 (UnifiedResearchPipeline)
+## 3. 研究流水线流程图
 
-```
-run(symbol)
- │
- ├─ Step 1-2: analysis_service.run_ticker_analysis()
- │    → TickerAnalysisResult
- │
- ├─ (检查 success, 失败直接返回 PipelineResult)
- │
- ├─ Step 3: 信号收集
- │    ├─ _merge_decision_for_collection(data_pack, decision)
- │    ├─ TradingSignalCollector.collect(pack, timestamp, bar_date, shares)
- │    └─ 信号仲裁 (如启用):
- │         ├─ _signals_to_candidates() → List[CandidateSignal]
- │         └─ arbitrator.arbitrate_candidates(candidates, decision, context, sizer)
- │
- ├─ Step 4: 回测
- │    ├─ stock_df = data_pack.stock_df 或 data_pack["stock"]
- │    ├─ UnifiedBacktestEngine.run(df, signals, symbol, name)
- │    └─ → BacktestResult
- │
- └─ 返回 PipelineResult (含 data_pack, decision, signals, backtest, metrics)
+### 3.1 UnifiedResearchPipeline.run() 端到端流程
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant RP as ResearchPipeline
+    participant AS as AnalysisService
+    participant SC as SignalCollector
+    participant SA as SignalArbitrator
+    participant BE as BacktestEngine
+    participant EB as EventBus
+    participant RS as ResultStore
+    
+    User->>RP: run(symbol, name, default_shares)
+    RP->>RP: 生成trace_id
+    
+    RP->>EB: publish(RunStarted)
+    RP->>AS: run_ticker_analysis(symbol, trace_id)
+    AS-->>RP: TickerAnalysisResult
+    
+    RP->>EB: publish(DataLoaded)
+    
+    alt analysis.success == False
+        RP-->>User: PipelineResult(success=False, error)
+    end
+    
+    RP->>RP: _merge_decision_for_collection(data_pack, decision)
+    RP->>SC: collect(collector_pack, timestamp, bar_date)
+    SC-->>RP: List[TradingSignal]
+    
+    RP->>EB: publish(DecisionProduced)
+    
+    opt arbitrator启用
+        RP->>RP: _signals_to_candidates(signals)
+        RP->>SA: arbitrate_candidates(candidates, decision, context, sizer)
+        SA-->>RP: (arbitrated_signals, report)
+    end
+    
+    RP->>EB: publish(SignalsCollected)
+    
+    RP->>BE: run(df=stock_df, signals, symbol, name)
+    BE-->>RP: BacktestResult
+    
+    RP->>EB: publish(BacktestCompleted)
+    RP->>RS: _persist_result(result)
+    RP->>EB: publish(RunCompleted)
+    
+    RP-->>User: PipelineResult<br/>(data_pack, decision, signals, backtest, success=True)
 ```
 
-**run_batch(symbols):**
-```
- ├─ checkpoint 检查: 已完成的跳过
- ├─ ThreadPoolExecutor(max_workers) 并行
- │    └─ 每个 symbol 调用 run()
- ├─ 原子 checkpoint: 每个完成后写入 {symbol}.json
- └─ 按输入顺序返回结果 (result_map)
-```
+### 3.2 Pipeline.run() 核心步骤
+
+| 步骤 | 方法/操作 | 性能监控 | 事件发布 |
+|---|---|---|---|
+| **Step 1-2** | `analysis_service.run_ticker_analysis()` | `pipeline.analysis` | `DataLoaded` |
+| **Step 3** | `signal_collector.collect()` | `pipeline.collect` | `DecisionProduced` |
+| **Step 3b** | `arbitrator.arbitrate_candidates()` (可选) | `pipeline.arbitrate` | `SignalsCollected` |
+| **Step 4** | `backtest_engine.run()` | `pipeline.backtest` | `BacktestCompleted` |
+| **持久化** | `_persist_result()` | — | `RunCompleted` |
+
+**关键特性**：
+- ✅ **全链路trace_id**：从`run_ticker_analysis`传递到`PipelineResult`
+- ✅ **事件驱动**：6个生命周期事件（RunStarted/DataLoaded/DecisionProduced/SignalsCollected/BacktestCompleted/RunCompleted）
+- ✅ **性能监控**：`perf_section`包装每个关键路径
+- ✅ **失败快返回**：analysis失败直接返回，不执行后续步骤
+- ✅ **结果持久化**：`ResultStore`保存到`./results/`
 
 ---
 
-## 4. 引擎工厂注册清单 (AnalysisEngineFactory)
+## 4. 服务注册表
 
-| 属性 | 引擎类 | 模块路径 | 初始化方式 |
-|------|--------|---------|-----------|
-| `.fsm` | `FsmAnalysisEngine` | `..analysis.fsm_analysis_engine` | lazy import |
-| `.czsc` | `CzscAnalysisEngine` | `..analysis.czsc_analysis_engine` | lazy import |
-| `.lppl` | `LpplAnalysisEngine` | `..analysis.lppl_analysis_engine` | lazy import |
-| `.regime` | `RegimeAnalysisEngine` | `..analysis.regime_analysis_engine` | lazy import |
-| `.ntf` | `NtfAnalysisEngine` | `..analysis.ntf_analysis_engine` | lazy import |
-| `.macro` | `MacroAnalysisEngine` | `..analysis.macro_analysis_engine` | lazy import |
-| `.report` | `ReportGeneratorEngine` | `..analysis.report_generator_engine` | lazy import |
-| `.wyckoff` | `WyckoffAnalysisEngine` | `..analysis.wyckoff_analysis_engine` | lazy import |
-| `.brain` | `DecisionBrain` | (直接 import) brain.fsm | direct import |
-
-共 9 个 engine 注册: fsm, czsc, lppl, regime, ntf, macro, report, brain, wyckoff
-
-**关键设计**:
-- 工厂在 `AnalysisService` 创建前就已创建 (初始 orchestrator = DataService)
-- `bind_orchestrator(analysis_svc)` 在服务创建后重定向
-- 双检锁 + RLock 保证线程安全
-- 失败时抛出 `RuntimeError`
+| 服务名 | 工厂方法 | 依赖 | 特性开关 | 说明 |
+|---|---|---|---|---|
+| `storage` | `StorageManager()` | 无 | — | 数据湖存储管理器 |
+| `calendar` | `TradeCalendarManager()` | 无 | — | 交易日历管理器 |
+| `cache` | `CacheCoordinator()` | 无 | — | 全局缓存协调器 |
+| `data_service` | `DataService(storage_manager)` | storage | — | 数据服务（湖优先） |
+| `time_provider` | `RealTimeProvider()` | 无 | — | 时间提供者（可注入Frozen用于测试） |
+| `engine_factory` | `AnalysisEngineFactory(orchestrator=data_service)` | data_service | — | 分析引擎工厂 |
+| `market_cache` | `MarketLevelCache()` + `data_service.attach_market_cache()` | data_service | — | 市场级缓存 |
+| `analysis_service` | `AnalysisService(data_service, engine_factory, market_cache)` | data_service, engine_factory, market_cache | — | 分析服务（纯编排器） |
+| `backtest_engine` | `UnifiedBacktestEngine()` | 无 | — | 回测引擎 |
+| `signal_collector` | `TradingSignalCollector(create_default_registry())` | 无 | — | 信号收集器 |
+| `arbitrator` | `SignalArbitrator()` | 无 | `signal_arbitration` | 信号仲裁器（可选） |
+| `research_pipeline` | `UnifiedResearchPipeline(...)` | analysis_service, backtest_engine, signal_collector, arbitrator, sizer, time_provider | — | 研究流水线 |
 
 ---
 
-## 5. 服务详细分析
+## 5. 引擎工厂注册清单
 
-### 5.1 ServiceContainer
+| 引擎名 | 模块路径 | 类名 | 懒加载属性 | 说明 |
+|---|---|---|---|---|
+| `fsm` | `..analysis.fsm_analysis_engine` | `FsmAnalysisEngine` | `factory.fsm` | 有限状态机引擎 |
+| `czsc` | `..analysis.czsc_analysis_engine` | `CzscAnalysisEngine` | `factory.czsc` | 缠论引擎 |
+| `lppl` | `..analysis.lppl_analysis_engine` | `LpplAnalysisEngine` | `factory.lppl` | LPPL泡沫检测引擎 |
+| `regime` | `..analysis.regime_analysis_engine` | `RegimeAnalysisEngine` | `factory.regime` | 市场状态识别引擎 |
+| `ntf` | `..analysis.ntf_analysis_engine` | `NtfAnalysisEngine` | `factory.ntf` | 国家队行为引擎 |
+| `macro` | `..analysis.macro_analysis_engine` | `MacroAnalysisEngine` | `factory.macro` | 宏观分析引擎 |
+| `report` | `..analysis.report_generator_engine` | `ReportGeneratorEngine` | `factory.report` | 报告生成引擎 |
+| `brain` | `...brain.fsm` | `DecisionBrain` | `factory.brain` | 决策大脑（特殊处理） |
+| `wyckoff` | `..analysis.wyckoff_analysis_engine` | `WyckoffAnalysisEngine` | `factory.wyckoff` | 威科夫引擎 |
 
-- 单例模式 (`_instance` + `_lock`)
-- 工厂注册: `register_factory()` 用于延迟创建
-- 直接注册: `register()` 用于已创建实例
-- `get()` 自动调用工厂方法一次
-- `reset()`/`clear()` 用于测试
+**懒加载机制**：
+```python
+def _lazy_init(self, name, module_path, class_name, **kwargs):
+    if name not in self._engines:
+        with self._lock:  # 线程安全（RLock）
+            if name not in self._engines:  # 双重检查
+                mod = importlib.import_module(module_path)
+                cls = getattr(mod, class_name)
+                self._engines[name] = cls(orchestrator=self._orchestrator, **kwargs)
+    return self._engines[name]
+```
 
-**初始化顺序的隐含假设**:
-1. DataService 必须在 AnalysisService 之前创建
-2. EngineFactory 初始拿到 DataService, 后绑定 AnalysisService
-3. MarketLevelCache 必须在 DataService.attach_market_cache() 之前创建
-
-### 5.2 AnalysisService
-
-- 1642 行 → ~300 行重构完成 ✅
-- 依赖 DataService (数据获取), EngineFactory (引擎), MarketLevelCache (缓存)
-- 所有引擎运行在 `try/except RECOVERABLE_ERRORS` 内
-- 每个引擎失败时写入默认值 + engine_status 标记
-
-**pack_writer 双写策略**:
-- DictPackWriter: 写 Dict[str, Any]
-- RDPackWriter: 写 ResearchDataPack
-- 根据 data_pack 类型自动选择
-
-### 5.3 UnifiedResearchPipeline
-
-- 4 步编排: 分析 → 收集 → 仲裁 → 回测
-- 每步发布事件 (如果 event_bus 启用)
-- 信号仲裁由 `signal_arbitration` 特性开关控制
-- Batch 模式: ThreadPoolExecutor + 原子 JSON checkpoint
-- `_save_batch_checkpoint` 使用原子文件交换 (tmp + os.replace)
-
-**checkpoint 内容**: decision, signals, backtest (不保存原始 K 线 data_pack)
-
-### 5.4 DataService (门面)
-
-- 协调: CacheCoordinator, DataQualityService, StockQueryService, DataAccessService
-- `fetch_for_brain(ticker)` → Dict[str, Any]
-- `fetch_research_pack(ticker)` → ResearchDataPack (默认不启用)
+**bind_orchestrator 解决循环依赖**：
+1. 容器创建`engine_factory`时，`orchestrator=data_service`
+2. 容器创建`analysis_service`时，注入`engine_factory`
+3. 创建后调用`engine_factory.bind_orchestrator(analysis_service)`
+4. `bind_orchestrator`清空`_engines`缓存，后续懒加载使用新的orchestrator
 
 ---
 
-## 6. 失败路径和默认值
+## 6. 信号收集与仲裁流程
 
-| 失败点 | 行为 | 默认值 |
-|--------|------|--------|
-| `_prepare_data`: 数据不足 | 返回 None | `TickerAnalysisResult(success=False, error="数据不足")` |
-| `_run_regime`: 指数数据不可用 | `RegimeOutput(regime="UNKNOWN")` | 标记 `DATA_UNAVAILABLE` |
-| `_run_lppl`: 分析失败 | `LPPLOutput(risk_level="ENGINE_FAILED")` | 标记 `ENGINE_FAILED` |
-| `_run_czsc`: 失败 | `CZSCOutput()` (全默认) | 不标记状态 |
-| `_run_wyckoff`: 失败 | `WyckoffOutput()` (全默认) | 不标记状态 |
-| `_run_alpha`: 无对标数据 | `AlphaOutput(score=0.0)` | 静默返回 |
-| `_run_ntf`: 失败 | `NtfOutput(side="NONE")` | 静默返回 |
-| `_create_decision`: 失败 | 返回 None | `TickerAnalysisResult(success=False, error="决策失败")` |
-| Pipeline: 无 K 线数据 | 直接返回失败 | `error="K线数据为空"` |
-| Pipeline batch: 单标失败 | 返回单个失败 result | 不影响其他标的 |
-| Arbitrator 初始化失败 | 禁用仲裁器 | `arbitrator = None` |
-| PositionSizer 初始化失败 | 禁用 sizer | `sizer = None` |
-| FactorRegistry gate 失败 | 保持默认模式 | 仅 debug 日志 |
+### 6.1 TradingSignalCollector架构
+
+```python
+# 适配器注册表
+registry = {
+    "lppl": LPPLAdapter(),
+    "czsc": CZSCAdapter(),
+    "fsm": FSMAdapter(),
+    "wyckoff": WyckoffAdapter(),
+    "regime": RegimeAdapter(),
+    "ntf": NTFAdapter(),
+    "alpha": AlphaAdapter(),
+    "ma": MAAdapter(),
+}
+
+# 收集流程
+signals = collector.collect(
+    data_pack, 
+    timestamp=now(),
+    bar_date=last_bar_date,
+    default_shares=100
+)
+```
+
+### 6.2 适配器映射规则（部分）
+
+| 适配器 | 输入keys | 输出action | 特殊逻辑 |
+|---|---|---|---|
+| `LPPLAdapter` | `risk_level`, `confidence`, `r_squared`, `out_of_sample_r_squared` | SELL (Danger, 非diagnostic) / HOLD | 默认`diagnostic_only=True`（遥测优先，不参与强平）<br>支持`min_r2`/`min_oos_r2`质量门 |
+| `CZSCAdapter` | `is_3rd_buy`, `bi_count` | BUY (三买成立) / HOLD | 仅三买产生BUY信号 |
+| `FSMAdapter` | 待分析 | 待分析 | 阶段3详细分析 |
+| `WyckoffAdapter` | 待分析 | 待分析 | 阶段3详细分析 |
+
+### 6.3 SignalArbitrator仲裁机制（特性开关）
+
+```python
+if self._arbitrator is not None:
+    candidates = self._signals_to_candidates(signals)  # TradingSignal → CandidateSignal
+    decision_output = DecisionOutput.from_dict(analysis.decision)
+    context = MarketSignalContext.from_dict(data_pack)
+    
+    signals, report = self._arbitrator.arbitrate_candidates(
+        candidates=candidates,
+        decision_output=decision_output,
+        context=context,
+        sizer=self._sizer,
+        symbol=symbol,
+    )
+```
+
+**仲裁规则**（从阶段0已知）：
+- **Sell-Priority**：同时出现BUY和SELL时，SELL获胜（避险优先）
+- **置信度规则**：基于`CandidateSignal.confidence`和`direction`
+- **裁决链**：`report.veto_chain`记录否决过程
 
 ---
 
-## 7. 接口漂移和隐式耦合
+## 7. 失败路径与默认值
 
-| 问题 | 位置 | 风险 |
-|------|------|------|
-| `_get_cached_result` 调用 `data_service._get_cached()` (私有方法) | `analysis_service_v2.py:134` | 耦合到 DataService 内部实现 |
-| `_set_cached_result` 调用 `data_service._set_cache()` (私有方法) | `analysis_service_v2.py:146` | 同上 |
-| `EngineFactory` 初始 orc=DataService, 后改为 AnalysisService | `service_container.py:86,96` | 切换期可能产生不一致 |
-| `_signals_to_candidates()` 使用字符串拆分解析 source | `research_pipeline.py:199` | 脆弱解析, 依赖 reason 格式约定 |
-| `_merge_decision_for_collection()` 硬编码字段名 | `research_pipeline.py:399` | 与 DecisionBrain 输出耦合 |
-| DataService 门面要求 fetcher/storage/cleaner 但全部可选 | `data_service.py` | 运行时可能 NPE |
+### 7.1 失败场景矩阵
+
+| 失败场景 | 检测点 | 返回值 | 事件发布 |
+|---|---|---|---|
+| 数据获取失败 | `_prepare_data`返回None | `TickerAnalysisResult(success=False, error="数据不足")` | `RunCompleted(success=False)` |
+| 引擎分析失败 | `_run_engines`返回False | `TickerAnalysisResult(success=False, error="引擎分析失败")` | `RunCompleted(success=False)` |
+| 决策失败 | `_make_decision`返回None | `TickerAnalysisResult(success=False, error="决策失败")` | `RunCompleted(success=False)` |
+| K线数据为空 | stock_df is None or empty | `PipelineResult(success=False, error="K线数据为空")` | `RunCompleted(success=False)` |
+| 引擎初始化失败 | `_lazy_init`抛RuntimeError | 向上传播（不捕获） | 无 |
+| 回测失败 | `backtest_engine.run()`抛异常 | 向上传播（不捕获） | 无 |
+
+### 7.2 容错设计
+
+**AnalysisService层**：
+- `_prepare_data`捕获`RECOVERABLE_ERRORS`（AttributeError, ImportError, KeyError, ModuleNotFoundError, OSError, RuntimeError, TypeError, ValueError）
+- 引擎失败通过`_mark_engine_status`记录到`data_pack.metadata.engine_errors`，不阻断其他引擎
+- 使用`@handle_errors`装饰器（`AnalysisError, DataFetchError, ServiceError, ValueError, TypeError`）
+
+**ResearchPipeline层**：
+- analysis失败直接返回`PipelineResult(success=False)`
+- 使用`perf_section`包装关键路径，即使失败也记录性能指标
+- `_persist_result`使用`_save_lock`保护，避免并发写入冲突
 
 ---
 
 ## 8. 风险与改进建议
 
-| ID | 风险 | 严重度 | 建议 |
-|----|------|--------|------|
-| S1 | 引擎全部串行执行, 无并行 | 中 | regime/ntf 已缓存, 但 lppl/czsc/wyckoff/alpha 可并行 |
-| S2 | 私有方法耦合 (见 §7) | 中 | DataService 应暴露公共缓存接口 |
-| S3 | ResearchDataPack 默认关闭 | 低 | 可逐步开启 typed path |
-| S4 | EngineFactory 双阶段绑定 | 低 | 改为 AnalysisService 直接创建工厂 |
-| S5 | SignalArbitrator 失败时完全禁用 | 低 | 改为降级模式而非完全关闭 |
-| S6 | checkpoint 不存 data_pack | 低 | 恢复时 data_pack 为空, 不影响信号和回测 |
+### 8.1 架构风险 🟡
+
+1. **bind_orchestrator模式复杂** 🟡
+   - **问题**：解决循环依赖的方式增加了理解成本
+   - **现状**：容器先创建factory（orchestrator=data_service），再创建AnalysisService，最后绑定
+   - **风险**：新开发者可能不理解为什么需要两步创建
+   - **建议**：在`engine_factory.py`添加更详细的文档注释，解释循环依赖的根源
+
+2. **特性开关分散** 🟡
+   - **问题**：`SignalArbitrator`和`FactorRegistry`的启用逻辑分散在`ServiceContainer.initialize()`中
+   - **风险**：配置项与行为映射不直观
+   - **建议**：考虑集中管理特性开关，或使用装饰器模式
+
+3. **Pipeline.run方法较长** 🟡
+   - **问题**：`run()`方法从273行开始，包含4个主要步骤+事件发布+持久化，可能超过50行
+   - **风险**：违反Rule 9（函数<50行）
+   - **建议**：提取`_run_analysis_step()`, `_run_signal_step()`, `_run_backtest_step()`等子方法
+
+### 8.2 并发风险 🟡
+
+4. **事件发布锁竞争** 🟡
+   - **问题**：使用`_event_bus_lock`保护所有事件发布
+   - **风险**：批量处理时可能成为瓶颈
+   - **现状**：`run_batch`使用`max_workers`并行，但事件发布串行化
+   - **建议**：评估EventBus是否需要线程安全，或使用无锁队列
+
+5. **引擎懒加载线程安全** ✅
+   - **现状**：使用`RLock` + 双重检查
+   - **评估**：正确实现，无风险
+
+### 8.3 可观测性风险 🟢
+
+6. **引擎状态追踪** ✅
+   - **现状**：`_mark_engine_status`记录到`data_pack.metadata.engine_status`和`engine_errors`
+   - **评估**：良好实践，支持调试和监控
+
+7. **trace_id全链路追踪** ✅
+   - **现状**：从`run_ticker_analysis`传递到`PipelineResult`
+   - **评估**：支持分布式追踪
+
+8. **性能监控** ✅
+   - **现状**：`perf_section`包装关键路径（pipeline.total/analysis/collect/arbitrate/backtest）
+   - **评估**：InMemoryMetricsRecorder收集指标
+
+### 8.4 测试覆盖风险 🟢
+
+9. **服务层覆盖率** ✅
+   - **现状**：`services/`层覆盖率79.34%（第9轮后）
+   - **评估**：满足要求（>70%）
+
+10. **引擎工厂测试** ✅
+    - **现状**：`tests/test_engine_factory.py`存在
+    - **建议**：验证是否覆盖`bind_orchestrator`场景
 
 ---
 
-## 校验清单 (Stage 1)
+## 9. 校验清单
 
-- [x] 能解释 ServiceContainer.initialize() 每一步 (15 步 DAG)
-- [x] 能解释 run_ticker_analysis 的输入输出 (ticker → TickerAnalysisResult)
-- [x] 说明 engine_factory 何时 bind orchestrator (创建后)
+- [x] 能解释 `ServiceContainer.initialize` 每一步（7步初始化，懒加载工厂）
+- [x] 能解释 `run_ticker_analysis` 的输入输出（输入：ticker/trace_id，输出：TickerAnalysisResult）
+- [x] 说明 `engine_factory` 何时 bind orchestrator（步骤4，创建AnalysisService后）
 - [x] 识别缓存、数据服务、分析服务之间的边界
-- [x] 列出 9 个引擎注册清单
-- [x] 列出 13 个失败路径及其行为
-- [x] 识别 6 个接口漂移/隐式耦合点
+  - `CacheCoordinator`: 全局缓存协调
+  - `MarketLevelCache`: 市场级缓存（注入到DataService）
+  - `DataService`: 数据获取与缓存门面（`_get_cached`/`_set_cache`）
+  - `AnalysisService`: 纯编排器，委托缓存给DataService
+- [x] 画出服务依赖拓扑图（Mermaid）
+- [x] 画出单票分析流程图（时序图）
+- [x] 画出研究流水线流程图（时序图）
+- [x] 列出服务注册表（12个服务）
+- [x] 列出引擎工厂注册清单（9个引擎）
+- [x] 说明失败路径和默认值（6个失败场景）
+- [x] 提出风险与改进建议（10项，按严重程度分级）
+
+---
+
+## 10. 阶段1结论
+
+UniQuant的服务编排展现了**成熟的依赖注入和懒加载设计**：
+
+### 架构优点 ✅
+1. **清晰的DAG依赖**：ServiceContainer管理12个服务，无循环依赖
+2. **懒加载工厂**：所有服务延迟实例化，启动无IO
+3. **解决循环依赖**：bind_orchestrator模式优雅处理factory↔AnalysisService的双向依赖
+4. **特性开关控制**：SignalArbitrator和FactorRegistry可配置启用/禁用
+5. **全链路可观测**：trace_id + EventBus + perf_section + ResultStore
+
+### 核心流程 ✅
+1. **AnalysisService.run_ticker_analysis**：3步流程（数据→引擎→决策）
+2. **UnifiedResearchPipeline.run**：4步流程（分析→信号→仲裁→回测）+ 持久化
+3. **TradingSignalCollector**：适配器模式，8个引擎适配器
+4. **SignalArbitrator**：Sell-Priority仲裁（特性开关控制）
+
+### 主要风险 🟡
+1. bind_orchestrator模式复杂（理解成本）
+2. 特性开关分散（配置管理）
+3. Pipeline.run方法可能超50行（Rule 9）
+4. 事件发布锁竞争（批量处理瓶颈）
+
+**下一阶段**：阶段2 - 数据系统分析（深入DataService和数据湖架构）
+
+---
+
+**分析人**：Claude (Anthropic)  
+**审核状态**：待用户确认  
+**产物路径**：`docs/analysis/01_services_orchestration.md`

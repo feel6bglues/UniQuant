@@ -1,385 +1,676 @@
-# Stage 2 — 数据系统深度分析
+# 阶段 2：UniQuant 数据系统分析
 
-> **日期**: 2026-06-29 | **状态**: ✅ 完成
-> **范围**: `src/uniquant/data/` (56 Python 文件, 15,519 LOC)
-> **子模块**: sources(10+1), managers(12), pipeline(4), services(5+1), scripts(7), utils(6+1), lake(1), parsers(1)
-
----
-
-## 1. 总览
-
-### 架构图
-
-```
-                 ┌─────────────────────────────────┐
-                 │          DataFetcher             │
-                 │  (系统的大脑和总指挥)              │
-                 └──────┬────────────────────┬──────┘
-                        │                    │
-              ┌─────────▼──────┐   ┌─────────▼──────────┐
-              │  SourceRouter  │   │   DataPipeline      │
-              │  (故障转移/    │   │  (清洗→校验→复权)    │
-              │   竞速模式)    │   │                     │
-              └─────────┬──────┘   └──────────┬──────────┘
-                        │                     │
-              ┌─────────▼──────┐   ┌──────────▼──────────┐
-              │  5 Adapters    │   │    StorageManager    │
-              │  (Standard)    │   │   (Parquet 数据湖)    │
-              └─────────┬──────┘   └─────────────────────┘
-                        │
-         ┌──────────────┼──────────────┬──────────────┐
-         ▼              ▼              ▼              ▼
-     Baostock     SinaSource     TencentSource    TdxSource
-     (在线)        (在线)          (在线)           (本地通达信)
-                              ThsSource
-                              (在线)
-```
-
-### 核心数据流
-
-```
-请求: fetch_stock_daily("600000.SH", "2020-01-01", "2024-12-31", adjust="qfq")
-  │
-  ├─ 1. DataFetcher.get_price(symbol, adjust)
-  │     ├─ 检查 _price_cache (OrderedDict LRU, max=5000)
-  │     └─ 缓存未命中 → 继续
-  │
-  ├─ 2. DataIngestionService.fetch_price(symbol, source="auto")
-  │     ├─ SourceRouter (5 数据源故障转移)
-  │     │   ├─ 顺序模式: Tdx→Baostock→Sina→Ths→Tencent
-  │     │   ├─ 竞速模式: 同时请求多个, 取最快
-  │     │   ├─ CircuitBreaker: 5次失败→熔断30秒
-  │     │   ├─ 健康追踪: 5分钟超时→自动恢复
-  │     │   └─ 超时: SOCKET_TIMEOUT=30s, 重试后退避
-  │     └─ StandardAdapter._standardize_data()
-  │         └─ normalizer.normalize_column_names()  (20+ 列名映射)
-  │
-  ├─ 3. DataPipeline.process(df, symbol, adjust)
-  │     ├─ DataCleaner.clean()
-  │     │   ├─ 列名小写化
-  │     │   ├─ 类型转换 (numeric coercion)
-  │     │   ├─ OHLC 一致性修复 (high≥max(open,close), low≤min(open,close))
-  │     │   ├─ 缺失值处理 (ffill+bfill)
-  │     │   ├─ 去重 (keep last)
-  │     │   └─ amount 补全
-  │     │
-  │     ├─ DataValidator.validate()
-  │     │   ├─ 8 列存在性检查
-  │     │   ├─ High<Low 修复 + 验证
-  │     │   ├─ Open/Close vs High/Low 一致性
-  │     │   ├─ 成交额基础校验
-  │     │   ├─ 异常值检测 (>99% 跌幅)
-  │     │   ├─ 日期连续性 (>14 天警告)
-  │     │   └─ 复权状态检查 (adjustflag)
-  │     │
-  │     └─ DataAdjuster.apply_adjustment(symbol, df, method="qfq"|"hfq")
-  │         ├─ 1. 读取本地因子表 (parquet)
-  │         ├─ 2. merge_asof (backward direction)
-  │         ├─ 3. ffill + fillna(1.0) for 缺失因子
-  │         ├─ 4. cutoff_date 防止未来除权泄露
-  │         ├─ 5. HFQ: price * factor
-  │         ├─ 6. QFQ: price * factor / latest_factor
-  │         ├─ 7. 成交量: volume / factor (HFQ) or volume / qfq_multiplier (QFQ)
-  │         ├─ 8. clip(clip(lower=0.001, upper=100000)) 价格异常防护
-  │         └─ 9. clip(clip(lower=0, upper=10000000000)) 成交量异常防护
-  │
-  ├─ 4. 缓存结果到 _price_cache
-  │
-  └─ 5. 返回 pd.DataFrame
-```
+> **分析时间**：2026-11-24  
+> **依赖阶段**：阶段0（全局架构）、阶段1（服务编排）  
+> **核心文件**：`data_service.py`, `data_fetcher.py`, `storage_manager.py`, `data_cleaner.py`, `data_validator.py`
 
 ---
 
-## 2. 文件清单
+## 1. 数据架构总览 - 门面模式
 
-| 子包 | 文件 | LOC | 职责 | 状态 |
-|------|------|-----|------|------|
-| Root | `data_fetcher.py` | 314 | **系统总指挥** — 数据获取+缓存+协调 | ✅ |
-| Root | `data_ingestion_service.py` | 48 | 简化版 DataFetcher (self-contained) | ⚠️ 冗余 |
-| Root | `data_pipeline_service.py` | 32 | 管道封装 (clean→validate→adjust) | ✅ |
-| Root | `manager.py` | 12 | ~~历史遗留 Facade~~ | ⚠️ 简单包装 |
-| Root | `tdx_loader.py` | 18 | ~~历史遗留 TDX 加载器~~ | ⚠️ 简单包装 |
-| Root | `__init__.py` | 58 | `__getattr__` 延迟导入契约 | ✅ |
-| | | | | |
-| **sources/** | `base.py` | 78 | `DataSource` 抽象基类 | ✅ |
-| | `protocols.py` | 172 | 8 个能力协议 (Protocol) | ✅ |
-| | `baostock.py` | 463 | BaoStock 在线源 (日线/周线/月线/5min/15min/30min/60min) | ✅ |
-| | `tdx.py` | 177 | 通达信本地源 (.day 二进制文件) | ✅ |
-| | `sina.py` | 609 | 新浪在线源 (日线/分钟/实时/龙虎榜) | ✅ |
-| | `tencent.py` | 368 | 腾讯在线源 (日线/实时/复权因子) | ✅ |
-| | `ths.py` | 620 | 同花顺在线源 (日线/实时/资金流/板块) | ✅ |
-| | `eastmoney.py` | 1094 | 东方财富在线源 (财务/行业/概念/龙虎榜) | ✅ |
-| | `realtime_bridge.py` | 428 | **实时行情桥接** (WebSocket 预备) | 🚧 脚手架 |
-| | `mootdx_local.py` | 166 | mootdx 本地源 | ✅ |
-| | `mootdx_online.py` | 149 | mootdx 在线源 | ✅ |
-| | | | | |
-| **managers/** | `source_router.py` | 246 | **路由中心** — 故障转移 + 竞速模式 + 熔断 | ✅ |
-| | `standard_adapter.py` | 92 | **标准化适配器** — 20+ 列名映射 | ✅ |
-| | `stock_metadata_manager.py` | 324 | 股票元数据 (名称/市场/板块/IPO/退市) | ✅ |
-| | `trade_calendar_manager.py` | 194 | 交易日历 (硬编码 2024-2026 假期) | ⚠️ 需年度更新 |
-| | `adjust_factor_manager.py` | 173 | 复权因子管理 | ✅ |
-| | `factor_manager.py` | 452 | 因子管理器 (存储/指纹/增量更新) | ✅ |
-| | `mootdx_factor_manager.py` | 246 | mootdx 因子管理器 | ✅ |
-| | `market_data_coordinator.py` | 99 | 市场数据协调 (指数/ETF/行业/概念) | ✅ |
-| | `stock_data_updater.py` | 149 | 股票数据增量更新 | ✅ |
-| | `tdx_updater.py` | 644 | TDX 数据更新 (日线/周线/月线/5min/gbbq) | ✅ |
-| | `cache_manager.py` | 64 | 缓存管理器 | ✅ |
-| | `data_normalizer.py` | 27 | 数据标准化 | ✅ |
-| | `baostock_cache_manager.py` | 144 | BaoStock 缓存管理 | ✅ |
-| | | | | |
-| **pipeline/** | `data_cleaner.py` | 69 | 数据清洗 (6 步) | ✅ |
-| | `data_validator.py` | 85 | 数据验证 (7 步 + 自动修复) | ✅ |
-| | `data_adjuster.py` | 308 | **复权核心** (向量化 QFQ/HFQ) | ✅ |
-| | `data_aligner.py` | 98 | 数据对齐 | ✅ |
-| | | | | |
-| **services/** | `data_importer.py` | 662 | **数据导入器** (历史/增量/检查) | ✅ |
-| | `import_1min.py` | 297 | 1 分钟数据导入 | ✅ |
-| | `import_5min.py` | 297 | 5 分钟数据导入 | ✅ |
-| | `import_financial.py` | 430 | 财务数据导入 | ✅ |
-| | `import_index.py` | 379 | 指数数据导入 | ✅ |
-| | `lppl_data_service.py` | 252 | LPPL 数据服务 | ✅ |
-| | | | | |
-| **lake/** | `storage_manager.py` | 638 | **数据湖** — Parquet 文件系统 | ✅ |
-| | | | | |
-| **parsers/** | `tdx_parser.py` | 445 | TDX .day/gbbq 二进制解析 | ✅ |
-| | | | | |
-| **utils/** | `normalizer.py` | 294 | 20+ 列名标准化映射 | ✅ |
-| | `akshare_wrapper.py` | 340 | AkShare 包装器 (重试/UA 轮换) | ✅ |
-| | `akshare_market_service.py` | 177 | AkShare 行情服务 | ✅ |
-| | `akshare_reference_service.py` | 81 | AkShare 参考服务 | ✅ |
-| | `smart_factor_calculator.py` | 327 | GBBQ 复权因子计算 (V15 纯净) | ✅ |
-| | `js_executor.py` | 347 | JS 执行器 (同花顺加密接口) | ✅ |
-| | `request_utils.py` | 288 | 请求工具 (限速/重试/UA) | ✅ |
-| | | | | |
-| **scripts/** | 7 个脚本 | 1,798 | 数据下载/同步/更新/导入 | ✅ |
+### 1.1 DataService门面架构
+
+```mermaid
+graph TD
+    subgraph DataService门面
+    DS[DataService<br/>协调者]
+    end
+    
+    subgraph 专职服务
+    CC[CacheCoordinator<br/>缓存管理]
+    DQS[DataQualityService<br/>质量检查]
+    SQS[StockQueryService<br/>股票查询]
+    DAS[DataAccessService<br/>数据访问]
+    end
+    
+    subgraph 数据获取层
+    DF[DataFetcher<br/>湖优先单源]
+    subgraph 数据源优先级
+    LAKE[1. Lake<br/>本地数据湖]
+    MOOTDX[2. MootdxLocal<br/>本地通达信]
+    TDXDATA[3. TdxDataOnline<br/>在线通达信]
+    end
+    end
+    
+    subgraph 数据处理层
+    DC[DataCleaner<br/>清洗器]
+    DV[DataValidator<br/>只读门禁]
+    CAA[CorporateActionAdjuster<br/>复权]
+    end
+    
+    subgraph 数据湖
+    SM[StorageManager]
+    subgraph 目录结构
+    DAILY[daily/]
+    WEEKLY[weekly/]
+    MONTHLY[monthly/]
+    MIN1[1mins/]
+    MIN5[5mins/]
+    INDEX[index/]
+    FACTOR[factors/]
+    end
+    end
+    
+    DS --> CC
+    DS --> DQS
+    DS --> SQS
+    DS --> DAS
+    DAS --> DF
+    DF --> LAKE
+    DF --> MOOTDX
+    DF --> TDXDATA
+    DAS --> DC
+    DAS --> DV
+    DAS --> CAA
+    DF --> SM
+    SM --> DAILY
+    SM --> WEEKLY
+    SM --> MONTHLY
+    SM --> MIN1
+    SM --> MIN5
+    SM --> INDEX
+    SM --> FACTOR
+```
+
+### 1.2 核心职责分工
+
+| 组件 | 职责 | 关键方法 |
+|---|---|---|
+| `DataService` | 门面协调，向后兼容 | `fetch_for_brain()`, `fetch_research_pack()` |
+| `CacheCoordinator` | 缓存生命周期管理 | `get()`, `set()`, `clear()`, `get_stats()` |
+| `DataQualityService` | 数据质量检查 | 质量指标计算 |
+| `StockQueryService` | 股票元数据查询 | `stock_map`, `etf_list`, `get_stock_info()` |
+| `DataAccessService` | 数据加载与回退 | `load_data_with_fallback()`, `load_etf_data()` |
+| `DataFetcher` | 湖优先数据获取 | `get_price()`, `fetch_for_brain()` (旧接口) |
+| `DataCleaner` | 数据清洗（原子操作） | `clean()`, `clean_stock_daily()` |
+| `DataValidator` | 只读门禁校验 | `validate()`, `validate_stock_daily()` |
+| `CorporateActionAdjuster` | 复权因子调整 | `get_corporate_action_adjuster()` |
+| `StorageManager` | 数据湖文件读写 | `write_parquet()`, `read_data()`, `get_symbols()` |
 
 ---
 
-## 3. 数据源详情
+## 2. 数据源矩阵
 
-| 数据源 | 类型 | 日线 | 分钟 | 实时 | 其他特色 |
-|--------|------|------|------|------|----------|
-| **TDX** | 本地 | .day 文件 | — | — | 最快；依赖本地通达信安装 |
-| **BaoStock** | 在线 | ✅ | 5/15/30/60m | — | 前/后/不复权；高数据质量 |
-| **Sina** | 在线 | ✅ | ✅ | ✅ | 龙虎榜；请求限速 500ms |
-| **Tencent** | 在线 | ✅ | — | ✅ | 复权因子 |
-| **THS** | 在线 | ✅ | — | ✅ | 资金流、板块资金流 |
-| **EastMoney** | 在线 | — | — | — | 财务数据、行业概念、龙虎榜 |
-| **mootdx** | 本地 | ✅ | ✅ | — | 通达信替代解析 |
-| **RealtimeBridge** | — | — | — | (预备) | WebSocket 异步，TickData 模型 |
-
-### 竞速模式与故障转移
+### 2.1 数据源优先级（预注册裁决D1）
 
 ```python
-SourceRouter:
-  fetch_data():    顺序尝试: Tdx→Baostock→Sina→Ths→Tencent
-                   每个源重试 2 次, 退避策略
-                   失败标记 "unavailable", 5 分钟自动恢复
-  fetch_data_with_race(): 同时请求最多 3 个健康源, 取最快结果
+# data_fetcher.py 第20-25行
+# 湖优先单源 (预注册裁决 D1): 仅保留本地 mootdx 解包兜底。
+# 爬虫源 (Tdx/Baostock/Sina/Ths/Tencent) 模块级 import 已删除
 ```
+
+| 优先级 | 数据源 | 类型 | 用途 | 状态 |
+|---|---|---|---|---|
+| **1** | `Lake` | 本地Parquet | 主数据源（日线/分钟线/指数/因子） | ✅ 主力 |
+| **2** | `MootdxLocal` | 本地通达信解包 | 湖miss时兜底 | ✅ 兜底 |
+| **3** | `TdxDataOnline` | 通达信新协议在线 | 本地都miss时在线拉取 | ✅ 第20轮替代 |
+
+### 2.2 已删除的数据源
+
+| 数据源 | 类型 | 删除原因 |
+|---|---|---|
+| `TdxSource` | 爬虫 | 模块级import已删除（D1裁决） |
+| `BaostockSource` | 爬虫 | 模块级import已删除 |
+| `SinaSource` | 爬虫 | 模块级import已删除 |
+| `ThsSource` | 爬虫 | 模块级import已删除 |
+| `TencentSource` | 爬虫 | 模块级import已删除 |
+
+**关键设计**：爬虫源需走后续裁决，且必须从`sources/`直接导入，不得回流`data_fetcher.py`。
+
+### 2.3 数据类型支持
+
+| 数据类型 | 存储位置 | 格式 | 更新频率 | 数据源 |
+|---|---|---|---|---|
+| 股票日线 | `data/lake/quotes/daily/*.parquet` | 9列契约 | 日更 | Lake → mootdx_local → tdxdata_online |
+| 股票周线 | `data/lake/quotes/weekly/*.parquet` | 同日线 | 周更 | 从日线重采样 |
+| 股票月线 | `data/lake/quotes/monthly/*.parquet` | 同日线 | 月更 | 从日线重采样 |
+| 1分钟线 | `data/lake/quotes/1mins/*.parquet` | 8列契约 | 实时 | mootdx_local |
+| 5分钟线 | `data/lake/quotes/5mins/*.parquet` | 8列契约 | 实时 | mootdx_local |
+| 指数日线 | `data/lake/quotes/index/*.parquet` | 9列契约 | 日更 | Lake → mootdx_local |
+| 复权因子 | `data/factors/*.parquet` | adj_factor | 事件驱动 | CorporateAction |
+| 行业分类 | 网络（eastmoney/sina） | — | 按需 | get_industry_data() |
+| 板块行情 | 网络（eastmoney/sina） | — | 按需 | get_sector_performance() |
 
 ---
 
-## 4. StorageManager 数据湖
+## 3. 核心数据流
 
-### 目录结构
+### 3.1 fetch_for_brain() 双路径
+
+```mermaid
+sequenceDiagram
+    participant AS as AnalysisService
+    participant DS as DataService
+    participant DAS as DataAccessService
+    participant DF as DataFetcher
+    participant SM as StorageManager
+    participant DC as DataCleaner
+    participant DV as DataValidator
+    participant CAA as CorporateActionAdjuster
+    
+    AS->>DS: fetch_for_brain(symbol)
+    
+    Note over DS: 新路径（推荐）
+    DS->>DAS: load_data_with_fallback(symbol, "stock")
+    DAS->>SM: read_data(symbol, "stock")
+    
+    alt 湖有数据
+        SM-->>DAS: DataFrame (9列契约)
+    else 湖miss
+        DAS->>DF: get_price(symbol, adjust="")
+        DF->>SM: read_data (尝试湖)
+        alt 湖miss
+            DF->>DF: mootdx_local兜底
+            DF->>DF: harmonize_local_volume_unit (手→股)
+        end
+        DF-->>DAS: DataFrame (9列契约)
+    end
+    
+    DAS->>DC: clean(df)
+    DC->>DC: 输入列契约校验 (C1/C2)
+    DC->>DC: 类型转换 + NaN处理
+    DC->>DC: OHLC一致性修复 (C4)
+    DC-->>DAS: cleaned_df
+    
+    DAS->>DV: validate(cleaned_df)
+    DV->>DV: 只读门禁校验 (8项)
+    DV-->>DAS: True/False
+    
+    DAS-->>DS: stock_df
+    
+    DS->>DAS: load_data_with_fallback("sh000300", "index")
+    DAS-->>DS: bench_df (HS300)
+    
+    DS->>DAS: load_etf_data()
+    DAS-->>DS: etf_df
+    
+    DS-->>AS: data_pack {stock, bench, etf}
+```
+
+### 3.2 fetch_for_brain() 两条路径对比
+
+| 路径 | 方法 | 返回值 | 用途 |
+|---|---|---|---|
+| **DataService路径** (新) | `DataService.fetch_for_brain()` | `Dict[str, pd.DataFrame]`<br/>{stock, bench, etf} | 主路径，包含基准和ETF |
+| **DataFetcher路径** (旧) | `DataFetcher.fetch_for_brain()` | `Dict`<br/>{stock, symbol, timestamp} | 旧接口，向后兼容 |
+
+**关键差异**：
+- DataService路径：返回3个DataFrame（stock + bench + etf），经过DataAccessService（清洗+校验）
+- DataFetcher路径：仅返回stock（直读湖原始价，adjust=""），不经过清洗
+
+### 3.3 fetch_research_pack() 类型化路径
+
+```python
+def fetch_research_pack(self, symbol: str) -> ResearchDataPack:
+    raw = self.fetch_for_brain(symbol)  # 调用DataService路径
+    result = ResearchDataPack.from_dict(raw, symbol=symbol)
+    if "etf" in raw:
+        result.metadata["etf_data"] = raw["etf"]
+    return result
+```
+
+**优势**：
+- 强类型（`ResearchDataPack` dataclass）
+- 支持`stock_df`属性访问
+- metadata可扩展（etf_data, engine_status, trace_id等）
+
+---
+
+## 4. GET_PRICE_RETURN_CONTRACT（冻结契约）
+
+```python
+# data_fetcher.py 第54-68行
+GET_PRICE_RETURN_CONTRACT = {
+    "columns": [
+        "date", "open", "high", "low", "close", 
+        "amount", "volume", "reserved", "code"
+    ],
+    "adjusted_columns": [..., "adj_factor"],
+    "date_dtype": "datetime64[ns]",
+    "order": "date ascending",
+    "dedup": "date unique (keep last)",
+    "empty": "empty DataFrame carrying the contract columns",
+    "sources": ("lake", "mootdx_local", "tdxdata_online"),
+    "volume_unit": "shares",
+    "amount_unit": "CNY",
+    "adjust": "qfq/hfq -> CorporateActionAdjuster (OHLC only, +adj_factor)",
+    "anchor": "qfq anchored to the latest lake date (adjust before slicing)",
+    "write_back": "never (lake writes belong to data_access_service)",
+}
+```
+
+### 4.1 契约要点
+
+| 字段 | 契约 | 说明 |
+|---|---|---|
+| **列序** | 9列固定顺序 | date/open/high/low/close/amount/volume/reserved/code |
+| **date dtype** | `datetime64[ns]` | 已按date升序，无重复date |
+| **量纲** | volume=股(shares), amount=元(CNY) | 实测锚点：amount/close≈volume中位0.9999 |
+| **复权** | qfq/hfq仅调整OHLC，+adj_factor列 | 锚定最新湖日期（先复权后切片） |
+| **写回** | never | 湖写入属于data_access_service |
+| **空值** | 空DataFrame携带契约列 | df.empty is True |
+
+### 4.2 量纲自校准机制
+
+```python
+# data_fetcher.py 第74-75行
+LOCAL_VOLUME_HAND_RATIO_RANGE = (60.0, 160.0)
+LOCAL_VOLUME_HAND_FACTOR = 100.0
+
+def harmonize_local_volume_unit(df):
+    ratio = (df["amount"] / (df["close"] * df["volume"])).median()
+    if 60.0 <= ratio <= 160.0:  # 明确落在"手"区间
+        df["volume"] *= 100.0   # 手→股
+    return df
+```
+
+**问题**：
+- 湖volume=股，amount=元 → amount/(close*volume) ≈ 1.0
+- mootdx本地对股票输出volume=手 → 比值≈100
+- mootdx本地对ETF输出volume=股 → 比值≈1
+- **自校准**：比值在60-160区间才x100，否则原样
+
+---
+
+## 5. 数据清洗流程（DataCleaner）
+
+### 5.1 清洗6步流程
+
+```python
+def clean(self, df: pd.DataFrame) -> pd.DataFrame:
+    # 1. 标准化列名（小写）
+    df.columns = [col.lower() for col in df.columns]
+    
+    # 2. 输入列契约校验（C1/C2）
+    self._assert_input_contract(df)
+    # 必需列：date, close, amount, volume
+    # 缺列显式失败（ValueError），禁止静默造列
+    
+    # 3. 类型转换
+    # price_cols: open, high, low, close → pd.to_numeric
+    # volume: pd.to_numeric + fillna(0)
+    # amount: pd.to_numeric + NaN原样保留（禁止fill/兜底，污染illiq因子）
+    
+    # 4. 处理缺失值和重复值
+    df = df.dropna(subset=["date", "close"])
+    df["date"] = pd.to_datetime(df["date"])
+    
+    # 价格列NaN防护：仅ffill（取历史值，因果方向）
+    # C3红线：禁止bfill（首段NaN回填必来自未来→前视偏差）
+    for col in ["open", "high", "low"]:
+        df[col] = df[col].ffill()
+    
+    df = df.drop_duplicates(subset=["date"], keep="last")
+    
+    # 5. 修复OHLC一致性
+    # high >= max(open, close)
+    # low <= min(open, close)
+    # C4红线：修复条数写入attrs审计标记
+    
+    # 6. 排序并重置索引
+    df = df.sort_values("date").reset_index(drop=True)
+    df.attrs["cleaner_repaired"] = repaired  # 审计标记
+```
+
+### 5.2 输入列契约（C1/C2）
+
+```python
+@staticmethod
+def _assert_input_contract(df):
+    # C1: date和close必需
+    missing = [col for col in ("date", "close") if col not in df.columns]
+    if missing:
+        raise ValueError(f"cleaner 输入列契约违规: 缺失必需列 {missing}")
+    
+    # C2: amount必需（禁止close*volume兜底）
+    if "amount" not in df.columns:
+        raise ValueError("amount 缺失禁止 close*volume 兜底，污染illiq因子")
+    
+    # volume/vol双schema检测
+    if "volume" not in df.columns:
+        if "vol" in df.columns:
+            raise ValueError("检测到vol/volume双schema，请上游统一为volume命名")
+        raise ValueError("缺失必需列 ['volume']")
+```
+
+### 5.3 数据质量红线
+
+| 红线 | 规则 | 原因 |
+|---|---|---|
+| **C3** | 禁止bfill | 首段NaN回填必来自未来→前视偏差 |
+| **C4** | OHLC修复计数写入attrs | 审计可追溯，不加新列 |
+| **illiq因子保护** | amount禁止fill/兜底 | close*volume会污染illiq因子计算 |
+
+---
+
+## 6. 数据校验流程（DataValidator）
+
+### 6.1 设计原则
+
+```python
+# data_validator.py 第9-14行
+"""
+设计原则 (QTR-OS Blueprint §4.3 / Master Audit R04):
+- 纯只读门禁: 严禁在局部副本上静默修复并虚假返回 True。
+- 发现破损帧 (如 High < Low 或 High < Open/Close) 必须严格返回 False 阻断落盘。
+- 数据的原子清洗与修复职责唯一交由 DataCleaner 负责。
+"""
+```
+
+### 6.2 8项校验规则
+
+| # | 校验项 | 阻断级别 | 说明 |
+|---|---|---|---|
+| 1 | 必要列检查 | 🔴 阻断 | date, code, open, high, low, close, volume, amount |
+| 1.5 | 核心数值非空 | 🔴 阻断 | open, high, low, close, volume（FIX-2封堵NaN比较漏洞） |
+| 2 | 价格极值逻辑 | 🔴 阻断 | High >= Low |
+| 3 | 价格逻辑关系 | 🔴 阻断 | High >= Open/Close, Low <= Open/Close |
+| 4 | 成交量非负 | 🔴 阻断 | volume >= 0 |
+| 5 | 成交额告警 | 🟡 告警 | amount > 0（不阻断） |
+| 6 | 异常值检测 | 🟡 告警 | 单日振幅 > 99% |
+| 7 | 日期连续性 | 🟡 告警 | 间隔 > 14天可能缺失 |
+| 8 | 复权状态 | 🟡 告警 | adjustflag=1为未复权 |
+
+### 6.3 FIX-2: NaN比较漏洞封堵
+
+```python
+# data_validator.py 第32-37行
+# 1.5 核心数值非空校验 (FIX-2: 封堵 IEEE 754 下 NaN 比较恒为 False 绕过门禁漏洞)
+core_numeric_cols = ["open", "high", "low", "close", "volume"]
+if df[core_numeric_cols].isna().any().any():
+    n_nan = df[core_numeric_cols].isna().sum().to_dict()
+    logger.error(f"数据验证失败: 核心行情列存在 NaN 缺失值: {n_nan}")
+    return False
+```
+
+**问题**：IEEE 754标准下，`NaN < NaN`、`NaN >= NaN`等比较恒为False，可能绕过门禁  
+**解决**：先显式检查NaN，再进行逻辑比较
+
+---
+
+## 7. 数据湖存储结构
+
+### 7.1 目录结构
 
 ```
-{data_dir}/
+data/
 ├── lake/
-│   ├── quotes/
-│   │   ├── daily/       # {symbol}.parquet (日线)
-│   │   ├── weekly/      # {symbol}.parquet (周线, 日线合成)
-│   │   ├── monthly/     # {symbol}.parquet (月线, 日线合成)
-│   │   ├── 1mins/       # {symbol}.parquet
-│   │   └── 5mins/       # {symbol}.parquet
-│   └── index/           # {symbol}.parquet (指数)
-├── factors/             # {symbol}.parquet (复权因子)
-├── fq/                  # gbbq.parquet (除权除息原始数据)
-├── all_stock_codes.csv  # 全量股票代码清单
-├── stock_list.csv       # 股票列表 (含名称/市场/板块/vol_unit)
-└── trade_calendar.csv   # 交易日历
+│   └── quotes/
+│       ├── daily/              # 日线
+│       │   ├── 600519.SH.parquet
+│       │   ├── 000001.SZ.parquet
+│       │   └── ...
+│       ├── weekly/             # 周线
+│       ├── monthly/            # 月线
+│       ├── 1mins/              # 1分钟线
+│       ├── 5mins/              # 5分钟线
+│       └── index/              # 指数
+│           ├── 000001.SH.parquet  # 上证指数
+│           ├── 399001.SZ.parquet  # 深证成指
+│           └── sh000300.parquet   # HS300
+└── factors/                    # 因子数据
 ```
 
-### 关键特性
-
-| 特性 | 实现 |
-|------|------|
-| **读写** | `write_parquet`/`read_parquet` (snappy 压缩) |
-| **原子写入** | `.tmp` → rename → 覆盖 |
-| **并发控制** | `FileLock` (第三方锁文件) |
-| **路径安全** | `resolve()` 检查路径是否在 data_dir 内 |
-| **代码标准化** | `_normalize_stock_code()`: 统一 XXXXXX.SH/SZ/BJ |
-| **周线合成** | groupby year+week, OHLC 聚合规则 |
-| **月线合成** | groupby year+month, OHLC 聚合规则 |
-| **新鲜度检测** | `validate_freshness(max_lag_days=7)`: mtime 检查 |
-
----
-
-## 5. 复权系统 (DataAdjuster + FactorManager)
-
-### 复权因子计算流程
-
-```
-TDX gbbq 文件 → GBBQProcessorV15 清洗 → SmartFactorCalculator 计算
-  ├─ V15 纯净过滤: category==1, date<=today, 列名标准化
-  ├─ cash/split/rights 归一化 (/10)
-  └─ → factor / n 累积因子 (HFQ: Start=1.0, Split→Factor increases)
-```
-
-### 复权执行
+### 7.2 湖读取候选符号展开
 
 ```python
-pd.merge_asof(df_raw, df_factor, on="date", direction="backward")
-df_merged["factor"].ffill().fillna(1.0)
-
-if method == "hfq":
-    price *= factor
-    volume /= factor
-elif method == "qfq":
-    multiplier = factor / latest_factor
-    price *= multiplier
-    volume /= multiplier
-
-价格: clip(0.001, 100000)
-成交量: clip(0, 10000000000)
+# data_fetcher.py 第78-95行
+def lake_candidate_symbols(symbol: str) -> list[str]:
+    """湖读取候选符号: 带市场后缀原样优先, 裸代码按板块推断后缀展开。
+    
+    裸代码 (如 '600519') 直接 read_data 会 miss 湖文件 (湖按 '600519.SH' 存),
+    不解析就会错误地滑进本地兜底。推断顺序: 6/9->SH, 0/2/3->SZ, 4/8->BJ。
+    """
+    sym = str(symbol)
+    if "." in sym or not sym.isdigit():
+        return [sym]
+    if sym.startswith(("6", "9")):
+        order = (".SH", ".SZ", ".BJ")
+    elif sym.startswith(("0", "2", "3")):
+        order = (".SZ", ".SH", ".BJ")
+    elif sym.startswith(("4", "8")):
+        order = (".BJ", ".SH", ".SZ")
+    else:
+        order = (".SH", ".SZ", ".BJ")
+    return [sym] + [f"{sym}{suffix}" for suffix in order]
 ```
 
-### 安全措施
+**示例**：
+- `"600519"` → `["600519", "600519.SH", "600519.SZ", "600519.BJ"]`
+- `"000001"` → `["000001", "000001.SZ", "000001.SH", "000001.BJ"]`
 
-- **cutoff_date**: 防止未来除权事件泄露到过去
-- **因子值检查**: 异常范围 (≤0, >1,000,000, <0.000001)
-- **股票代码过滤**: 仅处理 `60xx/68xx/00xx/30xx`
-
----
-
-## 6. 缓存系统
-
-| 缓存层级 | 类型 | 大小 | 失效策略 |
-|----------|------|------|----------|
-| **Memory (DataFetcher)** | `OrderedDict` LRU | 5,000 条 | `clear_price_cache(symbol, adjust)` |
-| **Parquet (StorageManager)** | 磁盘文件 | — | mtime 新鲜度检查 |
-| **TDX file cache** | `dict` in TdxSource | — | per (symbol,start,end) key |
-| **Factor fingerprints** | JSON 文件 | — | 增量更新检测 |
-
----
-
-## 7. 实时行情桥接 (RealtimeBridge)
-
-### 当前状态: 🚧 脚手架
+### 7.3 原子写入与路径遍历防护
 
 ```python
-class RealtimeBridge:
-    subscribe(symbol, callback)    # 订阅某股票 tick
-    unsubscribe(symbol)            # 取消订阅
-    start()                        # 启动事件循环
-    stop()                         # 停止事件循环
-    get_snapshot(symbol) → TickData # 实时快照
-
-@dataclass
-class TickData:
-    symbol, timestamp, price, volume, turnover
-    bid_price/volume, ask_price/volume
-    open, high, low, pre_close
+# storage_manager.py 第118-150行
+def write_parquet(self, file_path, df, overwrite=False):
+    # 1. 路径遍历校验
+    resolved = file_path_obj.resolve()
+    data_dir_resolved = self.data_dir.resolve()
+    if not resolved.is_relative_to(data_dir_resolved):
+        logger.error(f"路径遍历拒绝: {file_path} 不在 {self.data_dir} 内")
+        return False
+    
+    # 2. 文件锁
+    lock_path = str(file_path_obj.with_suffix(file_path_obj.suffix + ".lock"))
+    with FileLock(lock_path):
+        # 3. 临时文件 + 原子重命名
+        tmp_path = file_path_obj.with_name(f".{file_path_obj.name}.tmp.{os.getpid()}")
+        df.to_parquet(tmp_path)
+        tmp_path.rename(file_path_obj)  # 原子操作
 ```
 
-- 支持 WebSocket (`start_websocket` 方法)
-- 支持 MockDataSource (演示模式)
-- 支持多路策略 (`MultiLeggedStrategy` 容器)
-- MockTickProvider (随机 tick 生成, 用于测试)
-- **未集成**: 未连接到任何真实 WebSocket 数据源
+**安全特性**：
+- ✅ **路径遍历防护**：`Path.is_relative_to`（非字符串前缀）
+- ✅ **原子写入**：临时文件 + `FileLock` + 原子重命名
+- ✅ **防覆盖**：`overwrite=False`时跳过已存在文件
 
 ---
 
-## 8. 关键观察
+## 8. A股字段要求表
 
-### 架构风险
-
-| # | 风险 | 位置 | 影响 |
-|---|------|------|------|
-| R2-1 | **DataFetcher + DataIngestionService 功能重复**: 两者都做 fetch+route+standardize, 但 DataFetcher 更丰富 (pipeline/缓存/协调器), DataIngestionService 是独立精简版 | `data_fetcher.py:44` vs `data_ingestion_service.py:12` | 数据获取入口有两条可能路径, 行为差异 |
-| R2-2 | **DataCleaner 和 DataValidator 有重叠修复逻辑**: cleaner 修 OHLC 一致性, validator 也修 OHLC 一致性, 但修复规则略有不同 | `cleaner.py:32-38` vs `validator.py:29-48` | 相同输入可能产生不同输出 |
-| R2-3 | **TradeCalendarManager 硬编码假期**: 2024-2026 年假期写死在源码中, 无自动更新机制 | `trade_calendar_manager.py:11-68` | 2027 年起 T+1 检查失效 |
-| R2-4 | **价格缓存无持久化**: 内存缓存重启即失效, 热启动性能差 | `data_fetcher.py:163-178` | 重启后需重新请求所有数据 |
-| R2-5 | **实时桥接未集成**: RealtimeBridge 仅脚手架, 无真实 WebSocket 连接 | `realtime_bridge.py` | 实盘就绪度低 |
-| R2-6 | **OHLC 自动修复无审计**: Cleaner 和 Validator 静默修复异常数据, 无修复日志持久化 | `cleaner.py`, `validator.py` | 数据质量降级不可追溯 |
-| R2-7 | **SourceRouter 的竞速模式并行数 3**: 写死在 `max_workers = min(3, len(adapters))` | `source_router.py:19` | 与 SourceRouter 故障转移配置不一致 (5 源在线) |
-| R2-8 | **复权因子路径依赖: TDX gbbq 是第一入口**: 只有 TDX 有 gbbq 数据, 其他源 (Baostock 等) 虽提供调整因子但无自洽计算 | `data_adjuster.py:55-151` | 无 TDX 环境则复权系统无法运行 |
-
-### 设计亮点
-
-| # | 亮点 | 位置 |
-|---|------|------|
-| S2-1 | **故障转移 + 竞速模式双策略**: `fetch_data` 顺序重试, `fetch_data_with_race` 并发竞速 | `source_router.py` |
-| S2-2 | **熔断器 (CircuitBreaker)**: 5 次失败熔断 30 秒, 保护上游 | `sources/base.py:15-25` |
-| S2-3 | **原子写入 + 锁 + 路径安全**: FileLock + tmp rename + resolve() 检查 | `storage_manager.py:65-95` |
-| S2-4 | **merge_asof 向量化复权**: 使用 pandas merge_asof 而非逐行操作 | `data_adjuster.py:160` |
-| S2-5 | **cutoff_date 防未来除权泄露**: 限制复权到指定日期, 无 lookahead | `data_adjuster.py:180-184` |
-| S2-6 | **因子值异常防护**: ≤0, >1e6, <1e-6 时降级返回原始数据 | `data_adjuster.py:192-200` |
-| S2-7 | **Protocols 能力模式**: 8 个 Protocol 接口自由组合数据源能力 | `sources/protocols.py` |
-| S2-8 | **20+ 列名标准化映射**: 统一各源不同的中文/英文/缩写列名 | `utils/normalizer.py`, `shared/constants.py` |
-| S2-9 | **7 个增量更新脚本**: 独立运维的数据加载与更新管道 | `scripts/*.py` |
-| S2-10 | **JS 执行器**: 支持同花顺加密接口的 JS 逆向 | `utils/js_executor.py` |
-
-### 测试覆盖
-
-| 测试 | 函数数 | 覆盖内容 |
-|------|--------|----------|
-| `test_data_fetcher_init_fault_tolerance.py` | 12+ | DataFetcher 初始化容错、SourceRouter 空适配器 |
-| `test_data_access_service.py` | 3 | 缓存优先、指数别名、写入清洗 |
-| `test_data_chaos_qa.py` | ~10 | 混沌测试 (空数据/异常/并发) |
-| `test_data_and_stock_query_regressions.py` | 2 | 回退空值、ETF 错误 |
-| `test_p1_data_entry_injection.py` | 2 | DI 注入 StorageManager |
-| `test_p1_cache_invalidation.py` | 1 | 缓存清除 |
-| `test_refactoring_validation.py` | 1 | DataAligner |
-| `test_phase4_1_remediation.py` | 1 | DataAligner 不回填停牌前价格 |
-| `test_realtime_bridge.py` | ~30 | RealtimeBridge 单元测试 |
+| 字段 | 类型 | 单位 | 必需 | 说明 | 校验规则 |
+|---|---|---|---|---|---|
+| `date` | datetime64[ns] | — | ✅ | 交易日期 | 升序，无重复，间隔≤14天 |
+| `open` | float | 元 | ✅ | 开盘价 | > 0，≤ high |
+| `high` | float | 元 | ✅ | 最高价 | ≥ max(open, close), ≥ low |
+| `low` | float | 元 | ✅ | 最低价 | ≤ min(open, close), ≤ high |
+| `close` | float | 元 | ✅ | 收盘价 | > 0，≤ high, ≥ low |
+| `volume` | int | 股(shares) | ✅ | 成交量 | ≥ 0，非NaN |
+| `amount` | float | 元(CNY) | ✅ | 成交额 | > 0（告警），禁止fill |
+| `code` | str | — | ✅ | 股票代码 | 6位数字 |
+| `reserved` | — | — | ❌ | 保留列 | 契约要求但可能为空 |
+| `adj_factor` | float | — | ❌ | 复权因子 | qfq/hfq时添加 |
+| `pre_close` | float | 元 | ❌ | 昨收价 | 部分场景需要 |
+| `adjustflag` | int | — | ❌ | 复权标志 | 1=未复权（告警） |
 
 ---
 
-## 9. 建议
+## 9. fetch_for_brain输出结构
 
-### P1
-1. **R2-1 (重复入口)**: 合并 DataFetcher 和 DataIngestionService — DataIngestionService 应委托给 DataFetcher
-2. **R2-3 (硬编码假期)**: TradeCalendarManager 添加自动从网络更新假期机制, 或从 BaoStock/AkShare 自动获取
+### 9.1 DataService.fetch_for_brain() 输出
 
-### P2
-3. **R2-2 (重复修复)**: 统一 DataCleaner 和 DataValidator 的 OHLC 修复逻辑至一个共享方法
-4. **R2-4 (缓存持久化)**: 添加可选的磁盘缓存层 (sqlite/parquet) 辅助内存缓存
-5. **R2-6 (修复审计)**: Cleaner/Validator 添加修复日志持久化 (结构化日志)
+```python
+{
+    "stock": pd.DataFrame,      # 股票日线（9列契约，已清洗+校验）
+    "bench": pd.DataFrame,      # 基准指数（HS300，sh000300）
+    "etf": pd.DataFrame,        # ETF数据（固定列表）
+}
+```
 
-### P3
-6. **R2-5 (实时桥接)**: 连接真实 WebSocket 数据源 (如 Sina 或 EastMoney 实时推送)
-7. **R2-7 (竞速配置)**: 将竞速并行数提取为可配置参数
-8. **R2-8 (复权源)**: 添加 Baostock 调整因子作为 TDX gbbq 的后备
+### 9.2 DataFetcher.fetch_for_brain() 输出（旧接口）
+
+```python
+{
+    "stock": pd.DataFrame,      # 股票日线（直读湖原始价，adjust=""）
+    "symbol": str,              # 股票代码
+    "timestamp": str,           # ISO格式时间戳
+}
+```
+
+### 9.3 fetch_research_pack() 输出
+
+```python
+ResearchDataPack(
+    symbol="600519.SH",
+    stock_df=pd.DataFrame,      # 股票日线
+    metadata={
+        "etf_data": pd.DataFrame,   # ETF数据（可选）
+        "engine_status": {},         # 引擎状态（由AnalysisService填充）
+        "engine_errors": {},         # 引擎错误（由AnalysisService填充）
+        "trace_id": "abc123",        # 追踪ID（由AnalysisService填充）
+    }
+)
+```
 
 ---
 
-## 10. 验证清单
+## 10. 数据质量风险清单
 
-- [x] 读取 `data_fetcher.py` (314 LOC, 完整 fetch→pipeline→cache 流程)
-- [x] 读取 `data_ingestion_service.py` (48 LOC, 精简版)
-- [x] 读取 `data_pipeline_service.py` (32 LOC, clean→validate→adjust 封装)
-- [x] 读取 `sources/base.py` (DataSource ABC)
-- [x] 读取 `sources/protocols.py` (8 个 Protocol)
-- [x] 读取 `sources/tdx.py` (177 LOC, .day 解析)
-- [x] 读取 `sources/sina.py` (609 LOC, 限速/重试/UA)
-- [x] 读取 `sources/baostock.py` (463 LOC, login→fetch→logout)
-- [x] 读取 `sources/realtime_bridge.py` (428 LOC, WebSocket 脚手架)
-- [x] 读取 `sources/eastmoney.py` (1094 LOC, 最大文件)
-- [x] 读取 `managers/source_router.py` (246 LOC, 故障转移+竞速+熔断)
-- [x] 读取 `managers/standard_adapter.py` (92 LOC, 20+ 列名映射)
-- [x] 读取 `managers/trade_calendar_manager.py` (194 LOC, 硬编码假期)
-- [x] 读取 `managers/stock_metadata_manager.py` (324 LOC, IPO/退市)
-- [x] 读取 `managers/market_data_coordinator.py` (99 LOC, 指数/ETF/行业)
-- [x] 读取 `managers/factor_manager.py` (452 LOC, 因子管理)
-- [x] 读取 `pipeline/data_cleaner.py` (69 LOC, 6 步清洗)
-- [x] 读取 `pipeline/data_validator.py` (85 LOC, 7 步验证+自动修复)
-- [x] 读取 `pipeline/data_adjuster.py` (308 LOC, 复权核心)
-- [x] 读取 `lake/storage_manager.py` (638 LOC, Parquet 数据湖)
-- [x] 读取 `parsers/tdx_parser.py` (445 LOC, 二进制解析)
-- [x] 读取 `utils/normalizer.py` (294 LOC, 列名映射)
-- [x] 读取 `utils/akshare_wrapper.py` (340 LOC, UA 轮换/重试)
-- [x] 读取 `utils/smart_factor_calculator.py` (327 LOC, GBBQ V15)
-- [x] 读取 `utils/js_executor.py` (347 LOC, JS 逆向)
-- [x] 检查数据层测试覆盖 (9 个测试文件)
+### 10.1 已防护风险 ✅
+
+| 风险 | 防护机制 | 位置 |
+|---|---|---|
+| **前视偏差（look-ahead bias）** | C3红线禁止bfill | `data_cleaner.py:51` |
+| **OHLC逻辑错误** | DataCleaner修复 + DataValidator阻断 | `data_cleaner.py:60-76`, `data_validator.py:40-56` |
+| **NaN比较绕过** | FIX-2显式检查NaN | `data_validator.py:32-37` |
+| **路径遍历攻击** | `Path.is_relative_to`校验 | `storage_manager.py:128-139` |
+| **数据源混乱** | 湖优先单源，爬虫源已删除 | `data_fetcher.py:20-25` |
+| **量纲不一致** | harmonize_local_volume_unit自校准 | `data_fetcher.py:98-125` |
+| **amount缺失污染illiq因子** | 契约校验 + 禁止fill/兜底 | `data_cleaner.py:100-104` |
+| **原子写入失败** | 临时文件 + FileLock + 原子重命名 | `storage_manager.py:148-150` |
+
+### 10.2 潜在风险 🟡
+
+1. **两条fetch_for_brain路径** ⚠️
+   - **问题**：DataService和DataFetcher都有同名方法，行为不同
+   - **DataService路径**：返回{stock, bench, etf}，经过清洗+校验
+   - **DataFetcher路径**：仅返回{stock, symbol, timestamp}，直读湖原始价
+   - **风险**：调用方可能混淆，导致数据不一致
+   - **建议**：阶段3验证哪些引擎使用哪条路径，考虑统一或重命名
+
+2. **量纲自校准边界情况** 🟡
+   - **问题**：依赖amount/close比值，极端情况可能误判
+   - **现状**：比值在60-160区间才x100
+   - **风险**：涨停/跌停时amount和volume关系可能异常
+   - **缓解**：日志记录校正操作，可审计
+
+3. **数据湖过期** 🔴
+   - **问题**：第24轮发现本地湖L1停摆（最新2026-11-17，停摆2交易日）
+   - **现状**：湖优先，但湖过期时不自动更新
+   - **风险**：使用过期数据进行回测或分析
+   - **缓解**：第24轮`fetch_price`现可自动补齐，第25轮Freshness SLA探针
+   - **建议**：验证FreshnessValidator是否在生产路径启用
+
+4. **ETF数据固定列表** 🟡
+   - **问题**：`_load_etf_data()`返回固定ETF列表
+   - **风险**：新上市ETF不在列表中
+   - **影响**：低（ETF主要用于基准对比，非核心策略）
+
+5. **行业/板块数据依赖网络** 🟡
+   - **问题**：`get_industry_data()`和`get_sector_performance()`依赖网络源（eastmoney/sina）
+   - **风险**：网络不可用时功能降级
+   - **缓解**：`@handle_errors`装饰器返回None，不阻断主流程
+
+6. **复权锚点选择** 🟡
+   - **问题**：qfq锚定最新湖日期（先复权后切片）
+   - **风险**：湖过期时复权因子可能不完整
+   - **现状**：`anchor: "qfq anchored to the latest lake date"`
+   - **建议**：验证CorporateActionAdjuster的复权因子来源
+
+---
+
+## 11. 数据系统改进建议
+
+### 11.1 短期改进（P1）🟡
+
+1. **统一fetch_for_brain路径**
+   - **现状**：DataService和DataFetcher两条路径行为不同
+   - **建议**：DataFetcher.fetch_for_brain标记为`@deprecated`，引导使用DataService路径
+   - **工作量**：2小时（重命名+文档）
+
+2. **Freshness SLA强制检查**
+   - **现状**：FreshnessValidator存在但不强制
+   - **建议**：在`fetch_for_brain`入口检查湖新鲜度，超期时自动在线补齐
+   - **工作量**：4小时（集成FreshnessValidator + 测试）
+
+3. **量纲校正日志增强**
+   - **现状**：harmonize_local_volume_unit记录info日志
+   - **建议**：添加metrics指标（校正次数/占比），支持监控
+   - **工作量**：1小时
+
+### 11.2 中期改进（P2）🟢
+
+4. **数据湖自动同步**
+   - **现状**：湖过期需手动触发更新
+   - **建议**：定时任务（cron）自动同步在线数据到湖
+   - **工作量**：8小时（调度器 + 监控）
+
+5. **ETF列表动态化**
+   - **现状**：固定ETF列表
+   - **建议**：从stock_metadata_manager动态获取
+   - **工作量**：4小时
+
+6. **数据质量指标面板**
+   - **现状**：DataQualityService存在但未集成到UI
+   - **建议**：Streamlit仪表板展示数据质量指标（新鲜度/完整性/准确性）
+   - **工作量**：16小时
+
+---
+
+## 12. 校验清单
+
+- [x] 说明股票、指数、ETF、行业数据路径（§2.3数据类型支持）
+- [x] 说明数据为空、数据源失败时的行为（§3.1数据流，湖miss时回退）
+- [x] 检查date/open/high/low/close/volume/pre_close等字段（§8 A股字段要求表）
+- [x] 说明哪些数据可用于回测，哪些只适合展示或研究（§2.3，日线/分钟线可回测，行业/板块仅研究）
+- [x] 梳理所有数据源和source routing（§2.1-2.2，湖优先单源）
+- [x] 分析fetch_for_brain如何生成data_pack（§3.1-3.3，双路径+类型化路径）
+- [x] 分析数据清洗、校验、复权、对齐流程（§5-6，DataCleaner+DataValidator）
+- [x] 分析数据湖存储结构和读取方式（§7，目录结构+原子写入）
+- [x] 审计缺失数据、错价、未来数据、缓存污染和字段不一致风险（§10，已防护8项+潜在6项）
+- [x] 数据源矩阵（§2）
+- [x] 数据流入流程（§3）
+- [x] 数据清洗校验流程（§5-6）
+- [x] 数据湖读写机制（§7）
+- [x] A股字段要求表（§8）
+- [x] fetch_for_brain输出结构（§9）
+- [x] 数据质量风险清单（§10）
+- [x] 数据系统改进建议（§11）
+
+---
+
+## 13. 阶段2结论
+
+UniQuant的数据系统展现了**严格的数据质量防护和清晰的架构分层**：
+
+### 架构优点 ✅
+1. **门面模式清晰**：DataService协调4个专职服务（Cache/Quality/Query/Access）
+2. **湖优先单源**：预注册裁决D1，爬虫源已删除，避免数据源混乱
+3. **冻结契约**：GET_PRICE_RETURN_CONTRACT明确9列schema和量纲
+4. **严格清洗**：DataCleaner 6步流程，C3/C4红线防护
+5. **只读门禁**：DataValidator 8项校验，FIX-2封堵NaN漏洞
+6. **原子写入**：FileLock + 临时文件 + 原子重命名
+7. **路径遍历防护**：Path.is_relative_to（非字符串前缀）
+
+### 核心机制 ✅
+1. **数据源优先级**：Lake → mootdx_local → tdxdata_online
+2. **量纲自校准**：amount/close比值在60-160区间才x100（手→股）
+3. **前视偏差防护**：C3红线禁止bfill，仅允许ffill（因果方向）
+4. **illiq因子保护**：amount禁止fill/兜底
+5. **湖读取符号展开**：裸代码按板块推断后缀（6/9→SH, 0/2/3→SZ, 4/8→BJ）
+
+### 主要风险 🟡
+1. 🔴 **数据湖过期**：第24轮发现L1停摆，需验证Freshness SLA
+2. 🟡 **两条fetch_for_brain路径**：DataService和DataFetcher行为不同
+3. 🟡 **量纲自校准边界**：极端行情可能误判
+4. 🟡 **ETF固定列表**：新上市ETF不在列表
+5. 🟡 **行业/板块数据依赖网络**：网络不可用时降级
+
+**下一阶段**：阶段3 - 多引擎分析（深入8个Brain引擎的输入输出和信号解释）
+
+---
+
+**分析人**：Claude (Anthropic)  
+**审核状态**：待用户确认  
+**产物路径**：`docs/analysis/02_data_system.md`

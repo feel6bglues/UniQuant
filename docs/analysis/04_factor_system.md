@@ -1,393 +1,746 @@
-# Stage 4 — 因子系统深度分析
+# 阶段 4：UniQuant 因子系统分析
 
-> **日期**: 2026-06-29 | **状态**: ✅ 完成
-> **范围**: `brain/factors/` (8 文件), `shared/factor_governance.py`, `shared/config_models.py`, `shared/config_loader.py`
-> **依赖**: `config.yaml` → `refactoring.feature_flags.factor_gate`
-
----
-
-## 1. 总览
-
-### 因子系统架构
-
-```
-external scripts (full_a_stock_analysis.py etc.)
-        │
-        ▼
-  custom_factors.py        ← register_all() → 14 factors
-        │
-  ┌─────┴────────┐
-  ▼              ▼
-FactorRegistry  FactorAnalyzer  ← IC/IR/IC>0 ratio
-(singleton)            │
-  │                    ▼
-  │             FactorComposer  ← Z-score + orthogonal + IC weighting
-  │                    │
-  │                    ▼
-  │             WalkForwardPipeline  ← train/test separation
-  │
-  └─── check_access() → admission gate (WARN/BLOCK/OFF)
-           │
-           ▼
-   shared/factor_governance.py  (deprecated → re-exports from brain/)
-   FactorAdmissionGate          (registration-time checks)
-```
-
-### 文件清单
-
-| 文件 | LOC | 职责 |
-|------|-----|------|
-| `brain/factors/registry.py` | 184 | 全局单例注册中心, 线程安全, 准入检查 |
-| `brain/factors/analyzer.py` | 528 | IC/IR 计算, Rank IC, 前视偏差检测, 因子相关性 |
-| `brain/factors/composer.py` | 401 | Z-score 标准化, 对称正交化, IC 加权合成, 降级处理 |
-| `brain/factors/custom_factors.py` | 311 | 14 个技术/逻辑因子实现 + `register_all()` |
-| `brain/factors/financial_bridge.py` | 421 | 中文财务字段→标准因子映射, PE_TTM/PB 计算 |
-| `brain/factors/neutralizer.py` | 40 | MAD 缩尾 + 行业/市值回归中性化 |
-| `brain/factors/industry_provider.py` | 20 | akshare 行业分类哑变量 |
-| `brain/factors/walk_forward_pipeline.py` | 246 | Walk-Forward 因子扫描, 训练/测试严格分离 |
-| `shared/factor_governance.py` | 170 | 已弃用, 仅 re-export + FactorAdmissionGate |
-
-### 测试文件
-
-| 测试 | 函数数 | 覆盖 |
-|------|--------|------|
-| `tests/test_factor_registry.py` | 10 | 注册/覆盖/启用/禁用/准入检查/WARN/BLOCK |
-| `tests/test_factor_analyzer.py` | 12 | IC/ICIR/相关性/前视偏差/持有期/边缘情况 |
-| `tests/test_factor_composer.py` | 9 | Z-score/正交化/IC加权/降级/缺失因子/坏因子 |
-| `tests/test_factor_div_zero_defense.py` | 11 | 零除防御/空数据/单值/NaN |
-| `tests/shared/test_factor_manifest.py` | 4 | 因子清单数据类 |
-| `tests/shared/test_factor_admission_gate.py` | 13 | 3 种模式/3 项检查/命名/文档/参数 |
-| **合计** | **59** | — |
+> **分析时间**：2026-11-24  
+> **依赖阶段**：阶段0-3  
+> **核心文件**：`brain/factors/registry.py`, `brain/factors/analyzer.py`, `brain/factors/composer.py`, `brain/factors/neutralizer.py`, `research/gates/alpha_tier_engine.py`, `research/ledger/degrees_of_freedom.py`
 
 ---
 
-## 2. FactorRegistry 注册中心 (`registry.py`)
+## 1. 因子系统架构总览
 
-### 核心设计
+### 1.1 因子生命周期
 
-- **单例模式**: `__new__` 确保全局唯一实例
-- **线程安全**: `threading.Lock` 保护所有读写操作
-- **延迟加载**: `_ensure_loaded()` 在首次查询时触发，与 `register_all()` 在 import 时调用的默认注册配合
-
-### 公共 API
-
-```python
-FactorRegistry.register(name, compute_func, category, default_weight, description)
-FactorRegistry.get_all()          → List[FactorInfo]
-FactorRegistry.get_enabled()     → List[FactorInfo]   # 触发 check_access
-FactorRegistry.get_factor(name)  → Optional[FactorInfo]  # 触发 check_access
-FactorRegistry.has(name)         → bool
-FactorRegistry.enable(name) / disable(name)
-FactorRegistry.list_factors()    → Dict[str, str]  # name → description
-FactorRegistry.check_access(name) → bool  # WARN/BLOCK 模式拦截
-FactorRegistry.set_mode(mode)    → FactorAccessLevel
+```mermaid
+graph LR
+    A[因子注册<br/>FactorRegistry] --> B[因子计算<br/>FactorComposer]
+    B --> C[因子中性化<br/>FactorNeutralizer]
+    C --> D[因子分析<br/>FactorAnalyzer]
+    D --> E[四阶门禁<br/>AlphaTierEngine]
+    E --> F[因子合成<br/>FactorComposer]
+    
+    subgraph 研究控制平面
+    LEDGER[DegreesOfFreedomLedger<br/>自由度账本]
+    end
+    
+    E --> LEDGER
+    LEDGER --> E
 ```
 
-### 准入检查机制
+### 1.2 核心组件
+
+| 组件 | 职责 | 关键方法 |
+|---|---|---|
+| `FactorRegistry` | 因子注册中心（单例+线程安全） | `register()`, `get_enabled()`, `check_access()` |
+| `FactorAnalyzer` | IC/IR分析（Rank IC, lookahead检测） | `compute_rank_ic()`, `check_lookahead_leakage()` |
+| `FactorComposer` | 因子合成（Z-score, 正交化, IC加权） | `compute_all_factors()`, `_resolve_ic_result()` |
+| `FactorNeutralizer` | 因子中性化（行业+市值） | `neutralize()`, `mad_winsorize()` |
+| `AlphaTierEngine` | 四阶门禁（Class A/B/C/D） | `ClassAEvaluator.evaluate()`, `ClassBEvaluator.evaluate()` |
+| `DegreesOfFreedomLedger` | 自由度账本（多重测试校正） | `register_trial()`, BH-FDR/Bonferroni |
+
+---
+
+## 2. FactorRegistry（因子注册中心）
+
+### 2.1 设计模式
 
 ```python
-check_access(name):
-    if name in _factors: return True
-    if _mode == BLOCK: raise ValueError(f"未注册因子被拦截: {name}")
-    if _mode == WARN: logger.warning("未注册因子访问: %s (mode=warn)", name)
+class FactorRegistry:
+    """
+    全局因子注册中心（单例模式 + 线程安全）
+    Thread-safe implementation with lock-protected dictionary.
+    Also provides access control gate (WARN/BLOCK mode).
+    """
+    _factors: Dict[str, FactorInfo] = {}
+    _instance = None
+    _lock = threading.Lock()
+    _loaded: bool = False
+    _mode: FactorAccessLevel = FactorAccessLevel.WARN
+```
+
+### 2.2 因子元信息
+
+```python
+@dataclass
+class FactorInfo:
+    name: str                    # 因子名称（唯一）
+    category: str                # technical/fundamental/alternative/custom
+    compute_func: Callable       # 计算函数
+    default_weight: float = 1.0
+    enabled: bool = True
+    description: str = ""
+```
+
+### 2.3 访问控制门禁
+
+```python
+class FactorAccessLevel(Enum):
+    FREE = "free"   # 自由访问
+    WARN = "warn"   # 未注册因子访问时告警
+    BLOCK = "block" # 拦截未注册因子访问
+```
+
+```python
+@classmethod
+def check_access(cls, name: str) -> bool:
+    """准入检查: 在 WARN/BLOCK 模式下拦截未注册因子的访问"""
+    with cls._lock:
+        if name in cls._factors:
+            return True
+        if cls._mode == FactorAccessLevel.BLOCK:
+            raise ValueError(f"未注册因子被拦截: {name}")
+        if cls._mode == FactorAccessLevel.WARN:
+            logger.warning("未注册因子访问: %s (mode=warn)", name)
+        return True
+```
+
+### 2.4 配置覆盖机制
+
+```python
+@classmethod
+def register(cls, name, compute_func, category="custom", default_weight=1.0, description=""):
+    # 从factors.yaml读取覆盖配置
+    try:
+        cfg = get_config()
+        factor_cfg = cfg.get(f"factors.{name}")
+        if factor_cfg is not None:
+            if not factor_cfg.get("enabled", True):
+                logger.info(f"⏭️ 因子 {name} 被 factors.yaml 禁用，跳过注册")
+                return
+            if "weight" in factor_cfg:
+                default_weight = factor_cfg["weight"]
+            if "category" in factor_cfg:
+                category = factor_cfg["category"]
+    except ImportError as e:
+        logger.warning("因子配置加载器不可用，使用默认注册参数: %s", e)
+    except (AttributeError, KeyError, TypeError, ValueError, RuntimeError) as e:
+        logger.error("因子 %s 配置读取失败: %s", name, e)
+        raise  # 配置失败必须可见，不允许静默回退
+```
+
+**关键设计**：
+- ✅ 配置失败必须可见（不允许静默回退到默认权重）
+- ✅ 禁用的因子跳过注册
+- ✅ 支持weight/category覆盖
+
+---
+
+## 3. FactorAnalyzer（因子分析器）
+
+### 3.1 Rank IC计算
+
+```python
+def compute_rank_ic(self, factor_values, forward_returns):
+    """
+    计算 Rank IC (Spearman 秩相关系数)
+    """
+    factor_clean = factor_values.dropna()
+    returns_clean = forward_returns.dropna()
+    # Spearman秩相关
+    ic, p_value = stats.spearmanr(factor_clean, returns_clean)
+    return ic
+```
+
+### 3.2 IC分析结果
+
+```python
+@dataclass
+class FactorICResult:
+    factor_name: str
+    ic_mean: float          # IC均值
+    ic_std: float           # IC标准差
+    icir: float             # IC信息比率 (IC均值/IC标准差)
+    ic_positive_ratio: float # IC>0比例
+    ic_t_stat: float        # IC t统计量
+    n_periods: int          # 期数
+```
+
+### 3.3 持有期分析
+
+```python
+DEFAULT_HOLDING_PERIODS = [1, 5, 20]  # 1天、5天、20天
+```
+
+### 3.4 Lookahead Bias检测
+
+```python
+def check_lookahead_leakage(df, factor_func, factor_cols):
+    """
+    Detect look-ahead bias using future perturbation invariance.
+    
+    Runs factor_func on the original df, then on copies with future close prices
+    perturbed at multiple cutoffs. If any factor value before a cutoff changes,
+    it depends on future data → raises LookaheadBiasError.
+    """
+    baseline = factor_func(df.copy()).copy()
+    n = len(df)
+    cutoffs = [int(n * p) for p in [0.33, 0.50, 0.66]]
+    
+    for cutoff in cutoffs:
+        perturbed = df.copy()
+        future_close = perturbed.loc[cutoff:, "close"].values
+        perturbed.loc[cutoff:, "close"] = future_close * rng.uniform(1.5, 3.0, size=len(future_close))
+        
+        result = factor_func(perturbed.copy()).copy()
+        
+        for col in factor_cols:
+            b_before = baseline.loc[:cutoff - 1, col]
+            r_before = result.loc[:cutoff - 1, col]
+            
+            if not np.allclose(b_before.fillna(0).values, r_before.fillna(0).values, rtol=1e-5):
+                raise LookaheadBiasError(f"Look-ahead bias detected in factor '{col}'")
+    
     return True
 ```
 
-三模式:
-- **OFF** (`config: "off"`): 不检查, 全部放行
-- **WARN** (`config: "warn"`): 记录警告但放行 (默认)
-- **BLOCK** (`config: "block"`): 拦截未注册因子 → `ValueError`
+**检测原理**：
+1. 在33%/50%/66%三个cutoff点扰动未来close价格（×1.5~3.0）
+2. 如果cutoff前的因子值变化 → 依赖未来数据 → 抛出LookaheadBiasError
+3. 使用随机种子42保证可复现
 
-### 配置集成
-
-```python
-# register() 内部读取 config.yaml:
-cfg.get(f"factors.{name}")  # 支持 enabled/weight/category 覆盖
-# 加载失败时主动 raise (不静默回退)
-```
-
----
-
-## 3. Custom Factors (`custom_factors.py`)
-
-### 14 个注册因子
-
-| # | 因子名 | 类别 | 默认权重 | 描述 |
-|---|--------|------|---------|------|
-| 1 | `momentum_20d` | technical | 1.0 | 20日动量 (收益率) |
-| 2 | `momentum_60d` | technical | 0.9 | 60日动量 |
-| 3 | `volatility_20d` | technical | 0.8 | 20日波动率 (年化) |
-| 4 | `volatility_60d` | technical | 0.7 | 60日波动率 |
-| 5 | `ma_ratio_5_20` | technical | 0.85 | 5/20日均线比率 |
-| 6 | `ma_ratio_10_60` | technical | 0.75 | 10/60日均线比率 |
-| 7 | `volume_ratio_5_20` | technical | 0.6 | 5/20日成交量比率 |
-| 8 | `rsi_14` | technical | 0.8 | 14日 RSI |
-| 9 | `price_position_20d` | technical | 0.7 | 20日价格位置 (0-1) |
-| 10 | `turnover_momentum_20d` | technical | 0.85 | 20日换手率动量 |
-| 11 | `illiq_20d` | custom | 1.0 | Amihud 非流动性 |
-| 12 | `pv_divergence_20d` | custom | 1.0 | 量价背离 |
-| 13 | `cs_momentum_20d` | custom | 1.0 | 横截面动量 |
-| 14 | `idiosyncratic_vol_20d` | custom | 1.0 | 特质波动率 (IVOL) |
-
-### 注册时机
-
-```python
-# __init__.py:
-from . import custom_factors  # 导入即触发 register_all()
-```
-
-通过 `from . import custom_factors` 在包加载时自动注册。
-
----
-
-## 4. FactorAnalyzer (`analyzer.py`)
-
-### 分析模式
+### 3.5 AnalysisMode与负shift防护
 
 ```python
 class AnalysisMode(Enum):
-    BACKTEST = auto()  # 允许负 shift (未来数据, 仅离线)
-    LIVE = auto()      # 禁止未来数据泄漏, 抛出 ValueError
+    BACKTEST = auto()  # 允许负shift（离线回测）
+    LIVE = auto()      # 禁止未来数据泄漏
+
+def _compute_forward_returns(self, df, holding_period, price_col="close", mode="backtest"):
+    """
+    ⚠️ 警告: 此方法使用负 shift 引入未来数据，仅限离线回测使用。
+    """
+    if mode == "live":
+        raise ValueError(
+            "Lookahead bias detected: _compute_forward_returns uses negative shift "
+            "which introduces future data. This method is NOT safe for live trading. "
+            "Use mode='backtest' for offline factor analysis only."
+        )
+    
+    # 检查未来时间戳
+    if "date" in df.columns:
+        max_date = pd.to_datetime(df["date"]).max()
+        if max_date > pd.Timestamp(get_time_provider().now()):
+            raise ValueError(
+                f"Future timestamp detected in data: {max_date}. "
+                "Data contains future dates beyond current time."
+            )
+    
+    future_ret = df[price_col].shift(-holding_period) / df[price_col] - 1
+    return future_ret
 ```
 
-- `compute_forward_returns()` 在 `mode="live"` 时直接抛出 `ValueError` 防止前视偏差
-- `compute_ic_ir()` 增加半衰期加权支持 (exponential weights)
-
-### 核心方法
-
-| 方法 | 用途 | 复杂度 |
-|------|------|--------|
-| `compute_rank_ic(factor, returns)` | Spearman 秩相关 → IC | O(n) |
-| `compute_ic_ir(df, factor_cols, ...)` | 多持有期 IC/IR/IC>0 比例 | O(factors × periods × days) |
-| `compute_factor_correlation(factors)` | 因子相关性矩阵 | O(f² × n) |
-
-### Look-ahead 检测
-
-`check_lookahead_leakage()`: 通过对未来价格进行扰动 (1.5-3.0x)，验证因子值在扰动前后不变。若因子值变化则抛出 `LookaheadBiasError`。
-
-### IC/IR 算法
-
-```python
-# 向量化: 使用 groupby 替代内层日期循环
-df[fwd_col] = df.groupby(code_col)[price_col].shift(-period) / df[price_col] - 1
-# 每日 IC → IC 序列 → IC_mean / IC_std → ICIR
-ic_series = df.groupby(date_col).apply(calc_daily_ic)
-ic_mean = np.mean(ic_series)  # 或半衰期加权
-```
+**三层防护**：
+1. **AnalysisMode枚举**：BACKTEST vs LIVE
+2. **mode="live"时禁止负shift**：抛出ValueError
+3. **时间戳检查**：检测数据中的未来日期
 
 ---
 
-## 5. FactorComposer (`composer.py`)
+## 4. AlphaTierEngine（四阶门禁）
 
-### 合成流水线
-
-```
-compose(df, factor_names)
-  │
-  ├─ 1. FactorRegistry.get_enabled() → 验证因子已注册
-  │
-  ├─ 2. 逐因子计算 → df[factor_name]
-  │      └─ 对失败因子: 记录到 diagnostics["failed_factors"]
-  │
-  ├─ 3. Z-score 标准化 (横截面)
-  │
-  ├─ 4. 对称正交化 (可选, default=True)
-  │      └─ scipy.linalg 对称正交化
-  │
-  ├─ 5. IC 加权合成
-  │      └─ weight = ICIR / sum(ICIR)
-  │
-  └─ 6. 诊断输出
-         ├─ composite_status: OK / DEGRADED / UNAVAILABLE
-         └─ composite_usable: bool
-```
-
-### 降级策略
-
-- 缺失因子 → `missing_requested_factors`
-- 计算失败的因子 → `failed_factors`
-- 正交化失败 → `orthogonalization_failed`
-- 只要有 `used_factors` 就标记为 `DEGRADED` 但 `composite_usable=True`
-- 零可用因子 → `UNAVAILABLE`, `composite_usable=False`
-
----
-
-## 6. WalkForwardPipeline (`walk_forward_pipeline.py`)
-
-### 设计
+### 4.1 四个等级
 
 ```python
-WalkForwardFactorPipeline(
-    train_window=504,   # ~2年
-    test_window=63,     # ~3月
-    min_train_days=252, # 最小训练天数
-    weight_method="rank_icir",  # 权重方法
+class AlphaTier(str, Enum):
+    TIER_UNRATED = "UNRATED"                              # 未评级（默认）
+    TIER_A = "TIER_A_STATISTICALLY_SUPPORTED"            # 统计学支持
+    TIER_B = "TIER_B_ECONOMICALLY_PLAUSIBLE"             # 经济学合理
+    TIER_C = "TIER_C_TRADABLE_CANDIDATE"                 # 可交易候选
+    TIER_D = "TIER_D_REPLICATED_STRATEGY"                # 复制策略
+```
+
+### 4.2 Class A Evaluator（统计学显著性与过拟合）
+
+**Newey-West t统计量（HAC稳健标准误）**：
+
+```python
+@staticmethod
+def compute_newey_west_t(ic_series, forecast_horizon=5):
+    """
+    计算Newey-West t统计量（HAC: Heteroskedasticity and Autocorrelation Consistent）
+    """
+    mean = float(np.mean(arr))
+    max_lags = max(forecast_horizon - 1, int(np.floor(4.0 * (t_len / 100.0) ** (2.0 / 9.0))))
+    
+    # 计算自协方差
+    gamma0 = float(np.mean(demeaned ** 2))
+    for lag in range(1, max_lags + 1):
+        weight = 1.0 - lag / (max_lags + 1.0)
+        cov_l = float(np.mean(demeaned[lag:] * demeaned[:-lag]))
+        gamma_sum += 2.0 * weight * cov_l
+    
+    var_hac = (gamma0 + gamma_sum) / t_len
+    se_hac = np.sqrt(var_hac)
+    t_stat = mean / se_hac
+    return mean, t_stat, p_val
+```
+
+**Class A门槛（严格）**：
+
+```python
+thresholds = {
+    "min_abs_ic": 0.025,           # |mean_ic| >= 0.025
+    "min_abs_t_nw": 3.00,          # |t_newey_west| >= 3.00
+    "min_icir": 0.70,              # |icir| >= 0.70
+    "min_res_ic": 0.015,           # 残差IC >= 0.015
+    "min_pos_res_ratio": 0.65,     # 残差IC>0比例 >= 0.65
+    "max_pbo": 0.20,               # PBO <= 0.20
+    "max_p_adj_bh": 0.05,          # BH-FDR校正后p值 <= 0.05
+}
+
+passed = (
+    abs(mean_ic) >= thresholds["min_abs_ic"]
+    and abs(t_nw) >= thresholds["min_abs_t_nw"]
+    and abs(icir) >= thresholds["min_icir"]
+    and (mean_res_ic * np.sign(mean_ic)) >= thresholds["min_res_ic"]
+    and pos_res_ratio >= thresholds["min_pos_res_ratio"]
+    and pbo_value <= thresholds["max_pbo"]
+    and trial_rec.p_adj_bh_fdr <= thresholds["max_p_adj_bh"]
 )
 ```
 
-### 流水线
+### 4.3 DegreesOfFreedomLedger（自由度账本）
 
+```python
+trial_rec = ledger.register_trial(
+    experiment_id=f"exp_{factor_name}_{int(datetime.now().timestamp())}",
+    hypothesis_id=f"alpha.{family_id}.{factor_name}",
+    family_id=family_id,
+    search_space=search_space,
+    test_statistic_name=StatisticType.IC_NEWEY_WEST_T,
+    raw_statistic_value=t_nw,
+    sample_size_T=len(ic_series),
+    cross_section_N=500,
+    p_raw=p_raw,
+    factor_correlation_matrix=factor_corr_matrix,
+)
 ```
-run(df)
-  │
-  ├─ 滚动窗口: 每 test_window 天前进一次
-  │
-  ├─ 训练窗口: IC/IR 计算 → 因子权重
-  │
-  ├─ 测试窗口: 用训练权重合成复合因子
-  │
-  └─ 输出 WalkForwardResult
-       ├─ windows: List[WalkForwardWindowResult]
-       ├─ final_weights: Dict[str, float]
-       ├─ oos_ic_mean / oos_ic_std / oos_icir
-       └─ weight_stability: Dict[str, float]
+
+**多重测试校正**：
+- **BH-FDR**（Benjamini-Hochberg False Discovery Rate）：控制假发现率
+- **Bonferroni校正**：控制族错误率（更保守）
+- **搜索空间追踪**：SearchSpaceSpec记录参数空间大小
+
+### 4.4 Class B Evaluator（经济与风格合理性）
+
+```python
+class ClassBEvaluator:
+    @staticmethod
+    def wls_orthogonalize(factor_vals, industry_dummies, log_caps, weights):
+        """
+        截面加权最小二乘 WLS 回归：剥离 31 个行业哑变量和对数市值。
+        """
+        x_mat = np.column_stack([np.ones(n), industry_dummies, log_caps])
+        w_sqrt = np.sqrt(weights)[:, None]
+        x_w = x_mat * w_sqrt
+        y_w = factor_vals * np.sqrt(weights)
+        
+        beta, _, _, _ = np.linalg.lstsq(x_w, y_w, rcond=None)
+        resid = factor_vals - x_mat @ beta
+        
+        # 计算R²
+        r2 = 1.0 - (ss_res / max(ss_tot, 1e-12))
+        return resid, r2
 ```
 
-### 严格泄漏控制
+**评估指标**：
+- pure_ic_series: 纯因子IC序列（剥离行业和市值后）
+- r2_series: R²序列（行业和市值解释力）
 
-- 训练窗口 `train_window` 天 → 计算 IC/IR → 确定权重
-- 测试窗口 `test_window` 天 → 用训练权重打分
-- 滚动前进，永不使用未来数据
+### 4.5 Fail-Closed机制（Rule 4）
+
+```python
+@dataclass
+class PromotionReport:
+    factor_name: str
+    final_tier: AlphaTier  # 默认TIER_UNRATED
+    passed_class_a: bool = False
+    passed_class_b: bool = False
+    passed_class_c: bool = False
+    passed_class_d: bool = False
+    gate_results: List[GateResult] = field(default_factory=list)
+    rejection_reason: Optional[str] = None
+```
+
+**关键设计**：
+- ✅ **TIER_UNRATED为默认状态**：未通过门禁的因子保持未评级
+- ✅ **缺少必要输入→fail-closed**：不允许伪造residual_ic_series、pbo_value等
+- ✅ **严格的统计学门槛**：t_NW >= 3.00（对应p < 0.003）
+- ✅ **多重测试校正**：BH-FDR防止数据挖掘偏差
+- ✅ **自由度账本**：追踪所有试验，防止p-hacking
 
 ---
 
-## 7. 财务因子桥接 (`financial_bridge.py`)
+## 5. FactorComposer（因子合成器）
 
-### 中文 → 英文字段映射
-
-26 个字段映射 (eps, roe, bps, cash, revenue, net_profit 等)，从中文 Parquet 财务数据转换为标准英文因子名。
-
-### 计算因子
-
-- `PE_TTM`: 价格 / 近四季每股收益
-- `PB`: 价格 / 每股净资产
-
-### 别名解析
+### 5.1 核心功能
 
 ```python
-FINANCIAL_FIELD_ALIASES = {
-    "total_assets": ["总资产", "资产总计"],
-    "equity": ["股东权益", "所有者权益（或股东权益）合计", ...],
-    ...
+class FactorComposer:
+    """
+    多因子合成器（支持无限扩展）
+    
+    支持:
+    - Z-score 标准化
+    - 对称正交化 (Symmetric Orthogonalization)
+    - IC 加权合成
+    """
+    def __init__(self, orthogonalize: bool = True):
+        self.registry = FactorRegistry()
+        self.analyzer = FactorAnalyzer()
+        self.orthogonalize = orthogonalize
+        self.last_diagnostics = self._new_diagnostics()
+```
+
+### 5.2 计算流程
+
+```python
+def compute_all_factors(self, df, mode="backtest", return_diagnostics=False):
+    # 1. 获取所有启用的因子
+    enabled_factors = list(self.registry.get_enabled())
+    self.last_diagnostics["requested_factors"] = [factor.name for factor in enabled_factors]
+    
+    # 2. 逐个计算因子
+    for factor in enabled_factors:
+        try:
+            factor_series = pd.Series(index=df.index, dtype=float)
+            
+            # 按股票代码分组
+            for group in self._iter_groups(df):
+                group_df = self._sort_group(group.copy())  # 按时间排序
+                
+                # 调用因子计算函数
+                try:
+                    series = factor.compute_func(group_df.copy(), mode=mode)
+                except TypeError:
+                    series = factor.compute_func(group_df.copy())  # 兼容旧接口
+                
+                # 验证返回长度
+                if len(series) != len(group_df):
+                    self.last_diagnostics["failed_factors"][factor.name] = "length mismatch"
+                    continue
+                
+                factor_series.loc[group_df.index] = series.to_numpy()
+            
+            factor_values[factor.name] = factor_series
+            self.last_diagnostics["computed_factors"].append(factor.name)
+        except Exception as e:
+            self.last_diagnostics["failed_factors"][factor.name] = str(e)
+    
+    return factor_values, self.get_last_diagnostics()
+```
+
+### 5.3 诊断机制
+
+```python
+{
+    "requested_factors": ["factor_a", "factor_b", "factor_c"],
+    "computed_factors": ["factor_a", "factor_b"],
+    "used_factors": ["factor_a", "factor_b"],
+    "missing_requested_factors": ["factor_c"],
+    "failed_factors": {"factor_c": "计算超时"},
+    "orthogonalization_attempted": True,
+    "orthogonalization_failed": False,
+    "orthogonalization_error": None,
+    "composite_status": "DEGRADED",  # OK/DEGRADED/UNAVAILABLE
+    "composite_usable": True
 }
 ```
 
----
-
-## 8. Neutralizer (`neutralizer.py`)
-
-### 两步中性化
-
-```
-neutralize(factor, industry_dummies, log_market_cap):
-    1. MAD_Winsorize(factor, n=5)  # 极端值处理
-    2. OLS 回归: y ~ 1 + log_market_cap + industries
-    3. residual = y - X @ β  # 中性化后残差
-```
-
-### 边界保护
-
-- `len(factor) < 10` → 直接返回
-- `valid.sum() < 10` → 直接返回 (有效样本不足)
+**状态判定**：
+- **OK**: 所有因子计算成功，无缺失
+- **DEGRADED**: 有因子失败或缺失，但仍有可用因子
+- **UNAVAILABLE**: 无可用因子
 
 ---
 
-## 9. Industry Provider (`industry_provider.py`)
+## 6. FactorNeutralizer（因子中性化）
+
+### 6.1 MAD Winsorize（稳健缩尾）
 
 ```python
-get_industry_dummies() → pd.DataFrame  # akshare 行业分类 → one-hot
-get_log_market_cap(symbols, price_df, shares_outstanding) → pd.Series
+def mad_winsorize(series, n=5):
+    """
+    中位数绝对偏差（MAD）缩尾处理
+    比 std 更稳健（不受极端值影响）
+    """
+    median = series.median()
+    mad = (series - median).abs().median()
+    mad_scaled = mad * 1.4826  # 转换为与std等价
+    upper = median + n * mad_scaled
+    lower = median - n * mad_scaled
+    return series.clip(lower, upper)
 ```
 
-全局单例缓存 `_CACHE`，首次调用后不再请求 akshare。
+### 6.2 行业+市值中性化
+
+```python
+def neutralize(self, factor, industry_dummies, log_market_cap, winsorize_n=5):
+    """
+    行业和市值中性化
+    """
+    if len(factor) < 10:
+        return factor
+    
+    # 1. MAD Winsorize
+    cleaned = mad_winsorize(factor, n=winsorize_n)
+    
+    # 2. OLS回归剥离行业和市值
+    X = np.column_stack([
+        np.ones(len(cleaned)),      # 截距
+        log_market_cap.values,       # 对数市值
+        industry_dummies.values,     # 31个行业哑变量
+    ])
+    
+    valid = ~np.isnan(cleaned.values) & ~np.isnan(X).any(axis=1)
+    if valid.sum() < 10:
+        return factor
+    
+    # 3. 最小二乘回归
+    y = cleaned.values[valid]
+    X_valid = X[valid]
+    coef, _, _, _ = np.linalg.lstsq(X_valid, y, rcond=None)
+    
+    # 4. 返回残差（纯因子）
+    residual = np.full(len(factor), np.nan)
+    residual[valid] = y - X_valid @ coef
+    return pd.Series(residual, index=factor.index, name=factor.name)
+```
+
+**关键特性**：
+- ✅ 31个行业哑变量（申万行业分类）
+- ✅ 对数市值中性化
+- ✅ MAD Winsorize（比std更稳健）
+- ✅ 有效样本<10时返回原因子（避免过拟合）
 
 ---
 
-## 10. shared/factor_governance.py (已弃用)
+## 7. 未来函数防护机制
 
-### 状态 (G-2 已关闭)
+### 7.1 多层防护体系
+
+| 层级 | 机制 | 位置 | 说明 |
+|---|---|---|---|
+| **第1层** | AnalysisMode枚举 | `analyzer.py` | BACKTEST vs LIVE |
+| **第2层** | mode="live"禁止负shift | `_compute_forward_returns()` | 抛出ValueError |
+| **第3层** | 时间戳检查 | `_compute_forward_returns()` | 检测未来日期 |
+| **第4层** | LookaheadBiasError | `check_lookahead_leakage()` | 未来扰动不变性测试 |
+| **第5层** | FactorComposer模式传递 | `compute_all_factors(mode=...)` | 将mode传递给因子函数 |
+
+### 7.2 check_lookahead_leakage详解
+
+```python
+def check_lookahead_leakage(df, factor_func, factor_cols):
+    """
+    未来扰动不变性检测
+    """
+    # 1. 计算基线因子值
+    baseline = factor_func(df.copy()).copy()
+    
+    # 2. 在33%/50%/66%三个cutoff点扰动未来close价格
+    cutoffs = [int(n * p) for p in [0.33, 0.50, 0.66]]
+    
+    for cutoff in cutoffs:
+        perturbed = df.copy()
+        future_close = perturbed.loc[cutoff:, "close"].values
+        # 扰动未来价格（×1.5~3.0）
+        perturbed.loc[cutoff:, "close"] = future_close * rng.uniform(1.5, 3.0, size=len(future_close))
+        
+        # 3. 重新计算因子
+        result = factor_func(perturbed.copy()).copy()
+        
+        # 4. 检查cutoff前的因子值是否变化
+        for col in factor_cols:
+            b_before = baseline.loc[:cutoff - 1, col]
+            r_before = result.loc[:cutoff - 1, col]
+            
+            # 如果cutoff前的值变化 → 依赖未来数据
+            if not np.allclose(b_before.fillna(0).values, r_before.fillna(0).values, rtol=1e-5):
+                raise LookaheadBiasError(f"Look-ahead bias detected in factor '{col}'")
+    
+    return True
+```
+
+**检测原理**：
+- 如果因子在t时刻的值依赖于t+k时刻的数据（k>0），则扰动t+k时刻的数据应该影响t时刻的因子值
+- 如果扰动未来数据后，过去的因子值不变 → 因子不依赖未来数据 → 通过检测
+
+---
+
+## 8. 因子上线路径
+
+### 8.1 完整流程
+
+```mermaid
+graph TD
+    A[因子开发] --> B[FactorRegistry.register]
+    B --> C[check_lookahead_leakage<br/>未来函数检测]
+    C --> D[FactorAnalyzer.compute_rank_ic<br/>IC/IR分析]
+    D --> E[AlphaTierEngine.ClassAEvaluator<br/>统计学显著性]
+    E --> F[AlphaTierEngine.ClassBEvaluator<br/>经济合理性]
+    F --> G[AlphaTierEngine.ClassC<br/>可交易性]
+    G --> H[AlphaTierEngine.ClassD<br/>复制验证]
+    H --> I[FactorComposer<br/>IC加权合成]
+    I --> J[实盘应用]
+    
+    LEDGER[DegreesOfFreedomLedger<br/>自由度账本] -.-> E
+    LEDGER -.-> F
+    LEDGER -.-> G
+    LEDGER -.-> H
+```
+
+### 8.2 因子准入标准
+
+| 阶段 | 门槛 | 说明 |
+|---|---|---|
+| **Lookahead检测** | 通过check_lookahead_leakage | 无未来函数 |
+| **Class A** | \|IC\| >= 0.025, \|t_NW\| >= 3.00, \|ICIR\| >= 0.70 | 统计学显著性 |
+| **Class A** | 残差IC >= 0.015, pos_res_ratio >= 0.65 | 剥离行业市值后仍有效 |
+| **Class A** | PBO <= 0.20, p_adj_bh <= 0.05 | 过拟合控制 |
+| **Class B** | WLS正交化后R² < 阈值 | 非行业/市值代理 |
+| **Class C** | 可交易性验证（换手率/成本） | 实际可交易 |
+| **Class D** | 样本外复制验证 | 稳健性 |
+
+---
+
+## 9. A股横截面选股适用性评价
+
+### 9.1 优势 ✅
+
+1. **行业中性化** ✅
+   - 31个行业哑变量（申万行业分类）
+   - 剥离行业效应，提取纯因子收益
+
+2. **市值中性化** ✅
+   - 对数市值
+   - 避免小市值溢价污染因子
+
+3. **稳健统计** ✅
+   - MAD Winsorize（比std更稳健）
+   - Newey-West t统计量（HAC稳健标准误）
+
+4. **四阶门禁** ✅
+   - 严格的统计学门槛（t_NW >= 3.00）
+   - 经济学合理性（WLS正交化）
+   - 可交易性验证
+   - 样本外复制
+
+5. **多重测试校正** ✅
+   - BH-FDR控制假发现率
+   - Bonferroni校正
+   - 自由度账本防止p-hacking
+
+6. **Lookahead Bias检测** ✅
+   - 未来扰动不变性测试
+   - AnalysisMode枚举（BACKTEST vs LIVE）
+   - 时间戳检查
+
+7. **诊断机制** ✅
+   - FactorComposer记录详细诊断信息
+   - 失败因子、缺失因子、正交化状态
+
+### 9.2 潜在问题 🟡
+
+1. **残差IC要求可能过于严格** 🟡
+   - min_res_ic = 0.015
+   - pos_res_ratio >= 0.65
+   - **风险**：剥离行业和市值后，很多因子可能失效
+   - **建议**：验证历史因子库的通过率
+
+2. **PBO阈值可能过于宽松** 🟡
+   - max_pbo = 0.20
+   - **风险**：20%的过拟合概率仍然较高
+   - **建议**：考虑收紧到0.10或0.15
+
+3. **样本外验证依赖** 🟡
+   - 需要walk_forward_pipeline验证
+   - **风险**：如果walk-forward实现不严格，可能引入未来函数
+   - **建议**：阶段5验证walk_forward_pipeline
+
+4. **因子相关性矩阵** 🟡
+   - Class A评估时传入factor_corr_matrix
+   - **风险**：如果因子相关性高，BH-FDR校正可能不足
+   - **建议**：使用对称正交化消除共线性
+
+---
+
+## 10. 因子分类体系
+
+### 10.1 因子类别
+
+| 类别 | 说明 | 示例 |
+|---|---|---|
+| **technical** | 技术因子 | 动量、波动率、换手率 |
+| **fundamental** | 基本面因子 | PE、PB、ROE、营收增长 |
+| **alternative** | 另类因子 | 舆情、资金流、筹码 |
+| **custom** | 自定义因子 | 用户自定义 |
+
+### 10.2 因子文件组织
 
 ```
-2025-06: 两个 FactorRegistry (shared/ 0 用户 vs brain/ 16 导入)
-2026-06-12: shared/ 添加 DeprecationWarning, 全部 re-export from brain/
-2026-06-29: 已验证 — 导入时输出 DeprecationWarning
+src/uniquant/brain/factors/
+├── registry.py              # 因子注册中心
+├── analyzer.py              # IC/IR分析
+├── composer.py              # 因子合成
+├── neutralizer.py           # 因子中性化
+├── base.py                  # 基类
+├── custom_factors.py        # 自定义因子
+├── chip_factors.py          # 筹码因子
+├── fundamental_factors.py   # 基本面因子
+├── financial_bridge.py      # 财务数据桥接
+├── cscv_pbo_analyzer.py     # CSCV-PBO过拟合分析
+└── walk_forward_pipeline.py # 滚动验证
 ```
 
-### 残留内容
+---
 
-- `FactorManifest`: 因子注册前使用的清单数据类 (8 字段)
-- `CheckResult` / `AdmissionResult`: 检查结果数据类
-- `FactorAdmissionGate`: 注册前合规性检查 (3 项: 命名/文档/参数)
-  - 未被 `FactorRegistry.register()` 实际调用 — 是独立的"预注册"检查
-- `global_factor_registry`: 指向 `brain.factors.registry.FactorRegistry` 的引用
+## 11. 校验清单
 
-**注意**: `FactorAdmissionGate` (shared/) 和 `FactorRegistry.check_access()` (brain/) 是两个独立的准入检查机制。前者是注册前检查，后者是运行时访问检查。两者目前没有集成。
+- [x] 区分backtest mode和live mode（§3.5 AnalysisMode枚举）
+- [x] 说明negative shift的风险（§3.5 _compute_forward_returns）
+- [x] 说明样本内、样本外、滚动验证（§8.2因子准入标准）
+- [x] 提出可执行的因子准入标准（§8.2，Class A-D门槛）
+- [x] 因子注册机制（§2 FactorRegistry）
+- [x] 因子计算流程（§5 FactorComposer）
+- [x] IC/IR分析流程（§3 FactorAnalyzer）
+- [x] 未来函数防护机制（§7，5层防护体系）
+- [x] 因子上线路径（§8，完整流程）
+- [x] 当前因子体系风险（§9.2，4个潜在问题）
+- [x] 从研究到实盘的改进路线（§9-10）
 
 ---
 
-## 11. 关键观察
+## 12. 阶段4结论
 
-### 架构风险
+UniQuant的因子系统展现了**严格的统计学门禁和完善的未来函数防护**：
 
-| # | 风险 | 位置 | 影响 |
-|---|------|------|------|
-| R4-1 | **注册前检查未集成**: `FactorAdmissionGate` 和 `FactorRegistry.register()` 独立运行，gate 的检查结果不影响注册 | `shared/factor_governance.py:60`, `brain/factors/registry.py:46` | Gate 形同虚设 |
-| R4-2 | **因子注册时序依赖**: `custom_factors.register_all()` 在 import 时调用。若在导入前调用 `FactorRegistry` 方法，因子不可用 | `brain/factors/__init__.py` | 竞态, `_ensure_loaded()` 只设置标志不触发注册 |
-| R4-3 | **财务桥接的数据来源不明确**: `FinancialFactorBridge` 依赖外部 Parquet 文件，无配置化路径 | `financial_bridge.py` | 部署时需携带数据文件 |
-| R4-4 | **industry_provider 硬编码 akshare**: `get_industry_dummies()` 直接调用 akshare，无 mock/fallback | `industry_provider.py:12` | 测试困难, AKShare 网络失败=服务失败 |
-| R4-5 | **WalkForwardPipeline 未集成到服务容器**: `walk_forward_pipeline.py` 是独立类，未被 `ServiceContainer` 管理 | `walk_forward_pipeline.py` | 离线研究专用, 非运行时功能 |
+### 架构优点 ✅
+1. **因子注册中心**：单例+线程安全，访问控制门禁（FREE/WARN/BLOCK）
+2. **配置覆盖机制**：从factors.yaml读取enabled/weight/category，配置失败必须可见
+3. **Lookahead Bias检测**：未来扰动不变性测试（33%/50%/66% cutoff）
+4. **AnalysisMode枚举**：BACKTEST vs LIVE，live模式禁止负shift
+5. **四阶门禁**：Class A/B/C/D，严格的统计学和经济学校验
+6. **Newey-West t统计量**：HAC稳健标准误
+7. **多重测试校正**：BH-FDR + Bonferroni + 自由度账本
+8. **因子中性化**：31个行业哑变量 + 对数市值
+9. **MAD Winsorize**：比std更稳健
+10. **诊断机制**：FactorComposer记录详细诊断信息
 
-### 设计亮点
+### 核心机制 ✅
+1. **Lookahead检测**：扰动未来close价格，检查过去因子值是否变化
+2. **Class A门槛**：|IC| >= 0.025, |t_NW| >= 3.00, |ICIR| >= 0.70, PBO <= 0.20
+3. **Fail-Closed**：TIER_UNRATED为默认状态，缺少输入不允许伪造
+4. **自由度账本**：追踪搜索空间和试验次数，防止p-hacking
 
-| # | 亮点 | 位置 |
-|---|------|------|
-| S4-1 | **CASIC 四大逻辑因子**: ILLIQ / PV Divergence / CS Momentum / Idiosyncratic Vol — 基于学术文献, 可解释性强 | `custom_factors.py:281-302` |
-| S4-2 | **Look-ahead 检测**: `check_lookahead_leakage()` 通过未来价格扰动验证因子无前视偏差 | `analyzer.py:26-85` |
-| S4-3 | **LIVE/BACKTEST 双模式**: 因子分析器在 LIVE 模式下完全禁止前视函数 | `analyzer.py:88` |
-| S4-4 | **Composer 降级诊断**: 详细诊断输出 (缺失/失败/正交化) 而非静默回退 | `composer.py:26-50` |
-| S4-5 | **Walk-Forward 严格分离**: 滚动训练/测试窗口, OOS IC/IR 评估, 权重稳定性 | `walk_forward_pipeline.py` |
-| S4-6 | **配置驱动因子开关**: `config.yaml` 支持 `factors.{name}.enabled` 运行时禁用 | `registry.py:58-64` |
+### 主要风险 🟡
+1. 🟡 **残差IC要求严格**：min_res_ic=0.015可能过滤太多因子
+2. 🟡 **PBO阈值宽松**：max_pbo=0.20仍有20%过拟合概率
+3. 🟡 **样本外验证依赖**：需验证walk_forward_pipeline实现
+4. 🟡 **因子相关性**：高相关性时BH-FDR可能不足
 
-### 使用路径
-
-| 路径 | 入口 | 因子数量 | 用途 |
-|------|------|---------|------|
-| 扫描分析 | `full_a_stock_analysis.py` 等 | 14+ | 批量全市场因子计算 |
-| 回测 | `FactorComposer` via `walk_forward_pipeline` | 按需 | 因子合成与评估 |
-| 运行时 | `DecisionBrain._calculate_score()` | 0 | 只使用 alpha_score (AlphaDecoupler), 未使用 FactorRegistry |
-| 财务 | `FinancialFactorBridge` | 26+财务 | PE_TTM/PB 等基本面因子 |
+**下一阶段**：阶段5 - 信号系统分析（深入信号适配器、仲裁器、聚合规则）
 
 ---
 
-## 12. 建议
-
-### P1
-1. **R4-1 (Gate 未集成)**: 在 `FactorRegistry.register()` 中调用 `FactorAdmissionGate.check_admission()`, 或废弃 gate
-
-### P2
-2. **R4-4 (akshare 硬编码)**: 为 `industry_provider` 添加缓存回退和 mock 接口
-3. **R4-2 (注册时序)**: `register_all()` 改为显式调用而非 import 副作用, 或在 `FactorRegistry` 首次使用时自动触发
-
-### P3
-4. **R4-3 (财务数据源)**: 配置化财务 Parquet 路径
-5. **R4-5 (WalkForward 未集成)**: 保持独立, 属于离线研究工具
-6. **运行时因子集成**: 将 `FactorRegistry` 因子接入 `AnalysisService` 或 `ResearchPipeline`, 使 DecisionBrain 可消费因子评分
-
----
-
-## 13. 验证清单
-
-- [x] 读取 `brain/factors/registry.py` (单例, 线程安全, 准入检查)
-- [x] 读取 `brain/factors/custom_factors.py` (14 因子 + register_all)
-- [x] 读取 `brain/factors/analyzer.py` (IC/IR, 前视检测, LIVE/BACKTEST 模式)
-- [x] 读取 `brain/factors/composer.py` (Z-score, 正交化, IC 加权, 降级)
-- [x] 读取 `brain/factors/neutralizer.py` (MAD + OLS 中性化)
-- [x] 读取 `brain/factors/financial_bridge.py` (26 财务字段映射, PE_TTM/PB)
-- [x] 读取 `brain/factors/industry_provider.py` (akshare → one-hot)
-- [x] 读取 `brain/factors/walk_forward_pipeline.py` (滚动窗口, 严格泄漏控制)
-- [x] 读取 `brain/factors/__init__.py` (导入即注册)
-- [x] 读取 `shared/factor_governance.py` (弃用状态, re-export, G-2 关闭)
-- [x] 读取 `shared/config_models.py` (factor_gate 配置)
-- [x] 检查测试覆盖 (6 文件, 59 函数)
-- [x] 检查 config.yaml 的 factor_gate 集成
-- [x] 检查 G-2 关闭状态
+**分析人**：Claude (Anthropic)  
+**审核状态**：待用户确认  
+**产物路径**：`docs/analysis/04_factor_system.md`

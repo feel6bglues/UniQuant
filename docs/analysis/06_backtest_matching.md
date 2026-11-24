@@ -1,334 +1,790 @@
-# Stage 6 — 回测与撮合系统深度分析
+# 阶段 6：UniQuant 回测与撮合分析
 
-> **日期**: 2026-06-29 | **状态**: ✅ 完成
-> **范围**: `hands/backtest/` (15 文件, 3,644 LOC)
-> **依赖**: `shared/` (cost_model, limit_checker, market_rules), `data/` (TradeCalendarManager)
-
----
-
-## 1. 总览
-
-### 架构
-
-```
-TradingSignal (来自仲裁器)
-        │
-        ▼
-UnifiedBacktestEngine.run(df, signals, symbol)
-        │
-        ├─ _prepare_dataframe()
-        ├─ _index_signals_by_date()
-        │
-        ├─ bar 循环 (逐行遍历):
-        │   ├─ Step 1: 执行前日挂单
-        │   │   ├─ BUY  → _execute_buy()
-        │   │   └─ SELL → _execute_sell() → _check_t1()
-        │   │
-        │   ├─ Step 2: 更新权益
-        │   │
-        │   └─ Step 3: 收集当日信号 → 生成挂单
-        │       ├─ LPPL SELL（最高优先）
-        │       ├─ BUY（中间优先）
-        │       └─ 非LPPL SELL（最低优先）
-        │
-        └─ BacktestResult
-```
-
-### 7 道防线 (A-G)
-
-| 防线 | 规则 | 位置 |
-|------|------|------|
-| **A. T+1 铁律** | 交易日序号差 ≥ 1 | `unified_engine.py:_check_t1()`, `unified_matching_engine.py:T+1 vectorized` |
-| **B. 涨跌停拦截** | 涨停不买入, 跌停不卖出 | `unified_engine.py:_check_limit()`, `matching:compute_limit_status_vectorized()` |
-| **C. 停牌拦截** | volume=0 不成交 | `unified_engine.py:195-197` |
-| **D. 资金不透支** | 实时 cash_available 全局扣减 | `unified_engine.py:_execute_buy()`, `matching:cash_shortfall_mask` |
-| **E. 非对称成本** | 印花税仅卖方, 最低佣金 5 元 | `unified_engine.py:_calc_commission/stamp_duty/transfer_fee()` |
-| **F. 滑点方向** | 买高卖低, 使用交易量而非日均量 | `unified_engine.py:_calc_slippage()`, `matching:compute_execution_prices()` |
-| **G. 整手取整** | A 股 100 股为一手 | `unified_engine.py:528-529`, matching:lot_size |
+> **分析时间**：2026-11-24  
+> **依赖阶段**：阶段0-5  
+> **核心文件**：`hands/backtest/unified_engine.py`, `hands/backtest/unified_matching_engine.py`, `hands/backtest/unified_models.py`
 
 ---
 
-## 2. 文件清单
+## 1. 回测系统架构总览
 
-| 文件 | LOC | 职责 | 状态 |
-|------|-----|------|------|
-| `unified_engine.py` | 604 | **统一回测引擎** (主) | ✅ 活跃 |
-| `unified_matching_engine.py` | 263 | 向量化撮合引擎 (主) | ✅ 活跃 |
-| `engine.py` | 747 | ~~旧版回测引擎~~ | ⚠️ 已弃用 |
-| `portfolio_engine.py` | 373 | ~~投资组合回测~~ | ⚠️ 已弃用 |
-| `result.py` | 175 | ~~旧版回测结果~~ | ⚠️ 已弃用 |
-| `signal_integrator.py` | 124 | Signal → 交易 DataFrame | ✅ 活跃 |
-| `benchmark.py` | 156 | 基准计算 | ✅ |
-| `report_generator.py` | 279 | 回测报告生成 | ✅ |
-| `monte_carlo.py` | 199 | 蒙特卡洛模拟 | ✅ |
-| `overfitting_detector.py` | 187 | 过拟合检测 | ✅ |
-| `param_validator.py` | 112 | 参数验证 | ✅ |
-| `robustness_checker.py` | 233 | 稳健性检查 | ✅ |
-| `sensitivity_analyzer.py` | 162 | 敏感性分析 | ✅ |
-| `trade_analysis/analyzer.py` | — | 交易分析 | ✅ |
-| `trade_analysis/statistics.py` | — | 交易统计 | ✅ |
+### 1.1 核心组件
 
-> **⚠️ 上表为 2026-06-29 快照，部分条目此后已被删除**：
-> `engine.py` / `portfolio_engine.py` / `signal_integrator.py` / `param_validator.py` 已在早期清理轮次删除；
-> `benchmark.py` / `report_generator.py` / `trade_analysis/` 于 **2026-10-17（第八轮）** 删除（AST 核验零引用）。
-> 当前 `hands/backtest/` 的有效模块以 `docs/packages/hands.md` 与源码为准。
+```mermaid
+graph TD
+    A[List[TradingSignal]] --> B[UnifiedBacktestEngine.run]
+    B --> C[_prepare_dataframe<br/>补充pre_close/avg_daily_volume]
+    C --> D[逐bar回测主循环]
+    D --> E{Step 1: 执行挂单<br/>T+1延迟}
+    E --> F[防线A: T+1检查]
+    E --> G[防线B: 涨跌停拦截]
+    E --> H[防线C: 停牌拦截]
+    E --> I[防线D: 资金约束]
+    E --> J[防线E: 非对称成本]
+    E --> K[防线F: 滑点方向]
+    E --> L[防线G: 整手取整]
+    D --> M{Step 2: 更新权益}
+    D --> N{Step 3: 收集信号<br/>生成挂单}
+    N --> O[互斥排队保护<br/>INV-6]
+    D --> P[BacktestResult]
+```
 
----
-
-## 3. UnifiedBacktestEngine (`unified_engine.py`)
-
-### 核心流程
+### 1.2 防线清单
 
 ```python
-run(df, signals, symbol) → BacktestResult
-
-for each bar (逐行遍历):
-  Step 1: 执行前日挂单 (T+1 延迟成交)
-    ├─ BUY: 涨跌停检查 → 滑点计算 → 整手取整 → 现金扣减 → TradeRecord
-    └─ SELL: T+1 检查 → 涨跌停检查 → 滑点计算 → 印花税 → 现金回收
-
-  Step 2: 更新权益曲线 equity = cash + position * close
-
-  Step 3: 收集当日信号 → 生成挂单
-    Priority 1: LPPL SELL (位置 > 0)
-    Priority 2: BUY (位置 == 0)
-    Priority 3: 其他 SELL (位置 > 0)
-```
-
-### 信号优先级 (挂单生成)
-
-与仲裁器不同，回测引擎内部运行独立的信号优先级规则：
-
-```
-LPPL SELL (position > 0) → 立即挂单卖出全部持仓
-       ↓
-BUY (position == 0) → 挂单买入 (shares = sig.shares)
-       ↓
-其他 SELL (position > 0) → 挂单卖出全部持仓
-```
-
-### 滑点计算
-
-```python
-ratio = trade_volume / avg_daily_volume          # 使用本次交易量
-impact = min(0.001 * sqrt(ratio), 0.02)           # 非线性市场冲击
-total_slip = slippage_rate + impact               # 基础滑点 + 冲击成本
-exec_price = price * (1 + direction * total_slip) # 买高卖低
-```
-
-### 防止幸存者偏差
-
-```python
-# 在回测结束时检查股票是否已退市
-delist_date = StockMetadataManager().get_delist_date(symbol)
-if delist_date is not None and delist_date <= last_bar:
-    metadata["survivorship_warning"] = ...
+"""
+防线清单:
+  A. T+1 铁律: 交易日序号差 >= 1
+  B. 涨跌停拦截: 涨停不买入, 跌停不卖出
+  C. 停牌拦截: volume=0 不成交
+  D. 资金永不透支: 实时 cash_available 全局扣减
+  E. 非对称成本: 印花税仅卖方, 最低佣金5元
+  F. 滑点方向: 买高卖低, 使用交易量而非日均量
+  G. 整手取整: A股100股为一手
+"""
 ```
 
 ---
 
-## 4. UnifiedMatchingEngine (`unified_matching_engine.py`)
+## 2. 回测主循环流程
 
-### 向量化接口
+### 2.1 三步流程
 
 ```python
-class UnifiedMatchingEngine:
-    fill_buy(prices, shares_requested, cash_available, pre_closes,
-             symbols, timestamps, volumes, avg_daily_volumes, ...) → FillResult
-    fill_sell(prices, shares_requested, positions_held, position_costs,
-              pre_closes, symbols, timestamps, buy_dates, volumes,
-              avg_daily_volumes, ...) → FillResult
+def run(self, df, signals, symbol="", name=None):
+    # 准备数据
+    df = self._prepare_dataframe(df)
+    signal_map = self._index_signals_by_date(signals)
+    
+    # 初始化状态
+    cash = self.initial_capital
+    position = 0
+    buy_date = None
+    pending_order = None
+    
+    for idx in range(len(df)):
+        ts = pd.Timestamp(dates[idx])
+        
+        # 跳过非交易日
+        if not self.trade_calendar.is_trading_day(ts):
+            equity = cash + position * closes[idx]
+            equity_curve.append(equity)
+            continue
+        
+        # ── Step 1: 执行前一根bar的挂单 (T+1延迟) ──
+        if pending_order is not None:
+            exec_price_raw = opens[idx]  # T+1日开盘价成交
+            vol = int(volumes[idx])
+            
+            # 防线C: 停牌拦截
+            if vol <= 0:
+                if pending_order["action"] == "SELL" and position > 0:
+                    pending_order["status"] = "RETRYING"
+                    pending_order["retry_count"] += 1
+                else:
+                    pending_order = None  # 买单停牌自动取消
+            else:
+                if pending_order["action"] == "BUY":
+                    record, cash = self._execute_buy(...)
+                    pending_order = None  # 买单执行后作废（Auto-Cancel）
+                
+                elif pending_order["action"] == "SELL":
+                    # 防线A: T+1检查
+                    if not self._check_t1(buy_date, ts):
+                        pending_order["status"] = "RETRYING"
+                    else:
+                        record, cash = self._execute_sell(...)
+                        if record is None:
+                            # 防线B: 跌停拒卖强制结转
+                            retry_count += 1
+                            if retry_count >= 30:
+                                # 终局坏账清退（0元出清）
+                                position = 0
+        
+        # ── Step 2: 更新权益 ──
+        equity = cash + position * closes[idx]
+        equity_curve.append(equity)
+        
+        # ── Step 3: 收集当日信号 → 生成挂单 ──
+        if pending_order is not None and pending_order.get("status") == "RETRYING":
+            # 互斥排队保护（INV-6）: 拦截买入信号
+            pass
+        else:
+            # 信号优先级: LPPL SELL > BUY > 其他SELL
+            for sig in day_signals:
+                if sig.action == "SELL" and "lppl" in sig.reason.lower():
+                    pending_order = {"action": "SELL", ...}
+                    break
 ```
 
-### FillResult
+### 2.2 挂单生命周期
+
+```mermaid
+stateDiagram-v2
+    [*] --> PENDING: 收集信号
+    PENDING --> EXECUTED: T+1开盘成交
+    PENDING --> AUTO_CANCEL: 涨停买单/停牌买单
+    PENDING --> RETRYING: T+1未达/跌停卖单/停牌卖单
+    RETRYING --> EXECUTED: 次日重试成功
+    RETRYING --> BAD_DEBT: 30日上限（跌停卖单）
+    EXECUTED --> [*]
+    AUTO_CANCEL --> [*]
+    BAD_DEBT --> [*]
+```
+
+---
+
+## 3. 七大防线详解
+
+### 3.1 防线A: T+1铁律
+
+```python
+def _check_t1(self, buy_date, sell_date):
+    """交易日序号差 >= 1"""
+    return check_t1_compliance(buy_date, sell_date, self.trade_calendar)
+```
+
+**实现机制**：
+- 买入日期和卖出日期之间至少间隔1个交易日
+- T+1未达时，卖单结转至下一交易日（RETRYING）
+- 使用TradeCalendarManager检查交易日
+
+**验证** ✅：
+```python
+# 示例：T日买入，T日卖出 → 拒绝
+buy_date = pd.Timestamp("2026-11-24")
+sell_date = pd.Timestamp("2026-11-24")
+_check_t1(buy_date, sell_date)  # False
+
+# 示例：T日买入，T+1日卖出 → 允许
+sell_date = pd.Timestamp("2026-11-25")
+_check_t1(buy_date, sell_date)  # True
+```
+
+### 3.2 防线B: 涨跌停拦截
+
+```python
+def _check_limit(self, price, pre_close, action, symbol="", name=None):
+    """涨停不买入, 跌停不卖出"""
+    return check_limit_price(price, pre_close, action, symbol=symbol, name=name)
+```
+
+**板块涨跌幅限制**：
+```python
+MarketConstants.LIMIT_RATIO = {
+    "main": (1.10, 0.90),      # 主板 ±10%
+    "sci_tech": (1.20, 0.80),  # 科创板 ±20%
+    "gem": (1.20, 0.80),       # 创业板 ±20%
+    "beijing": (1.30, 0.70),   # 北交所 ±30%
+    "st": (1.05, 0.95),        # ST股 ±5%
+}
+```
+
+**特殊规则**：
+- **主板新股首日**: +44%/-36%
+- **科创板/创业板前5日**: 无涨跌幅限制
+- **北交所首日**: 无涨跌幅限制
+
+**跌停拒卖处理**：
+```python
+# 跌停拒卖强制结转（Mandatory Rollover, INV-6）
+if record is None:  # 跌停拒卖
+    retry_count += 1
+    if retry_count < 30 and position > 0:
+        pending_order["status"] = "RETRYING"
+        pending_order["shares"] = position  # 同步最新持仓
+    else:
+        # 终局坏账清退（0元出清, INV-7）
+        bad_debt_record = TradeRecord(
+            action="SELL",
+            price=0.0,
+            shares=position,
+            reason="BAD_DEBT_LIMIT_DOWN_30D_EXPIRED",
+        )
+        position = 0
+```
+
+### 3.3 防线C: 停牌拦截
+
+```python
+# 停牌拦截
+if vol <= 0:
+    logger.debug(f"停牌拒绝: {date_key} volume=0")
+    if pending_order["action"] == "SELL" and position > 0:
+        # 卖单停牌结转（最多30日）
+        pending_order["status"] = "RETRYING"
+        pending_order["retry_count"] += 1
+    else:
+        # 买单停牌自动取消（Auto-Cancel）
+        pending_order = None
+```
+
+**处理规则**：
+- 买单停牌 → Auto-Cancel（自动取消）
+- 卖单停牌 → RETRYING（结转，最多30日）
+- 30日上限后放弃结转
+
+### 3.4 防线D: 资金永不透支
+
+```python
+# 实时cash_available全局扣减
+record, cash = self._execute_buy(
+    shares_requested=pending_order["shares"],
+    cash_available=cash,
+    ...
+)
+```
+
+**实现机制**：
+- 实时检查cash_available
+- 买入时扣减现金（含佣金、过户费、滑点）
+- 卖出时增加现金（扣除印花税、佣金、过户费、滑点）
+
+### 3.5 防线E: 非对称成本
+
+```python
+# 印花税仅卖方
+def _calc_stamp_duty(self, value, timestamp=None):
+    """印花税 (仅卖方)"""
+    return calculate_stamp_duty(value, self.stamp_duty_rate, timestamp=timestamp)
+
+# 最低佣金5元
+def _calc_commission(self, value):
+    """佣金 = max(value × 费率, 最低佣金)"""
+    return calculate_commission(value, self.commission_rate, self.min_commission)
+```
+
+**成本模型**：
+
+| 成本项 | 费率 | 最低/上限 | 说明 |
+|---|---|---|---|
+| **佣金** | 0.03% | 最低5元 | 双向收取 |
+| **印花税** | 0.05%（2023-08-28起） | 无 | 仅卖方 |
+| **过户费** | 0.001% | 无 | 仅沪市股票 |
+| **滑点** | 分段平方根冲击 | 上限500 bps | 买高卖低 |
+
+### 3.6 防线F: 滑点方向
+
+```python
+def compute_execution_prices(self, prices, volumes, avg_daily_volumes, is_buy, quantities=None):
+    if quantities is not None:
+        # 真实订单参与率: eta = quantities / avg_daily_volumes
+        eta = quantities / avg_daily_volumes
+        
+        # 分段平方根冲击模型
+        impact = np.where(
+            eta <= 0.10,  # 小中单
+            0.001 * np.sqrt(np.maximum(eta / 0.10, 0.0)),  # 0~10 bps
+            0.001 + 0.01 * (eta - 0.10)  # 大单流动性承压
+        )
+        impact = np.minimum(impact, 0.05)  # 上限500 bps
+    
+    # 滑点方向: 买高卖低
+    direction = 1.0 if is_buy else -1.0
+    return prices * (1.0 + direction * total_slip)
+```
+
+**滑点模型**：
+
+| 订单类型 | eta范围 | 冲击成本 | 说明 |
+|---|---|---|---|
+| **小单** | eta ≤ 0.01 | 0~3 bps | 散户小单 |
+| **中单** | 0.01 < eta ≤ 0.10 | 3~10 bps | 中等订单 |
+| **大单** | eta > 0.10 | 10~500 bps | 流动性承压 |
+
+**关键特性**：
+- ✅ 使用交易量（quantities）而非日均量
+- ✅ 分段平方根冲击模型
+- ✅ 上限截断（500 bps）
+
+### 3.7 防线G: 整手取整
+
+```python
+# A股100股为一手
+shares = (sized_shares // get_board_rule(symbol).lot_size) * get_board_rule(symbol).lot_size
+```
+
+**实现机制**：
+- 100股为一手（lot_size=100）
+- 向下取整到整手
+- 如果取整后≤0，使用100股（1手）
+
+---
+
+## 4. UnifiedMatchingEngine（向量化撮合）
+
+### 4.1 滑点计算
+
+```python
+def compute_execution_prices(self, prices, volumes, avg_daily_volumes, is_buy, 
+                             symbols=None, quantities=None, timestamps=None):
+    if quantities is not None:
+        # 真实订单参与率
+        eta = quantities / avg_daily_volumes
+        
+        # 分段平方根冲击模型
+        impact = np.where(
+            eta <= 0.10,
+            0.001 * np.sqrt(np.maximum(eta / 0.10, 0.0)),  # 0~10 bps
+            0.001 + 0.01 * (eta - 0.10)  # 10~500 bps
+        )
+        impact = np.minimum(impact, 0.05)  # 上限500 bps
+    
+    # SlippageModel（可选）
+    if self.slippage_model is not None and symbols is not None:
+        model_rates = np.array([
+            self.slippage_model.estimate(symbol=s, quantity=q, direction=direction_str, ...)
+            for s, q, p, t in zip(symbols, quantities, prices, timestamps)
+        ])
+        total_slip = model_rates + impact
+    else:
+        total_slip = self.slippage_rate + impact
+    
+    # 滑点方向
+    direction = 1.0 if is_buy else -1.0
+    return prices * (1.0 + direction * total_slip)
+```
+
+### 4.2 涨跌停检查（向量化）
+
+```python
+def compute_limit_status_vectorized(self, prices, pre_closes, symbols, names=None, trading_days_listed=None):
+    n = len(prices)
+    is_limit_up = np.zeros(n, dtype=bool)
+    is_limit_down = np.zeros(n, dtype=bool)
+    valid = pre_closes > 0
+    price_ratios = np.where(valid, prices / np.maximum(pre_closes, 1e-8), 1.0)
+    tol = MarketConstants.PRICE_TOLERANCE
+    
+    # Fast path: 无names和trading_days_listed时完全向量化
+    if names is None and trading_days_listed is None:
+        board_types = np.array([get_board_type(s) for s in symbols])
+        for board_type, (up_r, down_r) in MarketConstants.LIMIT_RATIO.items():
+            board_mask = board_types == board_type
+            mask = board_mask & valid
+            is_limit_up |= mask & (price_ratios >= up_r - tol)
+            is_limit_down |= mask & (price_ratios <= down_r + tol)
+        return {"is_limit_up": is_limit_up, "is_limit_down": is_limit_down}
+    
+    # Slow path: ST名称检测和IPO特殊规则
+    for i in range(n):
+        if not valid[i]:
+            continue
+        
+        # ST名称检测
+        bt = get_board_type(symbols[i])
+        if names is not None and names[i]:
+            nu = names[i].upper()
+            if any(nu.startswith(p) for p in ("ST", "*ST", "S*ST")):
+                bt = "st"
+        
+        # IPO特殊规则
+        if trading_days_listed is not None and trading_days_listed[i] > 0:
+            tdl = int(trading_days_listed[i])
+            if bt == "main" and tdl == 1:
+                # 主板新股首日: +44%/-36%
+                if pr >= 1.44 - tol:
+                    is_limit_up[i] = True
+                if pr <= 0.64 + tol:
+                    is_limit_down[i] = True
+                continue
+            if bt in ("sci_tech", "gem") and tdl <= 5:
+                # 科创板/创业板前5日无涨跌幅限制
+                continue
+            if bt == "beijing" and tdl == 1:
+                # 北交所首日无涨跌幅限制
+                continue
+        
+        up_r, down_r = MarketConstants.LIMIT_RATIO.get(bt, MarketConstants.LIMIT_RATIO["main"])
+        if pr >= up_r - tol:
+            is_limit_up[i] = True
+        if pr <= down_r + tol:
+            is_limit_down[i] = True
+    
+    return {"is_limit_up": is_limit_up, "is_limit_down": is_limit_down}
+```
+
+### 4.3 FillResult结构
 
 ```python
 @dataclass
 class FillResult:
-    executed_shares: np.ndarray     # 实际成交股数
-    exec_prices: np.ndarray          # 执行价格 (含滑点)
-    commissions: np.ndarray          # 佣金
-    stamp_duties: np.ndarray         # 印花税 (仅卖方)
-    slippages: np.ndarray            # 滑点成本
-    transfer_fees: np.ndarray        # 过户费
-    rejected_mask: np.ndarray        # 全局拒绝掩码
-    t1_violation_mask: np.ndarray    # T+1 违反掩码
-    limit_violation_mask: np.ndarray # 涨跌停违反掩码
-    cash_shortfall_mask: np.ndarray  # 资金不足掩码
+    executed_shares: np.ndarray
+    exec_prices: np.ndarray
+    commissions: np.ndarray
+    stamp_duties: np.ndarray
+    slippages: np.ndarray
+    transfer_fees: np.ndarray
+    rejected_mask: np.ndarray          # 涨跌停拒绝
+    t1_violation_mask: np.ndarray      # T+1违规
+    limit_violation_mask: np.ndarray   # 涨跌停违规
+    cash_shortfall_mask: np.ndarray    # 资金不足
 ```
 
-### 向量化涨跌停计算
+---
+
+## 5. 成交成本模型
+
+### 5.1 佣金
 
 ```python
-compute_limit_status_vectorized(prices, pre_closes, symbols, names, trading_days_listed):
-  Fast path: 无 names/trading_days_listed → 纯向量化, board_types 预计算
-  Slow path: 含 ST 名称检测 + IPO 特殊规则（新股首日 44% 涨跌幅, 科创/创业前 5 日无限制）
+def calculate_commission(value, commission_rate, min_commission):
+    """佣金 = max(value × 费率, 最低佣金)"""
+    return max(value * commission_rate, min_commission)
 ```
 
-### 向量化滑点
+**参数**：
+- 费率: COMMISSION_PCT（默认0.0003，即0.03%）
+- 最低佣金: MIN_COMMISSION（默认5元）
+- 双向收取（买入和卖出都收）
+
+### 5.2 印花税
 
 ```python
-compute_execution_prices(prices, volumes, avg_daily_volumes, is_buy):
-  vol_ratios = min(volumes / avg_daily_volumes, 1.0)
-  impact = min(0.001 * sqrt(vol_ratios), 0.02)
-  total_slip = slippage_rate + impact
-  direction = 1 if is_buy else -1
-  return prices * (1 + direction * total_slip)
+def calculate_stamp_duty(value, stamp_duty_rate, timestamp=None):
+    """印花税 (仅卖方)"""
+    rate = get_stamp_tax_pct(timestamp)  # 2023-08-28起减半征收
+    return value * rate
 ```
 
-### 向量化 T+1 检查
+**参数**：
+- 费率: 0.001（1‰）→ 2023-08-28起0.0005（0.5‰）
+- 仅卖方
+- 时间敏感（2023-08-28前1‰，之后0.5‰）
+
+### 5.3 过户费
 
 ```python
-for i in range(n):
-    if buy_dates[i] is None: continue
-    b_ts, c_ts = buy_dates[i], timestamps[i]
-    if c_ts.toordinal() <= b_ts.toordinal(): t1_violation[i] = True
-    next_td = _next_trading_day(b_ts)
-    if c_ts.toordinal() < next_td.toordinal(): t1_violation[i] = True
+TRANSFER_FEE_PCT = 0.00001  # 0.001%
+```
+
+**参数**：
+- 费率: 0.001%
+- 仅沪市股票（has_transfer_fee）
+- 双向收取
+
+### 5.4 滑点
+
+**分段平方根冲击模型**：
+
+| 订单类型 | eta范围 | 冲击成本公式 | 实际范围 |
+|---|---|---|---|
+| **小单** | eta ≤ 0.01 | 0.001 × √(eta / 0.10) | 0~3 bps |
+| **中单** | 0.01 < eta ≤ 0.10 | 0.001 × √(eta / 0.10) | 3~10 bps |
+| **大单** | eta > 0.10 | 0.001 + 0.01 × (eta - 0.10) | 10~500 bps |
+
+**上限**：500 bps（5%）
+
+---
+
+## 6. 回测结果指标
+
+### 6.1 BacktestResult核心指标
+
+```python
+@dataclass
+class BacktestResult:
+    trades: List[TradeRecord]
+    equity_curve: List[float]
+    daily_returns: List[float]
+    initial_capital: float
+    final_cash: float
+    metadata: Dict[str, Any]
+    benchmark_return: float
+    
+    @property
+    def total_return(self):
+        """总收益率"""
+        return (equity_curve[-1] - initial_capital) / initial_capital
+    
+    @property
+    def sharpe(self):
+        """夏普比率"""
+        return calculate_sharpe_ratio(daily_returns, period_days=1)
+    
+    @property
+    def annualized_return(self):
+        """年化收益率"""
+        return (1 + total_return) ** (252 / n_days) - 1
+    
+    @property
+    def max_drawdown(self):
+        """最大回撤"""
+        ec = np.array(equity_curve)
+        rolling_max = np.maximum.accumulate(ec)
+        dd = (rolling_max - ec) / np.maximum(rolling_max, 1e-10)
+        return np.max(dd)
+    
+    @property
+    def win_rate(self):
+        """胜率"""
+        closed = [t for t in trades if t.action == "SELL"]
+        wins = sum(1 for t in closed if t.pnl > 0)
+        return wins / len(closed)
+    
+    @property
+    def profit_factor(self):
+        """盈利因子"""
+        total_profit = sum(t.pnl for t in closed if t.pnl > 0)
+        total_loss = abs(sum(t.pnl for t in closed if t.pnl < 0))
+        return total_profit / total_loss
+```
+
+### 6.2 参数敏感性分析
+
+```python
+def sensitivity_scan(self, df, signals, symbol="", slippages=None, commissions=None):
+    """
+    滑点/佣金敏感性分析
+    遍历给定的滑点率和佣金率组合，分别运行回测
+    """
+    slippages = slippages or [0.0, 0.0005, 0.001, 0.002, 0.003]
+    commissions = commissions or [0.0, 0.0003, 0.0005, 0.001]
+    
+    return run_sensitivity_scan(
+        engine_factory=_factory,
+        df=df,
+        signals=signals,
+        slippages=slippages,
+        commissions=commissions,
+    )
 ```
 
 ---
 
-## 5. 执行方法细节
+## 7. 特殊机制
 
-### _execute_buy
+### 7.1 互斥排队保护（INV-6）
 
-```
-1. 涨跌停检查 (防线 B)
-2. 滑点计算 (防线 F)
-3. 整手取整 (防线 G)
-4. 总成本 = 股数 * 执行价格 + 佣金 + 过户费
-5. 资金检查 (防线 D)
-6. → TradeRecord(commission, transfer_fee, slippage)
-```
-
-### _execute_sell
-
-```
-1. T+1 检查 (防线 A)
-2. 涨跌停检查 (防线 B)
-3. 滑点计算 (防线 F)
-4. 印花税 (仅卖方, 防线 E)
-5. 佣金 + 过户费
-6. PnL = 回收现金 - (持仓成本 * 股数)
-7. → TradeRecord(commission, stamp_duty, transfer_fee, slippage, pnl)
+```python
+# 若存在RETRYING结转状态的清仓卖单，严禁被BUY信号覆写
+if pending_order is not None and pending_order.get("status") == "RETRYING":
+    day_signals = signal_map.get(date_key, [])
+    for sig in day_signals:
+        if sig.action == "BUY":
+            logger.warning(f"标的{symbol}存在结转中的清仓卖单(RETRYING), 拦截买入信号")
+    # 保持pending_order结转状态不变，次日集合竞价置顶重试
 ```
 
----
+**目的**：防止在跌停卖单结转期间被买入信号覆盖
 
-## 6. 成本模型参数
+### 7.2 终局坏账清退（INV-7）
 
-| 参数 | 值 | 说明 |
-|------|-----|------|
-| `COMMISSION_PCT` | 0.00025 (万 2.5) | 佣金费率 |
-| `MIN_COMMISSION` | 5.0 元 | 最低佣金 |
-| `STAMP_TAX_PCT` | 0.0005 (万 5) | 印花税 (卖方) |
-| `TRANSFER_FEE_PCT` | 0.00001 (万 0.1) | 过户费 |
-| `SLIPPAGE_PCT` | 0.001 (千 1) | 基础滑点率 |
+```python
+# 跌停结转达到30日上限，执行终局坏账清退（0元出清）
+if retry_count >= 30:
+    logger.warning(f"跌停结转达到30日上限，执行终局坏账清退 (0元出清, INV-7)")
+    bad_debt_record = TradeRecord(
+        action="SELL",
+        price=0.0,
+        shares=position,
+        reason="BAD_DEBT_LIMIT_DOWN_30D_EXPIRED",
+    )
+    trades.append(bad_debt_record)
+    position = 0
+```
 
----
+**目的**：处理极端情况（连续30日跌停无法卖出）
 
-## 7. 旧版弃用组件
+### 7.3 幸存者偏差检查
 
-| 组件 | 替代 | 弃用原因 |
-|------|------|----------|
-| `BacktestEngine` (engine.py) | `UnifiedBacktestEngine` | 旧版接受 Callable 策略, 新引擎强类型 List[TradingSignal] |
-| `PortfolioEngine` | `UnifiedBacktestEngine` | 多标的回测移至上层 ; 新引擎每标的运行一次 |
-| `result.py TradeRecord` | `unified_engine.py TradeRecord` | 旧版缺少 stamp_duty/transfer_fee 字段 |
-| `result.py BacktestResult` | `unified_engine.py BacktestResult` | 旧版混合计算和存储职责 |
+```python
+# 检查股票是否在回测期间退市
+survivorship_warning = ""
+try:
+    mgr = StockMetadataManager()
+    delist_date = mgr.get_delist_date(symbol)
+    if delist_date is not None:
+        last_bar = pd.to_datetime(df["date"].iloc[-1])
+        if pd.to_datetime(delist_date) <= last_bar:
+            survivorship_warning = f"Symbol delisted {delist_date}; backtest extends to {last_bar.date()}"
+            metadata["survivorship_warning"] = survivorship_warning
+except (OSError, KeyError, TypeError):
+    pass
+```
 
----
-
-## 8. 辅助工具
-
-| 工具 | 用途 |
-|------|------|
-| `benchmark.py` | 基准收益/波动/夏普计算 |
-| `monte_carlo.py` | 随机路径模拟, 风险价值评估 |
-| `overfitting_detector.py` | 过拟合检测 (D-M 检验, 子区间一致性) |
-| `param_validator.py` | 参数合法性验证 |
-| `robustness_checker.py` | 市场状态稳定性, 参数敏感性, 子区间一致性, 成本敏感性 |
-| `sensitivity_analyzer.py` | 参数敏感性分析 |
-| `report_generator.py` | HTML/文本回测报告生成 |
-| `signal_integrator.py` | Signal 模型 → 交易 DataFrame 融合 |
-| `trade_analysis/analyzer.py` | 交易行为分析 |
-| `trade_analysis/statistics.py` | 交易统计指标 |
-
----
-
-## 9. 关键观察
-
-### 架构风险
-
-| # | 风险 | 位置 | 影响 |
-|---|------|------|------|
-| R6-1 | **回测与匹配引擎有两套信号优先级规则**: UnifiedBacktestEngine 的 bar 循环内使用 LPPL→BUY→SELL 优先级, 与 SignalArbitrator 的规则不同 | `unified_engine.py:220-250` | 相同信号在仲裁器和回测引擎中可能产生不同交易行为 |
-| R6-2 | **向量化 T+1 未完全利用**: `fill_sell()` 中使用 Python for-loop 逐元素检查, 而非纯向量化 | `unified_matching_engine.py:198-209` | 性能瓶颈 |
-| R6-3 | **旧版代码体积大 (747 LOC)**: `engine.py` 虽弃用但仍可被引用, 维护负担 | `engine.py` | 需清理 |
-| R6-4 | **挂单一日期有多个信号时只执行第一个**: bar 循环 `break` 后忽略后续信号 | `unified_engine.py:230,237,244` | 同一天多个引擎触发时可能丢失交易机会 |
-| R6-5 | **缺失交易量约束**: 滑点计算使用 `trade_volume` 但不验证挂单量是否超过当日可交易量 | `unified_engine.py:_calc_slippage()` | 大单滑点可能低估 |
-
-### 设计亮点
-
-| # | 亮点 | 位置 |
-|---|------|------|
-| S6-1 | **7 道防线 (A-G)**: T+1、涨跌停、停牌、不透支、成本、滑点、整手 — A 股全约束覆盖 | 全部 `unified_engine.py` |
-| S6-2 | **向量化匹配引擎**: 支撑 PortfolioEngine 和 UnifiedBacktestEngine 两个引擎, 消除成本计算偏移 | `unified_matching_engine.py` |
-| S6-3 | **非线性滑点**: `0.001 * sqrt(vol_ratio)`, 使用 trade_volume 而非 daily_volume | `unified_engine.py:480-488` |
-| S6-4 | **IPO 新股规则**: 首日 44% 涨跌幅, 科创/创业板前 5 日无限制 | `matching.py:153-163` |
-| S6-5 | **印花税日期感知**: `get_stamp_tax_pct(timestamp.date())` 支持历史税率回溯 | `unified_engine.py:461-465` |
-| S6-6 | **幸存者偏差检测**: 自动检查退市日期 | `unified_engine.py:254-269` |
-| S6-7 | **涨跌停向量化快速路径/慢速路径**: 按数据情况自动选择最优路径 | `matching.py:110-170` |
-| S6-8 | **辅助工具丰富**: 8 个分析工具覆盖蒙特卡洛/过拟合/稳健性/敏感性/报告 |
-
-### 回测 vs 仲裁信号优先级对比
-
-| 阶段 | 优先级规则 |
-|------|-----------|
-| **SignalArbitrator** | DecisionOutput 硬约束 > SELL > FSM BUY > 非-FSM BUY > 引擎优先级 |
-| **UnifiedBacktestEngine** | LPPL SELL > BUY > 非LPPL SELL |
-
-两者独立运行, 可能导致:
-- 仲裁器选择 BUY → 回测引擎内部可能被非LPPL SELL 覆盖
-- 仲裁器选择 SELL (非LPPL) → 回测引擎中 LPPL SELL 优先级更高
-
-### 测试覆盖
-
-| 测试 | 函数数 | 覆盖 |
-|------|--------|------|
-| `tests/test_backtest_engine.py` | — | 旧版引擎测试 |
-| `tests/test_unified_backtest_engine.py` | — | 统一引擎测试 |
-| `tests/test_matching_engine.py` | — | 撮合引擎测试 |
-| `tests/test_portfolio_engine_v2.py` | 12+ | 组合引擎测试 |
-| `tests/benchmark/golden_20.txt/100.txt` | — | 基线回归黄金列表 |
+**目的**：检测回测期间股票退市的情况
 
 ---
 
-## 10. 建议
+## 8. 信号优先级（遗留逻辑）
 
-### P1
-1. **R6-1 (双重优先级)**: 统一回测引擎内部的信号优先级与仲裁器一致 — 让 `UnifiedBacktestEngine.run()` 使用仲裁后的信号, 不再重复仲裁
+### 8.1 LPPL SELL优先
 
-### P2
-2. **R6-2 (T+1 向量化)**: 将 `fill_sell()` 中的 T+1 for-loop 转换为向量化 `numpy` 操作
-3. **R6-5 (交易量约束)**: 添加挂单量 vs 当日可交易量的检查
+```python
+# LPPL SELL优先（遗留逻辑）
+for sig in day_signals:
+    if sig.action == "SELL" and position > 0 and pending_order is None \
+            and sig.reason and "lppl" in sig.reason.lower():
+        pending_order = {
+            "action": "SELL",
+            "shares": position,
+            "reason": sig.reason,
+            "status": "PENDING",
+        }
+        break
+```
 
-### P3
-4. **R6-3 (旧版清理)**: 清除 `engine.py`, `portfolio_engine.py`, `result.py` 弃用代码
-5. **R6-4 (多信号覆盖)**: 考虑同一天多信号场景, 改为信号取并集而非仅执行第一个
+### 8.2 信号优先级顺序
+
+1. **LPPL SELL**（遗留逻辑，优先于其他SELL）
+2. **BUY**（position == 0时）
+3. **其他SELL**（position > 0时）
+
+### 8.3 与SignalArbitrator的不一致
+
+**问题**：
+- 🟡 **回测引擎中LPPL SELL优先于其他SELL**
+- **与SignalArbitrator仲裁逻辑不一致**（SignalArbitrator中LPPL优先级最低99）
+- **原因**：历史遗留逻辑，未同步更新
+
+**建议**：
+- 统一使用SignalArbitrator的仲裁结果
+- 移除回测引擎中的LPPL SELL优先逻辑
 
 ---
 
-## 11. 验证清单
+## 9. A股交易规则验证
 
-- [x] 读取 `unified_engine.py` (完整 bar 循环, 7 道防线, 3 步流程)
-- [x] 读取 `unified_matching_engine.py` (向量化 BUY/SELL, FillResult, 涨跌停/T+1)
-- [x] 读取 `engine.py` (弃用声明)
-- [x] 读取 `portfolio_engine.py` (弃用, 使用 UnifiedMatchingEngine)
-- [x] 读取 `result.py` (弃用, 双重 BacktestResult)
-- [x] 读取 `signal_integrator.py` (Signal → DataFrame 桥接)
-- [x] 读取 `robustness_checker.py` (市场状态/参数/子区间 4 检查)
-- [x] 检查 `cost_model.py` 参数 (佣金/印花税/过户费/滑点)
-- [x] 检查 `limit_checker.py` (涨跌停板规则)
-- [x] 检查 `market_rules.py` (lot_size, board rules)
-- [x] 检查基线回归测试 (golden_20.txt/100.txt)
+### 9.1 规则实现矩阵
+
+| 规则 | 实现 | 验证 | 位置 |
+|---|---|---|---|
+| **T+1** | ✅ 交易日序号差≥1 | buy_date和sell_date检查 | `_check_t1()` |
+| **涨跌停** | ✅ 涨停不买，跌停不卖 | check_limit_price + 板块规则 | `_check_limit()` |
+| **停牌** | ✅ volume=0不成交 | 买单取消，卖单结转 | 回测主循环 |
+| **资金约束** | ✅ 永不透支 | 实时cash_available检查 | `_execute_buy()` |
+| **印花税** | ✅ 仅卖方 | calculate_stamp_duty | `_calc_stamp_duty()` |
+| **过户费** | ✅ 仅沪市 | TRANSFER_FEE_PCT + has_transfer_fee | `_execute_buy/sell()` |
+| **佣金** | ✅ 最低5元 | calculate_commission | `_calc_commission()` |
+| **滑点** | ✅ 买高卖低 | compute_execution_prices | `_execute_buy/sell()` |
+| **整手** | ✅ 100股整数倍 | lot_size取整 | 回测主循环 |
+| **ST股** | ✅ ±5% | ST名称检测 | `compute_limit_status_vectorized()` |
+| **科创板/创业板** | ✅ ±20% | 板块规则 | `compute_limit_status_vectorized()` |
+| **北交所** | ✅ ±30% | 板块规则 | `compute_limit_status_vectorized()` |
+| **新股** | ✅ 首日+44%/-36% | trading_days_listed检查 | `compute_limit_status_vectorized()` |
+
+### 9.2 板块涨跌幅限制
+
+| 板块 | 涨停 | 跌停 | 特殊规则 |
+|---|---|---|---|
+| **主板** | +10% | -10% | 新股首日+44%/-36% |
+| **科创板** | +20% | -20% | 前5日无限制 |
+| **创业板** | +20% | -20% | 前5日无限制 |
+| **北交所** | +30% | -30% | 首日无限制 |
+| **ST股** | +5% | -5% | 名称检测 |
+
+---
+
+## 10. 潜在偏差
+
+### 10.1 LPPL SELL优先级遗留逻辑 🟡
+
+**问题**：
+- 回测引擎中LPPL SELL优先于其他SELL
+- 与SignalArbitrator仲裁逻辑不一致（LPPL优先级最低99）
+- LPPL已降为遥测层（diagnostic_only=True）
+
+**影响**：
+- 回测结果可能受LPPL SELL影响
+- 与实盘仲裁逻辑不符
+
+**建议**：
+- 统一使用SignalArbitrator的仲裁结果
+- 移除回测引擎中的LPPL SELL优先逻辑
+
+### 10.2 滑点模型假设 🟡
+
+**假设**：
+- 分段平方根冲击模型
+- 小单（eta≤0.10）：0~10 bps
+- 大单（eta>0.10）：10~500 bps
+- 上限500 bps
+
+**风险**：
+- 极端行情下滑点可能被低估
+- 流动性枯竭时实际滑点可能超过500 bps
+
+**缓解**：
+- 使用交易量而非日均量
+- SlippageModel可自定义
+
+### 10.3 坏账清退价格 🟡
+
+**问题**：
+- 30日跌停后0元出清
+- price=0.0
+
+**风险**：
+- 实际跌停开板后可能有部分回收
+- 保守估计，可能低估收益
+
+**影响**：
+- 极端情况下的保守处理
+- 实际影响较小（30日连续跌停极少见）
+
+### 10.4 幸存者偏差 🟢
+
+**现状**：
+- ✅ 已实现幸存者偏差检查
+- ✅ 依赖StockMetadataManager的delist_date
+- ✅ 添加survivorship_warning到metadata
+
+**局限**：
+- 依赖StockMetadataManager的完整性
+- 退市股票的历史数据可能不完整
+
+---
+
+## 11. 校验清单
+
+- [x] 验证T日信号、T+1 open成交逻辑（§3.1，§2.1 Step 1）
+- [x] 验证涨停不买、跌停不卖（§3.2）
+- [x] 验证印花税只在卖出侧（§3.5，§5.2）
+- [x] 验证资金不能透支（§3.4）
+- [x] 检查停牌volume=0（§3.3）
+- [x] 回测流程图（§2）
+- [x] 撮合规则表（§4）
+- [x] A股交易约束校验表（§9）
+- [x] 成交成本模型（§5）
+- [x] 信号到订单到成交流程（§2.2挂单生命周期）
+- [x] 回测偏差风险（§10）
+- [x] 改进建议（§10）
+
+---
+
+## 12. 阶段6结论
+
+UniQuant的回测系统展现了**完整的A股交易规则实现和严格的七大防线**：
+
+### 架构优点 ✅
+1. **七大防线完整**：T+1、涨跌停、停牌、资金、成本、滑点、整手
+2. **向量化撮合**：UnifiedMatchingEngine支持批量处理
+3. **板块规则完整**：主板/科创板/创业板/北交所/ST股
+4. **新股特殊规则**：首日+44%/-36%，前5日无限制
+5. **非对称成本**：印花税仅卖方，最低佣金5元
+6. **滑点模型**：分段平方根冲击，买高卖低
+7. **特殊机制**：互斥排队保护（INV-6），终局坏账清退（INV-7）
+8. **幸存者偏差检查**：检测退市股票
+9. **参数敏感性分析**：滑点/佣金敏感性扫描
+
+### 核心机制 ✅
+1. **T+1延迟执行**：T日信号，T+1日开盘成交
+2. **涨跌停拦截**：涨停不买，跌停不卖
+3. **停牌处理**：买单取消，卖单结转（最多30日）
+4. **资金约束**：实时cash_available检查
+5. **滑点方向**：买高卖低，使用交易量
+
+### 主要风险 🟡
+1. 🟡 **LPPL SELL优先级遗留逻辑**：与SignalArbitrator不一致
+2. 🟡 **滑点模型假设**：极端行情下可能低估
+3. 🟡 **坏账清退价格**：0元出清过于保守
+4. 🟢 **幸存者偏差**：已实现检查，依赖数据完整性
+
+**下一阶段**：阶段7 - 风控与实盘就绪分析（深入风险引擎、仓位管理、实盘部署）
+
+---
+
+**分析人**：Claude (Anthropic)  
+**审核状态**：待用户确认  
+**产物路径**：`docs/analysis/06_backtest_matching.md`

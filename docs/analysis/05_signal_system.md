@@ -1,412 +1,871 @@
-# Stage 5 — 信号系统深度分析
+# 阶段 5：UniQuant 信号系统分析
 
-> **日期**: 2026-06-29 | **状态**: ✅ 完成
-> **范围**: `signal/` (8 文件, 2,669 LOC), `shared/interfaces.py` (TradingSignal, CandidateSignal)
-> **测试**: `tests/signal/test_arbitrator.py` (27), `tests/signal/test_adapters.py`, `tests/test_signal.py` (43)
-
----
-
-## 1. 总览
-
-### 信号流水线
-
-```
-Brain 引擎输出 (Dict/typed output)
-        │
-        ▼
-  TradingSignalCollector.collect(data_pack)
-        │
-        ├─ 8 EngineAdapters (适配器模式)
-        │   ├─ LPPLAdapter
-        │   ├─ CZSCAdapter
-        │   ├─ WyckoffAdapter
-        │   ├─ FSMAdapter
-        │   ├─ RegimeAdapter
-        │   ├─ NTFAdapter
-        │   ├─ AlphaScoreAdapter
-        │   └─ MAStatusAdapter
-        │
-        ▼
-  List[TradingSignal]            ← 标准信号列表
-        │
-        ▼
-  SignalArbitrator.arbitrate()   ← SELL 优先仲裁
-        │
-        ▼
-  Final TradingSignal(s)         ← 每日至多一个
-        │
-        ▼
-  → UnifiedBacktestEngine       ← 回测执行
-```
-
-### 并行信号流水线 (第二路径)
-
-```
-Candidates (各引擎原始输出)
-        │
-        ▼
-  SignalArbitrator.arbitrate_candidates()
-        │
-        ├─ Priority 1: DecisionOutput 硬约束
-        │   ├─ FORCE_WAIT / CIRCUIT_BREAK → HOLD
-        │   └─ FORCE_EXIT → SELL
-        │
-        ├─ Priority 2: SELL > BUY
-        │
-        ├─ Priority 3: FSM BUY → 直接通过
-        │
-        └─ Priority 4: 非-FSM BUY → PositionSizer 校验
-```
-
-### 标准归一化流水线 (旧路径)
-
-```
-Engine Raw Output
-        │
-        ▼
-  SignalNormalizer (4 种实现)
-        ├─ LPPLSignalNormalizer
-        ├─ WyckoffSignalNormalizer
-        ├─ IndicatorSignalNormalizer
-        └─ CZSCSignalNormalizer
-        │
-        ▼
-  Signal (标准数据类)
-        │
-  SignalAggregator (4 种方法)
-        ├─ WEIGHTED_AVERAGE
-        ├─ MAJORITY_VOTE
-        ├─ MAX_CONFIDENCE
-        └─ CONSENSUS_THRESHOLD
-        │
-        ▼
-  AggregatedSignal / SignalConsensus
-        │
-  SignalQualityAssessor
-        │
-  SignalRecord (SQLAlchemy ORM → SQLite)
-```
+> **分析时间**：2026-11-24  
+> **依赖阶段**：阶段0-4  
+> **核心文件**：`signal/adapters.py`, `signal/arbitrator.py`, `shared/interfaces.py`
 
 ---
 
-## 2. 文件清单
+## 1. 信号系统架构总览
 
-| 文件 | LOC | 职责 |
-|------|-----|------|
-| `signal/__init__.py` | 113 | 包导出, 4 个子模块延迟导入 |
-| `signal/models.py` | 280 | Signal, SignalBatch, SignalConsensus, AggregatedSignal + 5 枚举 |
-| `signal/adapters.py` | 604 | 8 个 EngineAdapter + AdapterRegistry + TradingSignalCollector |
-| `signal/arbitrator.py` | 386 | SignalArbitrator (2 个仲裁入口) + ArbitrationLog/Report |
-| `signal/normalizer.py` | 315 | 4 个 SignalNormalizer + SignalNormalizerRegistry |
-| `signal/aggregator.py` | 367 | 4 聚合方法 + SourceWeightManager + TimeWindowAggregator |
-| `signal/quality.py` | 289 | SignalQualityAssessor + SignalQualityMetrics + SignalQualityTracker |
-| `signal/db.py` | 315 | SQLAlchemy ORM (SignalRecord) + SignalRepository |
+### 1.1 信号流转路径
+
+```mermaid
+graph LR
+    A[Brain引擎输出<br/>Dict[str, Any]] --> B[EngineAdapter.adapt<br/>9个适配器]
+    B --> C[TradingSignalCollector.collect<br/>信号收集]
+    C --> D[List[TradingSignal]]
+    D --> E[SignalArbitrator.arbitrate<br/>信号仲裁]
+    E --> F[最终信号<br/>List[TradingSignal]]
+    
+    subgraph 可选
+    G[Kill Switch<br/>紧急停止]
+    H[PositionSizer<br/>仓位计算]
+    end
+    
+    G -.-> E
+    H -.-> E
+```
+
+### 1.2 核心组件
+
+| 组件 | 职责 | 关键方法 |
+|---|---|---|
+| `EngineAdapter` | 抽象基类，定义适配器接口 | `adapt()` |
+| `AdapterRegistry` | 适配器注册表（自动发现+手动注册） | `register()`, `discover()` |
+| `TradingSignalCollector` | 从data_pack收集所有信号 | `collect()` |
+| `SignalArbitrator` | 信号仲裁（解决多引擎冲突） | `arbitrate()`, `arbitrate_candidates()` |
 
 ---
 
-## 3. 数据模型 (`models.py`)
+## 2. TradingSignal数据结构
 
-### 枚举类
-
-| 枚举 | 值数 | 用途 |
-|------|------|------|
-| `SignalType` | 27 | 9 大类覆盖趋势/动量/波动/量能/形态/LPPL/Wyckoff/CZSC/复合 |
-| `SignalSource` | 10 | LPPL, Wyckoff, CZSC, NTF, FSM, Regime, Indicator, Screener, Factor, Ensemble |
-| `SignalStrength` | 4 | WEAK(1), MODERATE(2), STRONG(3), VERY_STRONG(4) |
-
-### 核心数据类
+### 2.1 核心字段
 
 ```python
 @dataclass
-class Signal:
-    signal_type: SignalType = TREND_NEUTRAL
-    source: SignalSource = INDICATOR
-    symbol: str = ""
-    id: str = uuid4
-    direction: int = 0       # 1=看多, -1=看空, 0=中性
-    strength: SignalStrength = MODERATE
-    confidence: float = 0.5  # [0, 1]
-    timestamp: datetime = now
-    expiration: datetime | None
-    price: float = 0.0
-    value: float = 0.0
-    metadata: dict = {}
-    parent_id: str | None
+class TradingSignal:
+    action: str              # BUY/SELL/HOLD
+    reason: str              # 信号原因
+    confidence: float        # 置信度 (0.0-1.0)
+    shares: int              # 股数
+    symbol: str              # 证券代码
+    price: float             # 价格
+    timestamp: Optional[datetime]  # 时间戳
+    metadata: Dict[str, Any] # 元数据
+```
 
-@dataclass
-class SignalBatch:         # 容器 + 过滤 (by_type, by_source, by_strength, by_direction)
-@dataclass
-class SignalConsensus:      # 共识方向/置信度/一致性比例
-@dataclass
-class AggregatedSignal:     # 聚合后的信号 + 贡献信号列表
+### 2.2 字段约束
+
+| 字段 | 类型 | 约束 | 说明 |
+|---|---|---|---|
+| `action` | str | BUY/SELL/HOLD | 交易动作 |
+| `confidence` | float | 0.0-1.0 | 置信度 |
+| `shares` | int | ≥0 | 股数（A股100股整数倍） |
+| `price` | float | >0 | 价格 |
+| `timestamp` | datetime | 可选 | 回测时使用bar_date |
+
+---
+
+## 3. 9个引擎适配器详解
+
+### 3.1 LPPLAdapter（泡沫检测）
+
+```python
+class LPPLAdapter(EngineAdapter):
+    """
+    默认 diagnostic_only=True（遥测优先）
+    LPPL已被Monte-Carlo证伪为零预测力引擎
+    （93% GBM噪声即可拟合 R²>0.3）
+    """
+    
+    def __init__(self, diagnostic_only=True, min_r2=None, min_oos_r2=None):
+        self.diagnostic_only = diagnostic_only  # 默认True
+    
+    def adapt(self, raw_output, symbol, timestamp=None, default_shares=100):
+        risk = raw_output.get("risk_level", "Safe")
+        confidence = float(raw_output.get("confidence", 0.0))
+        
+        if confidence < 0.05:
+            return None
+        
+        # R²质量门
+        r2 = float(raw_output.get("r_squared", 1.0))
+        oos_r2 = float(raw_output.get("out_of_sample_r_squared", 1.0))
+        
+        is_diagnostic = self.diagnostic_only
+        if (self.min_r2 and r2 < self.min_r2) or (self.min_oos_r2 and oos_r2 < self.min_oos_r2):
+            is_diagnostic = True
+        
+        if risk == "Danger":
+            action = "HOLD" if is_diagnostic else "SELL"
+        else:
+            action = "HOLD"
+        
+        return TradingSignal(
+            action=action,
+            confidence=confidence,
+            shares=default_shares if action == "SELL" else 0,
+            metadata={"r_squared": r2, "out_of_sample_r_squared": oos_r2, "diagnostic_only": is_diagnostic}
+        )
+```
+
+**关键特性**：
+- ✅ 默认diagnostic_only=True（仅遥测，不参与强平）
+- ✅ R²质量门（min_r2, min_oos_r2）
+- ✅ 低置信度过滤（<0.05返回None）
+
+### 3.2 CZSCAdapter（缠论）
+
+```python
+class CZSCAdapter(EngineAdapter):
+    def adapt(self, raw_output, symbol, timestamp=None, default_shares=100):
+        is_3rd_buy = raw_output.get("is_3rd_buy", False)
+        bi_count = int(raw_output.get("bi_count", 0))
+        
+        if not is_3rd_buy and bi_count == 0:
+            return None
+        
+        confidence = min(0.5 + bi_count * 0.05, 0.9) if is_3rd_buy else 0.3
+        
+        return TradingSignal(
+            action="BUY" if is_3rd_buy else "HOLD",
+            confidence=confidence,
+            shares=default_shares if is_3rd_buy else 0,
+        )
+```
+
+**信号映射**：
+- **BUY**: is_3rd_buy=True（三买成立）
+- **HOLD**: is_3rd_buy=False
+- **置信度**: min(0.5 + bi_count * 0.05, 0.9)
+
+### 3.3 WyckoffAdapter（威科夫）
+
+```python
+class WyckoffAdapter(EngineAdapter):
+    """
+    P0-2/P0-4/P0-7 (2026-08-12 深入再研究定稿): 引擎目标态 = 叙事+风控层。
+    - 方向唯一来自direction gate
+    - **恒不产SELL-as-entry**: 非入场方向一律返回None，绝不产生SELL
+    """
+    
+    _ENTRY_DIRECTIONS = {"做多", "买入", "轻仓试探"}
+    
+    def adapt(self, raw_output, symbol, timestamp=None, default_shares=100):
+        direction = raw_output.get("wyckoff_direction", "")
+        confidence = float(raw_output.get("wyckoff_confidence", 0.0))
+        
+        # 配置门控
+        cfg = get_config()
+        if not bool(cfg.get("wyckoff.direction_gate_enabled", True)):
+            return None
+        gate = float(cfg.get("wyckoff.confidence_gate", 0.40))
+        
+        if direction not in self._ENTRY_DIRECTIONS or confidence < gate:
+            return None
+        
+        return TradingSignal(
+            action="BUY",
+            confidence=confidence,
+            shares=default_shares,
+            metadata={
+                "wyckoff_phase": phase,
+                "wyckoff_direction": direction,
+                "wyckoff_spring": spring,
+                "wyckoff_utad": utad,
+            }
+        )
+```
+
+**关键特性**：
+- ✅ **恒不产SELL-as-entry**（仅产生BUY或None）
+- ✅ 方向门控（direction_gate_enabled）
+- ✅ 置信度门控（confidence_gate默认0.40）
+- ✅ 入场方向白名单：{做多, 买入, 轻仓试探}
+
+### 3.4 FSMAdapter（状态机）
+
+```python
+class FSMAdapter(EngineAdapter):
+    _ACTION_MAP = {
+        "BUY": "BUY",
+        "SELL": "SELL",
+        "HOLD": "HOLD",
+        "ADD": "BUY",
+        "EXECUTE_BUY": "BUY",
+        "EXECUTE_SELL": "SELL",
+        "FORCE_WAIT": "HOLD",
+        "FORCE_EXIT": "SELL",
+        "CIRCUIT_BREAK": "HOLD",
+        "STAY_CURRENT_STATE": "HOLD",
+    }
+    
+    def adapt(self, raw_output, symbol, timestamp=None, default_shares=100):
+        raw_action = raw_output.get("final_decision", raw_output.get("action", "HOLD"))
+        action = self._ACTION_MAP.get(raw_action, "HOLD")
+        shares = int(raw_output.get("shares", default_shares if action == "BUY" else 0))
+        
+        return TradingSignal(action=action, shares=shares, ...)
+```
+
+**动作映射**：
+- BUY: BUY, ADD, EXECUTE_BUY
+- SELL: SELL, EXECUTE_SELL, FORCE_EXIT
+- HOLD: HOLD, FORCE_WAIT, CIRCUIT_BREAK, STAY_CURRENT_STATE
+
+### 3.5 RegimeAdapter（市场状态）
+
+```python
+class RegimeAdapter(EngineAdapter):
+    """
+    输出: HOLD (FROZEN/STRESSED) / None (NORMAL) — 从不产生SELL
+    """
+    
+    def adapt(self, raw_output, symbol, timestamp=None, default_shares=100):
+        regime = raw_output.get("regime", "NORMAL")
+        
+        if regime == "FROZEN":
+            return TradingSignal(action="HOLD", reason="市场冻结", confidence=0.5, shares=0)
+        elif regime == "STRESSED":
+            return TradingSignal(action="HOLD", reason="市场紧张", confidence=0.5, shares=0)
+        else:
+            return None  # NORMAL
+```
+
+**关键特性**：
+- ✅ **从不产生SELL**
+- ✅ FROZEN/STRESSED → HOLD
+- ✅ NORMAL → None（不产生信号）
+
+### 3.6 NTFAdapter（国家队干预）
+
+```python
+class NTFAdapter(EngineAdapter):
+    def adapt(self, raw_output, symbol, timestamp=None, default_shares=100):
+        side = raw_output.get("ntf_side", "NONE")
+        intensity = float(raw_output.get("ntf_intensity", 0.0))
+        
+        if side == "SUPPORT":
+            return TradingSignal(action="HOLD", confidence=intensity * 0.5, shares=0)
+        elif side == "RESISTANCE":
+            if intensity >= 0.6:
+                return TradingSignal(action="SELL", confidence=min(intensity, 0.9), shares=default_shares)
+        return None
+```
+
+**信号映射**：
+- **SELL**: RESISTANCE且intensity≥0.6
+- **HOLD**: SUPPORT
+- **None**: NONE或RESISTANCE但intensity<0.6
+
+### 3.7 AlphaScoreAdapter（Alpha评分）
+
+```python
+class AlphaScoreAdapter(EngineAdapter):
+    def adapt(self, raw_output, symbol, timestamp=None, default_shares=100):
+        score = float(raw_output.get("alpha_score", 0.5))
+        
+        if score > 0.6:
+            action = "BUY"
+        elif 0 < score < 0.3:
+            action = "SELL"
+        else:
+            return None
+        
+        return TradingSignal(
+            action=action,
+            confidence=abs(score - 0.5) * 2,
+            shares=default_shares if action != "HOLD" else 0,
+        )
+```
+
+**信号映射**：
+- **BUY**: score > 0.6
+- **SELL**: 0 < score < 0.3
+- **None**: 0.3 ≤ score ≤ 0.6
+
+### 3.8 MAStatusAdapter（均线状态）
+
+```python
+class MAStatusAdapter(EngineAdapter):
+    def adapt(self, raw_output, symbol, timestamp=None, default_shares=100):
+        ma_status = raw_output.get("ma_status", "")
+        
+        if ">" in ma_status:
+            action = "BUY"   # MA20 > MA60
+        elif "<=" in ma_status:
+            action = "SELL"  # MA20 <= MA60
+        else:
+            return None
+        
+        return TradingSignal(action=action, confidence=0.3, ...)
+```
+
+**关键特性**：
+- 🟡 固定置信度0.3（低质量信号）
+
+### 3.9 QARAdapter（QAR策略）
+
+```python
+class QARAdapter(EngineAdapter):
+    def adapt(self, raw_output, symbol, timestamp=None, default_shares=100):
+        is_compliant = raw_output.get("is_compliant", True)
+        if not is_compliant:
+            return None
+        
+        weight = float(raw_output.get("weight", 0.0))
+        
+        if weight > 0:
+            action = "BUY"
+            confidence = min(0.5 + weight * 10, 0.95)
+        elif weight < 0:
+            action = "SELL"
+            confidence = 0.8
+        else:
+            return None
+        
+        return TradingSignal(action=action, confidence=confidence, ...)
+```
+
+**信号映射**：
+- **BUY**: weight > 0且合规
+- **SELL**: weight < 0
+- **None**: weight = 0或不合规
+
+---
+
+## 4. 适配器注册表
+
+### 4.1 默认注册表
+
+```python
+def create_default_registry() -> AdapterRegistry:
+    registry = AdapterRegistry()
+    # LPPL：零预测力（MC证伪）→ 默认遥测（diagnostic_only=True），不产SELL强平
+    registry.register("lppl", LPPLAdapter(diagnostic_only=True))
+    registry.register("czsc", CZSCAdapter())
+    registry.register("wyckoff", WyckoffAdapter())
+    registry.register("fsm", FSMAdapter())
+    registry.register("regime", RegimeAdapter())
+    registry.register("ntf", NTFAdapter())
+    registry.register("alpha_score", AlphaScoreAdapter())
+    registry.register("ma_status", MAStatusAdapter())
+    registry.register("qar", QARAdapter())
+    return registry
+```
+
+### 4.2 自动发现机制
+
+```python
+@classmethod
+def discover(cls, base_module="uniquant.signal.adapters"):
+    registry = cls()
+    mod = importlib.import_module(base_module)
+    for name, obj in inspect.getmembers(mod, inspect.isclass):
+        if issubclass(obj, EngineAdapter) and obj is not EngineAdapter:
+            engine_name = name.lower().replace("adapter", "").replace("engine", "")
+            registry.register(engine_name, obj())
+    return registry
 ```
 
 ---
 
-## 4. 适配器层 (`adapters.py`)
+## 5. TradingSignalCollector（信号收集器）
 
-### 8 个适配器
-
-| 适配器 | 输入 keys | 输出规则 |
-|--------|-----------|----------|
-| `LPPLAdapter` | risk_level, confidence | Danger→SELL, Warning/Warning→HOLD |
-| `CZSCAdapter` | is_3rd_buy, bi_count | 三买→BUY (conf=0.5+bi*0.05), 其他→None |
-| `WyckoffAdapter` | phase, confidence, spring, utad | Spring+accumulation→BUY, UTAD+distribution→SELL |
-| `FSMAdapter` | action, final_decision | BUY/SELL→同动作, HOLD→HOLD |
-| `RegimeAdapter` | regime | 冻结→SELL, 正常→HOLD |
-| `NTFAdapter` | ntf_side, ntf_intensity | RESISTANCE+intensity≥0.6→SELL, SUPPORT→HOLD |
-| `AlphaScoreAdapter` | alpha_score | >0.6→BUY, <0.3→SELL |
-| `MAStatusAdapter` | ma_status | ">"→BUY, "<="→SELL |
-
-### TradingSignalCollector
+### 5.1 收集流程
 
 ```python
-collect(data_pack) → List[TradingSignal]
-  # 从 data_pack 按 key 提取 8 个引擎输出 → 适配器转换
-  # 发布 SignalGenerated 事件到 EventBus
+class TradingSignalCollector:
+    def collect(self, data_pack, timestamp=None, bar_date=None, default_shares=100):
+        """
+        Args:
+            data_pack: AnalysisService._run_engine_analysis()的输出
+            timestamp: 信号时间戳（wall clock，仅当bar_date为None时使用）
+            bar_date: K-line bar日期（preferred over timestamp for backtest）
+        """
+        ts = bar_date if bar_date is not None else timestamp  # ✅ bar_date优先
+        
+        with perf_section("adapter.collect"):
+            signals = []
+            symbol = data_pack.get("symbol", "")
+            
+            # 遍历registry中的所有适配器
+            for engine_name, adapter in self._registry._adapters.items():
+                raw_output = data_pack.get(engine_name, {})
+                if not raw_output:
+                    continue
+                
+                signal = adapter.adapt(raw_output, symbol, ts, default_shares)
+                if signal is not None:
+                    signals.append(signal)
+            
+            return signals
 ```
 
-### 适配器注册表
+### 5.2 关键设计
 
-```python
-class AdapterRegistry:
-    _adapters: Dict[str, EngineAdapter]  # 8 个适配器
-    create_default_registry() → 注册全部 8 个
-```
+- ✅ **bar_date优先于timestamp**：回测时使用K线日期，避免前视偏差
+- ✅ **perf_section包装**：性能监控
+- ✅ **None过滤**：适配器返回None表示不产生信号
 
 ---
 
-## 5. 仲裁器 (`arbitrator.py`)
+## 6. SignalArbitrator（信号仲裁器）
 
-### 引擎优先级 (数值 = 低优先)
+### 6.1 引擎优先级
 
 ```python
 ENGINE_PRIORITY = {
-    "lppl": 0, "fsm": 1, "czsc": 2, "wyckoff": 3,
-    "regime": 4, "ntf": 5, "alpha_score": 6, "ma_status": 7,
+    "lppl": 99,        # 最低优先级（遥测层）
+    "fsm": 1,          # 最高优先级
+    "czsc": 2,
+    "qar": 3,
+    "wyckoff": 4,
+    "regime": 5,
+    "ntf": 6,
+    "alpha_score": 7,
+    "ma_status": 8,
 }
 ```
 
-### 仲裁入口 1: `arbitrate(TradingSignal[])`
+**优先级说明**：
+- 数值越小优先级越高
+- LPPL(99)：已降为遥测层，不参与方向决策
+- FSM(1)：DecisionBrain决策，最高优先级
 
-```
-_pick_winner(day_signals, symbol, date_key):
-  │
-  ├─ 0. 质量阈值过滤 (OOS R² < 0.3 的 SELL 被拒)
-  │
-  ├─ 1. SELL 优先规则 → 有 SELL 则选最高置信度 SELL
-  │
-  ├─ 2. 同方向取最高置信度
-  │
-  └─ 3. 引擎优先级 → 选择优先级最高的信号
-```
-
-### 仲裁入口 2: `arbitrate_candidates(CandidateSignal[])`
-
-```
-  Priority 1: DecisionOutput 硬约束
-    ├─ FORCE_WAIT / CIRCUIT_BREAK → HOLD (空结果)
-    ├─ FORCE_EXIT → SELL (强制卖出)
-    └─ BUY + shares > 0 → 直接通过
-  Priority 2: SELL > BUY
-  Priority 3: FSM BUY → 直接通过
-  Priority 4: 非-FSM BUY → PositionSizer 校验/计算仓位
-```
-
-### 仲裁日志
+### 6.2 仲裁规则（_pick_winner方法）
 
 ```python
-@dataclass class ArbitrationLog:    # arbitrate() 使用
-    symbol, date, total_signals, selected_action, selected_reason,
-    selected_confidence, conflicts_resolved, rejection_reasons
+def _pick_winner(self, day_signals, symbol, date_key):
+    # 只考虑可执行信号 (BUY/SELL), 过滤HOLD
+    actionable = [s for s in day_signals if s.action in ("BUY", "SELL")]
+    
+    if not actionable:
+        return None  # 全是HOLD
+    
+    # 规则0: 质量阈值过滤 (P6.5)
+    if self._quality_threshold > 0.0:
+        filtered = []
+        for sig in actionable:
+            oos_r2 = sig.metadata.get("out_of_sample_r_squared", 1.0)
+            if oos_r2 < self._quality_threshold and sig.action == "SELL":
+                # 过滤低质量SELL
+                continue
+            filtered.append(sig)
+        actionable = filtered
+    
+    if not actionable:
+        return None
+    
+    if len(actionable) == 1:
+        return actionable[0]
+    
+    # 规则1: SELL优先于BUY
+    if self._sell_priority:
+        sells = [s for s in actionable if s.action == "SELL"]
+        if sells:
+            return self._highest_confidence(sells)
+    
+    # 规则2: 同方向取最高confidence
+    action_groups = {}
+    for sig in actionable:
+        action_groups.setdefault(sig.action, []).append(sig)
+    
+    for action in ("BUY", "SELL"):
+        if action in action_groups:
+            return self._highest_confidence(action_groups[action])
+    
+    # 规则3: 按引擎优先级
+    return self._by_engine_priority(actionable)
+```
 
-@dataclass class ArbitrationReport:  # arbitrate_candidates() 使用
-    symbol, date, candidates_count, final_action, final_reason,
-    final_confidence, veto_chain, rejected
+### 6.3 仲裁规则总结
+
+| 规则 | 条件 | 动作 | 说明 |
+|---|---|---|---|
+| **规则0** | 质量阈值过滤 | 过滤低质量SELL | OOS R² < threshold |
+| **规则1** | sell_priority=True | SELL优先 | 有SELL时拒绝所有BUY |
+| **规则2** | 同方向多信号 | 取最高confidence | BUY组或SELL组内竞争 |
+| **规则3** | 不同方向无SELL | 按引擎优先级 | FSM(1) > CZSC(2) > ... |
+
+### 6.4 arbitrate_candidates方法（类型化仲裁）
+
+```python
+def arbitrate_candidates(self, candidates, decision_output=None, context=None, sizer=None, symbol=""):
+    # Priority 1: DecisionOutput硬约束
+    if decision_output is not None:
+        if decision_output.action in ("FORCE_WAIT", "CIRCUIT_BREAK"):
+            return [], report  # HOLD
+        
+        if decision_output.action == "FORCE_EXIT":
+            return [TradingSignal(action="SELL", reason="FORCE_EXIT", confidence=1.0)], report
+        
+        if decision_output.action == "BUY" and decision_output.shares > 0:
+            return [TradingSignal(action="BUY", shares=decision_output.shares)], report
+    
+    # Priority 2: SELL over BUY
+    sell_candidates = [c for c in candidates if c.action == "SELL"]
+    if sell_candidates:
+        best_sell = max(sell_candidates, key=lambda c: c.confidence)
+        return [TradingSignal(action="SELL", confidence=best_sell.confidence)], report
+    
+    # Priority 3: Non-FSM BUY需要PositionSizer
+    buy_candidates = [c for c in candidates if c.action == "BUY"]
+    non_fsm_buys = [c for c in buy_candidates if c.source != "fsm"]
+    fsm_buys = [c for c in buy_candidates if c.source == "fsm"]
+    
+    # FSM buys直接通过
+    if fsm_buys:
+        best_fsm = max(fsm_buys, key=lambda c: c.confidence)
+        return [TradingSignal(action="BUY", confidence=best_fsm.confidence)], report
+    
+    # Non-FSM buys需要sizer
+    if non_fsm_buys:
+        if sizer is None:
+            return [], report  # 无sizer，拒绝BUY
+        else:
+            best_non_fsm = max(non_fsm_buys, key=lambda c: c.confidence)
+            sized = sizer.calculate_shares(...)
+            return [TradingSignal(action="BUY", shares=sized.shares)], report
+```
+
+### 6.5 Kill Switch集成
+
+```python
+if get_kill_switch().is_killed:
+    logger.info("All signals dropped: kill switch active (%s)", get_kill_switch().reason)
+    return []  # 紧急停止，丢弃所有信号
+```
+
+### 6.6 信号过期检查
+
+```python
+DEFAULT_MAX_SIGNAL_AGE_SECONDS = 0.0  # 0=禁用; 回测模式下应保持禁用
+
+if sig.timestamp is not None and self._max_signal_age_seconds > 0:
+    age = (now - sig.timestamp).total_seconds()
+    if age > self._max_signal_age_seconds:
+        continue  # 信号过期，丢弃
+```
+
+**关键设计**：
+- ✅ **默认禁用**（0.0秒）：回测模式下信号时间戳vs壁钟时间不匹配
+- ✅ **可配置**：实盘模式可启用过期检查
+
+---
+
+## 7. 信号映射规则总结表
+
+| 引擎 | BUY条件 | SELL条件 | HOLD条件 | 置信度 | 特殊说明 |
+|---|---|---|---|---|---|
+| **LPPL** | 从不 | Danger且非diagnostic | Safe/Warning/Danger(diagnostic) | confidence | 默认diagnostic_only=True |
+| **CZSC** | is_3rd_buy=True | 从不 | is_3rd_buy=False | min(0.5+bi_count*0.05, 0.9) | 缠论三买 |
+| **Wyckoff** | direction∈{做多,买入,轻仓试探}且conf≥0.40 | **从不** | 其他 | confidence | 恒不产SELL-as-entry |
+| **FSM** | BUY/ADD/EXECUTE_BUY | SELL/FORCE_EXIT | HOLD/CIRCUIT_BREAK | confidence | DecisionBrain决策 |
+| **Regime** | 从不 | 从不 | FROZEN/STRESSED | 0.5 | 从不产生BUY/SELL |
+| **NTF** | 从不 | RESISTANCE且intensity≥0.6 | SUPPORT | min(intensity,0.9) | 国家队干预 |
+| **AlphaScore** | score>0.6 | score<0.3 | 0.3≤score≤0.6 | abs(score-0.5)*2 | Alpha评分 |
+| **MAStatus** | MA20>MA60 | MA20≤MA60 | 其他 | 0.3 | 固定低置信度 |
+| **QAR** | weight>0且合规 | weight<0 | weight=0 | min(0.5+weight*10,0.95) | QAR策略 |
+
+---
+
+## 8. 信号冲突处理案例
+
+### 8.1 案例1: SELL优先于BUY
+
+```python
+# 输入信号
+signals = [
+    TradingSignal(action="BUY", reason="CZSC 3rd_buy=True", confidence=0.8),
+    TradingSignal(action="SELL", reason="NTF RESISTANCE", confidence=0.7),
+]
+
+# 仲裁结果
+final_signal = arbitrator.arbitrate(signals)
+# 输出: TradingSignal(action="SELL", reason="NTF RESISTANCE", confidence=0.7)
+# 原因: sell_priority=True，SELL优先于BUY
+```
+
+### 8.2 案例2: 同方向取最高置信度
+
+```python
+# 输入信号
+signals = [
+    TradingSignal(action="BUY", reason="CZSC 3rd_buy=True", confidence=0.7),
+    TradingSignal(action="BUY", reason="Wyckoff direction=做多", confidence=0.9),
+    TradingSignal(action="BUY", reason="MA status=MA20 > MA60", confidence=0.3),
+]
+
+# 仲裁结果
+final_signal = arbitrator.arbitrate(signals)
+# 输出: TradingSignal(action="BUY", reason="Wyckoff direction=做多", confidence=0.9)
+# 原因: 同方向取最高置信度
+```
+
+### 8.3 案例3: 按引擎优先级
+
+```python
+# 输入信号（假设sell_priority=False）
+signals = [
+    TradingSignal(action="BUY", reason="FSM BUY", confidence=0.6),
+    TradingSignal(action="BUY", reason="CZSC 3rd_buy=True", confidence=0.6),
+]
+
+# 仲裁结果
+final_signal = arbitrator.arbitrate(signals)
+# 输出: TradingSignal(action="BUY", reason="FSM BUY", confidence=0.6)
+# 原因: 同置信度，按引擎优先级 FSM(1) > CZSC(2)
+```
+
+### 8.4 案例4: DecisionOutput硬约束
+
+```python
+# 输入候选信号
+candidates = [
+    CandidateSignal(source="czsc", action="BUY", confidence=0.8),
+    CandidateSignal(source="wyckoff", action="BUY", confidence=0.7),
+]
+
+# DecisionOutput强制退出
+decision_output = DecisionOutput(action="FORCE_EXIT")
+
+# 仲裁结果
+final_signals, report = arbitrator.arbitrate_candidates(candidates, decision_output)
+# 输出: [TradingSignal(action="SELL", reason="FORCE_EXIT", confidence=1.0)]
+# 原因: DecisionOutput硬约束优先级最高
 ```
 
 ---
 
-## 6. 归一化器 (`normalizer.py`)
+## 9. confidence、shares、price、timestamp合理性检查
 
-### 4 个归一化实现
+### 9.1 confidence合理性
 
-| 归一化器 | 类型映射 | 强度计算 |
-|----------|----------|----------|
-| `LPPLSignalNormalizer` | bubble/crash/negative_bubble → SignalType | confidence → strength |
-| `WyckoffSignalNormalizer` | accumulation/distribution/spring/utad/lps/sow | confidence → strength |
-| `IndicatorSignalNormalizer` | rsi/macd/bb/ma → TREND/MOMENTUM/VOLATILITY | 规则计算 |
-| `CZSCSignalNormalizer` | 一买/二买/一卖/二卖/三买/三卖 | bi_count 加权 |
+| 引擎 | 置信度范围 | 合理性评价 |
+|---|---|---|
+| **LPPL** | 0.05-1.0 | ✅ 合理，低置信度过滤 |
+| **CZSC** | 0.5-0.9 (BUY), 0.3 (HOLD) | ✅ 合理，bi_count越高置信度越高 |
+| **Wyckoff** | ≥0.40 (门控) | ✅ 合理，置信度门控 |
+| **FSM** | 0.5 (默认) | 🟡 固定值，未反映信号强度 |
+| **Regime** | 0.5 (固定) | ✅ 合理，HOLD信号无需高置信度 |
+| **NTF** | 0.0-0.9 (SELL), 0.0-0.5 (HOLD) | ✅ 合理，intensity越高置信度越高 |
+| **AlphaScore** | 0.0-1.0 | ✅ 合理，score偏离0.5越远置信度越高 |
+| **MAStatus** | 0.3 (固定) | 🔴 **固定低值**，可能产生低质量信号 |
+| **QAR** | 0.5-0.95 (BUY), 0.8 (SELL) | ✅ 合理，weight越高置信度越高 |
 
-### SignalNormalizerRegistry
+### 9.2 shares合理性
 
 ```python
-registry = SignalNormalizerRegistry()
-registry.register("lppl", LPPLSignalNormalizer())
-registry.get("lppl").normalize(raw_signal) → Signal
+# A股规则：100股整数倍
+shares = default_shares if action == "BUY" else 0  # 默认100股
+
+# FSM适配器支持自定义shares
+shares = int(raw_output.get("shares", default_shares if action == "BUY" else 0))
+
+# Non-FSM BUY需要PositionSizer计算
+sized = sizer.calculate_shares(price, stop_loss, ...)
 ```
+
+**合理性评价**：
+- ✅ 默认100股（1手）
+- ✅ FSM支持自定义shares
+- ✅ Non-FSM BUY通过PositionSizer计算
+- 🟡 部分适配器（CZSC/Wyckoff/AlphaScore/MAStatus/QAR）固定使用default_shares
+
+### 9.3 timestamp合理性
+
+```python
+# TradingSignalCollector.collect
+ts = bar_date if bar_date is not None else timestamp  # ✅ bar_date优先
+
+# 回测时：bar_date = K线日期（避免前视偏差）
+# 实盘时：timestamp = wall clock时间
+```
+
+**合理性评价**：
+- ✅ bar_date优先于timestamp（回测时避免前视偏差）
+- ✅ perf_section包装（性能监控）
+
+### 9.4 price合理性
+
+```python
+# 大多数适配器从raw_output获取price
+price = float(raw_output.get("price", 0.0))
+
+# 默认值0.0可能有问题
+```
+
+**合理性评价**：
+- 🟡 **默认值0.0**：如果raw_output中没有price，会使用0.0
+- **建议**：从data_pack的stock_df获取最新close价格作为fallback
 
 ---
 
-## 7. 聚合器 (`aggregator.py`)
+## 10. T+1规则影响验证
 
-### 4 种聚合方法
+### 10.1 timestamp对T+1的影响
 
-| 方法 | 策略 | 适用场景 |
-|------|------|----------|
-| `WEIGHTED_AVERAGE` | 加权平均 | 多来源连续信号 |
-| `MAJORITY_VOTE` | 多数表决 | 分类决策 (BUY/SELL/HOLD) |
-| `MAX_CONFIDENCE` | 最高置信度 | 单个高可信引擎为主 |
-| `CONSENSUS_THRESHOLD` | 共识阈值 | 需要 75% 以上一致 |
+```python
+# 回测时使用bar_date（K线日期）
+ts = bar_date if bar_date is not None else timestamp
 
-### SourceWeightManager
+# T+1规则：T日信号，T+1日执行
+# 如果bar_date = 2026-11-24（T日），则信号在2026-11-25（T+1日）执行
+```
 
-- `set_weight(source, weight)`: 手动设置
-- `update_weights(performance)`: 基于绩效归一化
-- `get_weight(source)`: 默认 1.0，最低 0.1
+**关键设计**：
+- ✅ bar_date优先：回测时使用K线日期，确保T+1规则正确
+- ✅ 默认禁用信号过期检查：回测模式下信号时间戳vs壁钟时间不匹配
 
-### TimeWindowAggregator
+### 10.2 潜在风险
 
-- `aggregate(signals, window=timedelta(hours=4))`: 时间窗口内聚合
-- 支持滑动窗口多信号融合
+| 风险 | 说明 | 缓解 |
+|---|---|---|
+| **盘中信号** | 盘中产生的信号，bar_date为当日 | FSM盘中模式使用前一日数据计算MA |
+| **收盘信号** | 收盘后产生的信号，bar_date为当日 | T+1日开盘执行 |
+| **信号过期** | 实盘模式下可能启用过期检查 | 默认禁用（0.0秒） |
 
 ---
 
-## 8. 质量评估 (`quality.py`)
+## 11. A股实盘适配性评价
 
-### SignalQualityAssessor
+### 11.1 优势 ✅
 
-```python
-assess(signal, subsequent_prices, lookahead=20) → bool | None
-  # 看多: max(subsequent_prices) > trigger_price * 1.01 → True
-  # 看空: min(subsequent_prices) < trigger_price * 0.99 → True
-```
+1. **Sell-Priority机制** ✅
+   - SELL始终优先于BUY
+   - 符合A股避险优先原则
 
-### SignalQualityMetrics
+2. **Wyckoff恒不产SELL-as-entry** ✅
+   - 仅产生BUY或None
+   - 避免误卖
 
-```python
-precision, recall, f1_score, accuracy, average_lead_time,
-hit_rate, false_positive_rate, sample_size, average_confidence,
-profit_factor, sharpe_ratio
-```
+3. **bar_date优先于timestamp** ✅
+   - 回测时使用K线日期
+   - 避免前视偏差
 
-### SignalQualityTracker
+4. **质量门过滤** ✅
+   - OOS R² < threshold的SELL被过滤
+   - 提高信号质量
 
-- `record_signal(signal)`: 记录信号
-- `record_outcome(signal_id, outcome)`: 记录结果
-- `get_metrics(source=None, type=None)`: 按来源/类型查询质量指标
-- `get_summary()`: 汇总报告
+5. **Kill Switch集成** ✅
+   - 紧急情况停止所有交易
+   - Fail-safe机制
 
----
+6. **DecisionOutput硬约束** ✅
+   - FORCE_EXIT/FORCE_WAIT优先级最高
+   - DecisionBrain决策优先
 
-## 9. 持久化 (`db.py`)
+7. **PositionSizer集成** ✅
+   - Non-FSM BUY需要仓位计算
+   - 避免过度仓位
 
-### ORM 模型
+### 11.2 潜在问题 🟡
 
-```python
-class SignalRecord(Base):  # 表: signals
-    id, symbol, signal_type, source, direction, strength,
-    confidence, timestamp, expiration, price, value,
-    metadata_json, parent_id
-```
+1. **信号冲突处理简单** 🟡
+   - 仅按优先级和置信度
+   - 缺乏更复杂的逻辑（如信号融合）
 
-### SignalRepository
+2. **同方向多信号处理** 🟡
+   - 仅取最高置信度
+   - 未考虑信号融合（如加权平均）
 
-```python
-save(signal)                    # 持久化
-find_by_symbol(symbol, limit)   # 按股票查询
-find_by_time_range(start, end)  # 按时间查询
-find_by_type(signal_type)       # 按类型查询
-get_statistics(source, days)    # 统计
-delete_old(before)              # 清理
-```
+3. **低置信度信号过滤** 🟡
+   - MAStatus固定0.3
+   - 可能产生低质量信号
 
-### SQLAlchemy 优雅降级
-
-```python
-try:
-    from sqlalchemy import ...
-    _SQLA_AVAILABLE = True
-except ImportError:
-    Base = None
-    _SQLA_AVAILABLE = False
-```
+4. **QAR适配器新颖** 🟡
+   - 基于权重的信号
+   - 需要验证实际效果
 
 ---
 
-## 10. 关键观察
+## 12. 改进建议
 
-### 架构风险
+### 12.1 短期改进（P1）
 
-| # | 风险 | 位置 | 影响 |
-|---|------|------|------|
-| R5-1 | **两套并行信号体系**: `adapters.py` (TradingSignalCollector → TradingSignal) 和 `normalizer.py` (→ Signal) 运行独立的信号转换路径 | `adapters.py`, `normalizer.py` | 运维复杂度, 信号流分裂, 需保持两套逻辑同步 |
-| R5-2 | **TradingSignalCollector 适配 key 名不匹配**: `_extract_lppl()` 期望 `risk` + `bubble_confidence`, 但 `LPPLOutput` 输出 `risk_level` | `adapters.py:540-548` | 下游 data_pack 结构调整可能导致信号遗漏 |
-| R5-3 | **仲裁器依赖字符串匹配**: `_get_engine_priority()` 通过 `reason.lower()` 包含匹配判断引擎 | `arbitrator.py:235-240` | 脆弱, 改变 reason 字符串格式会破坏仲裁 |
-| R5-4 | **质量评估器需要事后价格数据**: `assess()` 依赖 `subsequent_prices` 列表, 在线交易场景不可用 | `quality.py:59-60` | 仅适用于回测/离线分析 |
-| R5-5 | **归一化+聚合+质量+DB 路径无运行时调用**: `normalizer`, `aggregator`, `quality`, `db` 4 个模块在主流程中未被调用 | 全部 4 文件 | 可能是死代码或仅用于离线研究 |
-| R5-6 | **SQLAlchemy 可选依赖**: 未安装时 `SignalRecord` 类不存在, `from .db import SignalRecord` 会失败 | `db.py:30-37` | import 时可能 AttributeError |
+1. **信号融合机制** 🟡
+   - **现状**：同方向多信号时，仅取最高置信度
+   - **建议**：考虑加权平均（按引擎优先级加权）
+   - **工作量**：4小时
 
-### 设计亮点
+2. **动态置信度阈值** 🟡
+   - **现状**：固定quality_threshold=0.3
+   - **建议**：根据市场状态（Regime）调整最低置信度要求
+   - **工作量**：2小时
 
-| # | 亮点 | 位置 |
-|---|------|------|
-| S5-1 | **双仲裁入口**: `arbitrate()` 处理 TradingSignal, `arbitrate_candidates()` 处理 CandidateSignal+DecisionOutput — 覆盖两代接口 | `arbitrator.py` |
-| S5-2 | **SELL 优先 + 质量门**: OOS R² < 0.3 的低质量 SELL 信号被过滤 | `arbitrator.py:130-148` |
-| S5-3 | **Veto 链记录**: 仲裁报告包含完整的 veto_chain 和 rejection_reasons | `arbitrator.py:270-280` |
-| S5-4 | **8 适配器注册表**: 可扩展的适配器模式, 新引擎只需注册新 Adapter | `adapters.py:480-520` |
-| S5-5 | **SourceWeightManager 自适应**: 基于绩效的权重更新 | `aggregator.py:55-80` |
-| S5-6 | **Signal 数据类完整**: 27 种类型, 10 个来源, 4 级强度 — 覆盖全场景 | `models.py` |
+3. **price fallback机制** 🟡
+   - **现状**：price默认0.0
+   - **建议**：从data_pack的stock_df获取最新close价格作为fallback
+   - **工作量**：1小时
 
-### 信号流对比
+### 12.2 中期改进（P2）
 
-| 维度 | TradingSignalCollector (主) | Normalizer + Aggregator (副) |
-|------|---------------------------|------------------------------|
-| 输入 | `Dict[str, Any]` data_pack | `Dict[str, Any]` raw signal |
-| 输出 | `TradingSignal` | `Signal` |
-| 适配器数 | 8 | 4 |
-| 聚合 | 仲裁器 (SELL优先) | 4 种聚合方法 |
-| 质量 | 无 | SignalQualityAssessor |
-| 持久化 | 无 | SQLAlchemy ORM |
-| 运行时调用 | 是 (Pipeline/TradingSignalCollector) | 否 |
+4. **信号来源追踪** 🟢
+   - **现状**：reason字段包含引擎信息，但不结构化
+   - **建议**：添加source_engine字段到TradingSignal
+   - **工作量**：4小时
 
-### 测试覆盖
+5. **信号回测验证** 🟢
+   - **现状**：无仲裁前后对比
+   - **建议**：记录仲裁前所有信号，回测对比仲裁效果
+   - **工作量**：8小时
 
-| 测试文件 | 函数数 | 覆盖 |
-|----------|--------|------|
-| `tests/signal/test_arbitrator.py` | 27 | 空信号/单信号/SELL优先/质量门/仲裁日志/候选仲裁 |
-| `tests/signal/test_adapters.py` | 未知 | 适配器单元测试 |
-| `tests/test_signal.py` | 43 | 模型创建/序列化/批次过滤/归一化 |
-| `tests/test_research_pipeline_checkpoint.py` | 7 | Pipeline 仲裁集成 |
+6. **自适应优先级** 🟢
+   - **现状**：固定ENGINE_PRIORITY
+   - **建议**：根据近期表现动态调整引擎优先级
+   - **工作量**：16小时
 
 ---
 
-## 11. 建议
+## 13. 校验清单
 
-### P1
-1. **R5-1 (信号体系分裂)**: 统一两条信号路径 — 选择 TradingSignalCollector 为主路径，正常化/聚合/质量评估可叠加为可选中间件
-
-### P2
-2. **R5-3 (字符串匹配仲裁)**: 在 `TradingSignal` 中添加 `source` 字段替代基于 reason 字符串的引擎识别
-3. **R5-2 (key 名不匹配)**: 统一 `LPPLOutput.risk_level` vs data_pack `risk` 的 key 名
-
-### P3
-4. **R5-4 (质量评估离线)**: 保持离线, 文档标注适用场景
-5. **R5-5 (死代码路径)**: 确认 normalizer/aggregator/quality/db 是否被使用, 否则标记弃用
-6. **R5-6 (SQLAlchemy 可选)**: `db.py` 中所有 `from .db import SignalRecord` 需用 try/except 包裹
+- [x] 覆盖LPPL、CZSC、Wyckoff、FSM、Regime、NTF、Alpha、MA（§3，9个适配器）
+- [x] 指出多个BUY/SELL同时出现时的风险（§8，4个案例）
+- [x] 检查timestamp对回测T+1的影响（§10）
+- [x] 给出确定性聚合规则（§6.2，4条仲裁规则）
+- [x] TradingSignal字段说明（§2）
+- [x] 引擎输出到信号的映射表（§7）
+- [x] 信号收集流程（§5）
+- [x] 信号冲突案例（§8）
+- [x] 当前问题（§11.2）
+- [x] 推荐信号优先级和聚合规则（§6.1，§12）
+- [x] 实盘信号校验标准（§9-10）
 
 ---
 
-## 12. 验证清单
+## 14. 阶段5结论
 
-- [x] 读取 `signal/__init__.py` (4 子模块延迟导入)
-- [x] 读取 `signal/models.py` (5 枚举 + 4 数据类)
-- [x] 读取 `signal/adapters.py` (8 EngineAdapter + Registry + Collector)
-- [x] 读取 `signal/arbitrator.py` (2 仲裁入口 + Priority 规则)
-- [x] 读取 `signal/normalizer.py` (4 Normalizer + Registry)
-- [x] 读取 `signal/aggregator.py` (4 聚合方法 + SourceWeightManager)
-- [x] 读取 `signal/quality.py` (QualityAssessor + Metrics + Tracker)
-- [x] 读取 `signal/db.py` (SQLAlchemy ORM + Repository + 降级)
-- [x] 检查 `shared/interfaces.py` TradingSignal / CandidateSignal 定义
-- [x] 检查 `shared/interfaces.py` DecisionOutput (仲裁器硬约束)
-- [x] 检查测试覆盖
+UniQuant的信号系统展现了**清晰的适配器模式和严格的仲裁规则**：
+
+### 架构优点 ✅
+1. **9个引擎适配器**：统一接口（EngineAdapter.adapt），易于扩展
+2. **适配器注册表**：自动发现+手动注册
+3. **信号收集器**：bar_date优先于timestamp，避免前视偏差
+4. **信号仲裁器**：4条仲裁规则，Sell-Priority机制
+5. **Kill Switch集成**：紧急停止，Fail-safe机制
+6. **DecisionOutput硬约束**：FORCE_EXIT/FORCE_WAIT优先级最高
+7. **PositionSizer集成**：Non-FSM BUY需要仓位计算
+8. **质量门过滤**：OOS R² < threshold的SELL被过滤
+
+### 核心机制 ✅
+1. **Sell-Priority**：SELL始终优先于BUY（避险优先）
+2. **Wyckoff恒不产SELL-as-entry**：仅产生BUY或None
+3. **引擎优先级**：FSM(1) > CZSC(2) > QAR(3) > Wyckoff(4) > ... > LPPL(99)
+4. **同方向取最高置信度**：BUY组或SELL组内竞争
+5. **DecisionOutput硬约束**：FORCE_EXIT/FORCE_WAIT优先级最高
+
+### 主要风险 🟡
+1. 🟡 **信号冲突处理简单**：仅按优先级和置信度，缺乏信号融合
+2. 🟡 **同方向多信号处理**：仅取最高置信度，未考虑加权平均
+3. 🟡 **MAStatus固定低置信度**：0.3可能产生低质量信号
+4. 🟡 **price默认0.0**：可能影响PositionSizer计算
+
+**下一阶段**：阶段6 - 回测与撮合分析（深入回测引擎、撮合规则、A股交易约束）
+
+---
+
+**分析人**：Claude (Anthropic)  
+**审核状态**：待用户确认  
+**产物路径**：`docs/analysis/05_signal_system.md`

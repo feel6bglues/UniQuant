@@ -1,316 +1,726 @@
-# Stage 3 — Brain/Signal 引擎深度分析
+# 阶段 3：UniQuant 多引擎分析
 
-> **日期**: 2026-06-29 | **状态**: ✅ 完成
-> **范围**: `services/analysis/` (7 引擎适配器), `brain/` (6 核心引擎), `signal/` (仲裁器), `brain/fsm/fsm.py` (DecisionBrain)
-> **前置**: `00_architecture_map.md`, `01_services_orchestration.md`
-
----
-
-## 1. 总览
-
-### 引擎流水线
-
-```
-run_ticker_analysis()
-  ├─ _prepare_data()               → DataService 获取 data_pack
-  └─ _run_engines()                → 串行执行 7 引擎
-       ├─ 1. _run_regime()         → RegimeDetector (市场级缓存)
-       ├─ 2. _run_lppl()           → LpplAnalysisEngine → LPPLEngine
-       ├─ 3. _run_ntf()            → NTFEngine (市场级缓存)
-       ├─ 4. _run_czsc()           → CzscAnalysisEngine → CZSCEngine
-       ├─ 5. _run_wyckoff()        → WyckoffAnalysisEngine → WyckoffEngine
-       ├─ 6. _run_alpha()          → AlphaDecoupler
-       └─ 7. _calculate_derived()  → Indicators (MA, ATR, 价格)
-  └─ _make_decision()              → DecisionBrain.make_decision()
-       └─ TradingSignalCollector   → (Pipeline 层, 在分析服务之外)
-```
-
-### 文件映射
-
-| # | 引擎 | 适配器 (services/analysis/) | 核心实现 (brain/) | 输出类型 |
-|---|------|---------------------------|-------------------|----------|
-| 1 | Regime | `regime_analysis_engine.py` | `brain/regime/regime_detector.py` | `RegimeOutput` |
-| 2 | LPPL | `lppl_analysis_engine.py` | `brain/lppl/engine.py` | `LPPLOutput` |
-| 3 | NTF | `ntf_analysis_engine.py` | `brain/ntf/ntf_engine.py` | `NtfOutput` |
-| 4 | CZSC | `czsc_analysis_engine.py` | `brain/czsc/czsc_engine.py` | `CZSCOutput` |
-| 5 | Wyckoff | `wyckoff_analysis_engine.py` | `brain/wyckoff/engine.py` | `WyckoffOutput` |
-| 6 | Alpha | (内联在 analysis_service_v2.py) | `brain/alpha_decoupler/alpha_decoupler.py` | `AlphaOutput` |
-| 7 | 衍生指标 | (内联在 analysis_service_v2.py) | `brain/indicators/indicators.py` | 嵌入 data_pack |
-| 8 | 宏观 | `macro_analysis_engine.py` | 依赖 EVT risk + DataService | Dict |
-| 9 | FSM | `fsm_analysis_engine.py` | `brain/fsm/fsm.py` → FSM | Dict |
-| — | 决策 | — | `brain/fsm/fsm.py` → `DecisionBrain` | `DecisionOutput` |
+> **分析时间**：2026-11-24  
+> **依赖阶段**：阶段0-2  
+> **核心文件**：`brain/fsm/fsm.py`, `brain/czsc/czsc_engine.py`, `brain/lppl/engine.py`, `brain/regime/regime_detector.py`, `brain/ntf/ntf_engine.py`, `brain/wyckoff/engine.py`, `brain/alpha_decoupler/alpha_decoupler.py`, `services/analysis/*_engine.py`
 
 ---
 
-## 2. 引擎适配器层分析
+## 1. 引擎架构总览 - 两层结构
 
-### 2.1 通用模式
+### 1.1 服务层适配器 + Brain层核心引擎
 
-所有 services/analysis 引擎适配器共享以下特征：
+```mermaid
+graph TD
+    subgraph 服务层适配器
+    FAE[FsmAnalysisEngine]
+    CAE[CzscAnalysisEngine]
+    LAE[LpplAnalysisEngine]
+    RAE[RegimeAnalysisEngine]
+    NAE[NtfAnalysisEngine]
+    MAE[MacroAnalysisEngine]
+    WAE[WyckoffAnalysisEngine]
+    end
+    
+    subgraph Brain层核心引擎
+    DB[DecisionBrain<br/>Veto-Scoring架构]
+    FSM[FSM<br/>状态机]
+    CZSC[CZSCEngine<br/>缠论]
+    LPPL[LPPLEngine<br/>泡沫检测]
+    REG[RegimeDetector<br/>市场状态]
+    NTF[NTFEngine<br/>国家队干预]
+    WYCK[WyckoffEngine<br/>威科夫]
+    ALPHA[AlphaDecoupler<br/>相对强度]
+    EVT[EVT风险<br/>VaR/CVaR]
+    end
+    
+    FAE --> DB
+    FAE --> FSM
+    CAE --> CZSC
+    LAE --> LPPL
+    RAE --> REG
+    NAE --> NTF
+    WAE --> WYCK
+    MAE --> EVT
+    DB --> ALPHA
+```
+
+### 1.2 引擎清单与职责
+
+| 引擎 | 服务层适配器 | Brain层核心 | 类型 | 输出类型 |
+|---|---|---|---|---|
+| **FSM** | `FsmAnalysisEngine` | `DecisionBrain` + `FSM` | 交易信号 | `Dict` (current_state, signal_strength) |
+| **CZSC** | `CzscAnalysisEngine` | `CZSCEngine` | 交易信号 | `CZSCOutput` |
+| **LPPL** | `LpplAnalysisEngine` | `LPPLEngine` | 风险过滤器 | `LPPLOutput` |
+| **Regime** | `RegimeAnalysisEngine` | `RegimeDetector` | 市场环境 | `Dict` (regime) |
+| **NTF** | `NtfAnalysisEngine` | `NTFEngine` | 市场环境 | `NtfOutput` |
+| **Macro** | `MacroAnalysisEngine` | EVT风险计算 | 风险过滤器 | `Dict` (var/cvar/drawdown) |
+| **Wyckoff** | `WyckoffAnalysisEngine` | `WyckoffEngine` | 交易信号 | `WyckoffOutput` |
+| **Alpha** | (集成在DecisionBrain) | `AlphaDecoupler` | 相对强度 | RS Slope (float) |
+
+---
+
+## 2. FSM引擎（DecisionBrain + FSM状态机）
+
+### 2.1 状态机定义
 
 ```python
-class XxxAnalysisEngine:
-    def __init__(self, orchestrator):
-        self.orchestrator = orchestrator  # AnalysisService 实例
-
-    def run_xxx_analysis(self, symbol, df=None) -> TypedOutput:
-        # 1. try brain-layer engine
-        # 2. catch RECOVERABLE_ERRORS tuple
-        # 3. return typed dataclass (with fallback defaults)
+class FSMState(Enum):
+    IDLE = "IDLE"                    # 市场横盘或下行，无买入信号
+    SIGNAL = "SIGNAL"                # 股价突破MA60，发出买入信号
+    PROBE = "PROBE"                  # 突破MA60后缩量回踩MA20
+    MONITOR = "MONITOR"              # 明确上升趋势，MA20 > MA60
+    PYRAMID = "PYRAMID"              # 持续上涨，考虑加仓
+    EXIT = "EXIT"                    # 跌破关键均线，考虑平仓
+    CIRCUIT_BREAK = "CIRCUIT_BREAK"  # 极端波动，触发熔断
 ```
 
-**RECOVERABLE_ERRORS 元组 (7-8 异常通用)**:
+### 2.2 状态转换逻辑
+
 ```python
-(AttributeError, ImportError, KeyError, ModuleNotFoundError,
- OSError, RuntimeError, TypeError, ValueError)
+def infer_state(self, df):
+    # Look-ahead Bias修复：盘中模式使用前一日数据
+    if self.is_intraday:
+        analysis_df = df.iloc[:-1].copy()  # 排除当前未确定K线
+        current_price = df["close"].iloc[-1]
+    else:
+        analysis_df = df.copy()
+        current_price = df["close"].iloc[-1]
+    
+    # 计算MA20和MA60（使用shift(1)避免前视偏差）
+    shifted_df = analysis_df.shift(1)
+    ma20 = Indicators.calc_ma(shifted_df, self.ma_short)  # 默认20
+    ma60 = Indicators.calc_ma(shifted_df, self.ma_long)   # 默认60
+    
+    # 状态转换规则
+    if current_price > curr_ma60 and prev_price <= prev_ma60:
+        return FSMState.SIGNAL  # 突破MA60
+    
+    if current_price > curr_ma60 and has_upward_trend:
+        if pullback_to_ma20:
+            return FSMState.PROBE  # 回踩MA20
+        return FSMState.MONITOR    # 上升趋势
+    
+    return FSMState.IDLE  # 默认
 ```
-每个引擎适配器定义了自身的版本（macro 引擎少了 `ImportError` 和 `ModuleNotFoundError`）。
 
-### 2.2 各引擎适配器细节
+### 2.3 DecisionBrain Veto-Scoring架构
 
-#### RegimeAnalysisEngine
-- 两个入口: `run_regime_detection()` (public) 和 `_run_regime_detection()` (private, 带缓存)
-- 使用沪深 300 (000300.SH) 作为市场基准
-- 两级缓存: 内存缓存 (`self.orchestrator._market_cache['regime']`) + 磁盘缓存 (24h TTL)
-- 降级策略: 失败时返回 `{"regime": "NORMAL", "status": "failed"}`
-- **注意**: Wrapper 层逻辑与 `analysis_service_v2.py` 中的新 `_run_regime()` 实现不同 — wrapper 仍用旧版 `_market_cache` dict，新实现在 `AnalysisService._run_regime()` 中通过 `MarketLevelCache` 实现
+```python
+class DecisionBrain:
+    """
+    DecisionBrain: 总控执行模块
+    采用"Veto-Scoring"（否决-加权）架构
+    整合各个引擎的信号，做出最终的买卖决策
+    """
+    
+    def __init__(self, evt_risk, sizer, persist_state=True):
+        # 状态持久化：fsm_state.json
+        # Veto检查：LPPL Danger → SELL
+        # Scoring：signal_strength + confidence加权
+```
 
-#### LpplAnalysisEngine
-- 两个工厂函数: `create_lppl_engine()` 和 `create_lppl_data_service()`
-- `run_lppl_analysis()` 尝试 `LPPLEngine.detect_bubble(df)`，失败时回退 `_fallback_lppl_analysis()`
-- 回退逻辑: 使用价格振幅 (amplitude) 和收益率偏度/峰度做基本统计检测
-- 输出 `LPPLOutput`: risk_level, confidence, days_to_tc, price, r_squared, out_of_sample_r_squared
+### 2.4 输入输出表
 
-#### NtfAnalysisEngine
-- 使用 510300.SH (沪深 300 ETF) 作为国家队代理指标
-- 二级缓存: 内存 (`_market_cache['ntf_signals']`) + 磁盘 (24h TTL)
-- **注意**: 同上，wrapper 层逻辑与 `analysis_service_v2.py` 中的新 `_run_ntf()` 实现不同
-
-#### CzscAnalysisEngine
-- 依赖 czsc 第三方库包装缠论 (Zen) 分析
-- `CZSCSignalType` 枚举 (`一买/一卖/二买/二卖/三买/三卖`) 代替字符串匹配
-- `CZSCEngine` 核心: 本地 `RawBar` 构建 → CZSC 对象 → 信号解析
-- 输出 `CZSCOutput`: is_3rd_buy, bi_count, price, bottom
-
-#### WyckoffAnalysisEngine
-- 调用 `WyckoffEngine.run_wyckoff_analysis()`，输出 `WyckoffOutput`
-- WyckoffEngine v3.0 核心: 多周期分析 (日/周/月)、自定义 rules/classifiers/phase_analysis
-
-#### MacroAnalysisEngine
-- 最复杂的适配器: 使用 `@handle_errors`, `@retry`, `@validate_inputs` 装饰器链
-- 依赖 EVT risk 计算宏观风险指标 (VaR 95/99, CVaR 95/99, max drawdown)
-- 两级缓存 (磁盘, 1h TTL)
-- 验证服务: 与 `validation_service` 对比标准方法差异
-- 精度一致性: `ensure_precision_consistency()` 归一化浮点精度
+| 项 | 说明 |
+|---|---|
+| **输入** | `data_pack` (Dict): {stock: DataFrame, bench: DataFrame, sector: DataFrame, etf: DataFrame} |
+| **处理** | FSM状态推断 + Veto检查 + Scoring加权 |
+| **输出** | `Dict`: {current_state, signal_strength, recommendation, stop_loss, take_profit, summary} |
+| **缓存** | 2小时TTL，磁盘缓存 |
+| **降级** | `_fallback_fsm_analysis`: 基于均线关系的简单判断 |
 
 ---
 
-## 3. 核心引擎实现
+## 3. CZSC引擎（缠论）
 
-### 3.1 FSM 状态机 (`brain/fsm/fsm.py`)
+### 3.1 核心输出 - CZSCOutput
 
-**FSM 类**: 基于 MA20/MA60 均线交叉的市场趋势判断
-
-- 7 状态: IDLE, SIGNAL, PROBE, MONITOR, PYRAMID, EXIT, CIRCUIT_BREAK
-- 3 个核心方法:
-  - `infer_state(df)`: 检查价格与 MA60 关系，判断趋势状态 (SIGNAL/PROBE/MONITOR/IDLE)
-  - `_validate_input()`: 确保 OHLC 列完整
-  - `_build_state_result()`: 输出包含 `state`, `state_name`, `state_desc`, `transition_reason`, `ma_status`
-- Look-ahead Bias 修复: `is_intraday=True` 时排除当前未收盘 K 线
-
-**DecisionBrain 类** — 总控决策引擎 ("Veto-Scoring" 架构)
-
-```
-make_decision(data_packet)
-  │
-  ├─ 1. Symbol 切换检测 → 重置 FSM 状态到 IDLE
-  │
-  ├─ 2. _check_veto_conditions()
-  │   ├─ FROZEN 市场 → FORCE_WAIT
-  │   ├─ 风险引擎失败 → FORCE_WAIT
-  │   └─ LPPL Danger + 无 NTF 支持 → FORCE_EXIT
-  │
-  ├─ 3. 熔断检查 (B-007)
-  │   └─ 当日跌幅 < -5% → CIRCUIT_BREAK
-  │
-  ├─ 4. _calculate_score() — 加权评分
-  │   ├─ 三买信号      +40 (CZSC)
-  │   ├─ MA20 > MA60   +30 (趋势)
-  │   ├─ Alpha > 0.6   +20 (Alpha)
-  │   └─ NTF 支持      +10 (政策)
-  │   └─ 总分范围: 0-100
-  │
-  ├─ 5. _check_sell_conditions()
-  │   ├─ LPPL Danger
-  │   ├─ MA 反转 (MA20 <= MA60)
-  │   ├─ Alpha < -0.5
-  │   ├─ Regime FROZEN/STRESSED
-  │   └─ 跌停 → HOLD (非 SELL)
-  │
-  ├─ 6. _determine_target_state(score, is_3rd_buy)
-  │   └─ 阈值驱动: IDLE→SIGNAL(>=50) / SIGNAL→MONITOR(>=60) / MONITOR→PYRAMID(>=80) / EXIT(<20)
-  │
-  ├─ 7. _check_buy_blockers()
-  │   └─ LPPL Danger / FROZEN / 风险引擎失败 / 止损过宽 / Alpha 弱 / 涨跌停
-  │
-  └─ 8. _execute_buy()
-      └─ EVT 风险指标 → PositionSizer → 最终股数 (含风险缩放)
+```python
+@dataclass
+class CZSCOutput:
+    is_3rd_buy: bool          # 是否三买成立
+    bi_count: int             # 笔数量
+    price: float              # 当前价格
+    bottom: Optional[float]   # 底部价格（czsc_bottom_price或bottom_fractal）
+    trend: Optional[str]      # 趋势（上升/下降/震荡）
+    current_state: Optional[str]  # STRONG_BUY/BUY/NEUTRAL/SELL/STRONG_SELL
+    recent_highs: Optional[float] # 近期高点
 ```
 
-**状态持久化**: 通过 `_save_state()` / `_load_state()` 保存到 JSON 文件 (FileLock 保护)，重启后恢复
+### 3.2 信号解释
 
-**状态转换矩阵**:
+| 字段 | 值 | 交易含义 |
+|---|---|---|
+| `is_3rd_buy` | True | **BUY信号** - 缠论三买成立 |
+| `is_3rd_buy` | False | HOLD - 等待三买形成 |
+| `current_state` | STRONG_BUY | 强买入（当日涨幅>阈值） |
+| `current_state` | BUY | 买入（当日上涨） |
+| `current_state` | NEUTRAL | 中性（平盘） |
+| `current_state` | SELL | 卖出（当日下跌） |
+| `current_state` | STRONG_SELL | 强卖出（当日跌幅>阈值） |
 
-```
-IDLE     → SIGNAL, PROBE, CIRCUIT_BREAK
-SIGNAL   → PROBE, IDLE, CIRCUIT_BREAK
-PROBE    → MONITOR, IDLE, EXIT, CIRCUIT_BREAK
-MONITOR  → PYRAMID, EXIT, IDLE, CIRCUIT_BREAK
-PYRAMID  → MONITOR, EXIT, CIRCUIT_BREAK
-EXIT     → IDLE, CIRCUIT_BREAK
-CIRCUIT_BREAK → IDLE
-```
+### 3.3 A股适用性 ✅
 
-### 3.2 LPPL 泡沫检测 (`brain/lppl/engine.py`)
+**高适用性**：缠论是A股本土技术分析流派，专门针对A股市场特征设计。
 
-- LPPLConfig 配置驱动: 多窗口拟合 (40-100 天, 步长 20), 支持 Numba/JIT 加速
-- 两种优化器: L-BFGS-B (生产默认) 和 Differential Evolution (离线研究, ~50x 慢)
-- Ensemble 架构: 多窗口投票, `consensus_threshold=0.5`
-- 输出风险级别: Danger → Warning → Watch → Safe
-- 依赖参数: `W_BOUNDS`, `M_BOUNDS`, `RANDOM_SEED` (来自 shared/constants)
+### 3.4 降级处理
 
-### 3.3 CZSC 缠论 (`brain/czsc/czsc_engine.py`)
-
-- 包装 `czsc` 库: `RawBar` 构建 → `CZSC` 对象 → 信号提取
-- `CZSCSignalType` 枚举: 一买/一卖/二买/二卖/三买/三卖 + UNKNOWN
-- 兼容中英文信号值匹配
-- 支持 `volume` 和 `vol` 两种成交量列名
-
-### 3.4 Wyckoff 威科夫 (`brain/wyckoff/engine.py`)
-
-- v3.0 架构: `RegimeAwarePhaseClassifier`, `V3Rules`, `PointAndFigure`
-- 多周期分析: 日线/周线/月线, 自动调整回看窗口
-- 核心阶段: Accumulation → Markup → Distribution → Markdown
-- 输出: `WyckoffReport`, `WyckoffSignal`, `TradingPlan`
-
-### 3.5 Regime 市场状态 (`brain/regime/regime_detector.py`)
-
-- 基于沪深 300 指数的市场状态检测
-- 输出: NORMAL, STRESSED, FROZEN, UNKNOWN
-- 通过 `get_typed_summary(df)` 返回 `RegimeOutput`
-
-### 3.6 Alpha 分离度 (`brain/alpha_decoupler/alpha_decoupler.py`)
-
-- `get_alpha_score(stock, bench, sector)`: 相对于市场基准和行业基准的超额收益
-- 依赖沪深 300 (000300.SH) 和中证 500 (000905.SH) 基准数据
-
----
-
-## 4. 信号仲裁 (SignalArbitrator)
-
-位于 `src/uniquant/signal/arbitrator.py`
-
-**仲裁规则**:
-1. `TradingSignalCollector` 将各引擎输出转为 `CandidateSignal` (typed dataclass)
-2. `SignalArbitrator` 基于置信度、方向和强度进行仲裁
-3. SELL 优先规则: 当任意引擎发出 SELL 信号时，仲裁器优先处理
-4. BUY 信号需要多个引擎共识 + 置信度加权
-
-**仲裁流程**:
-```
-TradingSignalCollector.collect(data_pack)
-  ├─ regime_output   → CandidateSignal
-  ├─ lppl_output     → CandidateSignal
-  ├─ czsc_output     → CandidateSignal
-  ├─ wyckoff_output  → CandidateSignal
-  ├─ ntf_output      → CandidateSignal
-  ├─ alpha_output    → CandidateSignal
-  └─ 聚合 → TradingSignal 列表
-      └─ SignalArbitrator.arbitrate()
-           └─ 最终 TradingSignal (含 action, confidence, quantity)
+```python
+def _fallback_czsc_analysis(self, symbol, df):
+    # 简单趋势判断：短期MA vs 中期MA
+    # 简单状态判断：当日涨跌幅
+    # 返回CZSCOutput（current_state, trend, recent_highs/lows）
 ```
 
 ---
 
-## 5. 关键观察
+## 4. LPPL引擎（泡沫检测）
 
-### 5.1 架构风险
+### 4.1 核心输出 - LPPLOutput
 
-| # | 风险 | 位置 | 影响 |
-|---|------|------|------|
-| R3-1 | **双缓存路径**: Regime/NTF wrapper 用旧版 `_market_cache` dict，新版 `AnalysisService._run_regime/_run_ntf` 用 `MarketLevelCache` 类 | `regime_analysis_engine.py:58-76`, `analysis_service_v2.py:370-410` | Wrapper 层的缓存路径可能被绕过或产生不一致 |
-| R3-2 | **私有方法跨层耦合**: 所有 wrapper 引擎调用 `self.orchestrator._generate_cache_key()`, `_get_cached_result()`, `_set_cached_result()` — 依赖 AnalysisService 内部实现 | 全部 7 个 wrapper | 重构风险: 修改 AnalysisService 内部方法需同步 7 个 wrapper |
-| R3-3 | **报告引擎从未被调用**: `engine_factory.py` 注册了 `report` 引擎 (`ReportGeneratorEngine`)，但 `_run_engines()` 中未调用 | `services/analysis/`, `analysis_service_v2.py` | 死代码 |
-| R3-4 | **FsmAnalysisEngine 适配器未被新流程使用**: 旧 FSM 引擎只通过 `AnalysisService._factory.fsm` 暴露，新流程在 `_make_decision()` 中直接调用 `self.brain.make_decision()` | `services/analysis/fsm_analysis_engine.py` | 潜在的死代码路径 |
-| R3-5 | **DecisionBrain 硬编码依赖**: `DecisionBrain.__init__()` 中使用 `HistoricalSimulationRisk` 和 `PositionSizer` 作为默认值 | `brain/fsm/fsm.py:278-285` | 违反 DI 原则，难以单元测试 |
-| R3-6 | **`ctx.name` 未定义**: `_check_buy_blockers()` 和 `_check_sell_conditions()` 中引用 `ctx.name`，但 `MarketSignalContext` 数据类没有 `name` 字段 | `brain/fsm/fsm.py:410,469` | 运行时可能抛出 AttributeError |
-
-### 5.2 设计亮点
-
-| # | 亮点 | 位置 |
-|---|------|------|
-| S3-1 | **Veto-Scoring 架构**: 否决条件 (FROZEN/LPPL Danger) 优先级高于评分 | `brain/fsm/fsm.py:550-600` |
-| S3-2 | **状态持久化**: 磁盘 JSON + FileLock 保障重启恢复 | `brain/fsm/fsm.py:710-766` |
-| S3-3 | **市场级缓存**: Regime/NTF 只需计算一次，全市场共享 (24h TTL) | `analysis_service_v2.py:370-430` |
-| S3-4 | **回路熔断**: 当日跌幅 -5% 时触发 `CIRCUIT_BREAK`，恢复后自动回到 IDLE | `brain/fsm/fsm.py:571-597` |
-| S3-5 | **Symbol 切换自动重置**: FSM 状态在分析不同股票时自动从 IDLE 开始 | `brain/fsm/fsm.py:556` |
-| S3-6 | **Look-ahead Bias 修复**: 盘中模式使用昨日收盘数据计算 MA | `brain/fsm/fsm.py:136-140` |
-| S3-7 | **可恢复异常集**: 7-8 种异常的统一捕获，避免引擎崩溃导致全局失败 | 所有 wrapper |
-
-### 5.3 引擎执行顺序依赖
-
-```
-regime ──────┐
-lppl  ──────┤
-ntf   ──────┤
-czsc  ──────┼──→ DecisionBrain.make_decision()
-wyckoff ────┤     (需要所有引擎输出)
-alpha ──────┤
-derived ────┘
+```python
+@dataclass
+class LPPLOutput:
+    risk_level: str           # Safe/Warning/Danger/ENGINE_FAILED
+    confidence: float         # 置信度
+    days_to_tc: Optional[float]  # 距离临界点天数
+    price: float              # 当前价格
+    r_squared: float          # 拟合R²
+    out_of_sample_r_squared: float  # 样本外R²
 ```
 
-当前没有引擎之间的数据依赖转换 (所有引擎并行就绪，仅串行执行)。`alpha` 引擎依赖于 `data_service.lake` 获取基准数据。
+### 4.2 关键特性（从adapters.py已知）
 
-### 5.4 测试覆盖
+```python
+class LPPLAdapter(EngineAdapter):
+    """
+    默认 diagnostic_only=True（遥测优先）
+    LPPL已被Monte-Carlo证伪为零预测力引擎
+    （93% GBM噪声即可拟合 R²>0.3）
+    
+    支持：
+    - min_oos_r2/min_r2样本外拟合质量门
+    - diagnostic_only诊断模式（不参与一票否决强平）
+    """
+    def __init__(self, diagnostic_only=True, min_r2=None, min_oos_r2=None):
+        self.diagnostic_only = diagnostic_only  # 默认True
+```
 
-| 引擎 | 测试文件 | 状态 |
-|------|---------|------|
-| FSM/DecisionBrain | `tests/test_fsm.py`, `tests/test_factory_core.py` | ✅ 基础覆盖 |
-| LPPL | `tests/brain/test_lppl_engine.py` | ✅ |
-| CZSC | `tests/brain/test_czsc_engine.py` | ✅ |
-| Wyckoff | `tests/test_wyckoff_new_features.py` (12 预存失败) | ⚠️ 12 失败 |
-| Regime | `tests/brain/test_regime_detector.py` | ✅ |
-| Alpha | `tests/brain/test_alpha_decoupler.py` | ✅ |
-| NTF | `tests/brain/test_ntf_engine.py` | ✅ |
-| 仲裁器 | `tests/test_signal_arbitrator.py` (7 测试) | ✅ |
+### 4.3 信号解释
+
+| risk_level | diagnostic_only=True | diagnostic_only=False |
+|---|---|---|
+| **Danger** | HOLD (diagnostic) | **SELL** |
+| **Warning** | HOLD | HOLD |
+| **Safe** | HOLD | HOLD |
+
+### 4.4 A股适用性 🔴
+
+**低适用性**：
+- LPPL已被Monte-Carlo证伪为零预测力引擎
+- 93% GBM噪声即可拟合R²>0.3
+- **默认diagnostic_only=True**，仅作为遥测特征记录
+
+### 4.5 降级处理
+
+```python
+def _fallback_lppl_analysis(self, symbol, df):
+    # 基于振幅和波动率的简单泡沫检测
+    # max_pct_change > 0.20 → bubble_detected
+    # recent_volatility * 10 → confidence
+    # 返回LPPLOutput(risk_level="Warning"/"Safe")
+```
 
 ---
 
-## 6. 建议
+## 5. Regime引擎（市场状态检测）
 
-### P1
-1. **R3-1 (双缓存)**: 统一 Regime/NTF adapter 使用 `MarketLevelCache`，废弃旧版 `_market_cache` dict
-2. **R3-6 (ctx.name)**: 为 `MarketSignalContext` 添加 `name: str = ""` 字段或移除引用
+### 5.1 核心输出
 
-### P2
-3. **R3-2 (私有方法耦合)**: 为缓存操作定义 `CacheAdapterProtocol`，wrapper 通过协议而非直接调用 orchestrator
-4. **R3-3 (报告引擎)**: 移除或实现实际调用
+```python
+{
+    "symbol": "000300.SH",
+    "status": "success",
+    "regime": "NORMAL"  # NORMAL/STRESSED/FROZEN/UNKNOWN
+}
+```
 
-### P3
-5. **R3-5 (硬编码依赖)**: DecisionBrain 完全通过构造器注入依赖
-6. **R3-4 (FSM 死代码)**: 清理旧 FSM 适配器或明确弃用路径
-7. **Wyckoff 12 预存失败**: 诊断并修复
+### 5.2 市场级缓存机制
+
+```python
+def _run_regime_detection(self, ticker, data_pack):
+    # 市场状态是全市场共享的，只需计算一次
+    market_benchmark = "000300.SH"  # 沪深300
+    
+    # 1. 检查内存缓存
+    regime = self.orchestrator._market_cache.get('regime')
+    if regime is not None:
+        data_pack['regime'] = {'status': 'success', 'regime': regime}
+        return
+    
+    # 2. 检查磁盘缓存（24小时TTL）
+    cache_key = self.orchestrator._generate_cache_key("market_regime", date=...)
+    cached_result = self.orchestrator._get_cached_result(cache_key, use_disk=True)
+    
+    # 3. 执行实际计算
+    result = self.run_regime_detection(market_benchmark)
+    self.orchestrator._market_cache['regime'] = result.get("regime", "NORMAL")
+```
+
+### 5.3 信号解释
+
+| regime | 含义 | 交易含义 |
+|---|---|---|
+| **NORMAL** | 市场正常 | 正常交易 |
+| **STRESSED** | 市场压力 | 谨慎交易，降低仓位 |
+| **FROZEN** | 市场冻结 | 暂停交易 |
+| **UNKNOWN** | 未知 | 默认NORMAL |
+
+### 5.4 A股适用性 🟡
+
+**中等适用性**：基于HS300的市场状态检测，反映大盘整体环境。
 
 ---
 
-## 7. 验证清单
+## 6. NTF引擎（国家队干预检测）
 
-- [x] 读取所有 7 services/analysis engine wrappers
-- [x] 读取 engine_factory.py (9 引擎注册)
-- [x] 读取 analysis_service_v2.py (完整 7 引擎编排 + 决策)
-- [x] 读取 brain/fsm/fsm.py (FSM + DecisionBrain 完整逻辑)
-- [x] 读取 brain/lppl/engine.py (LPPL 核心)
-- [x] 读取 brain/czsc/czsc_engine.py (CZSC 核心)
-- [x] 读取 brain/wyckoff/engine.py (Wyckoff v3.0 核心)
-- [x] 检查 signal/arbitrator.py (信号仲裁)
-- [x] 检查 shared/interfaces.py (所有引擎输出类型)
+### 6.1 核心输出 - NtfOutput
+
+```python
+@dataclass
+class NtfOutput:
+    side: str        # NONE/SUPPORT/RESISTANCE
+    intensity: float # 强度（0.0-1.0）
+```
+
+### 6.2 市场级缓存机制
+
+```python
+def _run_ntf_detection(self, ticker, data_pack):
+    # 国家队干预信号是全市场共享的
+    ntf_proxy = "510300.SH"  # 上证50ETF
+    
+    # 内存缓存 + 磁盘缓存（24小时TTL）
+    # 全市场共享，只需计算一次
+```
+
+### 6.3 信号解释
+
+| side | 含义 | 交易含义 |
+|---|---|---|
+| **SUPPORT** | 国家队支撑 | 可能触底反弹 |
+| **RESISTANCE** | 国家队阻力 | 可能见顶回落 |
+| **NONE** | 无干预 | 正常交易 |
+
+### 6.4 A股适用性 🔴
+
+**低适用性**：
+- 依赖ETF代理（510300.SH上证50ETF）
+- 国家队干预检测准确性存疑
+- 仅作为参考信息
+
+---
+
+## 7. Wyckoff引擎（威科夫分析）
+
+### 7.1 核心输出 - WyckoffOutput（30+字段）
+
+```python
+@dataclass
+class WyckoffOutput:
+    # 核心字段
+    phase: str                    # accumulation/markup/distribution/markdown/unknown
+    confidence: float             # A/B/C/D → 0.9/0.7/0.5/0.3
+    spring: bool                  # 弹簧检测
+    utad: bool                    # 向上突破失败检测
+    price: float                  # 当前价格
+    rr_ratio: float               # 风险回报比
+    direction: str                # 方向（P0-1透传）
+    bypassed: bool                # 是否绕过
+    
+    # 点数图分析
+    pnf_phase_hint: str           # 点数图阶段提示
+    pnf_breakout: bool            # 点数图突破
+    pnf_count_target: float       # 点数图计数目标
+    
+    # 多时间框架共振（P2-1标注）
+    resonance_count: int          # 共振数量
+    resonance_dir: str            # 共振方向
+    resonance_strength: float     # 共振强度
+    
+    # 市场状态
+    regime_phase: Optional[str]   # 市场阶段
+    vshape_detected: bool         # V型反转检测
+    adjustment_status: str        # 调整状态
+    structural_score: float       # 结构评分
+    relative_strength: Optional[str]  # 相对强度
+    
+    # EVT风险
+    evr_state: str                # EVT风险状态
+    evr_level: int                # EVT风险等级
+    evr_position_context: str     # EVT位置上下文
+    
+    # 事件检测
+    pattern_failure_detected: bool   # 形态失败检测
+    pattern_failure_ratio: float     # 形态失败比率
+    no_supply_detected: bool         # 无供应检测
+    nsd_detected: bool               # NSD检测
+    vdu_detected: bool               # VDU检测
+    event_cooldown_active: bool      # 事件冷却激活
+    event_cooldown_days: int         # 事件冷却天数
+    
+    # 技术指标
+    range_score: float            # 范围评分
+    avwap: float                  # 锚定VWAP
+    bias200: float                # 200日均线偏差
+    pnf_phase_divergence: Optional[str]  # 点数图阶段背离
+    vdb_divergence: str           # VDB背离
+    lps_stage: str                # LPS阶段
+    sos_candidate_detected: bool  # SOS候选检测
+```
+
+### 7.2 信号解释
+
+| 字段 | 值 | 交易含义 |
+|---|---|---|
+| `phase` | accumulation | **积累阶段** - 潜在买入机会 |
+| `phase` | markup | **上涨阶段** - 持有 |
+| `phase` | distribution | **分配阶段** - 潜在卖出机会 |
+| `phase` | markdown | **下跌阶段** - 观望/卖出 |
+| `spring` | True | **BUY信号** - 弹簧（假突破向下） |
+| `utad` | True | **SELL信号** - UTAD（向上突破失败） |
+| `confidence` | A (0.9) | 高置信度 |
+| `confidence` | B (0.7) | 中高置信度 |
+| `confidence` | C (0.5) | 中等置信度 |
+| `confidence` | D (0.3) | 低置信度 |
+
+### 7.3 辅助检测方法
+
+```python
+# WyckoffAnalysisEngine提供的辅助方法
+detect_spring(df)  # 弹簧检测：跌破支撑+放量 → spring_detected
+detect_utad(df)    # UTAD检测：上涨+缩量+窄幅 → utad_detected
+detect_lps(df)     # LPS检测：下跌+缩量+范围收窄 → lps_detected
+detect_sow(df)     # SOW检测：价格突变+量能突变 → sow_detected
+```
+
+### 7.4 指数数据加载
+
+```python
+_INDEX_PATHS = (
+    "data/lake/quotes/index/000300.SH.parquet",
+    "data/lake/index/000300.SH.parquet",
+    "data/lake/quotes/daily/000300.SH.parquet",
+    "data/csi300_index.parquet",
+)
+# 用于相对强度分析（relative_strength）
+# 指数不可用时优雅降级（relative_strength=None）
+```
+
+### 7.5 A股适用性 ✅
+
+**高适用性**：威科夫方法基于量价关系分析，适用于A股市场。
+
+### 7.6 降级处理
+
+```python
+def _fallback_wyckoff_analysis(self, symbol, df):
+    # 基于成交量比率和价格位置的简单积累/分配检测
+    # recent_vol_ratio > 1.2 + recent_price_pos < 0.05 → accumulation
+    # recent_vol_ratio > 1.2 + recent_price_pos > 0.05 → distribution
+    # 返回WyckoffOutput(phase, confidence)
+```
+
+---
+
+## 8. Macro引擎（宏观与市场基准）
+
+### 8.1 核心输出
+
+```python
+{
+    "var_95": float,         # VaR 95%
+    "var_99": float,         # VaR 99%
+    "cvar_95": float,        # CVaR 95%
+    "cvar_99": float,        # CVaR 99%
+    "max_drawdown": float,   # 最大回撤
+    "regime": "NORMAL",      # 市场状态
+    "ntf_signal": "中性",    # 国家队信号
+    "summary": "宏观环境分析完成"
+}
+```
+
+### 8.2 数据源
+
+```python
+def get_macro_returns(self, window=200):
+    # 使用HS300指数日线（sh000300）
+    df = self.orchestrator.data_service.fetcher.fetch_index_daily("sh000300", ...)
+    df["pct_change"] = df["close"].pct_change()
+    returns = df["pct_change"].dropna().tail(window)
+    return returns
+```
+
+### 8.3 验证机制
+
+```python
+# 与标准方法对比验证
+standard_results = {
+    "var_95": validation_service.calculate_standard_var(returns, 0.95),
+    "var_99": validation_service.calculate_standard_var(returns, 0.99),
+    "cvar_95": validation_service.calculate_standard_cvar(returns, 0.95),
+    ...
+}
+validation_result = validation_service.validate_risk_metrics(metrics, standard_results)
+```
+
+### 8.4 A股适用性 🟡
+
+**中等适用性**：基于HS300的EVT风险指标，反映大盘整体风险。
+
+---
+
+## 9. Alpha引擎（AlphaDecoupler）
+
+### 9.1 核心功能
+
+```python
+class AlphaDecoupler:
+    """
+    Alpha Decoupler for catching relative strength.
+    Calculates RS Slope and filters low-correlation assets.
+    """
+    
+    @staticmethod
+    def get_benchmark(market_cap):
+        # 根据市值路由基准
+        # >800亿 → 沪深300 (000300.SH)
+        # 200-800亿 → 中证500 (000905.SH)
+        # 50-200亿 → 中证1000 (000852.SH)
+        # <50亿 → 中证2000 (932000.CSI)
+    
+    @staticmethod
+    def calc_rs_slope(stock_df, bench_df, window=20):
+        # 1. 先计算各自收益率，再merge（避免停牌复牌脉冲噪音）
+        stock_df["stock_ret"] = stock_df["close"].pct_change().fillna(0)
+        bench_df["bench_ret"] = bench_df["close"].pct_change().fillna(0)
+        
+        # 2. 计算收益率差并累积
+        combined["diff_ret"] = combined["stock_ret"] - combined["bench_ret"]
+        combined["rs_curve"] = combined["diff_ret"].cumsum()
+        
+        # 3. 线性拟合求斜率
+        slope = np.polyfit(x, rs_data, 1)[0]
+        return slope * 100
+```
+
+### 9.2 信号解释
+
+| RS Slope | 含义 | 交易含义 |
+|---|---|---|
+| > 0 | 跑赢基准 | **正面信号** - 相对强度向上 |
+| < 0 | 跑输基准 | **负面信号** - 相对强度向下 |
+| ≈ 0 | 与基准同步 | 中性 |
+
+### 9.3 A股适用性 ✅
+
+**高适用性**：
+- 基准路由符合A股结构（大盘/中盘/小盘/微盘）
+- RS Slope捕捉结构性机会
+- 避免停牌复牌脉冲噪音
+
+---
+
+## 10. data_pack字段来源表
+
+| 字段 | 来源引擎 | 类型 | 说明 |
+|---|---|---|---|
+| `stock` | DataService | DataFrame | 股票日线（9列契约） |
+| `bench` | DataService | DataFrame | 基准指数（HS300） |
+| `etf` | DataService | DataFrame | ETF数据 |
+| `regime` | RegimeEngine | Dict | 市场状态（市场级缓存） |
+| `ntf` | NTFEngine | Dict | 国家队干预（市场级缓存） |
+| `fsm` | FSMEngine | Dict | FSM状态（current_state, signal_strength） |
+| `czsc` | CZSCEngine | CZSCOutput | 缠论信号（is_3rd_buy, bi_count） |
+| `lppl` | LPPLEngine | LPPLOutput | 泡沫风险（risk_level, confidence） |
+| `wyckoff` | WyckoffEngine | WyckoffOutput | 威科夫分析（phase, spring, utad） |
+| `macro` | MacroEngine | Dict | EVT风险（var/cvar/drawdown） |
+| `alpha` | AlphaDecoupler | float | RS Slope |
+| `engine_status` | AnalysisService | Dict | 引擎状态（ok/failed） |
+| `engine_errors` | AnalysisService | Dict | 引擎错误信息 |
+| `trace_id` | AnalysisService | str | 追踪ID |
+
+---
+
+## 11. DecisionBrain决策流程
+
+### 11.1 Veto-Scoring架构
+
+```python
+class DecisionBrain:
+    """
+    Veto-Scoring（否决-加权）架构
+    """
+    
+    def make_decision(self, data_pack):
+        # 1. 收集各引擎输出
+        fsm_result = data_pack.get("fsm", {})
+        czsc_result = data_pack.get("czsc", {})
+        lppl_result = data_pack.get("lppl", {})
+        wyckoff_result = data_pack.get("wyckoff", {})
+        regime_result = data_pack.get("regime", {})
+        
+        # 2. Veto检查（否决）
+        # LPPL Danger (非diagnostic) → SELL
+        # Regime FROZEN → 暂停交易
+        
+        # 3. Scoring（加权）
+        # FSM signal_strength + CZSC is_3rd_buy + Wyckoff spring
+        
+        # 4. 生成决策
+        return {
+            "decision": "BUY"/"SELL"/"HOLD",
+            "score": float,
+            "summary": str,
+        }
+```
+
+### 11.2 引擎分类
+
+| 类型 | 引擎 | 作用 |
+|---|---|---|
+| **交易信号引擎** | FSM, CZSC, Wyckoff | 产生BUY/SELL信号 |
+| **风险过滤器引擎** | LPPL, Macro | 风险检测，可能触发SELL |
+| **市场环境判断引擎** | Regime, NTF | 市场状态，影响仓位 |
+| **相对强度引擎** | Alpha | RS Slope，辅助选股 |
+
+---
+
+## 12. 多引擎信号冲突分析
+
+### 12.1 潜在冲突场景
+
+| 冲突场景 | 引擎A | 引擎B | 处理机制 |
+|---|---|---|---|
+| **场景1** | FSM SIGNAL (买入) | LPPL Danger (卖出) | LPPL默认diagnostic_only，不冲突 |
+| **场景2** | CZSC三买 (买入) | Wyckoff distribution (卖出) | SignalArbitrator仲裁（Sell-Priority） |
+| **场景3** | FSM SIGNAL (买入) | Regime STRESSED (谨慎) | DecisionBrain加权，降低仓位 |
+| **场景4** | Wyckoff spring (买入) | LPPL Warning (谨慎) | LPPL Warning → HOLD，不冲突 |
+
+### 12.2 仲裁机制
+
+**DecisionBrain层**：
+- Veto-Scoring架构
+- LPPL Danger (非diagnostic) → Veto SELL
+- Regime FROZEN → Veto暂停
+
+**SignalArbitrator层**（特性开关控制）：
+- Sell-Priority规则：同时出现BUY和SELL时，SELL获胜
+- 置信度规则：基于CandidateSignal.confidence
+
+### 12.3 冲突风险
+
+| 风险 | 说明 | 缓解 |
+|---|---|---|
+| **CZSC vs Wyckoff冲突** | 三买 vs distribution | SignalArbitrator Sell-Priority |
+| **FSM vs Regime冲突** | 买入信号 vs 市场压力 | DecisionBrain加权，降低仓位 |
+| **降级逻辑冲突** | 简单降级逻辑可能误导 | 日志记录降级原因 |
+
+---
+
+## 13. A股适用性评价
+
+### 13.1 适用性矩阵
+
+| 引擎 | 适用性 | 理由 | 评级 |
+|---|---|---|---|
+| **FSM** | ✅ 高 | 基于均线，通用技术分析 | ⭐⭐⭐⭐ |
+| **CZSC** | ✅ 高 | 缠论，A股本土技术分析流派 | ⭐⭐⭐⭐⭐ |
+| **Wyckoff** | ✅ 高 | 威科夫方法，量价关系分析 | ⭐⭐⭐⭐⭐ |
+| **Alpha** | ✅ 高 | 相对强度，A股结构性机会 | ⭐⭐⭐⭐ |
+| **Regime** | 🟡 中 | 市场状态检测，基于HS300 | ⭐⭐⭐ |
+| **Macro** | 🟡 中 | EVT风险指标，基于HS300 | ⭐⭐⭐ |
+| **LPPL** | 🔴 低 | 已被证伪为零预测力，默认diagnostic_only | ⭐⭐ |
+| **NTF** | 🔴 低 | 国家队干预检测，依赖ETF代理，准确性存疑 | ⭐⭐ |
+
+### 13.2 引擎推荐配置
+
+**核心引擎（推荐启用）**：
+- FSM: 买卖状态判断
+- CZSC: 三买信号
+- Wyckoff: 威科夫阶段 + spring/utad
+- Alpha: RS Slope相对强度
+
+**辅助引擎（可选启用）**：
+- Regime: 市场状态过滤
+- Macro: EVT风险指标
+
+**遥测引擎（仅记录，不参与决策）**：
+- LPPL: 默认diagnostic_only=True
+- NTF: 准确性存疑，仅参考
+
+---
+
+## 14. 引擎失败默认值
+
+| 引擎 | 失败时的默认值 | 降级逻辑 |
+|---|---|---|
+| **FSM** | `{current_state: "UNKNOWN", signal_strength: 0.0, recommendation: "未知"}` | 基于均线关系的简单判断 |
+| **CZSC** | `CZSCOutput()` (is_3rd_buy=False, bi_count=0) | 基于当日涨跌和短期MA的简单判断 |
+| **LPPL** | `LPPLOutput(risk_level="ENGINE_FAILED", confidence=0.0)` | 基于振幅和波动率的简单泡沫检测 |
+| **Regime** | `{regime: "NORMAL"}` | 默认NORMAL |
+| **NTF** | `NtfOutput(side="NONE")` | 默认无干预 |
+| **Macro** | `{var_95: DEFAULT, cvar_95: DEFAULT, max_drawdown: DEFAULT, regime: "NORMAL"}` | 默认风险指标 |
+| **Wyckoff** | `WyckoffOutput(phase="unknown")` | 基于成交量比率和价格位置的简单积累/分配检测 |
+
+---
+
+## 15. 校验清单
+
+- [x] 覆盖FSM、CZSC、LPPL、NTF、Regime、Wyckoff、Alpha、Indicators（§1-9）
+- [x] 说明每个引擎失败时默认值（§14）
+- [x] 说明哪些输出适合买入、卖出、观望、风控（§2-9各引擎信号解释）
+- [x] 绑定具体文件和函数（各引擎源文件）
+- [x] 引擎清单（§1.2）
+- [x] 每个引擎的业务含义（§2-9）
+- [x] 输入输出字段表（§2-9各引擎输出）
+- [x] data_pack字段来源表（§10）
+- [x] DecisionBrain决策流程（§11）
+- [x] A股适用性评价（§13）
+- [x] 信号冲突风险（§12）
+
+---
+
+## 16. 阶段3结论
+
+UniQuant的多引擎系统展现了**丰富的策略工具箱和严格的降级机制**：
+
+### 架构优点 ✅
+1. **两层架构清晰**：服务层适配器 + Brain层核心引擎
+2. **引擎分类明确**：交易信号/风险过滤器/市场环境/相对强度
+3. **Veto-Scoring架构**：DecisionBrain整合多引擎，否决-加权决策
+4. **降级处理完善**：每个引擎都有`_fallback_*_analysis`方法
+5. **市场级缓存**：Regime和NTF全市场共享，24小时TTL
+6. **前视偏差防护**：FSM盘中模式使用前一日数据计算MA
+7. **A股本土化**：CZSC缠论、Alpha基准路由符合A股结构
+
+### 核心发现 ✅
+1. **高适用性引擎**：CZSC（缠论）⭐⭐⭐⭐⭐、Wyckoff（威科夫）⭐⭐⭐⭐⭐
+2. **低适用性引擎**：LPPL（已证伪，默认diagnostic_only）⭐⭐、NTF（准确性存疑）⭐⭐
+3. **信号冲突仲裁**：DecisionBrain Veto-Scoring + SignalArbitrator Sell-Priority
+4. **降级逻辑简单**：可能产生误导性信号（需日志记录降级原因）
+
+### 主要风险 🟡
+1. 🟡 **降级逻辑过于简单**：fallback方法基于简单技术指标，可能误导
+2. 🟡 **NTF准确性存疑**：依赖ETF代理，建议降级为遥测
+3. 🟡 **LPPL已证伪**：默认diagnostic_only正确，但需确保不被误用
+4. 🟡 **信号冲突处理**：CZSC vs Wyckoff冲突需SignalArbitrator仲裁
+
+**下一阶段**：阶段4 - 因子系统分析（深入因子注册、计算、评价、组合、样本外验证）
+
+---
+
+**分析人**：Claude (Anthropic)  
+**审核状态**：待用户确认  
+**产物路径**：`docs/analysis/03_brain_engines.md`
