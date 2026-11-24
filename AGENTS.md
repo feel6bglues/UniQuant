@@ -266,6 +266,7 @@ Any change touching these rules requires focused tests and explicit review.
 - For sensitive paths, review auth, data validation, injection risk, secrets, and error leakage.
 - After meaningful changes, review the diff and record verification performed.
 - **Sync docs with every change**: After any code modification (feature, refactor, bugfix), update the affected documentation under `docs/`. Round changelog blocks go to `docs/archive/AGENTS_CHANGELOG_ROUNDS.md` (newest at top); `AGENTS.md` keeps only the latest 2 round blocks + one index line each — never append new history sections to `AGENTS.md`. Treat documentation drift as a blocker, not a backlog item.
+- **Independent verification for analysis-report verdicts (anti-circular-self-verification)**: Any rating / acceptance / "health" verdict on an analysis report must come from a verifier who did **not** author it and who cross-compares **evidence only** (not opinions); roll-up numbers must be recomputed by script from the current working tree (never hand-copied from sub-reports); and a report must **never** anchor its credibility to another same-source self-produced report. Self-graded "0 CRITICAL / all-excellent" verdicts and circular "accuracy %" backings are invalid. This closes the report-layer enforcement gap in Rules 3 & 4. Rationale plus the failure-mode → historical-precedent mapping: `docs/analysis/VERIFICATION_HARNESS_LESSONS_20261124.md`.
 
 ---
 
