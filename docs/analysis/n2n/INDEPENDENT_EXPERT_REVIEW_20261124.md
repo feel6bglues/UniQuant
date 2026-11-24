@@ -80,7 +80,7 @@ if engine == "LPPL" and direction == "SELL": priority = 0
 
 **HIGH — H1：数据新鲜度 SLA 有名无实，且报告据此给出"已修复"结论。** FreshnessValidator 被列为"第 25 轮已修复"，依据仅是集成进 StorageManager + 挂 crontab，但报告自承"仅运维巡检，不在交易/分析运行时路径"。对在线交易系统，**门禁不在运行时路径 = 数据滞后时系统照常交易，SLA 等于没有**。
 
-**HIGH — H2：三级降级链单点故障与在线源硬编码主机未评估。** 在线源默认主机硬编码生产 IP `101.35.121.35`（`tdxdata_online.py:13`），无备用节点、无出网故障行为评估；串行 fallback 最坏路径延迟报告完全未测。
+**HIGH — H2：三级降级链单点故障与在线源默认主机单点未评估。** 在线源默认主机 `101.35.121.35` 见于 `tdxdata_online.py:13`（注：该行系 docstring 说明，非生效常量赋值），备用节点依赖外部 `connect.cfg`（东证节点）而非代码内置，故单点风险取决于该配置是否就位；且无出网故障行为评估，串行 fallback 最坏路径延迟报告完全未测。
 
 **MEDIUM — M1**：在线源异常静默返回空表（fail-open，伪装成"该股票没数据"）。**M2**：在线-离线一致性只靠 `[60,160]` 统计比值"自校准"，无对账门禁。**LOW — L1**：报告内文列序描述自相矛盾。
 
@@ -114,7 +114,7 @@ A股微观规则覆盖最扎实，但撮合被理想化，且**完全没有回�
 
 **算法专家**：
 - **HIGH — H1**："零 HIGH"与 win_rate 口径、成本率时变性等实质隐患并存，评级过松。**HIGH — H2**：全报告无一条 equity curve、无一个 Sharpe/胜率/回撤实测值——**验证撮合假设的唯一方式是跑出来看，报告停在"代码看起来对"**。
-- **MEDIUM — M1**：win_rate/profit_factor 在加仓(金字塔)下口径有偏（多次买入+一次清仓时盈亏配对错）。**M2**：30 日跌停 0 元出清会系统性高估尾部亏损。**M3**：`unified_engine.py:73` 与 `unified_matching_engine.py:39` 用**固定 stamp_duty_rate**，未用 `cost_model.py:44` 的时变 `get_stamp_tax_pct`（跨 2023-08-28 时 2023 年前卖出成本被低估）。**M4**：幸存者偏差检查实为空转（`get_delist_date` 拿不到就 `pass`，仅塞 warning 不剔除）。
+- **MEDIUM — M1**：win_rate/profit_factor 在加仓(金字塔)下口径有偏（多次买入+一次清仓时盈亏配对错）。**M2**：30 日跌停 0 元出清会系统性高估尾部亏损。**M3**：`unified_engine.py:73` 与 `unified_matching_engine.py:39` 的 `stamp_duty_rate` 为**默认固定的构造参数**（可注入但默认不随时变），未用 `cost_model.py:44` 的时变 `get_stamp_tax_pct`（跨 2023-08-28 时 2023 年前卖出成本被低估）。**M4**：幸存者偏差检查实为空转（`get_delist_date` 拿不到就 `pass`，仅塞 warning 不剔除）。
 
 **资深交易员**：
 - **HIGH — H1**：开盘触板"一刀切"判不可成交，未讨论"开盘涨停/跌停≠全天一字板、常会开板"的撮合。**HIGH — H2**：滑点上限 2% 对小市值/ST 严重低估，无敏感性数据（典型"回测赚钱、实盘不可复现"）。
@@ -128,7 +128,7 @@ A股微观规则覆盖最扎实，但撮合被理想化，且**完全没有回�
 
 **HIGH — H1：空头总权重检查缺失 = 防线 fail-open**，报告降级为 MEDIUM（文档承诺 75% 防线未实现）。
 
-**HIGH — H2（报告完全遗漏）：PositionSizer 失败时放水到固定 100 股，而非 fail-closed。** `arbitrator.py:400-403` `except Exception: sized_shares = 100`；`unified_engine.py:421-422` 同样。仓位计算失败（含 InvalidStopLossError）时**不是拒绝开仓，而是硬编码开 1 手**。报告却描述成"优雅降级"。**这是全篇最该点出却没点出的问题。**
+**HIGH — H2（报告完全遗漏）：PositionSizer 失败时放水到固定 100 股，而非 fail-closed。** `arbitrator.py:406` `except Exception: sized_shares = 100`；`unified_engine.py:366-368` 同样（`shares<=0 → 100`，及 `except (KeyError,TypeError,ValueError,RuntimeError): shares = 100`）。仓位计算失败（含 InvalidStopLossError）时**不是拒绝开仓，而是硬编码开 1 手**。报告却描述成"优雅降级"。**这是全篇最该点出却没点出的问题。**
 
 **HIGH — H3（报告完全遗漏）：PositionSizer 无单仓权重上限，本金熔断允许 100% 满仓单票。** §6.4 路径算出 `total_value=1,040,000 > capital=1,000,000`，仅靠本金熔断截断 = **把全部本金压在一只票上**；唯一压住它的是另一模块（合规引擎 2.5% 上限）。若合规引擎不在 sizer 之后，就是满仓梭哈。
 
@@ -180,7 +180,7 @@ UI 架构干净，但报告对**"展示会不会误导"几乎零覆盖**，还�
 
 **HIGH — H1：数据流入口 API 前后不一致。** 本报告用 `DataFetcher.fetch_history()`，报告 01 用 `get_price()`，两者是不同方法（`fetch_history` 在 line 493）。**跨模块链路没有沿单一真实调用链验证过，是拼贴而非追踪。**
 
-**MEDIUM — M1**：服务清单跨报告不一致（实际注册 12 个服务，三份报告三个版本）。**M2**：`enrich_lake_data` 简化版信号当真实信号（报告列 LOW，评审判 MEDIUM）。
+**MEDIUM — M1**：服务清单跨报告不一致（三份报告三个版本）。⚠️ 评审所述"实际注册 12 个服务"**未经独立复算确认**：`service_container.py` 有 12 行 `register_factory`，但全仓 grep 到 20 个不同注册名（`lppl/czsc/qar` 等引擎经另一路径注册），两个口径未对账，具体数字存疑。**M2**：`enrich_lake_data` 简化版信号当真实信号（报告列 LOW，评审判 MEDIUM）。
 
 ---
 
@@ -193,7 +193,7 @@ UI 架构干净，但报告对**"展示会不会误导"几乎零覆盖**，还�
 ## 五、各视角高严重度问题速查
 
 ### 资深交易员（聚焦"实盘能不能这么干"）
-- 风控 fail-open（HIGH）：PositionSizer 失败放水 100 股（`arbitrator.py:400-403`、`unified_engine.py:421-422`）
+- 风控 fail-open（HIGH）：PositionSizer 失败放水 100 股（`arbitrator.py:406`、`unified_engine.py:366-368`）
 - 满仓单票（HIGH）：PositionSizer 无单仓权重上限，仅靠另一模块兜底
 - UI 误导（HIGH）：macro mock 假"正常"、简化版 Signal/CZSC 无标注、回测呈现零覆盖
 - 空头权重检查缺失被降级为 MEDIUM
@@ -253,10 +253,10 @@ UI 架构干净，但报告对**"展示会不会误导"几乎零覆盖**，还�
 |---|---|
 | `src/uniquant/signal/arbitrator.py:32-42` | `ENGINE_PRIORITY` 实际 `lppl:99(最低)`，报告虚构为最高=1 |
 | `src/uniquant/signal/arbitrator.py:175` | quality gate OOS 默认 1.0（缺数据即满分） |
-| `src/uniquant/signal/arbitrator.py:400-403` | `except Exception: sized_shares = 100`（fail-open） |
+| `src/uniquant/signal/arbitrator.py:406` | `except Exception: sized_shares = 100`（fail-open） |
 | `src/uniquant/hands/backtest/unified_engine.py:73` | 固定 `stamp_duty_rate`，未用时变税率 |
 | `src/uniquant/hands/backtest/unified_engine.py:337-348` | 实为 `pending_order` 结转 + lppl reason 特判，无报告声称的 `priority` 代码 |
-| `src/uniquant/hands/backtest/unified_engine.py:421-422` | `except: shares = 100`（fail-open） |
+| `src/uniquant/hands/backtest/unified_engine.py:366-368` | `except(...): shares = 100` + `shares<=0→100`（fail-open） |
 | `src/uniquant/hands/backtest/unified_matching_engine.py:39` | 固定 `stamp_duty_rate=0.0005` |
 | `src/uniquant/shared/cost_model.py:44` | `get_stamp_tax_pct(date)` 时变印花税（未被撮合引擎使用） |
 | `src/uniquant/signal/adapters.py:163,482` | CZSC `min(0.5+bi_count*0.05,0.9)`、QAR `min(0.5+weight*10,0.95)`（报告公式漏 cap） |
@@ -265,3 +265,15 @@ UI 架构干净，但报告对**"展示会不会误导"几乎零覆盖**，还�
 | `src/uniquant/data/data_fetcher.py:493` | `fetch_history` 与 `get_price` 是两个不同入口（报告 01/09 口径不一） |
 
 *本评审仅读取与分析，未修改任何源码。各报告末尾已追加对应评审章节。*
+---
+
+## 附录二：审计修订记录（2026-11-24）
+
+本评审经独立审计回代码逐条复核后，修订 4 处自身瑕疵（不动摇总裁决，仅提升引用精度）：
+
+1. **fail-open 行号漂移（已修正）**：`arbitrator.py` 的 `sized_shares = 100` 实测在 `:406`（原写 `:400-403`）；`unified_engine.py` 的 `shares = 100` 实测在 `:366-368`（原写 `:421-422`，该区间实为 `benchmark_return` 逻辑）。行为断言不变，行号已更正。
+2. **"无备用节点"措辞过强（已软化）**：`tdxdata_online.py:13` 系 docstring，且明写备用节点依赖外部 `connect.cfg`（东证节点）。准确批评为"默认主机单点、备用依赖外部配置、故障切换行为未评估"，非"无备用节点"。
+3. **"硬编码印花税"措辞（已澄清）**：`stamp_duty_rate` 是可注入的构造参数、默认值固定，非不可变硬编码。默认路径上"未用时变税率"的批评仍成立。
+4. **"实际注册 12 个服务"（已标注未核实）**：`service_container.py` 有 12 行 `register_factory`，但全仓 grep 到 20 个不同注册名（引擎经另一路径注册），两口径未对账，该具体数字存疑，已标注为未经独立复算确认。
+
+其余全部 file:line 引用、模块计数（brain 73/20,917、230 总数、data 40/7,808、signal 3/1,194、backtest 10/3,723、services 28/8,554、analysis_service_v2 640）及核心行为断言，经审计实测**分毫不差**，未作改动。
